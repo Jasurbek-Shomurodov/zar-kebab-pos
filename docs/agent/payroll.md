@@ -39,9 +39,9 @@
 ## KPI
 
 - `195`/`196`: from `2026-09-16`, rules choose own opened orders or all restaurant dine-in sales. Base is paid subtotal + service by Tashkent payment date, ignoring loyalty. Own rules require `order_opener_profile_id` or payroll `profile_id`; restaurant rules need no account. Earlier catch-up uses all sales.
-- `203`/`213`: `start_time`: both bases require `created_at` ≥ cutoff on the Tashkent payment date; paid before midnight. Earlier/null openings excluded. `employee_kpi_sales_base` aligns estimates/finalization; snapshots immutable. Tests: `tests/timeBasedKpi.test.js`, `tests/employeeOpenedOrderKpi.test.js`.
+- `203`/`226`: `start_time` gates `paid_at` on the Tashkent payment date; `226` drops the `213` opening cutoff, so a closed order counts on its paid day. Shared `employee_kpi_sales_base`; snapshots immutable. Tests: `tests/timeBasedKpi.test.js`, `tests/closedOrderKpiDay.test.js`.
 - `215`/`217`: same-day table rows inherit the opener for own KPI.
-- Skip absences and dates outside employment boundaries.
+- `226`: absences no longer skip KPI. Employment boundaries still do.
 - Runs/results are immutable; only service-role finalization creates `daily_kpi` bonuses (`200`: creator repair). `202` forbids deleting previous-day orders for everyone; today's deletions reduce own/restaurant bases before finalization.
 - Bonuses accrue into salary. Formula/settlement are immutable; payments record cash expense.
 - Deleting a generated bonus marks its result voided; retries never recreate it.

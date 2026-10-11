@@ -13,7 +13,7 @@
 ## Workflow
 
 - Use full filenames; keep legacy `073`, `108`, `157` duplicates distinct.
-- `199`: checksum receipts; service-only drift checks. `node migrations/migrate.js --status`, `--sql <filename>`, `--apply <filename>`; Setup: README. No bulk legacy replay. Atomic receipts: matching checksums skip, changed checksums fail. Reconcile lost responses.
+- `199`: checksum receipts; service-only drift checks. `node migrations/migrate.js --status`, `--sql <filename>`, `--apply <filename>`; No bulk legacy replay. Atomic receipts: matching checksums skip, changed checksums fail. Reconcile lost responses.
 - Migrations:
   - settings, payments, kitchen submit, tables/reservations: `011`, `012`, `018`–`020`
   - kitchen idempotency and durable receipts: `096`, `128`
@@ -36,7 +36,7 @@
   - Game Club type, permission and service checks: `179`
   - Game Club per-round Team queue/cron: `180`
   - Daily Team KPI image claims and legacy-delivery suppression: `181`
-- Tech Card cost-sync batching and convergence: `183` (faster saves). Tests: `tests/techCardCostSyncMigration.test.js`; SQL: `scripts/check-tech-card-cost-sync.mjs` (PGlite path).
+- Tech Card cost-sync batching and convergence: `183`. Tests: `tests/techCardCostSyncMigration.test.js`; SQL: `scripts/check-tech-card-cost-sync.mjs`.
 - Ingredient renames with stable catalog keys and unchanged purchase snapshots: `182`.
 
 ## Invariants
@@ -68,17 +68,18 @@
 
 - Authenticate routes.
 - Migration `179_game_club_orders.sql` must precede the Game Club frontend release. Never require the reopening function retired by `090`. Tests: `tests/gameClubOrders.test.js`.
-- Isolated SQL: `scripts/check-game-club-migration.mjs` tests `180` with a PGlite module path.
+- Isolated SQL: `scripts/check-game-club-migration.mjs` tests `180`.
 - Migration `184` requires deletion reasons and snapshots them for Investor alerts. Apply before UI.
 - `185`: independent status-message tracking and minute cleanup retries. Apply before the Telegram sender. Tests: `tests/orderStatusDelivery.test.js`.
 - `186`–`188`: Ingredients access, writes, snapshot keys, and movement totals. Tests: `tests/ingredientsFeature.test.js`; SQL: `scripts/check-ingredient-movement.mjs`.
-- `189`: ingredient Investor queue and minute dispatch. Tests: `tests/ingredientNotifications.test.js`; SQL: `scripts/check-ingredient-notifications.mjs` (PGlite path). Deploy the sender before applying.
+- `189`: ingredient Investor queue and minute dispatch. Tests: `tests/ingredientNotifications.test.js`; SQL: `scripts/check-ingredient-notifications.mjs`. Deploy the sender before applying.
 - `190`–`193`: ten-day income and monthly Busy Hours RPCs; apply before UI.
-- `195`/`196`: own/all dine-in KPI from `2026-09-16`; apply before UI. History preserved. SQL: `tests/employeeOpenedOrderKpi.test.js` (PGlite).
+- `195`/`196`: own/all dine-in KPI from `2026-09-16`; apply before UI. History preserved. SQL: `tests/employeeOpenedOrderKpi.test.js`.
 - `200`: repair KPI creator-label drift; preserve actor checks/history. Tests: `tests/employeeOpenedOrderKpi.test.js`.
 - `201`: audited paid-payment splitting; apply before UI. Tests: `tests/paidPaymentSplit.test.js`.
 - `202`: current-day-only order deletion and private KPI cleanup; apply before sender/UI. Tests: `tests/orderDeletion.test.js`.
 - `203`/`213`: KPI start/opening cutoff; apply before UI. Tests: `tests/timeBasedKpi.test.js`.
+- `226`: closed-day KPI, no absence skip. Tests: `tests/closedOrderKpiDay.test.js`.
 - `204`: preserve audit actors on account deletion. Tests: `tests/accountDeletionAudit.test.js`.
 - `205`: Take Away/Delivery/Game Club category schedules; apply before UI. Seeds Game Club Business lunch. Tests: `tests/gameClubCategorySchedule.test.js`.
 - `207`–`209`: rate date guard, audits, owner-only DELETE. Apply before UI. Tests: `tests/salaryRateDateWindow.test.js`, `tests/salaryRateHistory.test.js`.
