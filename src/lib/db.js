@@ -185,6 +185,9 @@ async function updateRestaurantTableStatus(tableId, fields, fallbackFields = nul
   assertUpdatedRows(data, `Table ${tableId} was not updated. Refresh and try again.`)
 }
 
+// Table-wide status writes must never reopen cancelled or completed bills.
+const CLOSED_ORDER_STATUS_FILTER = '(cancelled,paid,completed)'
+
 function assertUpdatedRows(data, message) {
   if (!Array.isArray(data) || data.length === 0) {
     throw new Error(message)
@@ -1083,13 +1086,15 @@ export async function writeToSupabase(action, state, options = {}) {
 
     case 'CONFIRM_ORDER_DELIVERED': {
       const tableId = action.payload
-      // Mark all active orders for this table as delivered.
-      // Use neq('paid') instead of eq('unpaid') to also catch legacy orders with payment_status = null.
+      // Mark all active orders for this table as delivered. Cancelled shells stay
+      // closed: reopening them left empty bills in the open-orders report.
       const { data: tableOrders, error: tableOrdersError } = await supabase
         .from('orders')
         .select('id')
         .eq('table_id', tableId)
         .neq('payment_status', 'paid')
+        .neq('payment_status', 'cancelled')
+        .not('status', 'in', CLOSED_ORDER_STATUS_FILTER)
       if (tableOrdersError) throw tableOrdersError
       if (tableOrders?.length) {
         const ids = tableOrders.map(o => o.id)
@@ -1119,6 +1124,8 @@ export async function writeToSupabase(action, state, options = {}) {
         .update({ status: 'needs_bill' })
         .eq('table_id', tableId)
         .neq('payment_status', 'paid')
+        .neq('payment_status', 'cancelled')
+        .not('status', 'in', CLOSED_ORDER_STATUS_FILTER)
         .select('id')
       if (ordersError) throw ordersError
       // Soft check: if no orders matched (e.g. legacy null payment_status), still update the table
@@ -1128,6 +1135,7 @@ export async function writeToSupabase(action, state, options = {}) {
           .update({ status: 'needs_bill' })
           .eq('table_id', tableId)
           .is('payment_status', null)
+          .not('status', 'in', CLOSED_ORDER_STATUS_FILTER)
           .select('id')
         if (fallbackError) throw fallbackError
         if (!fallbackOrders?.length) {

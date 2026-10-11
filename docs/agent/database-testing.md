@@ -36,7 +36,7 @@
   - Game Club type, permission and service checks: `179`
   - Game Club per-round Team queue/cron: `180`
   - Daily Team KPI image claims and legacy-delivery suppression: `181`
-- Tech Card cost-sync batching and convergence: `183` (faster saves). Tests: `tests/techCardCostSyncMigration.test.js`; SQL: `scripts/check-tech-card-cost-sync.mjs` (pass a PGlite module path).
+- Tech Card cost-sync batching and convergence: `183` (faster saves). Tests: `tests/techCardCostSyncMigration.test.js`; SQL: `scripts/check-tech-card-cost-sync.mjs` (PGlite path).
 - Ingredient renames with stable catalog keys and unchanged purchase snapshots: `182`.
 
 ## Invariants
@@ -84,6 +84,6 @@
 - `207`–`209`: rate date guard, audits, owner-only DELETE. Apply before UI. Tests: `tests/salaryRateDateWindow.test.js`, `tests/salaryRateHistory.test.js`.
 - `210`: see [salary orders](salary-orders.md).
 - `211`: profile name realtime; history unchanged. Tests: `tests/activeOrderWaiters.test.js`.
-- `212`/`220`: bill edits (payments); `221`: price-mode guard (ordering); `222`: insert image guard (menu)
+- `212`/`220`: bill edits (payments); `221`: price-mode guard (ordering); `222`: insert image guard (menu); `224`: payments
 - `214`: `custom:<name>` ingredient categories; apply before UI.
 - `215`–`217`: payroll.md; `218`–`219`: architecture.md.

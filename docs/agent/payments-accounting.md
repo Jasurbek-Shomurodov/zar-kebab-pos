@@ -18,7 +18,7 @@
 
 ## Bill item edits
 
-- Deploy `212` before UI; reload old clients. `update_bill_item_quantity` atomically locks/edits/recalculates; no legacy fallback. `_billEditRequestId` receipts prevent replay; errors refresh state. Paid items locked; waiter recall required. Emptied bills cancel (`220`), freeing idle tables. Tests: `tests/atomicBillItemEdits.test.js`.
+- Deploy `212` before UI; reload clients. `update_bill_item_quantity` locks/edits/recalcs atomically; no fallback. `_billEditRequestId` receipts prevent replay; errors refresh. Paid items locked; waiter recall required. Emptied bills cancel terminally, freeing tables (`220`/`224`). Tests: `atomicBillItemEdits`, `cancelledOrderTerminal`.
 
 ## Split payments and corrections
 

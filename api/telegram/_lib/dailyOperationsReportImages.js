@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { formatLongDate, formatTime } from '../../../src/lib/dateFormat.js'
+import { formatDateTime, formatLongDate } from '../../../src/lib/dateFormat.js'
 import { formatCurrency } from '../../../src/lib/formatCurrency.js'
 import { getOrderItemUnitPrice } from '../../../src/lib/priceModes.js'
 import {
@@ -254,7 +254,7 @@ export function buildOpenOrdersReportSvg(orders = []) {
       <rect x="64" y="${orderY - 32}" width="1072" height="${88 + itemRows.length * 48}" rx="22" fill="${orderIndex % 2 ? '#FFF7ED' : '#FFFBEB'}" stroke="#FED7AA"/>
       <text x="92" y="${orderY + 8}" font-size="25" font-weight="800" fill="#9A3412">${escapeSvg(`${orderIndex + 1}. ${openOrderPlace(order)} · #${id}`)}</text>
       <text x="1090" y="${orderY + 8}" text-anchor="end" font-size="25" font-weight="800" fill="#9A3412">${escapeSvg(formatCurrency(order?.total))}</text>
-      <text x="92" y="${orderY + 40}" font-size="19" font-weight="600" fill="#C2410C">${escapeSvg(`${formatTime(order?.created_at, '')} · ${openOrderStatusLabel(order?.status)}`)}</text>
+      <text x="92" y="${orderY + 40}" font-size="19" font-weight="600" fill="#C2410C">${escapeSvg(`${formatDateTime(order?.created_at, '')} · ${openOrderStatusLabel(order?.status)}`)}</text>
       ${items}
     </g>`
   }).join('') : '<text x="600" y="246" text-anchor="middle" font-size="30" font-weight="700" fill="#15803D">Все заказы закрыты</text>'

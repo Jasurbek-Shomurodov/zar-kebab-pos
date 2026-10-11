@@ -30,6 +30,11 @@ import { getLoyaltyCardCashbackPercent } from '../lib/loyalty.js'
 import { isOffPremiseOrderType, orderTypeLabel } from '../lib/orderTypes.js'
 import { pickQuickItemOrder } from '../lib/cashierBills.js'
 
+// Table-wide served/bill actions never reopen paid or cancelled bills.
+function isReopenableTableOrder(order) {
+  return !isPaidOrder(order) && order.status !== 'cancelled' && order.payment_status !== 'cancelled'
+}
+
 function orderActorFields(user, fallbackName) {
   const name = user?.name || user?.email || fallbackName
   return { id: user?.id || null, name }
@@ -200,7 +205,7 @@ export function ordersReducer(state, action) {
       return {
         ...state,
         orders: state.orders.map(o =>
-          o.table_id === tableId && o.payment_status !== 'paid'
+          o.table_id === tableId && isReopenableTableOrder(o)
             ? {
               ...o,
               status: 'delivered',
@@ -220,7 +225,7 @@ export function ordersReducer(state, action) {
           t.id === action.payload ? { ...t, status: 'needs_bill', updated_at: statusChangedAt } : t
         ),
         orders: state.orders.map(o =>
-          o.table_id === action.payload && o.payment_status !== 'paid'
+          o.table_id === action.payload && isReopenableTableOrder(o)
             ? { ...o, status: 'needs_bill', updated_at: statusChangedAt }
             : o
         ),
