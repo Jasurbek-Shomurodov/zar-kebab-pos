@@ -23,7 +23,7 @@
   - KPI and Tourist service: `129`–`130`
   - Tech Cards, access, components, stock, variant recipes, and fractional included-dish quantities: `139`–`140`, `149`–`151`, `154`–`156`, `159`
   - menu/expense notifications and financial snapshots: `142`–`147`
-  - absence notification cleanup and daily-report cron: `148`, `152`
+  - absence cleanup, daily-report/review crons: `148`, `152`, `225`
   - Dashboard monthly income snapshots, break-even target, and completed-day live average: `157`–`158`, `174`
   - authoritative Daily Bazaar ingredient catalog, clean reset, owner-only catalog writes, and immutable price-variance snapshots: `160`–`163`
   - immutable sold-item Tech Card ingredient snapshots and duplicate-safe daily ingredient image delivery: `164`–`165`

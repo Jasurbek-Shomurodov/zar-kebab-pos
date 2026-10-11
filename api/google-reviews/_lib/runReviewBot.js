@@ -22,8 +22,8 @@ export async function runGoogleReviewBot(options = {}) {
   for (const review of reviews) {
     try {
       const generated = await generateReviewReply(review, {
-        apiKey: env.OPENAI_API_KEY,
-        model: env.GOOGLE_REVIEW_OPENAI_MODEL,
+        apiKey: env.GEMINI_API_KEY,
+        model: env.GOOGLE_REVIEW_GEMINI_MODEL,
         businessName: env.GOOGLE_REVIEW_BUSINESS_NAME || 'Zar Kebab',
         defaultLanguage: env.GOOGLE_REVIEW_DEFAULT_LANGUAGE || 'Russian',
         fetchImpl,

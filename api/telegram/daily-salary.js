@@ -37,10 +37,6 @@ import { allocateMonthlySalaryToDate } from '../../src/lib/expenses.js'
 import { getGameClubRevenue } from '../../src/lib/gameClubRevenue.js'
 import { inferOrderType, isDineInOrderType } from '../../src/lib/orderTypes.js'
 import { PRICE_MODE_TOURIST } from '../../src/lib/priceModes.js'
-import {
-  isGoogleReviewBotConfigured,
-  runGoogleReviewBot,
-} from '../google-reviews/_lib/runReviewBot.js'
 import { formatLongDate } from '../../src/lib/dateFormat.js'
 
 const KPI_RETRY_LOOKBACK_DAYS = 7
@@ -1089,24 +1085,16 @@ export default async function handler(req, res) {
     }
     if (cronTask === 'unavailable-products') {
       const businessDate = getTashkentDate(now)
-      const reviewBotEnabled = isGoogleReviewBotConfigured()
-      const [watchdogRun, unavailableRun, reviewRun] = await Promise.allSettled([
+      const [watchdogRun, unavailableRun] = await Promise.allSettled([
         verifyDailySalaryCronDelivery(supabase, notificationDate),
         sendDailyUnavailableMenuNotification(supabase, businessDate),
-        reviewBotEnabled ? runGoogleReviewBot() : Promise.resolve({ mode: 'disabled', found: 0 }),
       ])
       if (watchdogRun.status === 'rejected') throw watchdogRun.reason
       if (unavailableRun.status === 'rejected') throw unavailableRun.reason
-      if (reviewRun.status === 'rejected') {
-        console.error('[google-reviews] scheduled run failed:', reviewRun.reason)
-      }
       return json(res, 200, {
         ok: true,
         ...unavailableRun.value,
         dailySalaryWatchdog: watchdogRun.value,
-        googleReviews: reviewRun.status === 'fulfilled'
-          ? reviewRun.value
-          : { mode: 'failed', error: String(reviewRun.reason?.message || reviewRun.reason).slice(0, 500) },
       })
     }
     const catchUpDates = await loadKpiCatchUpDates(supabase, now)

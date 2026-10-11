@@ -8,6 +8,7 @@ import {
 import {
   buildFallbackReply,
   generateReviewReply,
+  originalReviewText,
   sanitizeReply,
 } from '../api/google-reviews/_lib/replyGenerator.js'
 import { runGoogleReviewBot } from '../api/google-reviews/_lib/runReviewBot.js'
@@ -73,6 +74,10 @@ test('publishing validates the Google resource name and sends only the reply', a
   )
 })
 
+function geminiReply(text) {
+  return { candidates: [{ content: { parts: [{ text: 'thinking', thought: true }, { text }] } }] }
+}
+
 test('reply generation has safe templates and sanitizes model output', async () => {
   assert.match(buildFallbackReply({ starRating: 'ONE' }), /sorry/i)
   assert.match(buildFallbackReply({ starRating: 'FIVE' }), /Thank you/)
@@ -81,15 +86,37 @@ test('reply generation has safe templates and sanitizes model output', async () 
     { starRating: 'FIVE', comment: 'Great food' },
     {
       apiKey: 'key',
-      fetchImpl: async (_url, options) => {
+      fetchImpl: async (url, options) => {
+        assert.match(url, /generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-[^/]+:generateContent$/)
+        assert.equal(options.headers['x-goog-api-key'], 'key')
         const body = JSON.parse(options.body)
-        assert.equal(body.store, false)
-        assert.match(body.input, /untrusted data/)
-        return response({ output_text: 'Спасибо за ваш отзыв!' })
+        assert.match(body.contents[0].parts[0].text, /untrusted data/)
+        return response(geminiReply('Спасибо за ваш отзыв!'))
       },
     },
   )
-  assert.deepEqual(generated, { reply: 'Спасибо за ваш отзыв!', source: 'openai' })
+  assert.deepEqual(generated, { reply: 'Спасибо за ваш отзыв!', source: 'gemini' })
+})
+
+test('replies use the guest original text, not the Google translation', async () => {
+  assert.equal(
+    originalReviewText('(Translated by Google) Very tasty\n\n(Original)\nJuda mazali'),
+    'Juda mazali',
+  )
+  assert.equal(originalReviewText('Очень вкусно'), 'Очень вкусно')
+  await generateReviewReply(
+    { starRating: 'FIVE', comment: '(Translated by Google) Very tasty\n\n(Original)\nJuda mazali' },
+    {
+      apiKey: 'key',
+      fetchImpl: async (_url, options) => {
+        const input = JSON.parse(options.body).contents[0].parts[0].text
+        assert.match(input, /Juda mazali/)
+        assert.doesNotMatch(input, /Very tasty/)
+        assert.match(input, /exactly the same language and script/)
+        return response(geminiReply('Rahmat!'))
+      },
+    },
+  )
 })
 
 test('bot previews by default and publishes only with the explicit switch', async () => {
@@ -123,4 +150,16 @@ test('bot previews by default and publishes only with the explicit switch', asyn
   const published = await runGoogleReviewBot({ env, fetchImpl })
   assert.equal(published.results[0].status, 'published')
   assert.equal(calls.some(call => call.url.endsWith('/reply')), true)
+})
+
+test('Supabase runs the review bot daily at 13:00 Tashkent, outside the 08:00 job', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const migration = await readFile(new URL('../migrations/225_google_review_reply_cron.sql', import.meta.url), 'utf8')
+  assert.match(migration, /'zar-kebab-google-review-replies',\s*'0 8 \* \* \*'/)
+  assert.match(migration, /url := 'https:\/\/www\.zarkebab\.uz\/api\/google-reviews\/run'/)
+  assert.match(migration, /name = 'zar_kebab_daily_report_cron_secret'/)
+  assert.match(migration, /where jobname = 'zar-kebab-google-review-replies'/)
+  assert.match(migration, /revoke all on function public\.invoke_zar_kebab_google_review_replies\(\) from anon/)
+  const dailyCron = await readFile(new URL('../api/telegram/daily-salary.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(dailyCron, /runGoogleReviewBot/)
 })

@@ -177,7 +177,7 @@ The Mini App is a read-only menu with loyalty-balance lookup and restaurant cont
 
 ## Google Maps review bot
 
-The protected `/api/google-reviews/run` endpoint checks the configured Google Business Profile for unanswered reviews and creates a short reply in the review's language. It uses OpenAI when `OPENAI_API_KEY` is present and a conservative template when it is not. The existing 08:00 Tashkent scheduled job also invokes it; Google review failures are isolated and cannot block Telegram or payroll work.
+The protected `/api/google-reviews/run` endpoint checks the configured Google Business Profile for unanswered reviews and creates a short reply in the review's language. It uses Google Gemini (free tier) when `GEMINI_API_KEY` is present, replying in the guest's original language and script, and a conservative English template when it is not. Supabase Cron (`225_google_review_reply_cron.sql`, reusing the Vault secret from `152`) calls it every day at 13:00 Tashkent, separately from the 08:00 Telegram/payroll job, so review failures cannot block that work. Without the Google variables it returns `mode: "disabled"`.
 
 Add these server-only deployment variables:
 
@@ -187,11 +187,11 @@ GOOGLE_BUSINESS_CLIENT_SECRET=
 GOOGLE_BUSINESS_REFRESH_TOKEN=
 GOOGLE_BUSINESS_ACCOUNT_ID=
 GOOGLE_BUSINESS_LOCATION_ID=
-OPENAI_API_KEY=
-GOOGLE_REVIEW_OPENAI_MODEL=gpt-5.4-mini
+GEMINI_API_KEY=
+GOOGLE_REVIEW_GEMINI_MODEL=gemini-3.6-flash
 GOOGLE_REVIEW_BUSINESS_NAME=Zar Kebab
 GOOGLE_REVIEW_DEFAULT_LANGUAGE=Russian
-GOOGLE_REVIEW_MAX_PER_RUN=10
+GOOGLE_REVIEW_MAX_PER_RUN=25
 GOOGLE_REVIEW_AUTO_PUBLISH=false
 ```
 

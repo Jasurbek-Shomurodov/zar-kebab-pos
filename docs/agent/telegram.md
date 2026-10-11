@@ -47,7 +47,7 @@
 ## Menu availability
 
 - Authenticated availability changes, creation and archival queue immutable Russian Team events (product/employee snapshots); edits and restoration send nothing.
-- 08:00 Tashkent: duplicate-safe Russian unavailable-products snapshot, optional Google review replies (failures don't block).
+- 08:00 Tashkent: duplicate-safe Russian unavailable-products snapshot. 13:00: Google review replies (`225`).
 - Non-empty: one tracked PNG only (`menuAvailabilityImage.js`), no text; failures retry. Empty: short text.
 - Exclude archived products/categories; preserve exact sent snapshots.
 
