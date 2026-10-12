@@ -332,6 +332,8 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(salaries, /const MIN_NOTE_WORDS = 5/)
   assert.match(salaries, /\['fine', 'bonus'\]\.includes\(transactionForm\.entry_type\) && countNoteWords\(transactionForm\.note\) < MIN_NOTE_WORDS/)
   assert.match(functionBody(salaries, 'addTransaction'), /needsNote && countNoteWords\(reason\) < MIN_NOTE_WORDS/)
+  assert.match(functionBody(salaries, 'addAbsence'), /countNoteWords\(reason\) < MIN_NOTE_WORDS/)
+  assert.match(salaries, /countNoteWords\(absenceForm\.note\) < MIN_NOTE_WORDS/)
   assert.doesNotMatch(employees, /deleteEmployee|employee-delete-|<Trash2/)
   assert.match(employees, /const canEditName = canManage && isOwner/)
   assert.match(employees, /const \[editingNameId, setEditingNameId\] = useState\(null\)/)

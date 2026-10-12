@@ -60,7 +60,7 @@ const FIELD = 'ws-input !h-11 min-w-0 max-w-full font-medium disabled:cursor-not
 // Notes and reasons are free text, so they always get a multi-line field.
 const NOTE_FIELD = 'ws-input !h-auto min-h-[76px] min-w-0 max-w-full resize-y !py-2.5 leading-relaxed disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 const PAGE_SIZE = 12
-// Bonus comments and fine reasons must explain the entry, not just name it.
+// Bonus comments, fine reasons and absence reasons must explain the entry, not just name it.
 const MIN_NOTE_WORDS = 5
 
 function countNoteWords(value) {
@@ -197,6 +197,7 @@ export default function Salaries() {
       absence: 'Kelmagan kun',
       markAbsence: 'Kelmagan kunni belgilash',
       absenceDate: 'Kelmagan sana',
+      absenceReason: 'Kelmaslik sababi',
       absenceHistory: 'Kelmagan kunlar',
       absentLabel: 'Kelmagan',
       amount: 'Summa',
@@ -364,6 +365,7 @@ export default function Salaries() {
       absence: 'Отсутствие',
       markAbsence: 'Отметить отсутствие',
       absenceDate: 'Дата отсутствия',
+      absenceReason: 'Причина отсутствия',
       absenceHistory: 'Дни отсутствия',
       absentLabel: 'Отсутствовал',
       amount: 'Сумма',
@@ -531,6 +533,7 @@ export default function Salaries() {
       absence: 'Absence',
       markAbsence: 'Mark absence',
       absenceDate: 'Absent date',
+      absenceReason: 'Reason for absence',
       absenceHistory: 'Absent dates',
       absentLabel: 'Absent',
       amount: 'Amount',
@@ -1451,7 +1454,8 @@ export default function Salaries() {
   async function addAbsence() {
     const salaryProfile = salaryProfiles.find(item => item.id === absenceForm.salary_profile_id)
     const absenceDate = String(absenceForm.absence_date || today).slice(0, 10)
-    if (!canManage || !salaryProfile || !absenceDate) return
+    const reason = String(absenceForm.note || '').trim()
+    if (!canManage || !salaryProfile || !absenceDate || countNoteWords(reason) < MIN_NOTE_WORDS) return
     setError('')
     setMessage('')
     if (getSalaryAbsenceDates(salaryProfile).has(absenceDate)) {
@@ -1462,7 +1466,7 @@ export default function Salaries() {
     const { data: savedAbsence, error: writeError } = await supabase.from('employee_salary_absences').insert({
       salary_profile_id: salaryProfile.id,
       absence_date: absenceDate,
-      note: absenceForm.note || '',
+      note: reason,
       created_by: profile?.id || null,
       created_by_name: profile?.full_name || profile?.email || state.user?.name || '',
     }).select('id').single()
@@ -1703,6 +1707,18 @@ export default function Salaries() {
                           <DateInput value={absenceForm.absence_date} lang={lang} onChange={value => setAbsenceForm(current => ({ ...current, absence_date: value }))} disabled={!canManage || loading} />
                         </Field>
                       </div>
+                      <div className="sm:col-span-2 lg:col-span-9">
+                        <Field label={l.absenceReason} hint={l.noteMinWords}>
+                          <textarea
+                            rows={2}
+                            value={absenceForm.note}
+                            onChange={event => setAbsenceForm(current => ({ ...current, note: event.target.value }))}
+                            className={NOTE_FIELD}
+                            disabled={!canManage || loading}
+                            required
+                          />
+                        </Field>
+                      </div>
                       {absenceAlreadyRecorded && (
                         <p role="alert" className="ws-notice ws-tone-negative sm:col-span-2 lg:order-last lg:col-span-12">
                           {l.absenceDuplicate}
@@ -1711,8 +1727,8 @@ export default function Salaries() {
                       <button
                         type="button"
                         onClick={addAbsence}
-                        disabled={!canManage || loading || !absenceForm.salary_profile_id || !absenceForm.absence_date || absenceAlreadyRecorded || saving === 'absence-create'}
-                        className="ws-btn ws-btn-primary !h-11 self-end sm:col-span-1 lg:col-span-3"
+                        disabled={!canManage || loading || !absenceForm.salary_profile_id || !absenceForm.absence_date || countNoteWords(absenceForm.note) < MIN_NOTE_WORDS || absenceAlreadyRecorded || saving === 'absence-create'}
+                        className="ws-btn ws-btn-primary !h-11 self-end sm:col-span-2 lg:col-span-3"
                       >
                         {saving === 'absence-create' ? <Loader2 size={16} className="animate-spin" /> : <CalendarX2 size={15} />}
                         {l.absence}
