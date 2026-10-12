@@ -26,10 +26,10 @@ import { useTheme } from '../lib/theme'
 import MenuCategoryScroller, { menuCategorySectionId } from '../components/MenuCategoryScroller'
 import {
   ProductCard as MenuProductCard,
-  ProductDetailPage as MenuProductDetailPage,
   PublicDishCard,
+  PublicDishDetailPage,
 } from '../components/MenuProductCards'
-import { isMenuVideoUrl } from '../lib/menuMedia'
+import heroImage from '../assets/brand/zarkebab-hero-kebab.webp'
 
 // Stable catalog identity: the Catering category is now Corporate Sets.
 const CORPORATE_SETS_CATEGORY_ID = 'c1789462941735'
@@ -50,6 +50,7 @@ const PUBLIC_CONTACTS = {
   location: {
     label: 'Matbuotchilar 17, Tashkent',
     href: 'https://yandex.com/maps/org/zarkebab/34684464035/',
+    googleMapsHref: 'https://www.google.com/maps/search/?api=1&query=Zar+Kebab+Matbuotchilar+17+Tashkent',
   },
 }
 
@@ -86,6 +87,7 @@ const PUBLIC_SITE_COPY = {
     address: 'Manzil',
     hours: 'Har kuni 08:00–01:00',
     rights: 'Barcha huquqlar himoyalangan.',
+    about: 'Ko‘mirda pishirilgan kaboblar hamda o‘zbek, uyg‘ur va turk oshxonasining eng sevimli taomlari — nonushtadan kechki ovqatgacha, Toshkentda.',
   },
   ru: {
     menu: 'Меню',
@@ -98,6 +100,7 @@ const PUBLIC_SITE_COPY = {
     address: 'Адрес',
     hours: 'Ежедневно 08:00–01:00',
     rights: 'Все права защищены.',
+    about: 'Шашлык на углях и любимые блюда узбекской, уйгурской и турецкой кухни — от завтрака до позднего ужина, в Ташкенте.',
   },
   en: {
     menu: 'Menu',
@@ -110,6 +113,7 @@ const PUBLIC_SITE_COPY = {
     address: 'Address',
     hours: 'Open daily 08:00–01:00',
     rights: 'All rights reserved.',
+    about: 'Charcoal-grilled kebabs and the much-loved dishes of Uzbek, Uyghur and Turkish cooking — from breakfast to a late dinner, in Tashkent.',
   },
 }
 
@@ -124,13 +128,13 @@ function navigateToPublicSection(event, sectionId) {
 
 function HeaderSelect({ value, onChange, options, ariaLabel, icon: Icon, className = '' }) {
   return (
-    <label className={`relative inline-flex h-9 items-center rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-xs font-black text-[#1F2937] shadow-sm transition-colors hover:bg-white ${className}`}>
+    <label className={`lux-chip relative inline-flex h-9 items-center rounded-full text-xs font-black ${className}`}>
       {Icon && (
         <Icon
           size={15}
           strokeWidth={2.5}
           aria-hidden="true"
-          className="pointer-events-none absolute left-2.5 text-[#ff5a00]"
+          className="lux-gold pointer-events-none absolute left-2.5"
         />
       )}
       <select
@@ -138,7 +142,7 @@ function HeaderSelect({ value, onChange, options, ariaLabel, icon: Icon, classNa
         onChange={event => onChange(event.target.value)}
         aria-label={ariaLabel}
         title={ariaLabel}
-        className={`h-full cursor-pointer appearance-none rounded-xl bg-transparent py-0 pr-3 text-xs font-black uppercase outline-none ${Icon ? 'pl-8' : 'pl-3'}`}
+        className={`h-full cursor-pointer appearance-none rounded-full bg-transparent py-0 pr-3 text-xs font-black uppercase outline-none ${Icon ? 'pl-8' : 'pl-3'}`}
       >
         {options.map(option => (
           <option key={option.value} value={option.value}>
@@ -154,7 +158,7 @@ function CompactCurrencySelect({ value, onChange, ariaLabel }) {
   return (
     <label
       title={`${ariaLabel}: ${value}`}
-      className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-[#ff5a00] shadow-sm"
+      className="lux-chip relative flex h-9 w-9 items-center justify-center rounded-full"
     >
       <Coins size={16} strokeWidth={2.5} aria-hidden="true" />
       <select
@@ -169,7 +173,70 @@ function CompactCurrencySelect({ value, onChange, ariaLabel }) {
   )
 }
 
-function PublicContactButtons({ className = '' }) {
+// Where "location" can open. Without JavaScript (or if the chooser is unavailable) links fall back to Google Maps.
+const MAP_APPS = [
+  { key: 'google', label: 'Google Maps', href: PUBLIC_CONTACTS.location.googleMapsHref },
+  { key: 'yandex', label: 'Yandex Maps', href: PUBLIC_CONTACTS.location.href },
+  { key: 'apple', label: 'Apple Maps', href: 'https://maps.apple.com/?q=Zar%20Kebab&address=Matbuotchilar%2017%2C%20Tashkent' },
+]
+
+const MAP_CHOOSER_COPY = {
+  uz: { title: 'Xaritada ochish', cancel: 'Bekor qilish' },
+  ru: { title: 'Открыть в картах', cancel: 'Отмена' },
+  en: { title: 'Open in maps', cancel: 'Cancel' },
+}
+
+function MapChooserSheet({ open, lang, onClose }) {
+  const copy = MAP_CHOOSER_COPY[lang] || MAP_CHOOSER_COPY.en
+  const firstOptionRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+    firstOptionRef.current?.focus({ preventScroll: true })
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-end justify-center p-3 sm:items-center" role="presentation" onClick={onClose} style={{ background: 'rgb(15 11 8 / 45%)' }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={copy.title}
+        onClick={event => event.stopPropagation()}
+        className="lux-glass zk-sheet-in w-full max-w-[380px] rounded-[28px] p-3"
+      >
+        <p className="lux-gold px-3 pb-2 pt-1 text-center text-[11px] font-medium uppercase tracking-[0.26em]">{copy.title}</p>
+        <div className="space-y-2">
+          {MAP_APPS.map((app, index) => (
+            <a
+              key={app.key}
+              ref={index === 0 ? firstOptionRef : undefined}
+              href={app.href}
+              target="_blank"
+              rel="noreferrer"
+              onClick={onClose}
+              className="lux-soft lux-title flex h-12 items-center justify-between rounded-2xl px-4 text-[15px] font-medium transition-colors"
+            >
+              <span className="flex items-center gap-3"><MapPin size={17} className="lux-gold" />{app.label}</span>
+              <span aria-hidden="true" className="lux-muted">↗</span>
+            </a>
+          ))}
+        </div>
+        <button type="button" onClick={onClose} className="lux-cta mt-3 h-12 w-full rounded-2xl text-sm font-semibold">
+          {copy.cancel}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PublicContactButtons({ className = '', onOpenMap }) {
   return (
     <div className={`flex items-center justify-center gap-1.5 ${className}`}>
       <a
@@ -177,14 +244,14 @@ function PublicContactButtons({ className = '' }) {
         target="_blank"
         rel="noreferrer"
         aria-label={PUBLIC_CONTACTS.telegram.label}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 text-sky-700 transition-colors hover:bg-sky-100"
+        className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
       >
         <Send size={16} />
       </a>
       <a
         href={PUBLIC_CONTACTS.phone.href}
         aria-label={PUBLIC_CONTACTS.phone.label}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100"
+        className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
       >
         <Phone size={16} />
       </a>
@@ -193,16 +260,17 @@ function PublicContactButtons({ className = '' }) {
         target="_blank"
         rel="noreferrer"
         aria-label={PUBLIC_CONTACTS.instagram.label}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 text-rose-700 transition-colors hover:bg-rose-100"
+        className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
       >
         <Instagram size={16} />
       </a>
       <a
-        href={PUBLIC_CONTACTS.location.href}
+        href={PUBLIC_CONTACTS.location.googleMapsHref}
         target="_blank"
         rel="noreferrer"
+        onClick={onOpenMap}
         aria-label={PUBLIC_CONTACTS.location.label}
-        className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-700 transition-colors hover:bg-amber-100"
+        className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
       >
         <MapPin size={16} />
       </a>
@@ -210,19 +278,19 @@ function PublicContactButtons({ className = '' }) {
   )
 }
 
-function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenVacancies }) {
+function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenVacancies, onOpenMap }) {
   const year = new Date().getFullYear()
   return (
-    <footer id="public-menu-contacts" className="scroll-mt-28 border-t border-[#E5E7EB] bg-[#FAFAF9] px-4 py-9 sm:px-6 sm:py-12">
+    <footer id="public-menu-contacts" className="lux-page-2 lux-line scroll-mt-28 border-t px-4 py-9 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-[1280px]">
-        <div className="grid gap-9 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr_0.9fr_1.1fr]">
-          <div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-9 lg:grid-cols-[1.2fr_0.8fr_0.9fr_1.1fr]">
+          <div className="col-span-2 lg:col-span-1">
             <img src={getBrandLogo(lang)} alt="Zar Kebab" className="h-14 w-auto object-contain" />
-            <p className="mt-4 max-w-xs text-sm font-medium leading-relaxed text-[#64748B]">{PUBLIC_MENU_SEO[lang]?.description || PUBLIC_MENU_SEO.en.description}</p>
+            <p className="zk-serif lux-body mt-4 max-w-xs text-[19px] font-medium leading-snug">{copy.about}</p>
           </div>
           <div>
-            <h2 className="text-sm font-black text-[#1F2937]">{copy.company}</h2>
-            <nav className="mt-4 flex flex-col items-start gap-3 text-sm font-semibold text-[#64748B]">
+            <h2 className="lux-gold text-[11px] font-medium uppercase tracking-[0.26em]">{copy.company}</h2>
+            <nav className="lux-body mt-4 flex flex-col items-start gap-3 text-sm">
               <a href="/menu" onClick={onOpenMenu} className="hover:text-[#ff5a00]">{copy.menu}</a>
               <a href="/corporate-sets" onClick={onOpenCorporateSets} className="hover:text-[#ff5a00]">{copy.corporateSets}</a>
               <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="hover:text-[#ff5a00]">{copy.promotions}</a>
@@ -230,19 +298,19 @@ function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenV
             </nav>
           </div>
           <div>
-            <h2 className="text-sm font-black text-[#1F2937]">{copy.information}</h2>
-            <div className="mt-4 space-y-3 text-sm font-semibold text-[#64748B]">
-              <p className="flex items-center gap-2"><Clock3 size={16} className="text-[#ff5a00]" />{copy.hours}</p>
-              <a href={PUBLIC_CONTACTS.location.href} target="_blank" rel="noreferrer" className="flex items-start gap-2 hover:text-[#ff5a00]"><MapPin size={16} className="mt-0.5 flex-shrink-0 text-[#ff5a00]" />{PUBLIC_CONTACTS.location.label}</a>
+            <h2 className="lux-gold text-[11px] font-medium uppercase tracking-[0.26em]">{copy.information}</h2>
+            <div className="lux-body mt-4 space-y-3 text-sm">
+              <p className="flex items-center gap-2"><Clock3 size={16} className="lux-gold" />{copy.hours}</p>
+              <a href={PUBLIC_CONTACTS.location.googleMapsHref} target="_blank" rel="noreferrer" onClick={onOpenMap} className="flex items-start gap-2 hover:text-[#ff5a00]"><MapPin size={16} className="lux-gold mt-0.5 flex-shrink-0" />{PUBLIC_CONTACTS.location.label}</a>
             </div>
           </div>
-          <div>
-            <h2 className="text-sm font-black text-[#1F2937]">{copy.contacts}</h2>
-            <a href={PUBLIC_CONTACTS.phone.href} className="mt-4 block text-lg font-black text-[#1F2937] hover:text-[#ff5a00]">{PUBLIC_CONTACTS.phone.label}</a>
-            <PublicContactButtons className="mt-4 justify-start" />
+          <div className="col-span-2 lg:col-span-1">
+            <h2 className="lux-gold text-[11px] font-medium uppercase tracking-[0.26em]">{copy.contacts}</h2>
+            <a href={PUBLIC_CONTACTS.phone.href} className="zk-serif lux-title mt-3 block text-[24px] font-semibold hover:text-[#ff5a00]">{PUBLIC_CONTACTS.phone.label}</a>
+            <PublicContactButtons className="mt-4 !justify-start" onOpenMap={onOpenMap} />
           </div>
         </div>
-        <div className="mt-9 flex flex-col gap-2 border-t border-[#E5E7EB] pt-5 text-xs font-semibold text-[#94A3B8] sm:flex-row sm:items-center sm:justify-between">
+        <div className="lux-line lux-muted mt-9 flex flex-col gap-2 border-t pt-5 text-xs sm:flex-row sm:items-center sm:justify-between">
           <p>© {year} Zar Kebab. {copy.rights}</p>
           <p>{copy.address}: {PUBLIC_CONTACTS.location.label}</p>
         </div>
@@ -252,7 +320,7 @@ function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenV
 }
 
 function MenuSectionHeader({ title, tone = 'default' }) {
-  const titleClass = tone === 'deal' ? 'text-[#ff5a00]' : 'text-[#1F1A15]'
+  const titleClass = tone === 'deal' ? 'text-[#ff5a00]' : 'lux-title'
 
   return (
     <div className="mb-6 flex flex-col items-center text-center sm:mb-9">
@@ -263,6 +331,9 @@ function MenuSectionHeader({ title, tone = 'default' }) {
     </div>
   )
 }
+
+// The product page sits on a dark photo in both themes, so its language chip is glass too.
+const DETAIL_LANGUAGE_CLASS = '!h-11 !rounded-full !border-white/25 !bg-black/40 !text-white !shadow-none backdrop-blur'
 
 const HERO_COPY = {
   uz: {
@@ -285,37 +356,44 @@ const HERO_COPY = {
   },
 }
 
-/** Full-width welcome section; the photo comes from the live menu so it never goes stale. */
-function PublicMenuHero({ imageUrl, lang, onViewMenu }) {
+/**
+ * Full-width welcome section. The photo runs up under the see-through header and
+ * fades into the page at the bottom, where the category chips sit.
+ */
+function PublicMenuHero({ lang, onViewMenu, headerOffset = 0, heroRef }) {
   const copy = HERO_COPY[lang] || HERO_COPY.en
   return (
-    <section aria-label="Zar Kebab" className="relative isolate overflow-hidden bg-[#14110E]">
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt=""
-          fetchPriority="high"
-          className="absolute inset-0 -z-10 h-full w-full scale-105 object-cover object-center opacity-80"
-        />
-      )}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#14110E] via-[#14110E]/55 to-[#14110E]/25" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#14110E]/70 via-transparent to-transparent" />
-      <div className="mx-auto flex min-h-[340px] max-w-[1280px] flex-col justify-end px-5 pb-7 pt-16 sm:min-h-[72vh] sm:px-8 sm:pb-20 sm:pt-24 lg:max-h-[760px]">
+    <section
+      ref={heroRef}
+      aria-label="Zar Kebab"
+      className="relative isolate overflow-hidden"
+      style={{ marginTop: -headerOffset, paddingTop: headerOffset }}
+    >
+      <img
+        src={heroImage}
+        alt=""
+        fetchpriority="high"
+        className="absolute inset-0 -z-10 h-full w-full object-cover object-center"
+      />
+      <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(180deg, rgb(20 17 14 / 45%) 0%, rgb(20 17 14 / 20%) 28%, rgb(20 17 14 / 62%) 62%, rgb(20 17 14 / 88%) 86%)' }} />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#14110E]/60 via-transparent to-transparent" />
+      {/* Bottom edge melts into the page colour so the categories start on the photo. */}
+      <div className="absolute inset-x-0 -bottom-px -z-10 h-28 sm:h-36" style={{ background: 'linear-gradient(0deg, var(--lux-page) 0%, var(--lux-page) 6px, transparent 100%)' }} />
+      <div className="mx-auto flex min-h-[400px] max-w-[1280px] flex-col justify-end px-5 pb-[92px] pt-14 sm:min-h-[78vh] sm:px-8 sm:pb-[132px] sm:pt-24 lg:max-h-[820px]">
         <p className="text-[10px] font-medium uppercase tracking-[0.26em] text-[#E7C98F] sm:text-xs sm:tracking-[0.32em]">{copy.eyebrow}</p>
-        <h1 className="zk-serif mt-2 text-[52px] font-semibold leading-[0.9] text-white sm:mt-4 sm:text-[104px] lg:text-[128px]">Zar Kebab</h1>
-        <p className="mt-3 max-w-[520px] text-[14px] font-light leading-relaxed text-white/80 sm:mt-5 sm:text-[17px]">{copy.tagline}</p>
+        <h1 className="zk-serif mt-2 text-[52px] font-semibold leading-[0.9] text-white sm:mt-4 sm:text-[104px] lg:text-[128px]" style={{ textShadow: '0 4px 24px rgb(0 0 0 / 35%)' }}>Zar Kebab</h1>
+        <p className="mt-3 max-w-[520px] text-[14px] font-light leading-relaxed text-white/85 sm:mt-5 sm:text-[17px]">{copy.tagline}</p>
         <div className="mt-5 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
           <a
             href="#public-menu-content"
             onClick={onViewMenu}
-            className="inline-flex h-11 items-center rounded-full bg-[#ff5a00] px-6 text-sm sm:h-12 sm:px-7 font-semibold tracking-wide text-white shadow-lg shadow-black/20 transition-colors hover:bg-[#e64d00]"
+            className="lux-primary inline-flex h-11 items-center rounded-full px-7 text-sm font-semibold tracking-wide sm:h-12 sm:px-8"
           >
             {copy.menu}
           </a>
           <a
             href={PUBLIC_CONTACTS.phone.href}
-            className="inline-flex h-11 items-center rounded-full px-6 text-sm sm:h-12 sm:px-7 font-semibold tracking-wide text-white backdrop-blur transition-colors"
-            style={{ border: '1px solid rgb(255 255 255 / 45%)', background: 'rgb(255 255 255 / 8%)' }}
+            className="lux-on-photo inline-flex h-11 items-center rounded-full px-6 text-sm font-semibold tracking-wide sm:h-12 sm:px-7"
           >
             {copy.reserve}
           </a>
@@ -361,37 +439,37 @@ function MobileSearchPage({
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-white text-[#1F2937]">
-      <div className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-white/95 px-4 py-3 backdrop-blur">
+    <div className="zk-lux fixed inset-0 z-[90] flex flex-col">
+      <div className="lux-header sticky top-0 z-10 border-b px-4 py-3">
         <div className="mx-auto w-full max-w-[1280px]">
           <div className="mb-3 flex items-center gap-3">
             <button
               type="button"
               onClick={onClose}
               aria-label={labels.close}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#64748B] transition-colors hover:border-orange-200 hover:text-[#ff5a00]"
+              className="lux-chip flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
             >
               <ArrowLeft size={18} />
             </button>
-            <h1 className="text-lg font-black text-[#1F2937]">{labels.title}</h1>
+            <h1 className="zk-serif lux-title text-[26px] font-semibold">{labels.title}</h1>
           </div>
 
-          <div className="relative flex h-12 items-center rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] focus-within:border-[#ff5a00] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#ff5a00]/20">
-            <Search size={18} className="pointer-events-none absolute left-4 text-[#9CA3AF]" />
+          <div className="lux-input relative flex h-12 items-center rounded-full">
+            <Search size={18} className="lux-muted pointer-events-none absolute left-4" />
             <input
               ref={inputRef}
               type="text"
               value={value}
               onChange={event => onChange(event.target.value)}
               placeholder={labels.placeholder}
-              className="h-full w-full bg-transparent pl-12 pr-12 text-base text-[#1F2937] placeholder-[#9CA3AF] outline-none"
+              className="h-full w-full bg-transparent pl-12 pr-12 text-base outline-none"
             />
             {value && (
               <button
                 type="button"
                 onClick={() => onChange('')}
                 aria-label={labels.clear}
-                className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-[#9CA3AF] transition-colors hover:bg-white hover:text-[#ff5a00]"
+                className="lux-muted absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors hover:text-[#ff5a00]"
               >
                 <X size={18} />
               </button>
@@ -403,7 +481,7 @@ function MobileSearchPage({
       <div className="flex-1 overflow-y-auto px-4 py-5">
         <div className="mx-auto max-w-[1280px] pb-6">
           <section className="mb-7">
-            <h2 className="mb-3 text-sm font-black text-[#1F2937]">{labels.categories}</h2>
+            <h2 className="lux-gold mb-3 text-[11px] font-medium uppercase tracking-[0.26em]">{labels.categories}</h2>
             <div className="flex flex-wrap gap-2" role="list" aria-label={labels.categories}>
               {categories.map(category => {
                 const active = selectedCategoryId === category.id
@@ -416,9 +494,7 @@ function MobileSearchPage({
                     type="button"
                     aria-pressed={active}
                     onClick={() => onSelectCategory(category.id)}
-                    className={`inline-flex min-h-11 items-center rounded-2xl border px-4 text-sm font-black transition-colors ${active
-                      ? 'border-[#ff5a00] bg-[#fff4ed] text-[#ff5a00]'
-                      : 'border-[#E5E7EB] bg-[#F9FAFB] text-[#1F2937] hover:border-orange-200 hover:bg-white hover:text-[#ff5a00]'}`}
+                    className="lux-chip inline-flex min-h-10 items-center rounded-full px-4 text-sm font-medium"
                   >
                     {name}
                   </button>
@@ -432,12 +508,12 @@ function MobileSearchPage({
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-50">
                 <UtensilsCrossed size={28} className="text-orange-300" />
               </div>
-              <p className="font-black text-[#1F2937]">{labels.emptyTitle}</p>
+              <p className="zk-serif lux-title text-[22px] font-semibold">{labels.emptyTitle}</p>
               <p className="mt-1 max-w-[260px] text-sm text-[#8A94A6]">{labels.emptyText}</p>
             </div>
           ) : (
             <section>
-              <h2 className="mb-3 text-sm font-black text-[#1F2937]">{labels.dishes}</h2>
+              <h2 className="lux-gold mb-3 text-[11px] font-medium uppercase tracking-[0.26em]">{labels.dishes}</h2>
               <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-6 sm:gap-y-11 md:grid-cols-3 xl:grid-cols-4">
                 {items.map((item, index) => (
                   <PublicDishCard
@@ -521,7 +597,12 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   const siteCopy = PUBLIC_SITE_COPY[lang] || PUBLIC_SITE_COPY.en
   const showDetailOverlay = Boolean(detailItem)
   const headerRef = useRef(null)
+  const heroRef = useRef(null)
+  const [headerOverHero, setHeaderOverHero] = useState(!premium && !corporateSets)
   const savedScrollRef = useRef(0)
+  const detailSourceRef = useRef(null)
+  const [mapChooserOpen, setMapChooserOpen] = useState(false)
+  const closeMapChooser = useCallback(() => setMapChooserOpen(false), [])
   const menuLoadSeqRef = useRef(0)
 
   // The owner can switch the Tourist menu off; guests then see the regular menu.
@@ -593,6 +674,27 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
     }, 60_000)
     return () => window.clearInterval(interval)
   }, [refreshPublicMenu])
+
+  // Over the welcome photo the header is see-through; past it, the regular glass bar returns.
+  useEffect(() => {
+    if (premium || corporateSets) {
+      setHeaderOverHero(false)
+      return undefined
+    }
+    function updateHeaderOverHero() {
+      const hero = heroRef.current
+      // The category chips overlap the photo's last ~110px; switch to the solid bar before they
+      // reach the header, otherwise the chips show through it next to the sticky category bar.
+      setHeaderOverHero(hero ? hero.getBoundingClientRect().bottom - 120 > headerOffset : true)
+    }
+    updateHeaderOverHero()
+    window.addEventListener('scroll', updateHeaderOverHero, { passive: true })
+    window.addEventListener('resize', updateHeaderOverHero)
+    return () => {
+      window.removeEventListener('scroll', updateHeaderOverHero)
+      window.removeEventListener('resize', updateHeaderOverHero)
+    }
+  }, [corporateSets, headerOffset, premium])
 
   useEffect(() => {
     function updateHeaderOffset() {
@@ -722,13 +824,6 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
       (listedIds.has(item.category_id) || !categoryIds.has(item.category_id)) && getMenuPricing(item).discounted
     )
   }, [corporateSets, displayCategories, displayItems, listedCategories])
-  const heroImageUrl = useMemo(() => {
-    // The house "Zarkebab" platter leads; otherwise the first photographed dish of the first section.
-    const hasPhoto = item => item.image_url && !isMenuVideoUrl(item.image_url)
-    const signature = displayItems.find(item => hasPhoto(item) && /zar\s*-?kebab/i.test(`${item.name_en || ''} ${item.name_uz || ''} ${item.name_ru || ''}`))
-    const firstSectionPhoto = groupedSections.find(section => section.cat.id !== CORPORATE_SETS_CATEGORY_ID)?.items.find(hasPhoto)
-    return (signature || firstSectionPhoto || displayItems.find(hasPhoto))?.image_url || ''
-  }, [displayItems, groupedSections])
   const showHero = !premium && !corporateSets
   const priceFormatter = useMemo(
     () => amount => formatMenuCurrency(amount, menuCurrency, currencyRates),
@@ -770,18 +865,52 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
     )
   }
 
-  function openDetail(item) {
+  // The tapped photo morphs into the product page and back (View Transitions; instant where unsupported).
+  function morphDishPhoto(sourceElement, update) {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion || typeof document.startViewTransition !== 'function') {
+      update()
+      return
+    }
+    const transition = document.startViewTransition(() => {
+      flushSync(update)
+      if (sourceElement?.isConnected && !detailSourceRef.current) sourceElement.style.viewTransitionName = 'zk-dish'
+    })
+    transition.finished.finally(() => {
+      if (sourceElement) sourceElement.style.viewTransitionName = ''
+    })
+  }
+
+  function openMapChooser(event) {
+    event?.preventDefault()
+    setMapChooserOpen(true)
+  }
+
+  function openDetail(item, sourceElement = null) {
     savedScrollRef.current = window.scrollY
-    setDetailItem(item)
-    navigate(getMenuItemPublicPath(item, menuBasePath))
+    detailSourceRef.current = sourceElement
+    if (sourceElement) sourceElement.style.viewTransitionName = 'zk-dish'
+    morphDishPhoto(sourceElement, () => {
+      if (sourceElement) sourceElement.style.viewTransitionName = ''
+      setDetailItem(item)
+      navigate(getMenuItemPublicPath(item, menuBasePath))
+    })
   }
 
   function closeDetail() {
     const scrollY = savedScrollRef.current
-    setDetailItem(null)
-    setMissingItemLink(false)
-    navigate(menuBasePath)
-    requestAnimationFrame(() => {
+    const sourceElement = detailSourceRef.current
+    detailSourceRef.current = null
+    // Hide the details card before the transition snapshots the page: only the photo animates back.
+    // (A captured card keeps applying its backdrop blur over the menu while it fades.)
+    const details = document.querySelector('[data-dish-details]')
+    if (details) {
+      details.style.viewTransitionName = 'none'
+      details.style.visibility = 'hidden'
+    }
+    morphDishPhoto(sourceElement, () => {
+      setDetailItem(null)
+      navigate(menuBasePath)
       window.scrollTo({ top: scrollY, behavior: 'instant' })
     })
   }
@@ -862,20 +991,20 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   }
 
   return (
-    <div className="min-h-screen bg-[#FBF8F3] text-[#1F1A15]" style={{ paddingTop: headerOffset }}>
+    <div className="zk-lux min-h-screen" style={{ paddingTop: headerOffset }}>
       <div data-nosnippet="">
-        <header ref={headerRef} className="fixed left-0 right-0 top-0 z-40 border-b border-[#ECE4D8] bg-[#FBF8F3]/90 backdrop-blur">
+        <header ref={headerRef} className={`${headerOverHero && !searchMode ? 'lux-header-photo' : 'lux-header'} fixed left-0 right-0 top-0 z-40 border-b transition-[background,box-shadow] duration-300`}>
           <div className="mx-auto max-w-[1280px] px-3 py-2 sm:px-6 sm:py-3">
             <div className="relative flex h-11 items-center justify-between lg:hidden">
               <button
                 type="button"
                 onClick={openSearch}
                 aria-label={lang === 'uz' ? 'Qidirish' : lang === 'ru' ? 'Поиск' : 'Search'}
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#64748B] shadow-sm transition-colors active:scale-95"
+                className="lux-chip flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full active:scale-95"
               >
                 <Search size={17} />
               </button>
-              <ThemeToggle lang={lang} className="ml-1.5 mr-auto !h-9 !w-9 !rounded-xl" />
+              <ThemeToggle lang={lang} variant="lux" className="ml-1.5 mr-auto !h-9 !w-9" />
 
               <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-0.5 min-[360px]:gap-1 min-[400px]:gap-2">
                 <img src={getBrandLogo(lang)} alt="Zar Kebab" className="h-7 w-auto object-contain min-[360px]:h-8 min-[400px]:h-9" />
@@ -898,7 +1027,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                     ariaLabel={lang === 'uz' ? 'Valyuta' : lang === 'ru' ? 'Валюта' : 'Currency'}
                   />
                 </div>
-                {premium ? <LanguageSwitcher value={lang} onChange={setPremiumLang} compact /> : <LanguageSwitcher compact />}
+                {premium ? <LanguageSwitcher value={lang} onChange={setPremiumLang} compact variant="lux" /> : <LanguageSwitcher compact variant="lux" />}
               </div>
             </div>
 
@@ -908,17 +1037,17 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                   type="button"
                   onClick={openSearch}
                   aria-label={lang === 'uz' ? 'Qidirish' : lang === 'ru' ? 'Поиск' : 'Search'}
-                  className="hidden h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[#64748B] transition-colors hover:border-orange-200 hover:bg-white hover:text-[#ff5a00]"
+                  className="lux-chip hidden h-10 w-10 items-center justify-center rounded-full"
                 >
                   <Search size={17} />
                 </button>
                 {!premium && (
                   <nav className="hidden items-center gap-5 lg:flex" aria-label={siteCopy.company}>
-                    <a href="/menu" onClick={openMenuHome} className="text-sm font-black text-[#1F2937] transition-colors hover:text-[#ff5a00]">{siteCopy.menu}</a>
-                    <a href="/corporate-sets" onClick={openCorporateSets} aria-current={corporateSets ? 'page' : undefined} className={`text-sm font-black transition-colors hover:text-[#ff5a00] ${corporateSets ? 'text-[#ff5a00]' : 'text-[#1F2937]'}`}>{siteCopy.corporateSets}</a>
-                    <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="text-sm font-black text-[#1F2937] transition-colors hover:text-[#ff5a00]">{siteCopy.promotions}</a>
-                    <a href="/vacancies" onClick={openVacancies} className="text-sm font-black text-[#1F2937] transition-colors hover:text-[#ff5a00]">{siteCopy.vacancies}</a>
-                    <a href="#public-menu-contacts" onClick={event => navigateToPublicSection(event, 'public-menu-contacts')} className="text-sm font-black text-[#1F2937] transition-colors hover:text-[#ff5a00]">{siteCopy.contacts}</a>
+                    <a href="/menu" onClick={openMenuHome} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.menu}</a>
+                    <a href="/corporate-sets" onClick={openCorporateSets} aria-current={corporateSets ? 'page' : undefined} className={`text-sm font-semibold transition-colors hover:text-[#ff5a00] ${corporateSets ? 'text-[#ff5a00]' : 'lux-title'}`}>{siteCopy.corporateSets}</a>
+                    <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.promotions}</a>
+                    <a href="/vacancies" onClick={openVacancies} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.vacancies}</a>
+                    <a href="#public-menu-contacts" onClick={event => navigateToPublicSection(event, 'public-menu-contacts')} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.contacts}</a>
                   </nav>
                 )}
               </div>
@@ -933,11 +1062,11 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                   type="button"
                   onClick={openSearch}
                   aria-label={lang === 'uz' ? 'Qidirish' : lang === 'ru' ? 'Поиск' : 'Search'}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[#64748B] transition-colors hover:border-orange-200 hover:bg-white hover:text-[#ff5a00]"
+                  className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
                 >
                   <Search size={17} />
                 </button>
-                <ThemeToggle lang={lang} className="!h-10 !w-10 !rounded-xl" />
+                <ThemeToggle lang={lang} variant="lux" className="!h-10 !w-10" />
                 <div className="hidden lg:block">
                   <HeaderSelect
                     value={menuCurrency}
@@ -945,19 +1074,19 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                     icon={Coins}
                     options={MENU_CURRENCIES.map(currency => ({
                       value: currency,
-                      label: currency === 'UZS' ? "so'm UZS" : currency === 'USD' ? '$ USD' : '€ EUR',
+                      label: currency === 'UZS' ? 'UZS' : currency === 'USD' ? '$ USD' : '€ EUR',
                     }))}
                     ariaLabel={lang === 'uz' ? 'Valyuta' : lang === 'ru' ? 'Валюта' : 'Currency'}
                   />
                 </div>
-                {premium ? <LanguageSwitcher value={lang} onChange={setPremiumLang} /> : <LanguageSwitcher />}
+                {premium ? <LanguageSwitcher value={lang} onChange={setPremiumLang} variant="lux" /> : <LanguageSwitcher variant="lux" />}
               </div>
             </div>
           </div>
         </header>
       </div>
 
-      {showHero && <PublicMenuHero imageUrl={heroImageUrl} lang={lang} onViewMenu={openMenuHome} />}
+      {showHero && <PublicMenuHero lang={lang} onViewMenu={openMenuHome} headerOffset={headerOffset} heroRef={heroRef} />}
 
       <main id="public-menu-content" className="mx-auto max-w-[1280px] scroll-mt-28 px-3 pb-5 pt-3 sm:px-6 sm:pt-5">
         {!corporateSets && <div data-nosnippet="">
@@ -971,21 +1100,26 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
             sectionPrefix="public-menu-category"
             topOffset={headerOffset}
             scrollOffset={64}
-            className="mb-5 mt-0 rounded-[22px] border border-[#E5E7EB] bg-white p-2.5 shadow-sm sm:mb-7 sm:rounded-[28px] sm:p-4"
+            className={`relative z-10 mx-[calc(50%-50vw)] mb-5 sm:mb-8 ${showHero ? '-mt-[76px] sm:-mt-[104px]' : 'mt-1'}`}
+            rowClassName="lux-fade-edges !pb-1.5 pt-1.5 px-3 sm:px-[max(24px,calc(50vw-616px))]"
+            collapsedContentClassName="lux-fade-edges py-1.5 !px-3 sm:!px-[max(24px,calc(50vw-616px))]"
+            variant="lux"
             collapsedPosition="fixed"
-            collapsedSurfaceClass="bg-white/95"
-            collapsedClassName="z-50 px-3 sm:left-1/2 sm:right-auto sm:w-full sm:max-w-[1280px] sm:-translate-x-1/2 sm:px-4"
+            collapsedSurfaceClass="lux-header lux-bar"
+            collapsedClassName="z-50 !border-0 !px-0 !py-1 !translate-y-0 !transition-none"
           />
         </div>}
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+          // Placeholders mirror PublicDishCard: photo, title, subtitle, price.
+          <div className="grid grid-cols-2 gap-x-3 gap-y-7 pt-4 sm:gap-x-6 sm:gap-y-11 sm:pt-6 md:grid-cols-3 xl:grid-cols-4" aria-hidden="true">
             {Array.from({ length: 8 }).map((_, idx) => (
-              <div key={idx} className="overflow-hidden rounded-[18px] border border-[#E5E7EB] bg-white shadow-sm">
-                <div className="aspect-square animate-pulse bg-orange-50" />
-                <div className="space-y-2.5 p-3">
-                  <div className="h-4 w-2/3 animate-pulse rounded bg-gray-100" />
-                  <div className="h-5 w-1/2 animate-pulse rounded bg-gray-100" />
+              <div key={idx} className="lux-glass rounded-[24px] p-1.5 sm:rounded-[28px] sm:p-2">
+                <div className="zk-shimmer aspect-square w-full !rounded-[19px] sm:!rounded-[22px]" />
+                <div className="px-1.5 pb-1.5 pt-3 sm:px-2 sm:pb-2">
+                  <div className="zk-shimmer h-[18px] w-3/4 !rounded-md sm:h-5" />
+                  <div className="zk-shimmer mt-2 h-3 w-full !rounded-md" />
+                  <div className="zk-shimmer ml-auto mt-2.5 h-3.5 w-2/5 !rounded-md" />
                 </div>
               </div>
             ))}
@@ -1007,11 +1141,11 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
             </button>
           </div>
         ) : displayItems.length === 0 ? (
-          <div className="rounded-[28px] border border-[#E5E7EB] bg-white p-10 text-center shadow-sm">
+          <div className="lux-glass rounded-[28px] p-10 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-50">
               <UtensilsCrossed size={28} className="text-orange-300" />
             </div>
-            <p className="font-black text-[#1F2937]">
+            <p className="lux-title font-black">
               {lang === 'uz' ? 'Menyu hozircha mavjud emas' : lang === 'ru' ? 'Меню пока недоступно' : 'Menu is not available yet'}
             </p>
             <p className="mt-1 text-sm text-[#8A94A6]">
@@ -1062,24 +1196,27 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
           )
         )}
       </main>
-      {!premium && <PublicMenuFooter copy={siteCopy} lang={lang} onOpenMenu={openMenuHome} onOpenCorporateSets={openCorporateSets} onOpenVacancies={openVacancies} />}
+      {!premium && <PublicMenuFooter copy={siteCopy} lang={lang} onOpenMenu={openMenuHome} onOpenCorporateSets={openCorporateSets} onOpenVacancies={openVacancies} onOpenMap={openMapChooser} />}
       {showDetailOverlay && (
-        <div className="fixed inset-0 z-[80] bg-white">
-          <MenuProductDetailPage
+        <div className="fixed inset-0 z-[80]">
+          <PublicDishDetailPage
             item={detailItem}
             category={categoryMap[detailItem.category_id]}
-            currentQty={0}
-            currentNotes=""
             lang={lang}
             onBack={closeDetail}
-            onCancel={closeDetail}
-            onAddToCart={() => {}}
-            readOnly
             formatPrice={priceFormatter}
             linkBasePath={menuBasePath}
             languageControl={premium
-              ? <LanguageSwitcher value={lang} onChange={setPremiumLang} />
-              : <LanguageSwitcher />}
+              ? <LanguageSwitcher value={lang} onChange={setPremiumLang} className={DETAIL_LANGUAGE_CLASS} />
+              : <LanguageSwitcher className={DETAIL_LANGUAGE_CLASS} />}
+            place={{
+              name: 'Zar Kebab',
+              subtitle: PUBLIC_CONTACTS.location.label,
+              href: PUBLIC_CONTACTS.location.googleMapsHref,
+              onClick: openMapChooser,
+              logo: getBrandLogo(lang),
+            }}
+            reserve={premium ? null : { label: (HERO_COPY[lang] || HERO_COPY.en).reserve, href: PUBLIC_CONTACTS.phone.href }}
           />
         </div>
       )}
@@ -1097,6 +1234,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
         formatPrice={priceFormatter}
         linkBasePath={menuBasePath}
       />
+      <MapChooserSheet open={mapChooserOpen} lang={lang} onClose={closeMapChooser} />
     </div>
   )
 }

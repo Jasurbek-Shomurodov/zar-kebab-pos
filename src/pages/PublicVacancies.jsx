@@ -180,10 +180,10 @@ export default function PublicVacancies() {
   }
 
   return (
-    <div className="public-page-enter min-h-screen bg-[#FAFAF9] text-[#1F2937]">
-      <header className="border-b border-[#E5E7EB] bg-white/95 backdrop-blur">
+    <div className="zk-lux public-page-enter min-h-screen">
+      <header className="lux-header sticky top-0 z-40 border-b">
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:h-20 sm:px-6">
-          <Link to={selectedPosition ? '/vacancies' : '/menu'} onClick={returnFromPage} className="inline-flex min-w-0 items-center gap-2 justify-self-start text-xs font-black uppercase tracking-wide text-[#64748B] transition-colors hover:text-[#ff5a00]">
+          <Link to={selectedPosition ? '/vacancies' : '/menu'} onClick={returnFromPage} className="lux-muted inline-flex min-w-0 items-center gap-2 justify-self-start text-xs font-medium uppercase tracking-[0.18em] transition-colors hover:text-[#ff5a00]">
             <ArrowLeft size={16} />
             <span className="hidden sm:inline">{selectedPosition ? copy.backToVacancies : copy.back}</span>
           </Link>
@@ -192,8 +192,8 @@ export default function PublicVacancies() {
             <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.15em] text-[#ff5a00] sm:text-xs">Zar Kebab</span>
           </Link>
           <div className="flex items-center gap-2 justify-self-end">
-            <ThemeToggle lang={lang} className="!h-10 !w-10 !rounded-xl" />
-            <LanguageSwitcher />
+            <ThemeToggle lang={lang} variant="lux" className="!h-10 !w-10" />
+            <LanguageSwitcher variant="lux" />
           </div>
         </div>
       </header>
@@ -201,16 +201,16 @@ export default function PublicVacancies() {
       <main>
         {selectedPosition ? (
           <>
-            <section className="border-b border-orange-100 bg-[#FFF8F1]">
+            <section className="lux-page-2 lux-line border-b">
               <div className="mx-auto max-w-[1280px] px-4 py-10 sm:px-6 sm:py-14">
                 <div className="flex max-w-3xl items-start gap-4 sm:gap-5">
-                  <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-[#ff5a00] shadow-sm sm:h-16 sm:w-16"><selectedPosition.Icon size={27} /></span>
+                  <span className="lux-glass lux-gold flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full sm:h-16 sm:w-16"><selectedPosition.Icon size={26} /></span>
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#ff5a00]">{copy.eyebrow}</p>
-                    <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">{selectedPosition.title}</h1>
-                    <div className="mt-4 flex flex-wrap gap-2 text-xs font-black text-[#64748B]">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2"><Clock3 size={14} />{copy.fullTime}</span>
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2"><MapPin size={14} />{copy.tashkent}</span>
+                    <p className="lux-gold text-[11px] font-medium uppercase tracking-[0.3em]">{copy.eyebrow}</p>
+                    <h1 className="zk-serif lux-title mt-2 text-[44px] font-semibold leading-none sm:text-[64px]">{selectedPosition.title}</h1>
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
+                      <span className="lux-chip inline-flex items-center gap-1.5 rounded-full px-3 py-2"><Clock3 size={14} />{copy.fullTime}</span>
+                      <span className="lux-chip inline-flex items-center gap-1.5 rounded-full px-3 py-2"><MapPin size={14} />{copy.tashkent}</span>
                     </div>
                   </div>
                 </div>
@@ -220,33 +220,33 @@ export default function PublicVacancies() {
             <section className="mx-auto grid max-w-[1280px] gap-8 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
               <div className="space-y-9">
                 <div>
-                  <h2 className="text-xl font-black">{copy.positionDetails}</h2>
-                  <p className="mt-3 max-w-3xl text-base font-medium leading-7 text-[#64748B]">{selectedPosition.description}</p>
+                  <h2 className="zk-serif lux-title text-[28px] font-semibold">{copy.positionDetails}</h2>
+                  <p className="lux-body mt-3 max-w-3xl text-base font-light leading-7">{selectedPosition.description}</p>
                 </div>
                 <DetailList title={copy.responsibilities} items={selectedPosition.responsibilities} />
                 <DetailList title={copy.requirements} items={selectedPosition.requirements} />
               </div>
-              <aside className="rounded-[24px] border border-orange-100 bg-orange-50 p-6 lg:sticky lg:top-6">
-                <h2 className="text-xl font-black">{copy.applyForRole}</h2>
-                <p className="mt-2 text-sm font-medium leading-relaxed text-[#64748B]">{copy.applyText}</p>
+              <aside className="lux-glass rounded-[28px] p-6 lg:sticky lg:top-24">
+                <h2 className="zk-serif lux-title text-[28px] font-semibold">{copy.applyForRole}</h2>
+                <p className="lux-muted mt-2 text-sm font-light leading-relaxed">{copy.applyText}</p>
                 <div className="mt-5 space-y-3">
-                  <a href={TELEGRAM_URL} target="_blank" rel="noreferrer" className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#ff5a00] px-5 text-sm font-black text-white"><Send size={17} />{copy.apply}</a>
-                  <a href={PHONE_HREF} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-white px-5 text-sm font-black text-[#1F2937]"><Phone size={17} />{copy.call}</a>
+                  <a href={TELEGRAM_URL} target="_blank" rel="noreferrer" className="lux-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold"><Send size={17} />{copy.apply}</a>
+                  <a href={PHONE_HREF} className="lux-cta inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold"><Phone size={17} />{copy.call}</a>
                 </div>
               </aside>
             </section>
           </>
         ) : (
           <>
-        <section className="border-b border-orange-100 bg-[#FFF8F1]">
+        <section className="lux-page-2 lux-line border-b">
           <div className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 sm:py-16">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
               <div className="max-w-3xl">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#ff5a00]">{copy.eyebrow}</p>
-                <h1 className="mt-3 text-4xl font-black leading-tight tracking-tight text-[#1F2937] sm:text-5xl">{copy.title}</h1>
-                <p className="mt-4 max-w-2xl text-base font-medium leading-relaxed text-[#64748B] sm:text-lg">{copy.intro}</p>
+                <p className="lux-gold text-[11px] font-medium uppercase tracking-[0.3em]">{copy.eyebrow}</p>
+                <h1 className="zk-serif lux-title mt-3 text-[46px] font-semibold leading-[0.98] sm:text-[72px]">{copy.title}</h1>
+                <p className="lux-body mt-4 max-w-2xl text-base font-light leading-relaxed sm:text-lg">{copy.intro}</p>
               </div>
-              <div className="hidden border-l-2 border-[#ff5a00] pl-5 text-sm font-semibold leading-relaxed text-[#64748B] lg:block">
+              <div className="lux-muted hidden border-l pl-5 text-sm font-light leading-relaxed lg:block" style={{ borderColor: '#C9A86A' }}>
                 <p>{copy.applyText}</p>
               </div>
             </div>
@@ -254,32 +254,32 @@ export default function PublicVacancies() {
         </section>
 
         <section className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 sm:py-16">
-          <h2 className="text-2xl font-black tracking-tight sm:text-3xl">{copy.openings}</h2>
+          <h2 className="zk-serif lux-title text-[34px] font-semibold sm:text-[44px]">{copy.openings}</h2>
           <div className="mt-7 grid gap-4 md:grid-cols-3">
             {positions.map(({ key, Icon, title, text }) => (
-              <Link key={key} to={`/vacancies/${key}`} onClick={event => animatedNavigate(event, `/vacancies/${key}`)} className="group rounded-[24px] border border-[#E5E7EB] bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-orange-200 hover:shadow-lg">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-[#ff5a00] transition-colors group-hover:bg-[#ff5a00] group-hover:text-white"><Icon size={22} /></span>
-                <h3 className="mt-5 text-xl font-black">{title}</h3>
-                <p className="mt-2 min-h-16 text-sm font-medium leading-relaxed text-[#64748B]">{text}</p>
-                <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-black text-[#64748B]">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F8FAFC] px-3 py-1.5"><Clock3 size={13} />{copy.fullTime}</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F8FAFC] px-3 py-1.5"><MapPin size={13} />{copy.tashkent}</span>
+              <Link key={key} to={`/vacancies/${key}`} onClick={event => animatedNavigate(event, `/vacancies/${key}`)} className="lux-glass group rounded-[28px] p-6 transition-transform duration-300 hover:-translate-y-1">
+                <span className="lux-soft lux-gold flex h-12 w-12 items-center justify-center rounded-full"><Icon size={21} /></span>
+                <h3 className="zk-serif lux-title mt-5 text-[28px] font-semibold leading-none">{title}</h3>
+                <p className="lux-body mt-3 min-h-16 text-sm font-light leading-relaxed">{text}</p>
+                <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-medium">
+                  <span className="lux-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"><Clock3 size={13} />{copy.fullTime}</span>
+                  <span className="lux-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"><MapPin size={13} />{copy.tashkent}</span>
                 </div>
-                <span className="mt-5 inline-flex items-center gap-1.5 text-xs font-black text-[#ff5a00]">{copy.positionDetails}<ArrowRight size={14} /></span>
+                <span className="lux-gold mt-5 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em]">{copy.positionDetails}<ArrowRight size={14} /></span>
               </Link>
             ))}
           </div>
         </section>
 
         <section className="px-4 pb-14 sm:px-6 sm:pb-20">
-          <div className="mx-auto flex max-w-[1280px] flex-col gap-6 rounded-[28px] bg-orange-50 px-6 py-8 sm:px-10 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
+          <div className="lux-glass mx-auto flex max-w-[1280px] flex-col gap-6 rounded-[32px] px-6 py-8 sm:px-10 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
-              <h2 className="text-2xl font-black tracking-tight">{copy.applyTitle}</h2>
-              <p className="mt-2 text-sm font-medium leading-relaxed text-[#64748B] sm:text-base">{copy.applyText}</p>
+              <h2 className="zk-serif lux-title text-[32px] font-semibold leading-tight">{copy.applyTitle}</h2>
+              <p className="lux-muted mt-2 text-sm font-light leading-relaxed sm:text-base">{copy.applyText}</p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row lg:flex-shrink-0">
-              <a href={TELEGRAM_URL} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#ff5a00] px-5 text-sm font-black text-white shadow-lg shadow-orange-200"><Send size={17} />{copy.apply}</a>
-              <a href={PHONE_HREF} className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-white px-5 text-sm font-black text-[#1F2937]"><Phone size={17} />{copy.call}</a>
+              <a href={TELEGRAM_URL} target="_blank" rel="noreferrer" className="lux-primary inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold"><Send size={17} />{copy.apply}</a>
+              <a href={PHONE_HREF} className="lux-cta inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold"><Phone size={17} />{copy.call}</a>
             </div>
           </div>
         </section>
@@ -293,11 +293,11 @@ export default function PublicVacancies() {
 function DetailList({ title, items }) {
   return (
     <div>
-      <h2 className="text-xl font-black">{title}</h2>
+      <h2 className="zk-serif lux-title text-[28px] font-semibold">{title}</h2>
       <ul className="mt-4 space-y-3">
         {items.map(item => (
-          <li key={item} className="flex items-start gap-3 text-sm font-medium leading-6 text-[#64748B] sm:text-base">
-            <CheckCircle2 size={18} className="mt-0.5 flex-shrink-0 text-[#ff5a00]" />
+          <li key={item} className="lux-body flex items-start gap-3 text-sm font-light leading-6 sm:text-base">
+            <CheckCircle2 size={18} className="lux-gold mt-0.5 flex-shrink-0" />
             <span>{item}</span>
           </li>
         ))}

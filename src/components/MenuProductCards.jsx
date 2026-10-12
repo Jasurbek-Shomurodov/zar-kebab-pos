@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { ArrowLeft, Check, Clock3, Copy, LayoutGrid, Minus, Play, Plus, UtensilsCrossed } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Check, Clock3, Copy, LayoutGrid, Minus, Phone, Play, Plus, UtensilsCrossed, X } from 'lucide-react'
 import { getCategoryName, getItemDesc, getItemName, t } from '../lib/i18n'
 import { formatCurrency } from '../lib/formatCurrency'
 import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
@@ -17,6 +17,7 @@ import {
   normalizeMenuQuantity,
 } from '../lib/menuSaleUnits'
 import MenuMedia from './MenuMedia'
+import { useTheme } from '../lib/theme'
 
 function MenuImageFallback({ iconSize = 32, active = false }) {
   return (
@@ -36,12 +37,14 @@ function SafeMenuImage({
   fetchPriority,
   controls = false,
   autoPlay = true,
+  containerClassName = '',
 }) {
   return (
     <MenuMedia
       src={src}
       alt={alt}
       className={className}
+      containerClassName={containerClassName}
       loading={loading}
       fetchPriority={fetchPriority}
       controls={controls}
@@ -474,7 +477,7 @@ function EditorialPrice({ amount, formatPrice, className = '' }) {
   const [value, currency] = splitCurrency(formatPrice(amount))
   return (
     <span className={`whitespace-nowrap tabular-nums ${className}`}>
-      {value}{currency && <span className="ml-0.5 text-[0.72em] font-normal tracking-wide text-[#8C8277]">{currency}</span>}
+      {value}{currency && <span className="ml-0.5 text-[0.72em] font-normal tracking-wide opacity-60">{currency}</span>}
     </span>
   )
 }
@@ -503,13 +506,13 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
   return (
     <article
       data-menu-product-card
-      onClick={() => onOpenDetail(item)}
+      onClick={event => onOpenDetail(item, event.currentTarget.querySelector('[data-menu-product-image]'))}
       role="button"
       tabIndex={0}
-      onKeyDown={event => event.key === 'Enter' && onOpenDetail(item)}
-      className="group flex h-full cursor-pointer select-none flex-col rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40 focus-visible:ring-offset-4"
+      onKeyDown={event => event.key === 'Enter' && onOpenDetail(item, event.currentTarget.querySelector('[data-menu-product-image]'))}
+      className="lux-glass group flex h-full cursor-pointer select-none flex-col rounded-[24px] p-1.5 outline-none transition-transform duration-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-[#E2AB64]/60 sm:rounded-[28px] sm:p-2"
     >
-      <div data-menu-product-image className="relative aspect-square w-full overflow-hidden rounded-[18px] bg-[#EFE7DC] sm:rounded-[22px]">
+      <div data-menu-product-image className="relative aspect-square w-full overflow-hidden rounded-[19px] sm:rounded-[22px]" style={{ background: 'rgb(120 90 60 / 10%)' }}>
         <SafeMenuImage
           src={item.image_url}
           alt={name}
@@ -520,7 +523,7 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
         {discountPct > 0 && (
-          <span className="pointer-events-none absolute left-2.5 top-2.5 rounded-full bg-[#ff5a00] px-2.5 py-1 text-[11px] font-bold tracking-wide text-white shadow-sm sm:left-3 sm:top-3">
+          <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide sm:left-2.5 sm:top-2.5">
             −{discountPct}%
           </span>
         )}
@@ -529,31 +532,312 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
           onClick={copyProductLink}
           title={copyLabel}
           aria-label={copyLabel}
-          className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition-opacity hover:bg-black/55 sm:right-3 sm:top-3 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+          className="lux-on-photo absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full transition-opacity sm:right-2.5 sm:top-2.5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
         >
           {copied ? <Check size={15} /> : <Copy size={14} />}
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col px-0.5 pt-3 sm:pt-4">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-          <h3 className="zk-serif line-clamp-2 text-[19px] font-semibold leading-[1.1] text-[#1F1A15] sm:text-[23px]">{name}</h3>
-          <p className="flex flex-shrink-0 items-baseline gap-2 text-[14px] font-medium text-[#1F1A15] sm:text-[15px]">
-            {pricing.discounted && (
-              <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="text-[12px] font-normal text-[#A39A8F] line-through" />
-            )}
-            <span className={pricing.discounted ? 'text-[#ff5a00]' : ''}>
-              <EditorialPrice amount={pricing.price} formatPrice={formatPrice} />
-              {pricing.maxPrice > pricing.price && <> – <EditorialPrice amount={pricing.maxPrice} formatPrice={formatPrice} /></>}
-              {priceUnit && <span className="text-[0.8em] text-[#8C8277]">{priceUnit}</span>}
-            </span>
-          </p>
-        </div>
+      <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-2.5 sm:px-2 sm:pb-2 sm:pt-3">
+        {/* Always: title, then subtitle, then price (right-aligned). */}
+        <h3 className="zk-serif lux-title line-clamp-2 text-[18px] font-semibold leading-[1.1] sm:text-[22px]">{name}</h3>
         {description && (
-          <p className="mt-1.5 line-clamp-1 text-[13px] font-light leading-snug text-[#857B70]">{description}</p>
+          <p className="lux-muted mt-1 line-clamp-1 text-[12.5px] font-light leading-snug sm:text-[13px]">{description}</p>
         )}
+        <p className="lux-title mt-auto flex flex-wrap items-baseline justify-end gap-x-2 pt-2 text-right text-[14px] font-semibold sm:text-[15px]">
+          {pricing.discounted && (
+            <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="lux-muted text-[12px] font-normal line-through" />
+          )}
+          <span className={pricing.discounted ? 'lux-gold' : ''}>
+            <EditorialPrice amount={pricing.price} formatPrice={formatPrice} />
+            {pricing.maxPrice > pricing.price && <> – <EditorialPrice amount={pricing.maxPrice} formatPrice={formatPrice} /></>}
+            {priceUnit && <span className="lux-muted text-[0.8em]">{priceUnit}</span>}
+          </span>
+        </p>
       </div>
     </article>
+  )
+}
+
+const PUBLIC_DETAIL_PALETTES = {
+  dark: {
+    page: '#120E0B',
+    text: '#F6EEE3',
+    title: '#FFF8EE',
+    body: '#E4D8C8',
+    muted: '#C8B8A4',
+    gold: '#D9A866',
+    backdropOpacity: 0.45,
+    backdropVeil: 'radial-gradient(ellipse at center, rgb(18 14 11 / 35%) 0%, rgb(18 14 11 / 92%) 75%)',
+    photoFade: 'linear-gradient(0deg, #120E0B 0%, rgb(18 14 11 / 0%) 100%)',
+    card: 'linear-gradient(180deg, rgb(58 44 33 / 70%) 0%, rgb(26 20 15 / 90%) 100%)',
+    cardBorder: '1px solid rgb(255 236 210 / 14%)',
+    cardShadow: 'inset 0 1px 0 rgb(255 255 255 / 10%), 0 30px 70px rgb(0 0 0 / 50%)',
+    panel: 'rgb(255 255 255 / 5%)',
+    panelBorder: '1px solid rgb(255 236 210 / 11%)',
+    chip: 'rgb(255 255 255 / 6%)',
+    chipBorder: '1px solid rgb(255 236 210 / 13%)',
+    chipText: '#E9DCCB',
+    logoRing: 'none',
+    cta: {
+      background: 'linear-gradient(180deg, rgb(74 55 40) 0%, rgb(36 27 20) 100%)',
+      border: '1px solid rgb(226 171 100 / 75%)',
+      boxShadow: 'inset 0 1px 0 rgb(255 255 255 / 12%), 0 0 28px rgb(217 140 60 / 38%)',
+      color: '#FFF8EE',
+    },
+  },
+  light: {
+    page: '#F6F0E7',
+    text: '#2A221B',
+    title: '#1F1A15',
+    body: '#4A423A',
+    muted: '#7A6E62',
+    gold: '#B07A3A',
+    backdropOpacity: 0.35,
+    backdropVeil: 'radial-gradient(ellipse at center, rgb(246 240 231 / 40%) 0%, rgb(246 240 231 / 94%) 75%)',
+    photoFade: 'linear-gradient(0deg, #F6F0E7 0%, rgb(246 240 231 / 0%) 100%)',
+    card: 'linear-gradient(180deg, rgb(255 253 249 / 80%) 0%, rgb(250 244 235 / 94%) 100%)',
+    cardBorder: '1px solid rgb(120 90 60 / 14%)',
+    cardShadow: 'inset 0 1px 0 rgb(255 255 255 / 80%), 0 30px 70px rgb(80 55 30 / 18%)',
+    panel: 'rgb(255 255 255 / 62%)',
+    panelBorder: '1px solid rgb(120 90 60 / 13%)',
+    chip: 'rgb(255 255 255 / 70%)',
+    chipBorder: '1px solid rgb(120 90 60 / 16%)',
+    chipText: '#4A423A',
+    logoRing: '0 0 0 1px rgb(120 90 60 / 14%)',
+    cta: {
+      background: 'linear-gradient(180deg, #FFFDF9 0%, #F2E5D2 100%)',
+      border: '1px solid rgb(201 138 62 / 70%)',
+      boxShadow: 'inset 0 1px 0 rgb(255 255 255 / 90%), 0 0 26px rgb(217 140 60 / 28%)',
+      color: '#3A2A1C',
+    },
+  },
+}
+
+/** Public zarkebab.uz product page: full-height photo under a frosted glass card. Staff keep ProductDetailPage. */
+export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice = formatCurrency, linkBasePath = '/menu', languageControl = null, place = null, reserve = null }) {
+  const [copied, setCopied] = useState(false)
+  const [activeMediaUrl, setActiveMediaUrl] = useState('')
+  const [selectedOptions, setSelectedOptions] = useState({})
+  const { theme } = useTheme()
+
+  useEffect(() => {
+    setActiveMediaUrl(getMenuItemMediaUrls(item)[0] || '')
+    setSelectedOptions({})
+  }, [item?.id, item?.image_url, item?.media_urls])
+
+  if (!item) return null
+
+  const name = getItemName(item, lang)
+  const desc = getItemDesc(item, lang)
+  const mediaUrls = getMenuItemMediaUrls(item)
+  const displayedMediaUrl = mediaUrls.includes(activeMediaUrl) ? activeMediaUrl : mediaUrls[0] || ''
+  const backdropUrl = isMenuVideoUrl(displayedMediaUrl) ? (mediaUrls.find(url => !isMenuVideoUrl(url)) || '') : displayedMediaUrl
+  const optionGroups = getMenuItemOptionGroups(item, lang, { audience: 'public' }).filter(group => group.options.length > 0)
+  const pricing = getMenuOptionPricing(item, optionGroups, Object.keys(selectedOptions).length ? selectedOptions : null)
+  const priceUnit = menuPriceUnitSuffix(item, lang)
+  // A price range is too wide to sit beside the name, so it goes underneath.
+  const stackPrice = pricing.maxPrice > pricing.price
+  const facts = [
+    { icon: Clock3, text: menuPrepTimeLabel(item, lang) },
+    { text: gramsLabel(item, lang) },
+    { text: millilitresLabel(item, lang) },
+    { text: kcalLabel(item, lang) },
+  ].filter(fact => fact.text)
+  const discountPct = pricing.discounted && pricing.oldPrice > 0
+    ? Math.round((1 - pricing.price / pricing.oldPrice) * 100)
+    : 0
+  const labels = {
+    back: lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close',
+    copy: lang === 'uz' ? 'Havolani nusxalash' : lang === 'ru' ? 'Скопировать ссылку' : 'Copy link',
+    copied: lang === 'uz' ? 'Nusxalandi' : lang === 'ru' ? 'Скопировано' : 'Copied',
+  }
+
+  async function copyProductLink() {
+    await copyTextToClipboard(getMenuItemPublicUrl(item, globalThis.location?.origin, linkBasePath))
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1400)
+  }
+
+  // Inline colours keep the dark-theme remap away; each theme has its own palette.
+  const ui = PUBLIC_DETAIL_PALETTES[theme === 'dark' ? 'dark' : 'light']
+  const glassButton = { background: 'rgb(28 21 16 / 42%)', border: '1px solid rgb(255 240 220 / 22%)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }
+  const glassCard = {
+    background: ui.card,
+    border: ui.cardBorder,
+    boxShadow: ui.cardShadow,
+    backdropFilter: 'blur(26px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(26px) saturate(140%)',
+  }
+  const quietPanel = { background: ui.panel, border: ui.panelBorder }
+  const chipIdle = { background: ui.chip, border: ui.chipBorder, color: ui.chipText }
+  const chipActive = { background: 'linear-gradient(180deg, #B97A37 0%, #7C4F22 100%)', border: '1px solid #E2AB64', color: '#FFF8EE', boxShadow: '0 6px 18px rgb(201 138 62 / 35%)' }
+
+  return (
+    <div className="lux-no-scrollbar relative h-full overflow-y-auto overflow-x-hidden" style={{ background: ui.page, color: ui.text }}>
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 hidden md:block">
+        {backdropUrl && <img src={backdropUrl} alt="" className="h-full w-full scale-110 object-cover blur-2xl" style={{ opacity: ui.backdropOpacity }} />}
+        <div className="absolute inset-0" style={{ background: ui.backdropVeil }} />
+      </div>
+
+      <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between gap-2 p-3 sm:p-4 md:px-8 md:py-6">
+        <button type="button" onClick={onBack} aria-label={labels.back} title={labels.back} style={glassButton} className="flex h-11 w-11 items-center justify-center rounded-full text-[#FFF8EE] transition-transform active:scale-95">
+          <X size={20} />
+        </button>
+        <div className="flex items-center gap-2">
+          {languageControl}
+          <button type="button" onClick={copyProductLink} aria-label={copied ? labels.copied : labels.copy} title={copied ? labels.copied : labels.copy} style={glassButton} className="flex h-11 w-11 items-center justify-center rounded-full text-[#FFF8EE] transition-transform active:scale-95">
+            {copied ? <Check size={17} /> : <Copy size={16} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop: photo and card share one row height, so they are always the same size. */}
+      <div className="relative mx-auto min-h-full max-w-[1120px] md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:content-center md:items-stretch md:justify-center md:gap-10 md:px-8 md:py-24 lg:grid-cols-[460px_460px] lg:gap-12">
+        <div style={{ viewTransitionName: 'zk-dish' }} className="sticky top-0 h-[64vh] w-full overflow-hidden md:relative md:h-auto md:min-h-[440px] md:rounded-[34px] md:shadow-[0_40px_80px_rgb(0_0_0/55%)]">
+          <SafeMenuImage
+            src={displayedMediaUrl}
+            alt={name}
+            className="h-full w-full object-cover object-center"
+            containerClassName="h-full w-full"
+            fallbackIconSize={64}
+            loading="eager"
+            fetchPriority="high"
+            controls={isMenuVideoUrl(displayedMediaUrl)}
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 md:hidden" style={{ background: 'linear-gradient(180deg, rgb(0 0 0 / 45%), transparent)' }} />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 md:hidden" style={{ background: ui.photoFade }} />
+          {discountPct > 0 && (
+            <span className="pointer-events-none absolute left-4 top-[4.5rem] z-10 rounded-full px-3 py-1 text-xs font-semibold tracking-wide text-white md:top-4" style={{ background: '#ff5a00' }}>
+              −{discountPct}%
+            </span>
+          )}
+        </div>
+
+        <section data-dish-details className="relative z-10 mx-3 -mt-[20vh] mb-4 flex flex-col rounded-[30px] p-5 sm:mx-6 sm:p-7 md:m-0 md:self-stretch" style={{ ...glassCard, viewTransitionName: 'zk-dish-card' }}>
+          {mediaUrls.length > 1 && (
+            <div className="-mt-1 mb-4 flex gap-2 overflow-x-auto pb-1" role="list" aria-label={name}>
+              {mediaUrls.map((url, index) => {
+                const active = url === displayedMediaUrl
+                return (
+                  <button
+                    key={url}
+                    type="button"
+                    role="listitem"
+                    onClick={() => setActiveMediaUrl(url)}
+                    aria-label={`${name} ${index + 1}`}
+                    aria-pressed={active}
+                    className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl transition-opacity"
+                    style={{ border: active ? '1.5px solid #E2AB64' : ui.chipBorder, opacity: active ? 1 : 0.6 }}
+                  >
+                    <SafeMenuImage src={url} alt="" className="h-full w-full object-cover object-center" fallbackIconSize={18} autoPlay={false} />
+                    {isMenuVideoUrl(url) && (
+                      <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-white" style={{ background: 'rgb(0 0 0 / 25%)' }}>
+                        <Play size={11} fill="currentColor" />
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {category && (
+            <p className="text-[10px] font-medium uppercase tracking-[0.3em]" style={{ color: ui.gold }}>{getCategoryName(category, lang)}</p>
+          )}
+          <div className={`mt-1.5 flex items-start justify-between gap-4 md:flex-col md:gap-2 ${stackPrice ? 'flex-col gap-1' : ''}`}>
+            <h1 className="zk-serif min-w-0 text-[32px] font-semibold leading-[1.02] sm:text-[40px] lg:text-[46px]" style={{ color: ui.title }}>{name}</h1>
+            <div className={`flex flex-shrink-0 flex-col items-end pt-1.5 md:!flex-row md:!items-baseline md:gap-3 md:!pt-0 ${stackPrice ? '!items-start !pt-0' : ''}`}>
+              <p className={`whitespace-nowrap font-semibold ${stackPrice ? 'text-[19px] sm:text-[21px]' : 'text-[21px] sm:text-[24px]'}`} style={{ color: ui.title }}>
+                <EditorialPrice amount={pricing.price} formatPrice={formatPrice} />
+                {pricing.maxPrice > pricing.price && <> – <EditorialPrice amount={pricing.maxPrice} formatPrice={formatPrice} /></>}
+                {priceUnit && <span className="text-[0.6em] font-normal" style={{ color: ui.muted }}>{priceUnit}</span>}
+              </p>
+              {pricing.discounted && (
+                <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="mt-0.5 text-[13px] font-normal line-through opacity-70" />
+              )}
+            </div>
+          </div>
+
+          {facts.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]" style={{ color: ui.muted }}>
+              {facts.map(({ icon: Icon, text }, index) => (
+                <React.Fragment key={text}>
+                  {index > 0 && <span aria-hidden="true" className="h-1 w-1 rounded-full" style={{ background: ui.gold }} />}
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    {Icon && <Icon size={13} style={{ color: ui.gold }} />}
+                    {text}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+
+          {desc && (
+            <p className="mt-4 whitespace-pre-wrap text-[15px] font-light leading-[1.65]" style={{ color: ui.body }}>
+              <FormattedMenuText text={desc} fallback="" />
+            </p>
+          )}
+
+          {optionGroups.map(group => (
+            <div key={group.id} className="mt-5 flex items-center gap-2.5 md:flex-wrap">
+              <span className="flex-shrink-0 text-[13px] font-medium" style={{ color: ui.muted }}>{group.title}:</span>
+              <div className="-my-1 flex min-w-0 gap-2 overflow-x-auto py-1 md:flex-wrap md:overflow-visible">
+                {group.options.map(option => {
+                  const active = selectedOptions[group.id] === option.id
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setSelectedOptions(current => ({ ...current, [group.id]: option.id }))}
+                      className="h-10 flex-shrink-0 whitespace-nowrap rounded-[14px] px-4 text-[13px] font-medium transition-all"
+                      style={active ? chipActive : chipIdle}
+                    >
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
+          <div className="hidden flex-1 md:block" aria-hidden="true" />
+
+          {place && (
+            <a
+              href={place.href}
+              target="_blank"
+              rel="noreferrer"
+              onClick={place.onClick}
+              className="mt-5 flex items-center gap-3 rounded-[20px] p-3 transition-colors"
+              style={quietPanel}
+            >
+              <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full" style={{ background: '#FFF8EE', boxShadow: ui.logoRing }}>
+                <img src={place.logo} alt="" className="h-9 w-9 object-contain" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="zk-serif block text-[20px] font-semibold leading-tight" style={{ color: ui.title }}>{place.name}</span>
+                <span className="block truncate text-[13px] font-light" style={{ color: ui.muted }}>{place.subtitle}</span>
+              </span>
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl" style={quietPanel}>
+                <ArrowUpRight size={17} style={{ color: ui.title }} />
+              </span>
+            </a>
+          )}
+
+          {reserve && (
+            <a
+              href={reserve.href}
+              className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full text-[16px] font-medium tracking-wide transition-transform active:scale-[0.99]"
+              style={ui.cta}
+            >
+              <Phone size={17} /> {reserve.label}
+            </a>
+          )}
+        </section>
+      </div>
+    </div>
   )
 }
 

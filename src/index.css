@@ -27,6 +27,173 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* ── Public "lux" kit (zarkebab.uz) ────────────────────────────────────────
+   Warm glass surfaces with soft blur, small shadows and copper gradients.
+   Colours live in variables so light and dark are both designed here rather
+   than produced by the automatic dark-theme remap. */
+.zk-lux {
+  --lux-page: #F6F0E7;
+  --lux-page-2: #EFE6D9;
+  --lux-text: #2A221B;
+  --lux-title: #1F1A15;
+  --lux-body: #4A423A;
+  --lux-muted: #7A6E62;
+  --lux-gold: #B07A3A;
+  --lux-line: rgb(120 90 60 / 14%);
+  --lux-glass: linear-gradient(180deg, rgb(255 253 249 / 82%) 0%, rgb(250 244 235 / 92%) 100%);
+  --lux-glass-border: rgb(120 90 60 / 13%);
+  --lux-glass-shadow: inset 0 1px 0 rgb(255 255 255 / 85%), 0 10px 30px rgb(80 55 30 / 10%);
+  --lux-soft: rgb(255 255 255 / 62%);
+  --lux-chip-text: #4A423A;
+  --lux-cta-bg: linear-gradient(180deg, #FFFDF9 0%, #F2E5D2 100%);
+  --lux-cta-text: #3A2A1C;
+  --lux-cta-border: rgb(201 138 62 / 70%);
+  --lux-cta-glow: 0 0 22px rgb(217 140 60 / 26%);
+  background: var(--lux-page);
+  color: var(--lux-text);
+}
+html[data-theme="dark"] .zk-lux {
+  --lux-page: #120E0B;
+  --lux-page-2: #1A1410;
+  --lux-text: #F6EEE3;
+  --lux-title: #FFF8EE;
+  --lux-body: #E4D8C8;
+  --lux-muted: #B9A994;
+  --lux-gold: #D9A866;
+  --lux-line: rgb(255 236 210 / 12%);
+  --lux-glass: linear-gradient(180deg, rgb(58 44 33 / 62%) 0%, rgb(30 23 18 / 82%) 100%);
+  --lux-glass-border: rgb(255 236 210 / 12%);
+  --lux-glass-shadow: inset 0 1px 0 rgb(255 255 255 / 8%), 0 14px 34px rgb(0 0 0 / 38%);
+  --lux-soft: rgb(255 255 255 / 5%);
+  --lux-chip-text: #E9DCCB;
+  --lux-cta-bg: linear-gradient(180deg, rgb(74 55 40) 0%, rgb(36 27 20) 100%);
+  --lux-cta-text: #FFF8EE;
+  --lux-cta-border: rgb(226 171 100 / 70%);
+  --lux-cta-glow: 0 0 24px rgb(217 140 60 / 32%);
+}
+.zk-lux .lux-title { color: var(--lux-title); }
+.zk-lux .lux-body { color: var(--lux-body); }
+.zk-lux .lux-muted { color: var(--lux-muted); }
+.zk-lux .lux-gold { color: var(--lux-gold); }
+.zk-lux .lux-line { border-color: var(--lux-line); }
+.zk-lux .lux-page-2 { background: var(--lux-page-2); }
+.lux-glass {
+  background: var(--lux-glass);
+  border: 1px solid var(--lux-glass-border);
+  box-shadow: var(--lux-glass-shadow);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  backdrop-filter: blur(22px) saturate(140%);
+}
+.lux-soft {
+  background: var(--lux-soft);
+  border: 1px solid var(--lux-glass-border);
+}
+.lux-chip {
+  background: var(--lux-soft) !important;
+  border: 1px solid var(--lux-glass-border) !important;
+  color: var(--lux-chip-text) !important;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  transition: background-color .2s, box-shadow .2s, color .2s;
+}
+.lux-chip[aria-pressed="true"]:not(.lux-chip-static) {
+  background: linear-gradient(180deg, #B97A37 0%, #7C4F22 100%) !important;
+  border-color: #E2AB64 !important;
+  color: #FFF8EE !important;
+  box-shadow: 0 6px 16px rgb(201 138 62 / 30%);
+}
+/* Copper "Get started" pill: dark to copper, used for the main action. */
+.lux-primary {
+  background: linear-gradient(90deg, #2A1E15 0%, #6B4423 55%, #C98A47 100%);
+  border: 1px solid rgb(226 171 100 / 55%);
+  color: #FFF8EE;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%), 0 8px 22px rgb(150 95 40 / 30%);
+  transition: filter .2s, transform .2s;
+}
+.lux-primary:hover { filter: brightness(1.08); }
+.lux-primary:active { transform: scale(.99); }
+/* Outlined glass pill with a soft gold glow. */
+.lux-cta {
+  background: var(--lux-cta-bg);
+  border: 1px solid var(--lux-cta-border);
+  color: var(--lux-cta-text);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%), var(--lux-cta-glow);
+  transition: filter .2s, transform .2s;
+}
+.lux-cta:hover { filter: brightness(1.04); }
+.lux-cta:active { transform: scale(.99); }
+/* Public pages scroll without a visible scrollbar (touch-first, like an app). */
+html:has(.zk-lux), html:has(.zk-lux) body, .lux-no-scrollbar { scrollbar-width: none; }
+html:has(.zk-lux)::-webkit-scrollbar, html:has(.zk-lux) body::-webkit-scrollbar, .lux-no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Product page opens and closes by morphing the tapped photo (View Transitions). */
+::view-transition-group(zk-dish) { animation-duration: .42s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .32s; }
+/* The details card rises from the bottom on open. On close PublicMenu hides it before the
+   transition starts, so only the photo animates back into its menu card. */
+::view-transition-new(zk-dish-card) { animation: zk-card-rise .46s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes zk-card-rise { from { opacity: 0; transform: translateY(72px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* Header bars: page colour with a soft blur. */
+.lux-header {
+  background: color-mix(in srgb, var(--lux-page) 94%, transparent) !important;
+  border-color: var(--lux-line) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+.lux-header { box-shadow: 0 6px 22px rgb(60 40 20 / 7%); }
+html[data-theme="dark"] .lux-header { box-shadow: 0 8px 26px rgb(0 0 0 / 30%); }
+/* No hairlines on public bars: the header and sticky categories read as one surface. */
+.zk-lux header.lux-header, .lux-bar { border-color: transparent !important; }
+/* Header floating over the welcome photo: tinted glass, light text, soft shadow. */
+.lux-header-photo {
+  background: linear-gradient(180deg, rgb(15 11 8 / 46%) 0%, rgb(15 11 8 / 22%) 60%, rgb(15 11 8 / 0%) 100%) !important;
+  border-color: transparent !important;
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  /* Fade the blur out at the bottom so the bar melts into the photo with no seam. */
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 calc(100% - 18px), transparent 100%);
+}
+.lux-header-photo .lux-title { color: #FFF8EE !important; }
+.lux-header-photo .lux-chip {
+  background: rgb(28 21 16 / 34%) !important;
+  border-color: rgb(255 240 220 / 24%) !important;
+  color: #FFF8EE !important;
+}
+.lux-header-photo .lux-gold { color: #E7C98F; }
+
+/* Horizontal rows (category chips) fade out softly at both edges. */
+.lux-fade-edges {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+
+.zk-sheet-in { animation: zk-sheet-in .28s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes zk-sheet-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+
+/* Text inputs on glass. */
+.lux-input {
+  background: var(--lux-soft) !important;
+  border: 1px solid var(--lux-glass-border) !important;
+  color: var(--lux-title);
+}
+.lux-input:focus-within { border-color: var(--lux-cta-border) !important; box-shadow: var(--lux-cta-glow); }
+.lux-input input { color: var(--lux-title) !important; }
+.lux-input input::placeholder { color: var(--lux-muted) !important; }
+/* See-through controls that sit on photos in either theme. */
+.lux-on-photo {
+  background: rgb(28 21 16 / 42%);
+  border: 1px solid rgb(255 240 220 / 24%);
+  color: #FFF8EE;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
 /* ── Global typography minimums ──────────────────────────────────────────────
    Anything below 12px is unreadable on tablet/iPad.
    Override the smallest Tailwind arbitrary sizes globally.
@@ -195,6 +362,10 @@ h3 { font-size: 1.0625rem; } /* 17px */
   .zk-shimmer::after { animation: none; }
 }
 html[data-theme="dark"] .zk-shimmer { background: #222a25; }
+/* Public pages: warm placeholders that match the lux glass cards. */
+.zk-lux .zk-shimmer { background: rgb(120 90 60 / 10%); }
+html[data-theme="dark"] .zk-lux .zk-shimmer { background: rgb(255 236 210 / 7%); }
+html[data-theme="dark"] .zk-lux .zk-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 236 210 / 8%), transparent); }
 html[data-theme="dark"] .zk-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 255 255 / 6%), transparent); }
 
 /* Native dropdowns: the browser arrow sits flush against the right border.

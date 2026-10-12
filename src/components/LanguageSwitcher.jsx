@@ -13,7 +13,7 @@ const LANGUAGE_FLAGS = {
   en: '🇬🇧',
 }
 
-export default function LanguageSwitcher({ value, onChange, className = '', compact = false }) {
+export default function LanguageSwitcher({ value, onChange, className = '', compact = false, variant = 'default' }) {
   const { state, dispatch } = useApp()
   const activeLang = value || state.lang
 
@@ -26,7 +26,7 @@ export default function LanguageSwitcher({ value, onChange, className = '', comp
   }
 
   return (
-    <label className={`relative inline-flex h-9 items-center rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-xs font-black text-[#1F2937] shadow-sm transition-colors hover:bg-white ${compact ? 'w-[58px]' : ''} ${className}`}>
+    <label className={`relative inline-flex h-9 items-center text-xs font-black transition-colors ${variant === 'lux' ? 'lux-chip rounded-full' : 'rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-[#1F2937] shadow-sm hover:bg-white'} ${compact ? 'w-[58px]' : ''} ${className}`}>
       <select
         value={activeLang}
         onChange={event => changeLanguage(event.target.value)}

@@ -54,7 +54,7 @@ test('Premium public menu uses tourist pricing without duplicating menu items', 
   assert.match(publicMenu, /const \[premiumLang, setPremiumLang\] = useState\('en'\)/)
   assert.match(publicMenu, /useState\(\(\) => premium \? 'USD' : getDefaultMenuCurrency\(\)\)/)
   assert.match(publicMenu, /const lang = premium \? premiumLang : appLang/)
-  assert.match(publicMenu, /premium \? <LanguageSwitcher value=\{lang\} onChange=\{setPremiumLang\} \/> : <LanguageSwitcher \/>/)
+  assert.match(publicMenu, /premium \? <LanguageSwitcher value=\{lang\} onChange=\{setPremiumLang\} variant=\"lux\" \/> : <LanguageSwitcher variant=\"lux\" \/>/)
   assert.match(publicMenu, /getMenuItemForPriceMode\(item, 'tourist'\)/)
   assert.match(publicMenu, /Premium Menu/)
   assert.doesNotMatch(publicMenu, new RegExp('20% ' + 'higher'))
@@ -73,7 +73,8 @@ test('MenuCategoryScroller collapsed chips do not overlap expanded category card
   assert.match(source, /py-1\.5/)
   assert.match(source, /const COLLAPSE_SHOW_OFFSET = 61/)
   assert.match(source, /const COLLAPSE_HIDE_OFFSET = 28/)
-  assert.match(source, /maxHeight: collapsedPosition === 'fixed' \|\| collapsed \? COLLAPSED_BAR_HEIGHT : 0/)
+  // Staff bars stay 56px; only the public lux bar is taller so its glowing chips are not clipped.
+  assert.match(source, /maxHeight: collapsedPosition === 'fixed' \|\| collapsed \? \(lux \? LUX_BAR_HEIGHT : COLLAPSED_BAR_HEIGHT\) : 0/)
   assert.doesNotMatch(source, /height: collapsed \? COLLAPSED_BAR_HEIGHT/)
   assert.match(source, /setCollapsed\(isCollapsed =>/)
   assert.match(source, /scrollOffset \+ 8/)
@@ -139,7 +140,7 @@ test('PublicMenu enables tappable fixed collapsed categories', () => {
   assert.match(source, /min-\[400px\]:hidden/)
   assert.match(source, /MENU_CURRENCIES\.map\(currency => \(\{ value: currency, label: currency \}\)\)/)
   assert.doesNotMatch(source.slice(source.indexOf('<header ref={headerRef}'), source.indexOf('</header>')), /PublicContactButtons/)
-  assert.match(source, /className="mb-5 mt-0 rounded-\[22px\]/)
+  assert.match(source, /mx-\[calc\(50%-50vw\)\][^\n]*\n\s+rowClassName="lux-fade-edges[^\n]*\n\s+collapsedContentClassName="lux-fade-edges[^"]*"\n\s+variant="lux"/)
   assert.match(source, /function MobileSearchPage/)
   assert.match(source, /const \[mobileSearchOpen, setMobileSearchOpen\] = useState\(false\)/)
   assert.match(source, /setMobileSearchOpen\(true\)/)
@@ -149,7 +150,8 @@ test('PublicMenu enables tappable fixed collapsed categories', () => {
   assert.match(source, /function MenuSectionHeader\(\{ title, tone = 'default' \}\)/)
   assert.match(source, /<span aria-hidden="true" className="mt-3 h-px w-14 bg-\[#C9A86A\]/)
   assert.match(source, /<PublicDishCard\s/)
-  assert.match(source, /\{showHero && <PublicMenuHero imageUrl=\{heroImageUrl\}/)
+  assert.match(source, /\{showHero && <PublicMenuHero lang=\{lang\}/)
+  assert.match(source, /import heroImage from '\.\.\/assets\/brand\/zarkebab-hero-kebab\.webp'/)
   assert.match(source, /<MenuSectionHeader title=\{getCategoryName\(section\.cat, lang\)\} \/>/)
   assert.match(source, /<MenuSectionHeader title=\{dealsTitle\} tone="deal" \/>/)
   assert.doesNotMatch(source, /\{section\.items\.length\} \{lang/)
@@ -609,4 +611,38 @@ test('public menu lists deals after the regular categories, not on top', () => {
   const categories = publicMenu.indexOf('section.cat.id !== CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)')
   const deals = publicMenu.indexOf('<section id="public-menu-deals"')
   assert.ok(categories > 0 && deals > categories)
+})
+
+test('public product page morphs from the tapped photo, closes with X, and the category bar follows scrolling', () => {
+  const publicMenu = readSource('src/pages/PublicMenu.jsx')
+  const productCards = readSource('src/components/MenuProductCards.jsx')
+  const scroller = readSource('src/components/MenuCategoryScroller.jsx')
+
+  assert.match(publicMenu, /document\.startViewTransition\(\(\) => \{\s*flushSync\(update\)/)
+  assert.match(productCards, /viewTransitionName: 'zk-dish'/)
+  assert.match(productCards, /<X size=\{20\} \/>/)
+  // closeDetail once called an undefined setter, which left the product page stuck open.
+  assert.doesNotMatch(publicMenu, /setMissingItemLink/)
+  assert.match(scroller, /row\.scrollBy\(\{ left: delta/)
+})
+
+test('location links ask which map app to use and default to Google Maps', () => {
+  const publicMenu = readSource('src/pages/PublicMenu.jsx')
+  const productCards = readSource('src/components/MenuProductCards.jsx')
+
+  assert.match(publicMenu, /function MapChooserSheet/)
+  assert.match(publicMenu, /label: 'Google Maps'[\s\S]*label: 'Yandex Maps'[\s\S]*label: 'Apple Maps'/)
+  // Without the chooser (no JS), every location link still opens Google Maps.
+  assert.match(publicMenu, /href=\{PUBLIC_CONTACTS\.location\.googleMapsHref\}[\s\S]*?onClick=\{onOpenMap\}/)
+  assert.match(publicMenu, /onClick: openMapChooser/)
+  assert.match(productCards, /onClick=\{place\.onClick\}/)
+  // On close the details card is hidden at once; only the photo morphs back.
+  assert.match(productCards, /viewTransitionName: 'zk-dish-card'/)
+})
+
+test('closing a product hides its details card instantly while the photo morphs back', () => {
+  const css = readSource('src/index.css')
+  assert.match(css, /::view-transition-new\(zk-dish-card\) \{ animation: zk-card-rise/)
+  const publicMenu = readSource('src/pages/PublicMenu.jsx')
+  assert.match(publicMenu, /details\.style\.viewTransitionName = 'none'\s*details\.style\.visibility = 'hidden'/)
 })

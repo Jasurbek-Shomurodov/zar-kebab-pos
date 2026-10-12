@@ -11,6 +11,11 @@ export function menuCategorySectionId(prefix, categoryId) {
 const COLLAPSED_BAR_HEIGHT = 56
 const COLLAPSE_SHOW_OFFSET = 61
 const COLLAPSE_HIDE_OFFSET = 28
+// Lux rows pad chips by 6px (py-1.5) so their glow is not clipped; the lux bar adds 4px (py-1),
+// so chips line up when the row's top is 4px below the bar's top.
+const LUX_SHOW_OFFSET = 4
+const LUX_HIDE_OFFSET = 12
+const LUX_BAR_HEIGHT = 64
 
 function CategoryImage({ src, alt, active }) {
   return (
@@ -157,6 +162,25 @@ function CategoryChip({ category, active, title, count, onClick }) {
   )
 }
 
+// Public zarkebab.uz: rounded glass pills with a small round photo (lux kit in index.css).
+function LuxCategoryPill({ category, active, title, onClick }) {
+  const isAll = category.id === 'all'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="lux-chip flex h-10 flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-full pl-1.5 pr-4 text-[13px] font-medium sm:h-11 sm:text-sm"
+    >
+      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-8 sm:w-8" style={{ background: 'rgb(255 255 255 / 18%)' }}>
+        {isAll ? <LayoutGrid size={14} /> : category.image_url ? <CategoryImage src={category.image_url} alt="" active={active} /> : <UtensilsCrossed size={14} />}
+      </span>
+      {title}
+    </button>
+  )
+}
+
 function isScrollableElement(element) {
   if (!element || element === document.body || element === document.documentElement) return false
   const style = window.getComputedStyle(element)
@@ -184,6 +208,7 @@ export default function MenuCategoryScroller({
   scrollContainerRef,
   topOffset = 0,
   className = '',
+  rowClassName = '',
   collapsedClassName = '',
   collapsedContentClassName = '',
   collapsedMaxWidth = null,
@@ -194,11 +219,14 @@ export default function MenuCategoryScroller({
   variant = 'default',
 }) {
   const workspace = variant === 'workspace'
-  const Card = workspace ? WorkspaceCategoryCard : LargeCategoryCard
-  const Chip = workspace ? WorkspaceCategoryChip : CategoryChip
+  const lux = variant === 'lux'
+  const Card = lux ? LuxCategoryPill : workspace ? WorkspaceCategoryCard : LargeCategoryCard
+  const Chip = lux ? LuxCategoryPill : workspace ? WorkspaceCategoryChip : CategoryChip
   const [collapsed, setCollapsed] = useState(false)
   const [fixedInsets, setFixedInsets] = useState(null)
   const sentinelRef = useRef(null)
+  const rowRef = useRef(null)
+  const collapsedRowRef = useRef(null)
   const activeRef = useRef(activeCategoryId)
   const pendingCategoryRef = useRef(null)
   const pendingCategoryTimerRef = useRef(null)
@@ -212,6 +240,27 @@ export default function MenuCategoryScroller({
   }, [])
 
   const cards = useMemo(() => categories || [], [categories])
+
+  // Swap rows in place: the bar that takes over starts at the same horizontal position.
+  useEffect(() => {
+    const from = collapsed ? rowRef.current : collapsedRowRef.current
+    const to = collapsed ? collapsedRowRef.current : rowRef.current
+    if (from && to) to.scrollLeft = from.scrollLeft
+  }, [collapsed])
+
+  // Keep the active category visible: centre its chip horizontally (never scrolls the page).
+  useEffect(() => {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    for (const row of [rowRef.current, collapsedRowRef.current]) {
+      if (!row) continue
+      const chip = [...row.querySelectorAll('button[aria-pressed="true"]')].find(button => button.offsetParent)
+      if (!chip) continue
+      const rowRect = row.getBoundingClientRect()
+      const chipRect = chip.getBoundingClientRect()
+      const delta = chipRect.left - rowRect.left - (rowRect.width - chipRect.width) / 2
+      if (Math.abs(delta) > 4) row.scrollBy({ left: delta, behavior: reduceMotion ? 'auto' : 'smooth' })
+    }
+  }, [activeCategoryId, collapsed])
 
   const collapsedWidthStyle = collapsedPosition === 'fixed' && fixedInsets && Number.isFinite(collapsedMaxWidth)
     ? (() => {
@@ -328,11 +377,13 @@ export default function MenuCategoryScroller({
       if (sentinel) {
         const rect = sentinel.getBoundingClientRect()
         const rootTop = root === window ? topOffset : scroller.getBoundingClientRect().top
-        setCollapsed(isCollapsed => (
-          isCollapsed
+        setCollapsed(isCollapsed => lux
+          // Lux: hand over exactly when the chips reach the bar's chip line, with a small hysteresis.
+          ? (isCollapsed ? rect.top <= rootTop + LUX_HIDE_OFFSET : rect.top <= rootTop + LUX_SHOW_OFFSET)
+          : isCollapsed
             ? rect.bottom <= rootTop + COLLAPSE_HIDE_OFFSET
             : rect.bottom <= rootTop + COLLAPSE_SHOW_OFFSET
-        ))
+        )
       }
 
       if (!onActiveCategoryChange || !sectionPrefix) return
@@ -378,12 +429,12 @@ export default function MenuCategoryScroller({
       window.removeEventListener('resize', handleScroll)
       resizeObserver?.disconnect()
     }
-  }, [cards, collapsedPosition, onActiveCategoryChange, scrollContainerRef, scrollOffset, sectionPrefix, topOffset])
+  }, [cards, collapsedPosition, lux, onActiveCategoryChange, scrollContainerRef, scrollOffset, sectionPrefix, topOffset])
 
   return (
     <>
-      <div ref={sentinelRef} className={`${className} ${compactMobile ? 'max-sm:sticky max-sm:top-0 max-sm:z-30 max-sm:bg-[#FAF6EE]' : ''}`}>
-        <div className="flex gap-2 overflow-x-auto pb-1 sm:gap-3" style={{ scrollbarWidth: 'none' }}>
+      <div ref={sentinelRef} className={`${className} ${compactMobile ? 'max-sm:sticky max-sm:top-0 max-sm:z-30 max-sm:bg-[#FAF6EE]' : ''}`} style={lux && collapsed ? { visibility: 'hidden' } : undefined}>
+        <div ref={rowRef} className={`flex gap-2 overflow-x-auto pb-1 sm:gap-3 ${rowClassName}`} style={{ scrollbarWidth: 'none' }}>
           {cards.map(category => {
             const title = titleFor(category)
             return (
@@ -414,10 +465,10 @@ export default function MenuCategoryScroller({
           top: fixedInsets?.top ?? topOffset,
           ...(fixedInsets ? { left: fixedInsets.left, right: fixedInsets.right } : {}),
           ...(collapsedWidthStyle || {}),
-          maxHeight: collapsedPosition === 'fixed' || collapsed ? COLLAPSED_BAR_HEIGHT : 0,
+          maxHeight: collapsedPosition === 'fixed' || collapsed ? (lux ? LUX_BAR_HEIGHT : COLLAPSED_BAR_HEIGHT) : 0,
         }}
       >
-        <div className={`flex gap-2 overflow-x-auto overflow-y-hidden px-1 ${collapsedContentClassName}`} style={{ scrollbarWidth: 'none' }}>
+        <div ref={collapsedRowRef} className={`flex gap-2 overflow-x-auto overflow-y-hidden px-1 ${collapsedContentClassName}`} style={{ scrollbarWidth: 'none' }}>
           {cards.map(category => {
             const title = titleFor(category)
             return (

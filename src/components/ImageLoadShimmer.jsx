@@ -36,7 +36,7 @@ export default function ImageLoadShimmer({
   return (
     <div className={`relative overflow-hidden bg-orange-50 ${containerClassName}`}>
       {!loaded && !timedOut && (
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-orange-50 via-white to-orange-100" />
+        <div className="zk-shimmer absolute inset-0 !rounded-none" />
       )}
       {timedOut && !loaded && fallback && (
         <div className="absolute inset-0 z-10">
