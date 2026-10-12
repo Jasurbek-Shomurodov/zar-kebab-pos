@@ -19,6 +19,19 @@ export async function loadActiveOrderWaiterNames(orders, dbClient) {
   }
 }
 
+// Applies names embedded by loadActiveOrders. Returns null when the rows came
+// back without the embed, so the caller falls back to the separate lookup.
+export function applyEmbeddedWaiterNames(orders) {
+  if (!orders.length || !orders.some(order => Object.prototype.hasOwnProperty.call(order, 'opener'))) {
+    return orders.length ? null : orders
+  }
+  return orders.map(({ opener, ...order }) => {
+    const name = opener?.full_name?.trim()
+    const active = order.payment_status !== 'paid' && !order.paid_at && !['paid', 'completed', 'cancelled'].includes(order.status)
+    return active && name ? { ...order, waiter_name: name } : order
+  })
+}
+
 export function getActiveWaiterNames(orders) {
   return [...new Set(orders.map(order => order.waiter_name?.trim() || order.opened_by_name?.trim()).filter(Boolean))]
 }

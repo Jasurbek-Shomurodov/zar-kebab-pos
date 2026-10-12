@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js'
 import { hasMenuItemImage } from './menuMedia.js'
-import { loadActiveOrderWaiterNames } from './activeOrderWaiters.js'
+import { applyEmbeddedWaiterNames, loadActiveOrderWaiterNames } from './activeOrderWaiters.js'
 import { withWriteTimeout } from './writeTimeout.js'
 import { pickQuickItemOrder } from './cashierBills.js'
 import {
@@ -587,7 +587,9 @@ async function loadCurrentOrderState() {
     loadActiveOrders(),
     loadPaidOrdersForRange(today, today),
   ])
-  return mergeOperationalOrders(await loadActiveOrderWaiterNames(activeOrders, supabase), paidTodayOrders)
+  const namedActiveOrders = applyEmbeddedWaiterNames(activeOrders)
+    ?? await loadActiveOrderWaiterNames(activeOrders, supabase)
+  return mergeOperationalOrders(namedActiveOrders, paidTodayOrders)
 }
 
 export async function loadOrders() {

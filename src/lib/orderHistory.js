@@ -186,12 +186,24 @@ export function mergeOrderHistory(historyOrders = [], liveOrders = [], dateFrom,
   return [...byId.values()]
 }
 
+// The current waiter's name rides along with each active order (orders.opened_by
+// -> profiles), so startup does not need a second round trip that waits for the
+// orders. RLS still decides which names are visible; a hidden profile embeds as
+// null and the saved name is kept. Without the relationship, plain rows come
+// back and names are resolved separately (loadActiveOrderWaiterNames).
+export const ACTIVE_ORDER_OPENER_SELECT = 'opener:profiles!orders_opened_by_fkey(full_name)'
+
 export async function loadActiveOrders(options = {}) {
   const dbClient = options.dbClient || supabase
   const pageSize = options.pageSize || ORDER_HISTORY_PAGE_SIZE
+  const withOpener = options.withOpenerNames !== false
+  const select = base => (withOpener ? `${base}, ${ACTIVE_ORDER_OPENER_SELECT}` : base)
   try {
-    return await queryActiveOrderPages(dbClient, ORDER_HISTORY_SELECT, pageSize)
+    return await queryActiveOrderPages(dbClient, select(ORDER_HISTORY_SELECT), pageSize)
   } catch (error) {
+    // Any failure with the name embed retries the original query, which keeps
+    // its own missing-payments fallback; names are then looked up separately.
+    if (withOpener) return loadActiveOrders({ ...options, withOpenerNames: false })
     if (!isMissingPaymentsRelation(error)) throw error
     return queryActiveOrderPages(dbClient, ORDER_HISTORY_SELECT_WITHOUT_PAYMENTS, pageSize)
   }

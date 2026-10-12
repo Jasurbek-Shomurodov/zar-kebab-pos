@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { loadActiveOrderWaiterNames, getActiveWaiterNames, getTableOrderWaiterNames } from '../src/lib/activeOrderWaiters.js'
+import { applyEmbeddedWaiterNames, loadActiveOrderWaiterNames, getActiveWaiterNames, getTableOrderWaiterNames } from '../src/lib/activeOrderWaiters.js'
 
 const order = { id: 'order-1', opened_by: 'user-1', opened_by_name: 'Oleg', waiter_name: 'Oleg', payment_status: 'unpaid', status: 'needs_bill' }
 function client(result) {
@@ -80,4 +80,37 @@ test('draft headers and fresh submissions share billable-order selection while r
   assert.match(context, /const activeOrder = isOffPremise \? null : getActiveTableOrders\(stateRef.current.currentTableId, stateRef.current.orders\)\[0\]/)
   assert.match(context, /: activeOrder\?\.id \|\| 'o' \+ Date.now\(\)/)
   assert.match(context, /enriched = \{ \.\.\.pendingAttempt, _kitchenSubmissionRetry: true \}/)
+})
+
+test('embedded waiter names label active orders in the same request and keep saved names otherwise', () => {
+  const active = { id: 'a', status: 'pending', opened_by: 'u1', opened_by_name: 'Old', opener: { full_name: ' Asil ' } }
+  const hidden = { id: 'b', status: 'pending', opened_by: 'u2', opened_by_name: 'Saved', opener: null }
+  const paid = { id: 'c', status: 'paid', paid_at: '2026-10-12T10:00:00Z', opened_by: 'u1', opener: { full_name: 'Asil' } }
+  const result = applyEmbeddedWaiterNames([active, hidden, paid])
+  assert.equal(result[0].waiter_name, 'Asil')
+  assert.equal(result[1].waiter_name, undefined)
+  assert.equal(result[2].waiter_name, undefined)
+  assert.ok(result.every(order => !('opener' in order)))
+  // Rows without the embed (older database or fallback query) use the separate lookup.
+  assert.equal(applyEmbeddedWaiterNames([{ id: 'x', status: 'pending', opened_by: 'u1' }]), null)
+  assert.deepEqual(applyEmbeddedWaiterNames([]), [])
+})
+
+test('active orders ask for the waiter name in the same query and fall back without it', async () => {
+  const { loadActiveOrders, ACTIVE_ORDER_OPENER_SELECT } = await import('../src/lib/orderHistory.js')
+  const selects = []
+  const query = select => {
+    const chain = {
+      or: () => chain, is: () => chain, order: () => chain,
+      range: () => (select.includes('opener:')
+        ? Promise.resolve({ data: null, error: { code: 'PGRST200', message: 'Could not find a relationship' } })
+        : Promise.resolve({ data: [{ id: 'a' }], error: null })),
+    }
+    return chain
+  }
+  const dbClient = { from: () => ({ select: select => { selects.push(select); return query(select) } }) }
+  const rows = await loadActiveOrders({ dbClient })
+  assert.deepEqual(rows, [{ id: 'a' }])
+  assert.match(selects[0], new RegExp(ACTIVE_ORDER_OPENER_SELECT.replace(/[()!]/g, '\\$&')))
+  assert.doesNotMatch(selects[1], /opener:/)
 })
