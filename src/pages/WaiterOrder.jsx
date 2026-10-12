@@ -13,6 +13,8 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { getOrderPaymentSummary } from '../lib/analytics'
 import CartPanel from '../components/CartPanel'
 import UnifiedSidebar from '../components/UnifiedSidebar'
+import MobileDrawer from '../components/MobileDrawer'
+import ThemeToggle from '../components/ThemeToggle'
 import AnimatedSearch from '../components/AnimatedSearch'
 import MenuCategoryScroller, { menuCategorySectionId } from '../components/MenuCategoryScroller'
 import { ProductCard, ProductDetailPage, getMenuItemOptionGroups, getOrderItemOptionLines, menuItemRequiresOptions } from '../components/MenuProductCards'
@@ -1272,7 +1274,7 @@ export default function WaiterOrder() {
         )}
         <div className="flex-1 overflow-y-auto">
           {!loaded ? (
-            <OperationalLoading
+            <OperationalLoading layout="detail"
               title={lang === 'uz' ? 'Buyurtma ekrani yuklanmoqda' : lang === 'ru' ? 'Загрузка экрана заказа' : 'Loading order screen'}
               description={lang === 'uz' ? 'Stollar, menyu va buyurtmalar olinmoqda.' : lang === 'ru' ? 'Получаем столы, меню и заказы.' : 'Fetching tables, menu, and orders.'}
             />
@@ -1430,13 +1432,10 @@ export default function WaiterOrder() {
       )}
 
       {/* ── Mobile sidebar overlay ───────────────────────────────────────── */}
-      {shouldShowSidebar && !detailItem && sidebarOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => { if (!orderLocked) setSidebarOpen(false) }} />
-          <div className="relative z-10 h-full">
-            <UnifiedSidebar navigationDisabled={orderLocked} onClose={() => setSidebarOpen(false)} />
-          </div>
-        </div>
+      {shouldShowSidebar && !detailItem && (
+        <MobileDrawer open={sidebarOpen} onClose={() => { if (!orderLocked) setSidebarOpen(false) }}>
+          <UnifiedSidebar navigationDisabled={orderLocked} onClose={() => setSidebarOpen(false)} />
+        </MobileDrawer>
       )}
 
       {/* ── Center column ───────────────────────────────────────────────── */}
@@ -1546,6 +1545,7 @@ export default function WaiterOrder() {
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] text-gray-500 sm:hidden">
                   {mobileMenuView === 'compact' ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
                 </button>
+                <ThemeToggle lang={lang} className="!h-11 !w-11 rounded-xl" />
                 {!shouldShowSidebar && (
                   <div className="flex items-center gap-1.5">
                     {['uz', 'ru', 'en'].map(l => (

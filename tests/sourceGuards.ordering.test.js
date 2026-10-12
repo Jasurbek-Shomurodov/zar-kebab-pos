@@ -267,7 +267,7 @@ test('AdminDashboard shows period-based order type performance', () => {
 test('AdminDashboard category sales use the available card height before scrolling', () => {
   const dashboard = readSource('src/pages/AdminDashboard.jsx')
 
-  assert.match(dashboard, /flex min-h-0 min-w-0 flex-col bg-white rounded-2xl/)
+  assert.match(dashboard, /ws-panel col-span-12 xl:col-span-4 flex min-h-0 min-w-0 flex-col/)
   assert.match(dashboard, /min-h-0 flex-1 space-y-2 overflow-y-auto pr-1/)
   assert.doesNotMatch(dashboard, /max-h-\[230px\] space-y-2 overflow-y-auto/)
 })
@@ -337,7 +337,7 @@ test('WaiterTables groups available tables into ordered zone sections', () => {
   assert.match(source, /groupTableInfosByZone\(items, visibleZones\)/)
   assert.match(source, /availableZoneGroups\.map\(\(\{ zone: zoneItem, items: zoneItems \}\)/)
   assert.match(source, /tableCountLabel\(lang, zoneItems\.length\)/)
-  assert.match(source, /status === 'available' \? zone\.border : cfg\.border/)
+  assert.match(source, /const cardEdge = status === 'available' \? zone\.dot : cfg\.edge/)
 })
 
 test('CashierTables groups bills by cashier urgency', () => {
@@ -361,7 +361,10 @@ test('CashierTables groups bills by cashier urgency', () => {
   assert.match(source, /isDeliveryOrderType/)
   assert.match(source, /function PaidTodaySummary/)
   assert.match(source, /showPaidToday/)
-  assert.match(source, /const \[showPaidToday, setShowPaidToday\] = useState\(true\)/)
+  // Paid today is a Cashier view (top-bar tab after the title, like Menu), kept in ?view=paid.
+  assert.match(source, /const showPaidToday = searchParams\.get\('view'\) === 'paid'/)
+  assert.match(source, /<WorkspaceTopBar[\s\S]*?badge=\{activeBills\.length\}[\s\S]*?tabs=\{\{[\s\S]*?key: 'paid'/)
+  assert.match(source, /\{showPaidToday \? \(\s*<PaidTodaySummary/)
   assert.doesNotMatch(source, /l\.infoBar/)
   assert.match(source, /latest\.map\(order => \{[\s\S]*normalizePriceMode\(order\.price_mode\)[\s\S]*getPriceModeLabel\(priceMode, lang\)/)
   assert.match(source, /getPaidOrderPaymentMethods\(order\)[\s\S]*getOrderPaymentBreakdown\(order\)/)

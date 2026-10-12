@@ -51,11 +51,11 @@ test('Daily Bazaar is a page feature with a default route fallback', () => {
   )
 })
 
-test('Accounting links to Daily Bazaar and prevents duplicate manual bazaar expenses', () => {
+test('Daily Bazaar lives in the drawer and Accounting prevents duplicate manual bazaar expenses', () => {
   const expensesPage = readSource('src/pages/Expenses.jsx')
   const expensesLib = readSource('src/lib/expenses.js')
 
-  assert.match(expensesPage, /onClick=\{\(\) => navigate\('\/admin\/bazaar'\)\}/)
+  assert.doesNotMatch(expensesPage, /navigate\('\/admin\/bazaar'\)/)
   assert.match(
     expensesLib,
     /MANUAL_EXPENSE_CATEGORIES = EXPENSE_CATEGORIES\.filter\(category => \([\s\S]{0,240}category\.key !== 'products_bazaar'/,

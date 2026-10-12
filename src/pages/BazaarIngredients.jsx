@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Archive, Download, Edit3, Loader2, PackagePlus, Plus, RotateCcw, Save, Search, Tag, X } from 'lucide-react'
-import IngredientNavigation from '../components/IngredientNavigation'
+import { useIngredientTabs } from '../components/IngredientNavigation'
 import BazaarCategoryPicker from '../components/BazaarCategoryPicker'
 import AppShell from '../components/AppShell'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
@@ -14,7 +14,7 @@ import { withWriteTimeout } from '../lib/writeTimeout'
 import { BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH, BAZAAR_ENTRY_UNITS, bazaarCategoriesFor, bazaarCategoryLabel, bazaarUnitLabel, normalizeBazaarProductKey } from '../lib/bazaar'
 import { bazaarIngredientMatches, isBazaarIngredientNetworkError, runBazaarIngredientWriteWithRecovery } from '../lib/bazaarIngredientWrites'
 
-const INPUT = 'h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#1F2937] outline-none transition-all placeholder:text-[#C3C8D0] focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/10 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[#9CA3AF]'
+const INPUT = 'ws-input disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 
 const COPY = {
   en: {
@@ -257,83 +257,82 @@ export default function BazaarIngredients() {
     }
   }
 
-  return (
-    <AppShell title={l.title}>
-      <div className="min-h-full bg-[#FAF7F0] px-4 py-5 sm:px-5 sm:py-6 lg:px-6 2xl:px-8">
-        <div className="mx-auto max-w-7xl">
-          <IngredientNavigation lang={lang} />
-          <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#ff5a00]"><PackagePlus size={21} /></div>
-              <div><h1 className="text-2xl font-black text-[#1F2937]">{l.title}</h1><p className="mt-1 text-sm font-medium text-[#6B7280]">{l.sub}</p></div>
-            </div>
-            <div className="ml-auto flex flex-wrap gap-2">
-            {canManage && (
-              <button type="button" onClick={() => { setCategoryPanelOpen(current => !current); setCategoryError('') }} aria-expanded={categoryPanelOpen} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-black text-[#1F2937] hover:border-orange-200">
-                <Tag size={16} className="text-[#ff5a00]" />{l.addCategory}
-              </button>
-            )}
-            <button type="button" onClick={downloadPdf} disabled={exportingPdf || loading || !!loadFailure || !filtered.length} title={l.pdfHint} className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 text-sm font-black text-[#ff5a00] disabled:cursor-not-allowed disabled:opacity-50">
-              {exportingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}{exportingPdf ? l.exportingPdf : l.downloadPdf}
-            </button>
-            </div>
-          </div>
+  const ingredientTabs = useIngredientTabs(lang)
 
+  return (
+    <AppShell
+      title={ingredientTabs.title}
+      tabs={ingredientTabs.tabs}
+      headerActions={(
+        <>
+          {canManage && (
+            <button type="button" onClick={() => { setCategoryPanelOpen(current => !current); setCategoryError('') }} aria-expanded={categoryPanelOpen} aria-label={l.addCategory} className="ws-btn ws-btn-outline !h-[38px]">
+              <Tag size={16} /><span className="hidden lg:inline">{l.addCategory}</span>
+            </button>
+          )}
+          <button type="button" onClick={downloadPdf} disabled={exportingPdf || loading || !!loadFailure || !filtered.length} title={l.pdfHint} aria-label={exportingPdf ? l.exportingPdf : l.downloadPdf} className="ws-btn ws-btn-outline !h-[38px]">
+            {exportingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}<span className="hidden lg:inline">{exportingPdf ? l.exportingPdf : l.downloadPdf}</span>
+          </button>
+        </>
+      )}
+    >
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
           {canManage && categoryPanelOpen && (
-            <form onSubmit={addCategory} className="mb-5 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+            <form onSubmit={addCategory} className="ws-panel">
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div><h2 className="font-black text-[#1F2937]">{l.addCategory}</h2><p className="mt-1 text-xs font-medium text-[#9CA3AF]">{l.categoryHint}</p></div>
-                <button type="button" onClick={() => setCategoryPanelOpen(false)} aria-label={l.cancel} className="text-[#9CA3AF] hover:text-[#6B7280]"><X size={16} /></button>
+                <div><h2 className="ws-display">{l.addCategory}</h2><p className="ws-muted mt-1.5">{l.categoryHint}</p></div>
+                <button type="button" onClick={() => setCategoryPanelOpen(false)} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
               </div>
               <fieldset disabled={addingCategory} className="flex flex-col gap-2 sm:flex-row">
-                <input autoFocus value={categoryName} onChange={event => setCategoryName(event.target.value)} maxLength={BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH} placeholder={l.newCategory} aria-invalid={!!categoryError} className={`${INPUT} sm:max-w-sm ${categoryError ? 'border-red-300 bg-red-50' : ''}`} />
-                <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ff5a00] px-5 text-sm font-black text-white disabled:opacity-60">{addingCategory ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{l.addCategoryButton}</button>
+                <input autoFocus value={categoryName} onChange={event => setCategoryName(event.target.value)} maxLength={BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH} placeholder={l.newCategory} aria-invalid={!!categoryError} className={`${INPUT} sm:max-w-sm ${categoryError ? '!border-[#c4262c]' : ''}`} />
+                <button type="submit" className="ws-btn ws-btn-primary !h-11">{addingCategory ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{l.addCategoryButton}</button>
               </fieldset>
-              {categoryError && <p role="alert" className="mt-2 text-xs font-bold text-red-600">{categoryError}</p>}
+              {categoryError && <p role="alert" className="ws-caption mt-2 !text-[#c4262c]">{categoryError}</p>}
               <div className="mt-4">
-                <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-[#9CA3AF]">{l.allCategories} · {allCategories.length}</p>
+                <p className="ws-caption mb-2 flex items-center gap-1.5 font-medium">{l.allCategories} <span className="ws-count">{allCategories.length}</span></p>
                 <div className="flex flex-wrap gap-1.5">
                   {allCategories.map(category => (
-                    <span key={category.key} className={`rounded-full px-2.5 py-1 text-xs font-bold ${category.custom ? 'bg-orange-50 text-[#ff5a00]' : 'bg-gray-100 text-[#6B7280]'}`}>{bazaarCategoryLabel(category.key, lang)}</span>
+                    <span key={category.key} className={`ws-badge ${category.custom ? 'ws-tone-accent' : ''}`}>{bazaarCategoryLabel(category.key, lang)}</span>
                   ))}
                 </div>
               </div>
             </form>
           )}
 
-          {pdfFailed && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{l.pdfFailed}</div>}
-          {displayedError && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{displayedError}</div>}
-          {notice && !error && <div role="status" className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{notice}</div>}
+          {pdfFailed && <div role="alert" className="ws-notice ws-tone-negative">{l.pdfFailed}</div>}
+          {displayedError && <div role="alert" className="ws-notice ws-tone-negative">{displayedError}</div>}
+          {notice && !error && <div role="status" className="ws-notice ws-tone-positive">{notice}</div>}
 
           {canManage ? (
-            <form onSubmit={saveIngredient} className="mb-5 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+            <form onSubmit={saveIngredient} className="ws-panel">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div><h2 className="font-black text-[#1F2937]">{form.product_key ? l.edit : l.add}</h2><p className="mt-1 text-xs font-medium text-[#9CA3AF]">{l.nameHint}</p></div>
-                {form.product_key && <button type="button" onClick={() => setForm(emptyIngredient())} className="inline-flex items-center gap-1 text-xs font-black text-[#6B7280]"><X size={14} />{l.cancel}</button>}
+                <div><h2 className="ws-display">{form.product_key ? l.edit : l.add}</h2><p className="ws-muted mt-1.5">{l.nameHint}</p></div>
+                {form.product_key && <button type="button" onClick={() => setForm(emptyIngredient())} className="ws-btn ws-btn-ghost ws-btn-sm"><X size={14} />{l.cancel}</button>}
               </div>
               <fieldset disabled={saving} className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.5fr)_minmax(170px,1fr)_140px_minmax(190px,1fr)_auto] xl:items-end">
-                <label className="text-xs font-black text-[#6B7280]">{l.name}<input value={form.product_name} onChange={event => setForm(current => ({ ...current, product_name: event.target.value }))} maxLength={160} className={`${INPUT} mt-1.5`} /></label>
-                <div className="text-xs font-black text-[#6B7280]">{l.category}<div className="mt-1.5"><BazaarCategoryPicker value={form.category} ingredients={ingredients} extraCategories={customCategories} onChange={category => setForm(current => ({ ...current, category }))} lang={lang} disabled={saving} /></div></div>
-                <label className="text-xs font-black text-[#6B7280]">{l.unit}<select value={form.unit} onChange={event => setForm(current => ({ ...current, unit: event.target.value }))} className={`${INPUT} mt-1.5`}>{BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}</select></label>
-                <label className="text-xs font-black text-[#6B7280]">{l.normalPrice}<input inputMode="numeric" value={formatMoneyInput(form.normal_unit_price)} onChange={event => setForm(current => ({ ...current, normal_unit_price: normalizeMoneyInput(event.target.value) }))} className={`${INPUT} mt-1.5 text-right tabular-nums`} /></label>
-                <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ff5a00] px-5 text-sm font-black text-white disabled:opacity-60">{saving ? <Loader2 size={16} className="animate-spin" /> : form.product_key ? <Save size={16} /> : <Plus size={16} />}{saving ? l.saving : l.save}</button>
+                <label className="ws-caption font-medium">{l.name}<input value={form.product_name} onChange={event => setForm(current => ({ ...current, product_name: event.target.value }))} maxLength={160} className={`${INPUT} mt-1.5`} /></label>
+                <div className="ws-caption font-medium">{l.category}<div className="mt-1.5"><BazaarCategoryPicker value={form.category} ingredients={ingredients} extraCategories={customCategories} onChange={category => setForm(current => ({ ...current, category }))} lang={lang} disabled={saving} /></div></div>
+                <label className="ws-caption font-medium">{l.unit}<select value={form.unit} onChange={event => setForm(current => ({ ...current, unit: event.target.value }))} className={`${INPUT} mt-1.5`}>{BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}</select></label>
+                <label className="ws-caption font-medium">{l.normalPrice}<input inputMode="numeric" value={formatMoneyInput(form.normal_unit_price)} onChange={event => setForm(current => ({ ...current, normal_unit_price: normalizeMoneyInput(event.target.value) }))} className={`${INPUT} mt-1.5 text-right tabular-nums`} /></label>
+                <button type="submit" className="ws-btn ws-btn-primary !h-11">{saving ? <Loader2 size={16} className="animate-spin" /> : form.product_key ? <Save size={16} /> : <Plus size={16} />}{saving ? l.saving : l.save}</button>
               </fieldset>
             </form>
-          ) : <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{l.readOnly}</div>}
+          ) : <div className="ws-notice ws-tone-caution">{l.readOnly}</div>}
 
-          <section className="rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-[#E5E7EB] p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative w-full sm:max-w-sm"><Search size={16} className="absolute left-3 top-3.5 text-[#9CA3AF]" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={l.search} className={`${INPUT} pl-9`} /></div>
-              <div className="flex rounded-xl bg-[#F3F4F6] p-1">{['active', 'archived', 'all'].map(key => <button key={key} type="button" onClick={() => setStatus(key)} className={`rounded-lg px-3 py-2 text-xs font-black ${status === key ? 'bg-white text-[#ff5a00] shadow-sm' : 'text-[#6B7280]'}`}>{l[key]}</button>)}</div>
+          <section className="ws-panel ws-panel-flush">
+            <div className="flex flex-col gap-3 border-b border-[#e4e1de] p-5 sm:flex-row sm:items-center sm:justify-between max-sm:p-4">
+              <div className="relative w-full sm:max-w-sm"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={l.search} className={`${INPUT} !pl-9`} /></div>
+              <div className="ws-segmented" role="group" aria-label={l.status}>{['active', 'archived', 'all'].map(key => <button key={key} type="button" aria-pressed={status === key} onClick={() => setStatus(key)}>{l[key]}</button>)}</div>
             </div>
-            {loading ? <OperationalLoading title={l.title} description="" /> : displayedError && ingredients.length === 0 ? <OperationalError title={l.loadFailed} description={displayedError} actionLabel={l.retry} onAction={loadIngredients} /> : filtered.length === 0 ? <p className="p-10 text-center text-sm font-bold text-[#9CA3AF]">{l.empty}</p> : (
-              <div className="divide-y divide-[#F3F4F6]">{filtered.map(ingredient => (
-                <div key={ingredient.product_key} className="grid gap-3 p-4 sm:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_110px_minmax(180px,0.7fr)_auto] sm:items-center">
-                  <div><p className="font-black text-[#1F2937]">{ingredient.product_name}</p><span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-black ${ingredient.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{ingredient.is_active ? l.active : l.archived}</span></div>
-                  <p className="text-sm font-bold text-[#6B7280]">{bazaarCategoryLabel(ingredient.category, lang)}</p>
-                  <p className="text-sm font-bold text-[#6B7280]">{bazaarUnitLabel(ingredient.unit, lang)}</p>
-                  <p className="font-black tabular-nums text-[#1F2937]">{formatCurrency(ingredient.normal_unit_price)} / {bazaarUnitLabel(ingredient.unit, lang)}</p>
-                  {canManage && <div className="flex justify-end gap-2"><button type="button" onClick={() => editIngredient(ingredient)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5E7EB] text-[#6B7280]"><Edit3 size={14} /></button><button type="button" disabled={updatingKey === ingredient.product_key} onClick={() => setIngredientActive(ingredient)} className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-black ${ingredient.is_active ? 'border-red-200 text-red-600' : 'border-green-200 text-green-700'}`}>{updatingKey === ingredient.product_key ? <Loader2 size={14} className="animate-spin" /> : ingredient.is_active ? <Archive size={14} /> : <RotateCcw size={14} />}{ingredient.is_active ? l.archive : l.restore}</button></div>}
+            {loading ? <OperationalLoading title={l.title} description="" /> : displayedError && ingredients.length === 0 ? <OperationalError title={l.loadFailed} description={displayedError} actionLabel={l.retry} onAction={loadIngredients} /> : filtered.length === 0 ? <div className="ws-empty"><PackagePlus /><p>{l.empty}</p></div> : (
+              <div>{filtered.map(ingredient => (
+                <div key={ingredient.product_key} className="ws-row grid gap-3 px-5 py-3.5 max-sm:px-4 sm:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_110px_minmax(180px,0.7fr)_auto] sm:items-center">
+                  <div><p className="text-sm font-semibold text-[#22201d]">{ingredient.product_name}</p><span className={`ws-status mt-1 ${ingredient.is_active ? 'ws-tone-positive' : ''}`}>{ingredient.is_active ? l.active : l.archived}</span></div>
+                  <p className="ws-muted">{bazaarCategoryLabel(ingredient.category, lang)}</p>
+                  <p className="ws-muted">{bazaarUnitLabel(ingredient.unit, lang)}</p>
+                  <p className="text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(ingredient.normal_unit_price)} / {bazaarUnitLabel(ingredient.unit, lang)}</p>
+                  {canManage && <div className="flex justify-end gap-2"><button type="button" onClick={() => editIngredient(ingredient)} aria-label={l.edit} className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"><Edit3 size={14} /></button><button type="button" disabled={updatingKey === ingredient.product_key} onClick={() => setIngredientActive(ingredient)} className={`ws-btn ws-btn-sm ${ingredient.is_active ? 'ws-btn-ghost ws-btn-danger' : 'ws-btn-outline'}`}>{updatingKey === ingredient.product_key ? <Loader2 size={14} className="animate-spin" /> : ingredient.is_active ? <Archive size={14} /> : <RotateCcw size={14} />}{ingredient.is_active ? l.archive : l.restore}</button></div>}
                 </div>
               ))}</div>
             )}

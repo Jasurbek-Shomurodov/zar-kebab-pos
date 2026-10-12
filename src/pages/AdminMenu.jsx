@@ -35,7 +35,7 @@ import {
 import {
   Plus, Edit2, Trash2, Archive, X, UtensilsCrossed,
   Search, LayoutGrid, List, Tag, FolderOpen, GripVertical,
-  ImagePlus, Loader2, Bold, ArrowLeft, Eye, EyeOff, Lock, Users, Clock3, ClipboardList, RotateCcw,
+  ImagePlus, Loader2, Bold, Eye, EyeOff, Lock, Clock3, ClipboardList, RotateCcw,
 } from 'lucide-react'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
 import { useAppDataStatus } from '../store/appHooks'
@@ -171,16 +171,16 @@ function SafeMenuImage({ src, alt = '', className = '', fallbackClassName = '', 
 function Modal({ title, onClose, children, closeDisabled = false }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeDisabled ? undefined : onClose} />
-      <div className="relative bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
-          <h3 className="font-bold text-gray-900">{title}</h3>
+      <div className="absolute inset-0 bg-[#22201d]/40 backdrop-blur-sm" onClick={closeDisabled ? undefined : onClose} />
+      <div className="ws-dialog relative w-full sm:max-w-lg !rounded-b-none sm:!rounded-[16px] max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[#e4e1de] flex-shrink-0">
+          <h3 className="ws-display min-w-0 truncate">{title}</h3>
           <button
             onClick={onClose}
             disabled={closeDisabled}
-            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors disabled:cursor-wait disabled:opacity-50"
+            className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon disabled:cursor-wait"
           >
-            <X size={17} className="text-gray-400" />
+            <X size={17} />
           </button>
         </div>
         <div className="overflow-y-auto p-5 flex-1">{children}</div>
@@ -192,14 +192,14 @@ function Modal({ title, onClose, children, closeDisabled = false }) {
 function Field({ label, type = 'text', value, onChange, placeholder, ...inputProps }) {
   return (
     <div>
-      <label className="block text-xs text-gray-500 font-semibold mb-1.5">{label}</label>
+      <label className="ws-caption mb-1.5 block font-medium">{label}</label>
       <input
         type={type}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         {...inputProps}
-        className="h-11 w-full rounded-xl border border-gray-200 px-3 text-sm transition-all focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+        className="ws-input"
       />
     </div>
   )
@@ -209,7 +209,7 @@ function MoneyField({ label, value, onChange, placeholder, className = '', label
   const formattedPlaceholder = formatMoneyInput(placeholder) || placeholder
   return (
     <div>
-      <label className={labelClassName || 'block text-xs text-gray-500 font-semibold mb-1.5'}>{label}</label>
+      <label className={labelClassName || 'ws-caption mb-1.5 block font-medium'}>{label}</label>
       <input
         type="text"
         inputMode="numeric"
@@ -218,7 +218,7 @@ function MoneyField({ label, value, onChange, placeholder, className = '', label
         placeholder={formattedPlaceholder}
         autoComplete="off"
         {...inputProps}
-        className={className || 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 focus:border-[#ff5a00] transition-all'}
+        className={className || 'ws-input tabular-nums'}
       />
     </div>
   )
@@ -241,14 +241,14 @@ function ProfitMarginPreview({ price, cost, lang, inheritedCost = false }) {
   const positive = summary.profit >= 0
 
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 ${positive ? 'border-emerald-200 bg-white/80' : 'border-red-200 bg-red-50'}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-2 rounded-[10px] border px-3 py-2 ${positive ? 'border-[#e4e1de] bg-[#f6f5f3]' : 'border-[#c4262c]/30 bg-[#c4262c]/[.06]'}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`text-[10px] font-black uppercase tracking-wide ${positive ? 'text-emerald-700' : 'text-red-700'}`}>{labels.profit}</span>
-        {inheritedCost && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500">{labels.inherited}</span>}
+        <span className="ws-caption font-medium">{labels.profit}</span>
+        {inheritedCost && <span className="ws-badge">{labels.inherited}</span>}
       </div>
-      <div className={`flex items-center gap-2 text-xs font-black tabular-nums ${positive ? 'text-emerald-700' : 'text-red-700'}`}>
+      <div className={`flex items-center gap-2 text-sm font-semibold tabular-nums ${positive ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>
         <span>{formatCurrency(summary.profit)}</span>
-        <span className={`rounded-full px-2 py-0.5 ${positive ? 'bg-emerald-100' : 'bg-red-100'}`}>{labels.markup}: {markup}</span>
+        <span className={`ws-badge ${positive ? 'ws-tone-positive' : 'ws-tone-negative'}`}>{labels.markup}: {markup}</span>
       </div>
     </div>
   )
@@ -292,15 +292,11 @@ function PricingFields({ form, setF, lang, compact = false, costRequired = false
   const missingRequiredCost = costRequired && !hasRequiredMenuItemCost(form.cost_price)
 
   return (
-    <div className={`rounded-2xl border border-emerald-200 bg-emerald-50/50 ${compact ? 'p-3' : 'p-4'}`}>
+    <div className={`rounded-xl border border-[#e4e1de] ${compact ? 'p-3' : 'p-4'}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-emerald-700 shadow-sm">
-            <Lock size={15} />
-          </span>
-          <p className="text-sm font-black text-gray-800">{labels.title}</p>
-        </div>
-        <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+        <p className="ws-heading">{labels.title}</p>
+        <span className="ws-badge">
+          <Lock size={12} />
           {labels.private}
         </span>
       </div>
@@ -316,23 +312,21 @@ function PricingFields({ form, setF, lang, compact = false, costRequired = false
           disabled={techCardCost}
           aria-required={costRequired}
           aria-invalid={missingRequiredCost}
-          className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold tabular-nums outline-none transition-all disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-500 ${
-            missingRequiredCost
-              ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200'
-              : 'border-emerald-300 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200'
+          className={`ws-input tabular-nums disabled:cursor-not-allowed disabled:!bg-[#efece9] disabled:!text-[#68655f] ${
+            missingRequiredCost ? '!border-[#c4262c]' : ''
           }`}
-          labelClassName={`mb-1.5 block text-xs font-bold ${missingRequiredCost ? 'text-red-700' : 'text-emerald-800'}`}
+          labelClassName={`ws-caption mb-1.5 block font-medium ${missingRequiredCost ? '!text-[#c4262c]' : ''}`}
         />
       </div>
       {costRequired && (
-        <p className={`mt-2 text-[11px] font-bold ${missingRequiredCost ? 'text-red-600' : 'text-emerald-700'}`}>
+        <p className={`ws-caption mt-2 font-medium ${missingRequiredCost ? '!text-[#c4262c]' : ''}`}>
           * {labels.required}
         </p>
       )}
       <div className="mt-3">
         <ProfitMarginPreview price={form.price} cost={form.cost_price} lang={lang} />
       </div>
-      <p className="mt-3 text-[11px] font-semibold leading-5 text-emerald-800/75">
+      <p className="ws-caption mt-3">
         {techCardCost ? labels.techCardHint : labels.hint}
       </p>
     </div>
@@ -347,16 +341,16 @@ function SaleUnitField({ value, onChange, lang }) {
 
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold text-gray-500">{label}</span>
+      <span className="ws-caption mb-1.5 block font-medium">{label}</span>
       <select
         value={normalizeMenuSaleUnit(value)}
         onChange={onChange}
-        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/20"
+        className="ws-input"
       >
         <option value={MENU_SALE_UNIT_PIECE}>{menuSaleUnitLabel(MENU_SALE_UNIT_PIECE, lang)}</option>
         <option value={MENU_SALE_UNIT_KG}>{menuSaleUnitLabel(MENU_SALE_UNIT_KG, lang)}</option>
       </select>
-      <span className="mt-1.5 block text-[11px] font-semibold leading-4 text-gray-400">{hint}</span>
+      <span className="ws-caption mt-1.5 block">{hint}</span>
     </label>
   )
 }
@@ -390,13 +384,13 @@ function DescriptionField({ label, value, onChange, onBlur, lang }) {
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <label className="block text-xs text-gray-500 font-semibold">{label}</label>
+        <label className="ws-caption block font-medium">{label}</label>
         <button
           type="button"
           onClick={applyBold}
           title={boldLabel}
           aria-label={boldLabel}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition-colors hover:border-[#ff5a00]/40 hover:bg-[#fff4ed] hover:text-[#ff5a00]"
+          className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
         >
           <Bold size={15} />
         </button>
@@ -407,7 +401,7 @@ function DescriptionField({ label, value, onChange, onBlur, lang }) {
         onChange={onChange}
         onBlur={onBlur}
         rows={4}
-        className="min-h-[112px] w-full resize-y rounded-xl border border-gray-200 px-3 py-2.5 text-sm leading-6 transition-all focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+        className="ws-input !h-auto min-h-[112px] resize-y leading-6"
       />
     </div>
   )
@@ -439,13 +433,13 @@ function ImageUploadField({ label, value, onChange, onUploadComplete, lang, type
 
   return (
     <div>
-      <label className="block text-xs text-gray-500 font-semibold mb-1.5">{label}</label>
-      <div className="flex gap-2 items-start">
+      <label className="ws-caption mb-1.5 block font-medium">{label}</label>
+      <div className="flex gap-2 items-center">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex-shrink-0 flex items-center gap-1.5 border-2 border-dashed border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-500 hover:border-[#ff5a00] hover:text-[#ff5a00] transition-colors disabled:opacity-50"
+          className="ws-btn ws-btn-outline ws-btn-sm !h-11 border-dashed !border-[#dcd9d6]"
         >
           {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
           {uploading ? t(lang, 'uploading') : t(lang, 'upload')}
@@ -455,7 +449,7 @@ function ImageUploadField({ label, value, onChange, onUploadComplete, lang, type
           value={value}
           onChange={onChange}
           placeholder="https://..."
-          className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 focus:border-[#ff5a00] transition-all"
+          className="ws-input flex-1"
         />
         <input
           ref={fileRef}
@@ -471,11 +465,11 @@ function ImageUploadField({ label, value, onChange, onUploadComplete, lang, type
           alt={t(lang, allowVideo ? 'mediaPreview' : 'imagePreview')}
           controls={allowVideo}
           autoPlay={false}
-          className={`mt-2 rounded-xl border border-gray-200 object-cover object-center ${allowVideo ? 'h-24 w-36' : 'h-20 w-20'}`}
+          className={`mt-2 rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] object-cover object-center ${allowVideo ? 'h-24 w-36' : 'h-20 w-20'}`}
         />
       )}
-      {allowVideo && <p className="mt-1.5 text-[11px] font-semibold text-gray-400">{t(lang, 'mediaHelp')}</p>}
-      {error && <p className="mt-1.5 text-xs font-semibold text-red-600">{error}</p>}
+      {allowVideo && <p className="ws-caption mt-1.5">{t(lang, 'mediaHelp')}</p>}
+      {error && <p role="alert" className="ws-notice ws-tone-negative mt-2 !py-2 !text-[13px]">{error}</p>}
     </div>
   )
 }
@@ -541,13 +535,13 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
 
   return (
     <div>
-      <label className={`mb-1.5 block text-xs font-semibold ${missingRequiredImage ? 'text-red-700' : 'text-gray-500'}`}>{label}{required ? ' *' : ''}</label>
+      <label className={`ws-caption mb-1.5 block font-medium ${missingRequiredImage ? '!text-[#c4262c]' : ''}`}>{label}{required ? ' *' : ''}</label>
       <div className="flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="inline-flex h-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-gray-300 px-3 text-sm font-semibold text-gray-500 transition-colors hover:border-[#ff5a00] hover:text-[#ff5a00] disabled:opacity-50"
+          className="ws-btn ws-btn-outline ws-btn-sm !h-11 border-dashed !border-[#dcd9d6]"
         >
           {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
           {uploading ? t(lang, 'uploading') : t(lang, 'upload')}
@@ -572,13 +566,13 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
               }
             }}
             placeholder="https://..."
-            className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm transition-all focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+            className="ws-input flex-1"
           />
           <button
             type="button"
             onClick={addUrl}
             disabled={!urlDraft.trim()}
-            className="inline-flex h-11 items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-50 px-3 text-xs font-black text-[#ff5a00] disabled:cursor-not-allowed disabled:opacity-40"
+            className="ws-btn ws-btn-outline ws-btn-sm !h-11"
           >
             <Plus size={14} />
             {t(lang, 'addMediaUrl')}
@@ -589,8 +583,8 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
       {mediaUrls.length > 0 ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {mediaUrls.map((url, index) => (
-            <div key={url} className={`overflow-hidden rounded-xl border bg-white ${index === 0 ? 'border-orange-300 ring-2 ring-orange-100' : 'border-gray-200'}`}>
-              <div className="relative aspect-square overflow-hidden bg-orange-50">
+            <div key={url} className={`overflow-hidden rounded-[10px] border bg-white ${index === 0 ? 'border-[#ff5a00]' : 'border-[#e4e1de]'}`}>
+              <div className="relative aspect-square overflow-hidden bg-[#f6f5f3]">
                 <MenuMedia
                   src={url}
                   alt={`${t(lang, 'mediaPreview')} ${index + 1}`}
@@ -599,13 +593,13 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
                   className="h-full w-full object-cover object-center"
                   containerClassName="h-full w-full"
                   fallback={
-                    <div className="flex h-full w-full items-center justify-center bg-orange-50">
-                      <UtensilsCrossed size={22} className="text-orange-200" />
+                    <div className="flex h-full w-full items-center justify-center bg-[#f6f5f3]">
+                      <UtensilsCrossed size={22} className="text-[#a8a49e]" />
                     </div>
                   }
                 />
                 {index === 0 && (
-                  <span className="absolute left-2 top-2 rounded-full bg-[#ff5a00] px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow">
+                  <span className="ws-badge absolute left-2 top-2 !border-transparent !bg-[#ff5a00] !text-white">
                     {t(lang, 'mediaCover')}
                   </span>
                 )}
@@ -614,7 +608,7 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
                   onClick={() => removeUrl(url)}
                   title={t(lang, 'deleteMedia')}
                   aria-label={`${t(lang, 'deleteMedia')} ${index + 1}`}
-                  className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-red-100 bg-white/95 text-red-600 shadow-sm transition-colors hover:bg-red-50"
+                  className="ws-btn ws-btn-outline ws-btn-danger ws-btn-sm ws-btn-icon absolute right-2 top-2"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -623,7 +617,7 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
                 <button
                   type="button"
                   onClick={() => makeCover(url)}
-                  className="flex h-9 w-full items-center justify-center gap-1 border-t border-gray-100 text-[11px] font-black text-gray-500 hover:bg-orange-50 hover:text-[#ff5a00]"
+                  className="flex h-11 w-full items-center justify-center gap-1 border-t border-[#e4e1de] text-[13px] font-medium text-[#68655f] transition-colors hover:bg-[#ebe8e5] hover:text-[#22201d]"
                 >
                   {t(lang, 'makeMediaCover')}
                 </button>
@@ -632,13 +626,13 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
           ))}
         </div>
       ) : (
-        <div className="mt-3 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-5 text-center text-xs font-semibold text-gray-400">
+        <div className="ws-caption mt-3 rounded-[10px] border border-dashed border-[#dcd9d6] bg-[#f6f5f3] px-3 py-5 text-center">
           {t(lang, 'mediaEmpty')}
         </div>
       )}
-      <p className="mt-1.5 text-[11px] font-semibold text-gray-400">{t(lang, 'mediaHelp')}</p>
+      <p className="ws-caption mt-1.5">{t(lang, 'mediaHelp')}</p>
       {required && (
-        <p className={`mt-1.5 text-[11px] font-bold ${missingRequiredImage ? 'text-red-600' : 'text-emerald-700'}`}>
+        <p className={`ws-caption mt-1.5 font-medium ${missingRequiredImage ? '!text-[#c4262c]' : ''}`}>
           * {lang === 'uz'
             ? 'Yangi mahsulot uchun kamida bitta rasm majburiy.'
             : lang === 'ru'
@@ -646,7 +640,7 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
               : 'At least one photo is required for every new product.'}
         </p>
       )}
-      {error && <p className="mt-1.5 text-xs font-semibold text-red-600">{error}</p>}
+      {error && <p role="alert" className="ws-notice ws-tone-negative mt-2 !py-2 !text-[13px]">{error}</p>}
     </div>
   )
 }
@@ -655,11 +649,9 @@ function OrangeBtn({ onClick, icon: Icon, children, small }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 bg-[#ff5a00] text-white rounded-xl font-bold hover:bg-[#cc4800] transition-colors shadow-sm shadow-orange-200 whitespace-nowrap ${
-        small ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm'
-      }`}
+      className={`ws-btn ws-btn-primary ${small ? 'ws-btn-sm' : ''}`}
     >
-      {Icon && <Icon size={small ? 13 : 15} />}
+      {Icon && <Icon size={small ? 14 : 16} />}
       {children}
     </button>
   )
@@ -677,7 +669,7 @@ function DragHandle({ listeners, attributes }) {
     <button
       {...listeners}
       {...attributes}
-      className="flex-shrink-0 p-1 rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors cursor-grab active:cursor-grabbing touch-none"
+      className="flex-shrink-0 p-1 rounded-md text-[#a8a49e] hover:text-[#22201d] hover:bg-[#ebe8e5] transition-colors cursor-grab active:cursor-grabbing touch-none"
       tabIndex={-1}
     >
       <GripVertical size={15} />
@@ -693,9 +685,9 @@ function MenuPrice({ item, size = 'base', align = 'left' }) {
   return (
     <div className={`flex flex-col ${align === 'right' ? 'items-end' : 'items-start'} flex-shrink-0 leading-tight`}>
       {pricing.discounted && (
-        <span className={`${oldSize} font-bold text-[#9CA3AF] line-through`}>{formatCurrency(pricing.oldPrice)}</span>
+        <span className={`${oldSize} font-medium text-[#68655f] line-through tabular-nums`}>{formatCurrency(pricing.oldPrice)}</span>
       )}
-      <span className={`${currentSize} font-black ${pricing.discounted ? 'text-red-600' : 'text-[#ff5a00]'}`}>
+      <span className={`${currentSize} font-semibold tabular-nums tracking-[-.01em] ${pricing.discounted ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>
         {formatCurrency(pricing.price)}{menuPriceUnitSuffix(item)}
       </span>
     </div>
@@ -707,10 +699,8 @@ function ExternalIdBadge({ item, compact = false }) {
   if (!externalId) return null
 
   return (
-    <span className={`inline-flex w-fit max-w-full items-center rounded-lg bg-[#EEF2FF] font-black text-[#4F46E5] ring-1 ring-[#C7D2FE] ${
-      compact ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px]'
-    }`}>
-      <span className="mr-1 text-[#818CF8]">ID</span>
+    <span className={`ws-badge w-fit font-mono ${compact ? '!px-1.5 !py-0' : ''}`}>
+      <span className="font-sans opacity-70">ID</span>
       <span className="truncate">{externalId}</span>
     </span>
   )
@@ -752,7 +742,7 @@ function OwnerOnlyMenuItemCheckbox({ id, checked, onChange, disabled, canChange,
     <label
       htmlFor={id}
       title={locked ? ownerOnlyLabel : undefined}
-      className={`flex items-center gap-2 pt-1 text-sm font-medium ${locked ? 'cursor-not-allowed text-gray-400' : 'cursor-pointer text-gray-700'}`}
+      className={`flex min-h-[44px] items-center gap-3 text-sm font-medium ${locked ? 'cursor-not-allowed text-[#68655f]' : 'cursor-pointer text-[#22201d]'}`}
     >
       <input
         id={id}
@@ -760,11 +750,11 @@ function OwnerOnlyMenuItemCheckbox({ id, checked, onChange, disabled, canChange,
         checked={!!checked}
         onChange={event => onChange(event.target.checked)}
         disabled={disabled || locked}
-        className="h-4 w-4 accent-[#ff5a00] disabled:cursor-not-allowed"
+        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-not-allowed"
       />
       <span>{label}</span>
       {locked && (
-        <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-black text-gray-500">
+        <span className="ws-badge ml-auto">
           <Lock size={11} />
           {ownerOnlyBadgeLabel(lang)}
         </span>
@@ -846,11 +836,7 @@ function VisibilityToggleButton({ visible, pending, onClick, lang, kind = 'item'
       disabled={pending}
       title={pending ? savingLabel(lang) : label}
       aria-label={pending ? savingLabel(lang) : label}
-      className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border text-xs font-black transition-colors disabled:cursor-wait ${
-        visible
-          ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-          : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-      } ${compact ? 'w-9 px-0' : 'px-3'}`}
+      className={`ws-btn ws-btn-outline ws-btn-sm disabled:cursor-wait ${compact ? 'ws-btn-icon' : ''} ${visible ? '' : '!text-[#1d7a52]'}`}
     >
       {pending ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}
       {!compact && <span className="whitespace-nowrap">{pending ? savingLabel(lang) : label}</span>}
@@ -922,7 +908,7 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, ca
     <div
       ref={setNodeRef}
       style={style}
-      className="flex flex-col overflow-hidden rounded-[18px] border-2 border-[#E5E7EB] bg-white shadow-sm transition-all hover:border-gray-200 hover:shadow-md group"
+      className="ws-panel ws-panel-flush group flex flex-col transition-shadow hover:shadow-[0_4px_14px_rgb(34_32_29/8%)]"
     >
       {/* Drag handle strip at top of image */}
       <div className="relative">
@@ -937,7 +923,7 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, ca
           <button
             {...listeners}
             {...attributes}
-            className="absolute top-2 left-2 p-1.5 rounded-xl bg-white/85 backdrop-blur-sm text-gray-400 hover:text-gray-700 hover:bg-white transition-colors cursor-grab active:cursor-grabbing touch-none shadow-sm"
+            className="absolute top-2 left-2 p-1.5 rounded-lg bg-white/90 backdrop-blur-sm text-[#68655f] hover:text-[#22201d] hover:bg-white transition-colors cursor-grab active:cursor-grabbing touch-none shadow-[0_1px_2px_rgb(34_32_29/10%)]"
             tabIndex={-1}
           >
             <GripVertical size={15} />
@@ -946,59 +932,58 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, ca
       </div>
 
       {/* Body */}
-      <div className="p-3 flex flex-col flex-1">
-        <p className="font-bold text-[15px] text-[#1F2937] line-clamp-2 leading-snug mb-1">
+      <div className="flex flex-1 flex-col p-4">
+        <p className="mb-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-[#22201d]">
           {getItemName(item, lang)}
         </p>
         {cat && (
-          <p className="text-[11px] text-[#9CA3AF] uppercase tracking-wide font-semibold mb-1">
+          <p className="ws-caption mb-2">
             {getCategoryName(cat, lang)}
           </p>
         )}
-        <div className="mb-2">
-          <ExternalIdBadge item={item} />
-        </div>
-        <div className="mb-2 flex flex-wrap items-center gap-2">
+        <div className="mb-3">
           <MenuPrice item={item} />
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 text-[11px] font-black text-orange-700 ring-1 ring-orange-200">
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <ExternalIdBadge item={item} />
+          <span className="ws-badge">
             <Clock3 size={12} />
             {menuPrepTimeLabel(item, lang)}
           </span>
           {gramsLabel(item, lang) && (
-            <span className="rounded-full bg-[#F8FAFC] px-2 py-1 text-[11px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+            <span className="ws-badge">
               {gramsLabel(item, lang)}
             </span>
           )}
           {millilitresLabel(item, lang) && (
-            <span className="rounded-full bg-[#F8FAFC] px-2 py-1 text-[11px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+            <span className="ws-badge">
               {millilitresLabel(item, lang)}
             </span>
           )}
           {kcalLabel(item, lang) && (
-            <span className="rounded-full bg-[#F8FAFC] px-2 py-1 text-[11px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+            <span className="ws-badge">
               {kcalLabel(item, lang)}
             </span>
           )}
           {Number(item.stock_count ?? item.stockCount ?? 0) > 0 && (
-            <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700 ring-1 ring-amber-200">
+            <span className="ws-badge ws-tone-caution">
               {lang === 'uz' ? 'Tokcha' : lang === 'ru' ? 'Полка' : 'Shelf'}: {Number(item.stock_count ?? item.stockCount ?? 0)}
             </span>
           )}
           {item.public_hidden && (
-            <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700 ring-1 ring-blue-200">
+            <span className="ws-badge ws-tone-info">
               {hiddenFromPublicMenuLabel(lang)}
             </span>
           )}
           {scheduleLabel && (
-            <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-200">
+            <span className="ws-badge ws-tone-positive">
+              <Clock3 size={12} />
               {scheduleLabel}
             </span>
           )}
         </div>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full w-fit ${
-            item.available ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
-          }`}>
+        <div className="mb-3 mt-auto flex items-center justify-between gap-2">
+          <span className={`ws-status ${item.available ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
             {itemVisibilityStatusLabel(lang, item.available)}
           </span>
           {!readOnly && (canChangeAvailability ? (
@@ -1013,7 +998,7 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, ca
             <span
               title={t(lang, 'available_item')}
               aria-label={t(lang, 'available_item')}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-400"
+              className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-[#e4e1de] bg-[#efece9] text-[#68655f]"
             >
               <Lock size={14} />
             </span>
@@ -1022,13 +1007,13 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, ca
 
         {/* Actions */}
         {!readOnly && (
-          <div className="flex items-center gap-1.5 mt-auto pt-2 border-t border-gray-50">
+          <div className="flex items-center gap-1.5 border-t border-[#e4e1de]/60 pt-3">
             <button
               onClick={() => onEdit(item)}
               disabled={visibilityPending}
-              className="flex h-11 flex-1 items-center justify-center gap-1 rounded-xl border border-[#ff5a00]/20 bg-[#fff1e8] text-[12px] font-bold text-[#ff5a00] transition-colors hover:bg-[#ff5a00] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="ws-btn ws-btn-outline ws-btn-sm flex-1"
             >
-              <Edit2 size={11} />
+              <Edit2 size={14} />
               {lang === 'uz' ? 'Tahrirl' : lang === 'ru' ? 'Ред.' : 'Edit'}
             </button>
             {canDelete && (
@@ -1038,7 +1023,7 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, ca
                 onClick={() => onDelete(item)}
                 disabled={visibilityPending}
                 aria-label={lang === 'uz' ? 'Mahsulotni arxivlash' : lang === 'ru' ? 'Архивировать товар' : 'Archive item'}
-                className="touch-manipulation flex h-11 items-center justify-center gap-1.5 px-3 rounded-xl border border-amber-200 text-amber-700 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="touch-manipulation ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm"
               >
                 <Archive size={14} />
                 {lang === 'uz' ? 'Arxiv' : lang === 'ru' ? 'В архив' : 'Archive'}
@@ -1070,45 +1055,43 @@ function SortableItemRow({ item, lang, onEdit, onDelete, onToggleVisibility, cat
     <div
       ref={setNodeRef}
       style={style}
-      className="flex flex-wrap items-center gap-3 px-3 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 sm:flex-nowrap sm:gap-4 sm:px-5"
+      className="ws-row flex flex-wrap items-center gap-3 px-3 py-3 sm:flex-nowrap sm:gap-4 sm:px-5"
     >
       {!readOnly && <DragHandle listeners={listeners} attributes={attributes} />}
       <SafeMenuImage
         src={item.image_url}
         alt={getItemName(item, lang)}
-        className="h-12 w-12 flex-shrink-0 rounded-xl object-cover object-center"
-        fallbackClassName="h-12 w-12 flex-shrink-0 rounded-xl"
+        className="h-12 w-12 flex-shrink-0 rounded-lg object-cover object-center"
+        fallbackClassName="h-12 w-12 flex-shrink-0 rounded-lg"
         iconSize={18}
       />
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-gray-900 text-sm truncate">{getItemName(item, lang)}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-          {cat && <p className="text-xs text-gray-400">{getCategoryName(cat, lang)}</p>}
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-black text-orange-700">
-            <Clock3 size={11} />
+        <p className="truncate text-sm font-semibold text-[#22201d]">{getItemName(item, lang)}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {cat && <p className="ws-caption">{getCategoryName(cat, lang)}</p>}
+          <span className="ws-badge">
+            <Clock3 size={12} />
             {menuPrepTimeLabel(item, lang)}
           </span>
           <ExternalIdBadge item={item} compact />
           {item.public_hidden && (
-            <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-black text-blue-700">
+            <span className="ws-badge ws-tone-info">
               {hiddenFromPublicMenuLabel(lang)}
             </span>
           )}
           {scheduleLabel && (
-            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700">
+            <span className="ws-badge ws-tone-positive">
               {scheduleLabel}
             </span>
           )}
         </div>
       </div>
       <MenuPrice item={item} size="row" align="right" />
-      <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full flex-shrink-0 ${
-        item.available ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
-      }`}>
+      <span className={`ws-status flex-shrink-0 ${item.available ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
         {itemVisibilityStatusLabel(lang, item.available)}
       </span>
       {!readOnly && (
-        <div className="flex w-full flex-shrink-0 justify-end gap-1.5 border-t border-gray-100 pt-2 sm:w-auto sm:border-0 sm:pt-0">
+        <div className="flex w-full flex-shrink-0 justify-end gap-1.5 border-t border-[#e4e1de]/60 pt-2 sm:w-auto sm:border-0 sm:pt-0">
           {canChangeAvailability ? (
             <VisibilityToggleButton
               visible={!!item.available}
@@ -1121,7 +1104,7 @@ function SortableItemRow({ item, lang, onEdit, onDelete, onToggleVisibility, cat
             <span
               title={t(lang, 'available_item')}
               aria-label={t(lang, 'available_item')}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-400"
+              className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-[#e4e1de] bg-[#efece9] text-[#68655f]"
             >
               <Lock size={13} />
             </span>
@@ -1129,9 +1112,9 @@ function SortableItemRow({ item, lang, onEdit, onDelete, onToggleVisibility, cat
           <button
             onClick={() => onEdit(item)}
             disabled={visibilityPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:border-orange-300 hover:text-[#ff5a00] hover:bg-orange-50 transition-colors text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            className="ws-btn ws-btn-outline ws-btn-sm"
           >
-            <Edit2 size={12} />
+            <Edit2 size={14} />
             {lang === 'uz' ? 'Tahrirlash' : lang === 'ru' ? 'Редакт.' : 'Edit'}
           </button>
           {canDelete && (
@@ -1141,7 +1124,7 @@ function SortableItemRow({ item, lang, onEdit, onDelete, onToggleVisibility, cat
               onClick={() => onDelete(item)}
               disabled={visibilityPending}
               aria-label={lang === 'uz' ? 'Mahsulotni arxivlash' : lang === 'ru' ? 'Архивировать товар' : 'Archive item'}
-              className="touch-manipulation flex h-11 items-center justify-center gap-1.5 px-3 rounded-xl border border-amber-200 text-amber-700 hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              className="touch-manipulation ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm"
             >
               <Archive size={14} />
               {lang === 'uz' ? 'Arxiv' : lang === 'ru' ? 'В архив' : 'Archive'}
@@ -1174,24 +1157,24 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
     <div
       ref={setNodeRef}
       style={style}
-      className={`${readOnly ? CAT_READ_ONLY_GRID : CAT_EDIT_GRID} py-4 hover:bg-gray-50/60 transition-colors border-b border-gray-100 last:border-0`}
+      className={`${readOnly ? CAT_READ_ONLY_GRID : CAT_EDIT_GRID} ws-row py-3.5`}
     >
       {/* col 1 – drag handle */}
       {!readOnly && <DragHandle listeners={listeners} attributes={attributes} />}
 
       {/* col 2 – image */}
       {cat.image_url ? (
-        <img src={cat.image_url} alt="" className="h-12 w-12 rounded-xl object-cover object-center" />
+        <img src={cat.image_url} alt="" className="h-12 w-12 rounded-lg object-cover object-center" />
       ) : (
-        <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
-          <Tag size={18} className="text-orange-300" />
+        <div className="w-12 h-12 rounded-lg bg-[#efece9] flex items-center justify-center">
+          <Tag size={18} className="text-[#68655f]" />
         </div>
       )}
 
       {/* col 3 – name + count */}
       <div className="min-w-0">
-        <p className="font-bold text-gray-900 text-sm truncate">{getCategoryName(cat, lang)}</p>
-        <p className="text-xs text-gray-400 mt-0.5">
+        <p className="truncate text-sm font-semibold text-[#22201d]">{getCategoryName(cat, lang)}</p>
+        <p className="ws-caption mt-0.5">
           {lang === 'uz' ? `${itemCount} ta element` :
            lang === 'ru' ? `${itemCount} позиций` :
            `${itemCount} item${itemCount !== 1 ? 's' : ''}`}
@@ -1199,17 +1182,17 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
         {(cat.waiter_hidden || cat.tourist_hidden || scheduleLabel) && (
           <div className="mt-1 flex flex-wrap gap-1.5">
             {cat.waiter_hidden && (
-              <span className="rounded-full bg-purple-50 px-1.5 py-0.5 text-[10px] font-black text-purple-700">
+              <span className="ws-badge">
                 {hiddenFromWaiterMenuLabel(lang)}
               </span>
             )}
             {cat.tourist_hidden && (
-              <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-black text-sky-700">
+              <span className="ws-badge">
                 {hiddenFromTouristMenuLabel(lang)}
               </span>
             )}
             {scheduleLabel && (
-              <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700">
+              <span className="ws-badge ws-tone-positive">
                 {scheduleLabel}
               </span>
             )}
@@ -1220,9 +1203,7 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
       {/* col 4 – status */}
       <div>
         <div className="flex items-center gap-1.5">
-          <span className={`text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full whitespace-nowrap ${
-            cat.hidden ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-600'
-          }`}>
+          <span className={`ws-status ${cat.hidden ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
             {categoryVisibilityStatusLabel(lang, !cat.hidden)}
           </span>
           {!readOnly && (
@@ -1240,7 +1221,7 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
 
       {/* col 5 – sort order (centred) */}
       <div className="flex justify-center">
-        <span className="text-sm font-black text-gray-600 w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100">
+        <span className="ws-count">
           {sortIndex}
         </span>
       </div>
@@ -1251,16 +1232,16 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
             <button
               onClick={() => onEdit(cat)}
               disabled={visibilityPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:border-orange-300 hover:text-[#ff5a00] hover:bg-orange-50 transition-colors text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+              className="ws-btn ws-btn-outline ws-btn-sm"
             >
-              <Edit2 size={12} />
+              <Edit2 size={14} />
               {lang === 'uz' ? 'Tahrirlash' : lang === 'ru' ? 'Ред.' : 'Edit'}
             </button>
             {canDelete && (
               <button
                 onClick={() => onDelete(cat.id)}
                 disabled={visibilityPending}
-                className="p-1.5 rounded-xl border border-gray-200 text-gray-300 hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon"
               >
                 <Trash2 size={14} />
               </button>
@@ -1479,13 +1460,13 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
 
   return (
     <>
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+    <div className="rounded-xl border border-[#e4e1de] p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <label className="text-xs font-black uppercase tracking-wide text-gray-500">{labels.title}</label>
+        <label className="ws-heading flex items-center gap-2">{labels.title}<span className="ws-count">{value.length}</span></label>
         <button
           type="button"
           onClick={addOption}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-orange-200 bg-white px-2.5 text-xs font-black text-[#ff5a00] hover:bg-orange-50"
+          className="ws-btn ws-btn-outline ws-btn-sm"
         >
           <Plus size={13} />
           {labels.add}
@@ -1493,43 +1474,43 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
       </div>
 
       {value.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-3 text-xs font-semibold text-gray-400">{labels.empty}</p>
+        <p className="ws-caption rounded-[10px] border border-dashed border-[#dcd9d6] bg-[#f6f5f3] px-3 py-3">{labels.empty}</p>
       ) : (
         <div className="space-y-3">
           {value.map((option, optionIndex) => {
             const hasOwnCost = String(option.cost_price ?? '').trim() !== ''
             const effectiveCost = hasOwnCost ? option.cost_price : parentCost
             return (
-            <div key={option.id || optionIndex} className="min-w-0 rounded-xl border border-gray-200 bg-white p-3">
+            <div key={option.id || optionIndex} className="min-w-0 rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-3">
               <div className="grid min-w-0 gap-2 md:grid-cols-3">
                 <label className="min-w-0">
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{labels.nameUz}</span>
+                  <span className="ws-caption mb-1 block font-medium">{labels.nameUz}</span>
                   <input
                     type="text"
                     value={option.name_uz}
                     onChange={event => updateOption(optionIndex, { name_uz: event.target.value })}
                     placeholder={labels.nameUz}
-                    className="min-w-0 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+                    className="ws-input"
                   />
                 </label>
                 <label className="min-w-0">
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{labels.nameRu}</span>
+                  <span className="ws-caption mb-1 block font-medium">{labels.nameRu}</span>
                   <input
                     type="text"
                     value={option.name_ru}
                     onChange={event => updateOption(optionIndex, { name_ru: event.target.value })}
                     placeholder={labels.nameRu}
-                    className="min-w-0 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+                    className="ws-input"
                   />
                 </label>
                 <label className="min-w-0">
-                  <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{labels.nameEn}</span>
+                  <span className="ws-caption mb-1 block font-medium">{labels.nameEn}</span>
                   <input
                     type="text"
                     value={option.name_en}
                     onChange={event => updateOption(optionIndex, { name_en: event.target.value })}
                     placeholder={labels.nameEn}
-                    className="min-w-0 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+                    className="ws-input"
                   />
                 </label>
               </div>
@@ -1540,33 +1521,33 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
                     value={option.price}
                     onChange={event => updateOption(optionIndex, { price: event.target.value })}
                     placeholder={labels.price}
-                    labelClassName="mb-1.5 flex h-10 items-end text-[11px] font-black leading-4 text-gray-500"
-                    className="h-11 min-w-0 w-full rounded-xl border border-gray-200 px-3 text-sm tabular-nums focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+                    labelClassName="ws-caption mb-1.5 flex h-10 items-end font-medium leading-4"
+                    className="ws-input tabular-nums"
                   />
                   <MoneyField
                     label={labels.cost}
                     value={option.cost_price}
                     onChange={event => updateOption(optionIndex, { cost_price: event.target.value })}
                     placeholder={String(parentCost || '').trim() || labels.cost}
-                    labelClassName="mb-1.5 flex h-10 items-end text-[11px] font-black leading-4 text-emerald-700"
-                    className="h-11 min-w-0 w-full rounded-xl border border-emerald-200 bg-emerald-50/40 px-3 text-sm font-bold tabular-nums focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                    labelClassName="ws-caption mb-1.5 flex h-10 items-end font-medium leading-4"
+                    className="ws-input tabular-nums"
                   />
                   <label className="min-w-0">
-                    <span className="mb-1.5 flex h-10 items-end text-[11px] font-black leading-4 text-gray-500">{labels.stock}</span>
+                    <span className="ws-caption mb-1.5 flex h-10 items-end font-medium leading-4">{labels.stock}</span>
                     <input
                       type="number"
                       min="0"
                       value={option.stock_count}
                       onChange={event => updateOption(optionIndex, { stock_count: event.target.value })}
                       placeholder={labels.stock}
-                      className="h-11 min-w-0 w-full rounded-xl border border-gray-200 px-3 text-sm tabular-nums focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+                      className="ws-input tabular-nums"
                     />
                   </label>
                 </div>
                 <div className="min-w-0">
-                  <span className="mb-1.5 flex h-10 items-end text-[11px] font-black leading-4 text-gray-500">{labels.visibility}</span>
+                  <span className="ws-caption mb-1.5 flex h-10 items-end font-medium leading-4">{labels.visibility}</span>
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="grid min-w-0 flex-1 grid-cols-2 rounded-xl border border-gray-200 bg-gray-50 p-1 xl:flex-none">
+                    <div className="ws-segmented !grid min-w-0 flex-1 grid-cols-2 xl:flex-none">
                       {[
                         ['public_hidden', labels.publicMenu],
                         ['waiter_hidden', labels.waiterMenu],
@@ -1580,11 +1561,7 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
                             title={`${menuLabel}: ${hidden ? labels.hidden : labels.visible}`}
                             aria-label={`${menuLabel}: ${hidden ? labels.hidden : labels.visible}`}
                             aria-pressed={!hidden}
-                            className={`flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg px-3 text-[11px] font-black transition-colors xl:min-w-[132px] ${
-                              hidden
-                                ? 'text-gray-400 hover:bg-white hover:text-[#ff5a00]'
-                                : 'bg-white text-emerald-700 shadow-sm'
-                            }`}
+                            className={`min-w-0 !px-3 !text-[13px] xl:min-w-[132px] ${hidden ? '' : '!text-[#1d7a52]'}`}
                           >
                             {hidden ? <EyeOff size={14} className="flex-shrink-0" /> : <Eye size={14} className="flex-shrink-0" />}
                             <span className="truncate">{menuLabel}</span>
@@ -1597,7 +1574,7 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
                       onClick={() => setPendingDeleteIndex(optionIndex)}
                       aria-label={labels.deleteTitle}
                       title={labels.deleteTitle}
-                      className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-red-100 bg-white text-red-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                      className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon !h-11 !w-11"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -1615,11 +1592,11 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
     </div>
     {pendingDeleteOption && (
       <Modal title={labels.deleteTitle} onClose={() => setPendingDeleteIndex(null)}>
-        <p className="text-sm font-semibold leading-6 text-gray-600">
+        <p className="ws-muted">
           {labels.deletePrompt}
         </p>
         {pendingDeleteName && (
-          <p className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-bold text-gray-900">
+          <p className="mt-3 rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-3 py-2.5 text-sm font-semibold text-[#22201d]">
             {pendingDeleteName}
           </p>
         )}
@@ -1627,14 +1604,14 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
           <button
             type="button"
             onClick={() => setPendingDeleteIndex(null)}
-            className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50"
+            className="ws-btn ws-btn-outline"
           >
             {labels.cancel}
           </button>
           <button
             type="button"
             onClick={() => removeOption(pendingDeleteIndex)}
-            className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700"
+            className="ws-btn ws-btn-danger-solid"
           >
             <Trash2 size={15} />
             {labels.confirmDelete}
@@ -2456,9 +2433,9 @@ export default function AdminMenu() {
   if (!loaded || loadError) {
     return (
       <AppShell title={t(lang, 'menu')} contentRef={shellScrollRef}>
-        <div className="min-h-screen bg-[#FAF6EE]">
+        <div className="min-h-full bg-[#f6f5f3]">
           {!loaded ? (
-            <OperationalLoading
+            <OperationalLoading layout="cards"
               title={lang === 'uz' ? 'Menyu yuklanmoqda' : lang === 'ru' ? 'Загрузка меню' : 'Loading menu'}
               description={lang === 'uz' ? 'Kategoriyalar va mahsulotlar olinmoqda.' : lang === 'ru' ? 'Получаем категории и позиции.' : 'Fetching categories and items.'}
             />
@@ -2485,58 +2462,45 @@ export default function AdminMenu() {
     const touristVisible = !catForm.tourist_hidden
 
     return (
-      <AppShell title={editorTitle}>
-        <div className="min-h-screen bg-[#FAF6EE]">
-          <div className="border-b border-gray-100 bg-white px-4 py-4 sm:px-6">
-            <div className="mx-auto flex w-full max-w-[1080px] items-center gap-3">
-              <button
-                type="button"
-                onClick={closeCatModal}
-                disabled={savingCatForm}
-                aria-label={t(lang, 'cancel')}
-                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:cursor-wait disabled:opacity-50"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <div className="min-w-0">
-                <h1 className="truncate text-2xl font-black text-gray-900">{editorTitle}</h1>
-                <p className="mt-0.5 text-sm text-gray-400">
-                  {lang === 'uz' ? 'Kategoriya nomlari, rasmi va menyudagi ko‘rinishini boshqaring' :
-                   lang === 'ru' ? 'Управляйте названиями, изображением и показом категории' :
-                   'Manage category names, image, and menu visibility'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mx-auto w-full max-w-[1080px] px-4 py-5">
+      <AppShell
+        title={editorTitle}
+        back={{ label: t(lang, 'cancel'), onClick: closeCatModal }}
+        headerActions={catModal ? (
+          <button
+            type="button"
+            onClick={saveCat}
+            disabled={!canSaveCatForm}
+            className="ws-btn ws-btn-primary !h-[38px]"
+          >
+            {savingCatForm && <Loader2 size={16} className="animate-spin" />}
+            {savingCatForm ? savingLabel(lang) : t(lang, 'save')}
+          </button>
+        ) : null}
+      >
+        <div className="min-h-full bg-[#f6f5f3]">
+          <div className="ws-page">
             {menuNotice && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              <div role="alert" className="ws-notice ws-tone-negative">
                 {menuNotice.error ? formatWriteError(menuNotice.error, lang, menuNotice.actionType) : menuNotice.message}
               </div>
             )}
             {!catModal ? (
-              <OperationalLoading
+              <OperationalLoading layout="form"
                 title={lang === 'uz' ? 'Kategoriya ochilmoqda' : lang === 'ru' ? 'Открываем категорию' : 'Opening category'}
                 description={lang === 'uz' ? 'Ma’lumotlar tayyorlanmoqda.' : lang === 'ru' ? 'Подготавливаем данные.' : 'Preparing the editor.'}
               />
             ) : (
               <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-                <section className="min-w-0 space-y-5 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-                  <div className="flex items-start gap-3 border-b border-gray-100 pb-4">
-                    <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#ff5a00]">
-                      <FolderOpen size={18} />
-                    </span>
-                    <div>
-                      <h2 className="font-black text-gray-900">
-                        {lang === 'uz' ? 'Kategoriya ma’lumotlari' : lang === 'ru' ? 'Данные категории' : 'Category details'}
-                      </h2>
-                      <p className="mt-0.5 text-xs font-semibold text-gray-400">
-                        {lang === 'uz' ? 'Har bir menyu tili uchun aniq nom kiriting.' :
-                         lang === 'ru' ? 'Укажите понятное название для каждого языка меню.' :
-                         'Add a clear name for every menu language.'}
-                      </p>
-                    </div>
+                <section className="ws-panel min-w-0 space-y-5 self-start overflow-hidden">
+                  <div>
+                    <h2 className="ws-display">
+                      {lang === 'uz' ? 'Kategoriya ma’lumotlari' : lang === 'ru' ? 'Данные категории' : 'Category details'}
+                    </h2>
+                    <p className="ws-muted mt-1.5">
+                      {lang === 'uz' ? 'Har bir menyu tili uchun aniq nom kiriting.' :
+                       lang === 'ru' ? 'Укажите понятное название для каждого языка меню.' :
+                       'Add a clear name for every menu language.'}
+                    </p>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-3">
@@ -2545,12 +2509,12 @@ export default function AdminMenu() {
                     <Field label={t(lang, 'nameEn')} value={catForm.name_en} onChange={setCF('name_en')} onBlur={trimCF('name_en')} />
                   </div>
 
-                  <div className="rounded-2xl border border-orange-100 bg-[#FFF9F4] p-4">
-                    <p className="mb-3 text-[11px] font-black uppercase tracking-wide text-[#ff5a00]">
+                  <div className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-4">
+                    <p className="ws-caption mb-3 font-medium">
                       {lang === 'uz' ? 'Jonli ko‘rinish' : lang === 'ru' ? 'Предпросмотр' : 'Live preview'}
                     </p>
                     <div className="flex items-center gap-4">
-                      <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
+                      <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-[#e4e1de] bg-white">
                         <SafeMenuImage
                           src={catForm.image_url}
                           alt={trimMenuItemTextValue(catForm[`name_${lang}`]) || trimMenuItemTextValue(catForm.name_uz)}
@@ -2560,26 +2524,26 @@ export default function AdminMenu() {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-lg font-black text-gray-900">
+                        <p className="truncate text-base font-semibold text-[#22201d]">
                           {trimMenuItemTextValue(catForm[`name_${lang}`]) || trimMenuItemTextValue(catForm.name_uz) || (lang === 'uz' ? 'Nomsiz kategoriya' : lang === 'ru' ? 'Категория без названия' : 'Untitled category')}
                         </p>
-                        <p className="mt-1 text-xs font-semibold text-gray-400">
+                        <p className="ws-caption mt-0.5">
                           {catModal === 'new'
                             ? (lang === 'uz' ? 'Yangi kategoriya' : lang === 'ru' ? 'Новая категория' : 'New category')
                             : (lang === 'uz' ? `${categoryItemCount} ta mahsulot` : lang === 'ru' ? `${categoryItemCount} позиций` : `${categoryItemCount} menu items`)}
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <span className={`rounded-full px-2 py-1 text-[10px] font-black ${publicVisible ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <span className={`ws-badge ${publicVisible ? 'ws-tone-positive' : ''}`}>
                             {publicVisible
                               ? (lang === 'uz' ? 'Ommaviy menyuda' : lang === 'ru' ? 'В публичном меню' : 'Public menu')
                               : (lang === 'uz' ? 'Ommaviy menyuda yashirin' : lang === 'ru' ? 'Скрыто публично' : 'Hidden publicly')}
                           </span>
-                          <span className={`rounded-full px-2 py-1 text-[10px] font-black ${waiterVisible ? 'bg-purple-50 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+                          <span className={`ws-badge ${waiterVisible ? 'ws-tone-positive' : ''}`}>
                             {waiterVisible
                               ? (lang === 'uz' ? 'Ofitsiant menyusida' : lang === 'ru' ? 'В меню официанта' : 'Waiter menu')
                               : (lang === 'uz' ? 'Ofitsiantdan yashirin' : lang === 'ru' ? 'Скрыто от официанта' : 'Hidden from waiter')}
                           </span>
-                          <span className={`rounded-full px-2 py-1 text-[10px] font-black ${touristVisible ? 'bg-sky-50 text-sky-700' : 'bg-gray-100 text-gray-500'}`}>
+                          <span className={`ws-badge ${touristVisible ? 'ws-tone-positive' : ''}`}>
                             {touristVisible
                               ? (lang === 'uz' ? 'Turist menyusida' : lang === 'ru' ? 'В туристическом меню' : 'Tourist menu')
                               : hiddenFromTouristMenuLabel(lang)}
@@ -2591,12 +2555,12 @@ export default function AdminMenu() {
                 </section>
 
                 <aside className="min-w-0 space-y-4">
-                  <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2.5">
-                      <p className="mb-1 text-[11px] font-black uppercase tracking-wide text-[#818CF8]">
+                  <section className="ws-panel space-y-4">
+                    <div>
+                      <p className="ws-caption mb-1.5 font-medium">
                         {lang === 'uz' ? 'Kategoriya ID' : lang === 'ru' ? 'ID категории' : 'Category ID'}
                       </p>
-                      <p className="truncate font-black text-[#4F46E5]">{catForm.id || '—'}</p>
+                      <p className="truncate rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-3 py-2.5 font-mono text-sm text-[#22201d]">{catForm.id || '—'}</p>
                     </div>
 
                     <ImageUploadField
@@ -2611,23 +2575,24 @@ export default function AdminMenu() {
 
                     <Field label={t(lang, 'sortOrder')} type="number" min="0" value={catForm.sort_order} onChange={setCF('sort_order')} placeholder="1" />
 
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-gray-500">{scheduleLabels.section}</p>
+                    <div className="rounded-xl border border-[#e4e1de] p-4">
+                      <p className="mb-3 text-sm font-semibold text-[#22201d]">{scheduleLabels.section}</p>
                       <div className="grid grid-cols-2 gap-3">
                         <Field label={scheduleLabels.from} type="time" value={catForm.visible_from_time || ''} onChange={setCF('visible_from_time')} />
                         <Field label={scheduleLabels.until} type="time" value={catForm.visible_until_time || ''} onChange={setCF('visible_until_time')} />
                       </div>
-                      <p className="mt-2 text-[11px] font-semibold text-gray-400">{scheduleLabels.hint}</p>
-                      <fieldset className="mt-3">
-                        <legend className="text-sm font-semibold text-gray-700">
+                      <p className="ws-caption mt-2">{scheduleLabels.hint}</p>
+                      <fieldset className="mt-4 border-t border-[#e4e1de] pt-3">
+                        <legend className="float-left w-full ws-caption font-medium">
                           {lang === 'uz' ? 'Ushbu buyurtmalar uchun vaqtdan tashqari ham ko‘rsatish' : lang === 'ru' ? 'Показывать вне расписания для заказов' : 'Always show outside schedule for'}
                         </legend>
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                        <div className="clear-both pt-1">
                           {['take_away', 'delivery', 'game_club'].map(orderType => {
                             const field = `always_visible_${orderType}`
                             return (
-                              <label key={orderType} className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                              <label key={orderType} className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm font-medium text-[#22201d]">
                                 <input type="checkbox" checked={!!catForm[field]}
+                                  className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00]"
                                   onChange={event => {
                                     const checked = event.target.checked
                                     setCatForm(current => ({ ...current, [field]: checked }))
@@ -2640,44 +2605,37 @@ export default function AdminMenu() {
                       </fieldset>
                     </div>
 
-                    {isOwner && <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3">
-                      <div className="flex items-start gap-2">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-blue-600">
-                          <Users size={16} />
+                    {isOwner && <div className="rounded-xl border border-[#e4e1de] p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-[#22201d]">
+                          {lang === 'uz' ? 'Vaqtdan tashqari ko‘rsatish' : lang === 'ru' ? 'Показывать вне расписания' : 'Visible outside schedule'}
+                        </p>
+                        <span className="ws-count">
+                          {(categoryOverrideProfilesReady ? eligibleCategoryProfileIds(catForm.always_visible_profile_ids, categoryOverrideProfiles) : normalizeCategoryAlwaysVisibleProfileIds(catForm.always_visible_profile_ids)).length}
                         </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-sm font-black text-gray-900">
-                              {lang === 'uz' ? 'Vaqtdan tashqari ko‘rsatish' : lang === 'ru' ? 'Показывать вне расписания' : 'Visible outside schedule'}
-                            </p>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-blue-700">
-                              {(categoryOverrideProfilesReady ? eligibleCategoryProfileIds(catForm.always_visible_profile_ids, categoryOverrideProfiles) : normalizeCategoryAlwaysVisibleProfileIds(catForm.always_visible_profile_ids)).length}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500">
-                            {lang === 'uz'
-                              ? 'Tanlangan xodimlar bu kategoriyani ofitsiant menyusida belgilangan vaqtdan tashqari ham ko‘radi. Ommaviy menyuga ta’sir qilmaydi.'
-                              : lang === 'ru'
-                                ? 'Выбранные сотрудники увидят категорию в меню официанта даже вне указанного времени. Публичное меню не изменится.'
-                                : 'Selected staff see this category in the waiter menu outside its scheduled hours. The public menu is unaffected.'}
-                          </p>
-                        </div>
                       </div>
+                      <p className="ws-caption mt-1">
+                        {lang === 'uz'
+                          ? 'Tanlangan xodimlar bu kategoriyani ofitsiant menyusida belgilangan vaqtdan tashqari ham ko‘radi. Ommaviy menyuga ta’sir qilmaydi.'
+                          : lang === 'ru'
+                            ? 'Выбранные сотрудники увидят категорию в меню официанта даже вне указанного времени. Публичное меню не изменится.'
+                            : 'Selected staff see this category in the waiter menu outside its scheduled hours. The public menu is unaffected.'}
+                      </p>
 
-                      <div className="mt-3 max-h-52 space-y-1 overflow-y-auto pr-1">
+                      <div className="mt-3 max-h-64 overflow-y-auto rounded-[10px] border border-[#e4e1de] bg-white">
                         {categoryOverrideProfilesLoading && (
-                          <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-500">
+                          <div className="ws-caption flex items-center gap-2 px-3 py-3">
                             <Loader2 size={14} className="animate-spin" />
                             {lang === 'uz' ? 'Xodimlar yuklanmoqda…' : lang === 'ru' ? 'Загрузка сотрудников…' : 'Loading staff…'}
                           </div>
                         )}
                         {!categoryOverrideProfilesLoading && categoryOverrideProfilesError && (
-                          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                          <p role="alert" className="ws-notice ws-tone-negative m-2 !py-2 !text-[13px]">
                             {categoryOverrideProfilesError}
                           </p>
                         )}
                         {!categoryOverrideProfilesLoading && !categoryOverrideProfilesError && categoryOverrideProfiles.length === 0 && (
-                          <p className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-500">
+                          <p className="ws-caption px-3 py-3">
                             {lang === 'uz' ? 'Faol xodimlar topilmadi.' : lang === 'ru' ? 'Активные сотрудники не найдены.' : 'No active staff found.'}
                           </p>
                         )}
@@ -2686,20 +2644,20 @@ export default function AdminMenu() {
                           return (
                             <label
                               key={staffProfile.id}
-                              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 transition-colors ${checked ? 'border-blue-300 bg-white' : 'border-transparent bg-white/70 hover:border-blue-200'}`}
+                              className="ws-row flex min-h-[44px] cursor-pointer items-center gap-3 px-3 py-2"
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => toggleCategoryScheduleOverride(staffProfile.id)}
                                 disabled={savingCatForm}
-                                className="h-4 w-4 shrink-0 accent-blue-600 disabled:cursor-wait"
+                                className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
                               />
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-xs font-black text-gray-800">
+                                <span className="block truncate text-sm font-semibold text-[#22201d]">
                                   {staffProfile.full_name || staffProfile.email || staffProfile.id}
                                 </span>
-                                <span className="block truncate text-[10px] font-semibold text-gray-400">
+                                <span className="ws-caption block truncate">
                                   {[staffProfile.role, staffProfile.email].filter(Boolean).join(' · ')}
                                 </span>
                               </span>
@@ -2710,94 +2668,88 @@ export default function AdminMenu() {
                     </div>}
                   </section>
 
-                  <section className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <section className="ws-panel space-y-2">
                     <div className="mb-3">
-                      <h2 className="font-black text-gray-900">
+                      <h2 className="ws-heading">
                         {lang === 'uz' ? 'Ko‘rinish' : lang === 'ru' ? 'Видимость' : 'Visibility'}
                       </h2>
-                      <p className="mt-0.5 text-xs font-semibold text-gray-400">
+                      <p className="ws-caption mt-1">
                         {lang === 'uz' ? 'Kategoriya qayerda ko‘rinishini tanlang.' :
                          lang === 'ru' ? 'Выберите, где показывать категорию.' :
                          'Choose where this category appears.'}
                       </p>
                     </div>
 
-                    <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${publicVisible ? 'border-emerald-200 bg-emerald-50/60' : 'border-gray-200 bg-gray-50'}`}>
+                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
                       <input
                         type="checkbox"
                         checked={publicVisible}
                         onChange={event => setCatForm(current => ({ ...current, hidden: !event.target.checked }))}
                         disabled={savingCatForm}
-                        className="h-4 w-4 accent-[#ff5a00] disabled:cursor-wait"
+                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
                       />
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${publicVisible ? 'bg-white text-emerald-600' : 'bg-white text-gray-400'}`}>
-                        {publicVisible ? <Eye size={15} /> : <EyeOff size={15} />}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-black text-gray-800">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[#22201d]">
                           {lang === 'uz' ? 'Ommaviy menyu' : lang === 'ru' ? 'Публичное меню' : 'Public menu'}
                         </span>
-                        <span className="block text-[11px] font-semibold text-gray-400">
+                        <span className="ws-caption block">
                           {publicVisible
                             ? (lang === 'uz' ? 'Mijozlarga ko‘rinadi' : lang === 'ru' ? 'Видно гостям' : 'Visible to guests')
                             : (lang === 'uz' ? 'Mijozlardan yashirin' : lang === 'ru' ? 'Скрыто от гостей' : 'Hidden from guests')}
                         </span>
                       </span>
+                      {publicVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
                     </label>
 
-                    <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${waiterVisible ? 'border-purple-200 bg-purple-50/60' : 'border-gray-200 bg-gray-50'}`}>
+                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
                       <input
                         type="checkbox"
                         checked={waiterVisible}
                         onChange={event => setCatForm(current => ({ ...current, waiter_hidden: !event.target.checked }))}
                         disabled={savingCatForm}
-                        className="h-4 w-4 accent-[#ff5a00] disabled:cursor-wait"
+                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
                       />
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${waiterVisible ? 'bg-white text-purple-600' : 'bg-white text-gray-400'}`}>
-                        {waiterVisible ? <Eye size={15} /> : <EyeOff size={15} />}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-black text-gray-800">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[#22201d]">
                           {lang === 'uz' ? 'Ofitsiant menyusi' : lang === 'ru' ? 'Меню официанта' : 'Waiter menu'}
                         </span>
-                        <span className="block text-[11px] font-semibold text-gray-400">
+                        <span className="ws-caption block">
                           {waiterVisible
                             ? (lang === 'uz' ? 'Ofitsiantlarga ko‘rinadi' : lang === 'ru' ? 'Видно официантам' : 'Visible to waiters')
                             : (lang === 'uz' ? 'Ofitsiantlardan yashirin' : lang === 'ru' ? 'Скрыто от официантов' : 'Hidden from waiters')}
                         </span>
                       </span>
+                      {waiterVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
                     </label>
 
-                    <label className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${touristVisible ? 'border-sky-200 bg-sky-50/60' : 'border-gray-200 bg-gray-50'}`}>
+                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
                       <input
                         type="checkbox"
                         checked={touristVisible}
                         onChange={event => setCatForm(current => ({ ...current, tourist_hidden: !event.target.checked }))}
                         disabled={savingCatForm}
-                        className="h-4 w-4 accent-[#ff5a00] disabled:cursor-wait"
+                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
                       />
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${touristVisible ? 'bg-white text-sky-600' : 'bg-white text-gray-400'}`}>
-                        {touristVisible ? <Eye size={15} /> : <EyeOff size={15} />}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-black text-gray-800">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[#22201d]">
                           {lang === 'uz' ? 'Turist menyusi' : lang === 'ru' ? 'Туристическое меню' : 'Tourist menu'}
                         </span>
-                        <span className="block text-[11px] font-semibold text-gray-400">
+                        <span className="ws-caption block">
                           {touristVisible
                             ? (lang === 'uz' ? 'Turist narxida ko‘rinadi' : lang === 'ru' ? 'Видно при туристических ценах' : 'Visible with Tourist pricing')
                             : (lang === 'uz' ? 'Turist narxidan yashirin' : lang === 'ru' ? 'Скрыто при туристических ценах' : 'Hidden with Tourist pricing')}
                         </span>
                       </span>
+                      {touristVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
                     </label>
                   </section>
 
-                  <div className="flex gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-lg">
+                  <div className="ws-panel flex gap-2 !p-3">
                     <button
                       type="button"
                       onClick={closeCatModal}
                       disabled={savingCatForm}
-                      className="flex-1 rounded-xl border-2 border-gray-200 py-2.5 text-sm font-bold text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-wait disabled:opacity-50"
+                      className="ws-btn ws-btn-outline flex-1 disabled:cursor-wait"
                     >
                       {t(lang, 'cancel')}
                     </button>
@@ -2805,7 +2757,7 @@ export default function AdminMenu() {
                       type="button"
                       onClick={saveCat}
                       disabled={!canSaveCatForm}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff5a00] py-2.5 text-sm font-bold text-white shadow-md shadow-orange-200 transition-colors hover:bg-[#cc4800] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
+                      className="ws-btn ws-btn-primary flex-1"
                     >
                       {savingCatForm && <Loader2 size={15} className="animate-spin" />}
                       {savingCatForm ? savingLabel(lang) : t(lang, 'save')}
@@ -2823,61 +2775,57 @@ export default function AdminMenu() {
   if (isProductEditorPage) {
     const editorTitle = itemModal === 'new' ? t(lang, 'addItem') : t(lang, 'editItem')
     return (
-      <AppShell title={editorTitle}>
-        <div className="min-h-screen bg-[#FAF6EE]">
-          <div className="border-b border-gray-100 bg-white px-4 py-4 sm:px-6">
-            <div className="mx-auto flex w-full max-w-[1180px] items-center gap-3">
+      <AppShell
+        title={editorTitle}
+        back={{ label: t(lang, 'cancel'), onClick: closeItemModal }}
+        headerActions={itemModal ? (
+          <>
+            {itemModal === 'edit' && form.id && canViewTechCards && isTechCardEligibleMenuItem(form, state.categories) && (
               <button
                 type="button"
-                onClick={closeItemModal}
+                onClick={() => navigate(`/admin/tech-cards/${encodeURIComponent(form.id)}`)}
                 disabled={savingItemForm}
-                className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:cursor-wait disabled:opacity-50"
+                aria-label={lang === 'uz' ? 'Tex karta' : lang === 'ru' ? 'Техкарта' : 'Tech card'}
+                className="ws-btn ws-btn-outline !h-[38px] disabled:cursor-wait"
               >
-                <ArrowLeft size={18} />
+                <ClipboardList size={16} />
+                <span className="hidden sm:inline">{lang === 'uz' ? 'Tex karta' : lang === 'ru' ? 'Техкарта' : 'Tech card'}</span>
               </button>
-              <div className="min-w-0">
-                <h1 className="truncate text-2xl font-black text-gray-900">{editorTitle}</h1>
-                <p className="mt-0.5 text-sm text-gray-400">
-                  {lang === 'uz' ? 'Mahsulot, variant narxlari va qoldiqlarini boshqaring' :
-                   lang === 'ru' ? 'Управляйте товаром, ценами вариантов и остатками' :
-                   'Manage product details, variant prices, and stock counts'}
-                </p>
-              </div>
-              {itemModal === 'edit' && form.id && canViewTechCards && isTechCardEligibleMenuItem(form, state.categories) && (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/admin/tech-cards/${encodeURIComponent(form.id)}`)}
-                  disabled={savingItemForm}
-                  className="ml-auto inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 text-xs font-black text-[#ff5a00] transition-colors hover:bg-orange-100 disabled:cursor-wait disabled:opacity-50"
-                >
-                  <ClipboardList size={16} />
-                  {lang === 'uz' ? 'Tex karta' : lang === 'ru' ? 'Техкарта' : 'Tech card'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="mx-auto w-full max-w-[1180px] px-4 py-5">
+            )}
+            <button
+              type="button"
+              onClick={saveItem}
+              disabled={!canSaveItemForm}
+              className="ws-btn ws-btn-primary !h-[38px]"
+            >
+              {savingItemForm && <Loader2 size={16} className="animate-spin" />}
+              {savingItemForm ? savingLabel(lang) : t(lang, 'save')}
+            </button>
+          </>
+        ) : null}
+      >
+        <div className="min-h-full bg-[#f6f5f3]">
+          <div className="ws-page">
             {menuNotice && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              <div role="alert" className="ws-notice ws-tone-negative">
                 {menuNotice.error ? formatWriteError(menuNotice.error, lang, menuNotice.actionType) : menuNotice.message}
               </div>
             )}
             {!itemModal ? (
-              <OperationalLoading
+              <OperationalLoading layout="form"
                 title={lang === 'uz' ? 'Mahsulot ochilmoqda' : lang === 'ru' ? 'Открываем товар' : 'Opening product'}
                 description={lang === 'uz' ? 'Ma’lumotlar tayyorlanmoqda.' : lang === 'ru' ? 'Подготавливаем данные.' : 'Preparing the editor.'}
               />
             ) : (
               <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-                <section className="min-w-0 space-y-4 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                <section className="ws-panel min-w-0 space-y-5 self-start overflow-hidden">
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div>
-                      <label className="block text-xs text-gray-500 font-semibold mb-1.5">{t(lang, 'category')}</label>
+                      <label className="ws-caption mb-1.5 block font-medium">{t(lang, 'category')}</label>
                       <select
                         value={form.category_id}
                         onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-                        className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+                        className="ws-input"
                       >
                         <option value="">— {t(lang, 'category')} —</option>
                         {realSortedCats.map(c => (
@@ -2926,12 +2874,12 @@ export default function AdminMenu() {
                 </section>
 
                 <aside className="min-w-0 space-y-4">
-                  <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2.5">
-                      <p className="mb-1 text-[11px] font-black uppercase tracking-wide text-[#818CF8]">
+                  <section className="ws-panel space-y-4">
+                    <div>
+                      <p className="ws-caption mb-1.5 font-medium">
                         {lang === 'uz' ? 'Tashqi ID' : lang === 'ru' ? 'Внешний ID' : 'External ID'}
                       </p>
-                      <p className="font-black text-[#4F46E5]">{form.external_id || '—'}</p>
+                      <p className="truncate rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-3 py-2.5 font-mono text-sm text-[#22201d]">{form.external_id || '—'}</p>
                     </div>
                     <MediaGalleryField
                       label={t(lang, 'mediaUrl')}
@@ -2960,48 +2908,50 @@ export default function AdminMenu() {
                         placeholder="1"
                       />
                     </div>
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                      <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-gray-500">{scheduleLabels.section}</p>
+                    <div className="rounded-xl border border-[#e4e1de] p-4">
+                      <p className="mb-3 text-sm font-semibold text-[#22201d]">{scheduleLabels.section}</p>
                       <div className="grid grid-cols-2 gap-3">
                         <Field label={scheduleLabels.from} type="time" value={form.visible_from_time || ''} onChange={setF('visible_from_time')} />
                         <Field label={scheduleLabels.until} type="time" value={form.visible_until_time || ''} onChange={setF('visible_until_time')} />
                       </div>
-                      <p className="mt-2 text-[11px] font-semibold text-gray-400">{scheduleLabels.hint}</p>
+                      <p className="ws-caption mt-2">{scheduleLabels.hint}</p>
                     </div>
-                    <OwnerOnlyMenuItemCheckbox
-                      id="product-availability"
-                      checked={form.available}
-                      onChange={available => setForm(current => ({ ...current, available }))}
-                      disabled={savingItemForm}
-                      canChange={canChangeAvailability}
-                      label={t(lang, 'available_item')}
-                      ownerOnlyLabel={t(lang, 'available_item')}
-                      lang={lang}
-                    />
-                    <label className="flex items-center gap-2 pt-1 text-sm font-medium text-gray-700">
-                      <input type="checkbox" checked={!!form.show_in_cashier_quick_items} onChange={e => setForm(f => ({ ...f, show_in_cashier_quick_items: e.target.checked }))} disabled={savingItemForm} className="h-4 w-4 accent-[#ff5a00] disabled:cursor-wait" />
-                      {lang === 'uz' ? 'Kassir tezkor mahsulotlarida ko‘rsatish' : lang === 'ru' ? 'Показывать в быстрых товарах кассира' : 'Show in cashier quick items'}
-                    </label>
-                    <OwnerOnlyMenuItemCheckbox
-                      id="product-public-hidden"
-                      checked={form.public_hidden}
-                      onChange={public_hidden => setForm(current => ({ ...current, public_hidden }))}
-                      disabled={savingItemForm}
-                      canChange={canChangePublicVisibility}
-                      label={publicMenuHideControlLabel(lang)}
-                      ownerOnlyLabel={ownerOnlyPublicVisibilityLabel(lang)}
-                      lang={lang}
-                    />
-                    <label className="flex items-center gap-2 pt-1 text-sm font-medium text-gray-700">
-                      <input type="checkbox" checked={!!form.cashier_only} onChange={e => setForm(f => ({ ...f, cashier_only: e.target.checked }))} disabled={savingItemForm} className="h-4 w-4 accent-[#ff5a00] disabled:cursor-wait" />
-                      {lang === 'uz' ? 'Faqat kassirda ko‘rsatish' : lang === 'ru' ? 'Только для кассира' : 'Cashier only'}
-                    </label>
+                    <div className="border-t border-[#e4e1de] pt-2">
+                      <OwnerOnlyMenuItemCheckbox
+                        id="product-availability"
+                        checked={form.available}
+                        onChange={available => setForm(current => ({ ...current, available }))}
+                        disabled={savingItemForm}
+                        canChange={canChangeAvailability}
+                        label={t(lang, 'available_item')}
+                        ownerOnlyLabel={t(lang, 'available_item')}
+                        lang={lang}
+                      />
+                      <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm font-medium text-[#22201d]">
+                        <input type="checkbox" checked={!!form.show_in_cashier_quick_items} onChange={e => setForm(f => ({ ...f, show_in_cashier_quick_items: e.target.checked }))} disabled={savingItemForm} className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait" />
+                        {lang === 'uz' ? 'Kassir tezkor mahsulotlarida ko‘rsatish' : lang === 'ru' ? 'Показывать в быстрых товарах кассира' : 'Show in cashier quick items'}
+                      </label>
+                      <OwnerOnlyMenuItemCheckbox
+                        id="product-public-hidden"
+                        checked={form.public_hidden}
+                        onChange={public_hidden => setForm(current => ({ ...current, public_hidden }))}
+                        disabled={savingItemForm}
+                        canChange={canChangePublicVisibility}
+                        label={publicMenuHideControlLabel(lang)}
+                        ownerOnlyLabel={ownerOnlyPublicVisibilityLabel(lang)}
+                        lang={lang}
+                      />
+                      <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm font-medium text-[#22201d]">
+                        <input type="checkbox" checked={!!form.cashier_only} onChange={e => setForm(f => ({ ...f, cashier_only: e.target.checked }))} disabled={savingItemForm} className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait" />
+                        {lang === 'uz' ? 'Faqat kassirda ko‘rsatish' : lang === 'ru' ? 'Только для кассира' : 'Cashier only'}
+                      </label>
+                    </div>
                   </section>
-                  <div className="sticky bottom-4 flex gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-lg">
-                    <button onClick={closeItemModal} disabled={savingItemForm} className="flex-1 border-2 border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:cursor-wait disabled:opacity-50">
+                  <div className="ws-panel sticky bottom-4 flex gap-2 !p-3">
+                    <button onClick={closeItemModal} disabled={savingItemForm} className="ws-btn ws-btn-outline flex-1 disabled:cursor-wait">
                       {t(lang, 'cancel')}
                     </button>
-                    <button onClick={saveItem} disabled={!canSaveItemForm} className="flex-1 inline-flex items-center justify-center gap-2 bg-[#ff5a00] text-white rounded-xl py-2.5 text-sm font-bold hover:bg-[#cc4800] transition-colors shadow-md shadow-orange-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none">
+                    <button onClick={saveItem} disabled={!canSaveItemForm} className="ws-btn ws-btn-primary flex-1">
                       {savingItemForm && <Loader2 size={15} className="animate-spin" />}
                       {savingItemForm ? savingLabel(lang) : t(lang, 'save')}
                     </button>
@@ -3016,42 +2966,25 @@ export default function AdminMenu() {
   }
 
   return (
-    <AppShell title={t(lang, 'menu')} contentRef={shellScrollRef}>
-      <div className="min-h-screen bg-[#FAF6EE]">
-
-        {/* Page header */}
-        <div className="bg-white border-b border-gray-100 px-6 pt-5 pb-0">
-          <div className="w-full">
-            <h1 className="text-2xl font-black text-gray-900">{t(lang, 'menu')}</h1>
-            <p className="text-sm text-gray-400 mt-0.5 mb-4">
-              {lang === 'uz' ? 'Menyu elementlari va kategoriyalarini boshqaring' :
-               lang === 'ru' ? 'Управляйте позициями меню и категориями' :
-               'Manage your menu items and categories'}
-            </p>
-            <div className="flex gap-0">
-              {[
-                ['items', t(lang, 'menuItems')],
-                ['categories', t(lang, 'categories')],
-                ['quick_items', lang === 'uz' ? 'Tezkor mahsulotlar' : lang === 'ru' ? 'Быстрые товары' : 'Quick Items'],
-                ['archive', `${archiveLabels(lang).tab}${archivedItems.length + archivedCategories.length ? ` (${archivedItems.length + archivedCategories.length})` : ''}`],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setTab(key)}
-                  className={`px-8 py-3 text-sm font-bold transition-all border-b-2 ${
-                    tab === key ? 'text-[#ff5a00] border-[#ff5a00]' : 'text-gray-400 border-transparent hover:text-gray-600'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mx-auto w-full max-w-[1180px] px-4 py-5">
+    <AppShell
+      title={t(lang, 'menu')}
+      contentRef={shellScrollRef}
+      tabs={{
+        label: t(lang, 'menu'),
+        value: tab,
+        onChange: setTab,
+        items: [
+          { key: 'items', label: t(lang, 'menuItems') },
+          { key: 'categories', label: t(lang, 'categories') },
+          { key: 'quick_items', label: lang === 'uz' ? 'Tezkor mahsulotlar' : lang === 'ru' ? 'Быстрые товары' : 'Quick Items' },
+          { key: 'archive', label: `${archiveLabels(lang).tab}${archivedItems.length + archivedCategories.length ? ` (${archivedItems.length + archivedCategories.length})` : ''}` },
+        ],
+      }}
+    >
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
           {menuNotice && (
-            <div className={`mb-4 rounded-xl border px-4 py-3 text-sm font-bold ${menuNotice.tone === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+            <div className={`ws-notice ${menuNotice.tone === 'success' ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
               {menuNotice.error ? formatWriteError(menuNotice.error, lang, menuNotice.actionType) : menuNotice.message}
             </div>
           )}
@@ -3059,24 +2992,24 @@ export default function AdminMenu() {
           {/* ══ Menu Items tab ═══════════════════════════════════════════════ */}
           {tab === 'items' && (
             <>
-              <div className="mb-5 rounded-[28px] border border-[#E5E7EB] bg-white p-4 shadow-sm">
+              <div className="ws-panel">
               {/* Toolbar row 1: search + availability + grid toggle + add */}
-              <div className="flex flex-wrap items-center gap-3 mb-3">
+              <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="relative flex-1 min-w-[240px]">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
                   <input
                     type="text"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder={lang === 'uz' ? 'Menyu elementlarini qidirish...' :
                                  lang === 'ru' ? 'Поиск позиций меню...' : 'Search menu items...'}
-                    className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 focus:border-[#ff5a00] transition-all shadow-sm"
+                    className="ws-input !pl-9"
                   />
                 </div>
                 <select
                   value={filterAvail}
                   onChange={e => setFilterAvail(e.target.value)}
-                  className="bg-white border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 focus:border-[#ff5a00] shadow-sm cursor-pointer"
+                  className="ws-input !w-auto"
                 >
                   <option value="all">
                     {lang === 'uz' ? 'Mavjudlik' : lang === 'ru' ? 'Доступность' : 'Availability'}
@@ -3094,18 +3027,24 @@ export default function AdminMenu() {
                     {hiddenFromPublicMenuLabel(lang)}
                   </option>
                 </select>
-                <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="ws-segmented" role="group" aria-label={lang === 'uz' ? 'Ko‘rinish' : lang === 'ru' ? 'Вид' : 'View'}>
                   <button
+                    type="button"
+                    aria-pressed={gridView}
+                    aria-label={lang === 'uz' ? 'Kartalar' : lang === 'ru' ? 'Карточки' : 'Cards'}
                     onClick={() => setGridView(true)}
-                    className={`p-3 transition-colors ${gridView ? 'bg-[#ff5a00] text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                    className="!px-3"
                   >
-                    <LayoutGrid size={15} />
+                    <LayoutGrid size={16} />
                   </button>
                   <button
+                    type="button"
+                    aria-pressed={!gridView}
+                    aria-label={lang === 'uz' ? 'Ro‘yxat' : lang === 'ru' ? 'Список' : 'List'}
                     onClick={() => setGridView(false)}
-                    className={`p-3 transition-colors ${!gridView ? 'bg-[#ff5a00] text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                    className="!px-3"
                   >
-                    <List size={15} />
+                    <List size={16} />
                   </button>
                 </div>
                 {canEditMenu && <OrangeBtn onClick={openNewItem} icon={Plus}>{t(lang, 'addItem')}</OrangeBtn>}
@@ -3125,43 +3064,42 @@ export default function AdminMenu() {
                 sectionPrefix="admin-menu-category"
                 scrollContainerRef={shellScrollRef}
                 topOffset={0}
-                className="mb-2"
+                variant="workspace"
                 collapsedPosition="fixed"
-                collapsedSurfaceClass="bg-white/95"
-                collapsedClassName="px-4 shadow-sm"
-                collapsedMaxWidth={1180}
-                collapsedHorizontalInset={16}
+                collapsedSurfaceClass="bg-[#f6f5f3]/90"
+                collapsedClassName="!px-0 !py-2"
+                collapsedContentClassName="mx-auto max-w-[1440px] !px-4 sm:!px-6 xl:!px-9"
               />
               </div>
 
               {/* Hint */}
               {canEditMenu && filteredItems.length > 1 && (
-                <p className="text-xs text-gray-400 mb-3 flex items-center gap-1.5">
-                  <GripVertical size={12} />
+                <p className="ws-caption -mb-2 flex items-center gap-1.5">
+                  <GripVertical size={13} />
                   {lang === 'uz' ? 'Tartiblash uchun sudrang' : lang === 'ru' ? 'Перетащите для сортировки' : 'Drag to reorder'}
                 </p>
               )}
 
               {filteredItems.length === 0 ? (
-                <div className="bg-white border border-gray-100 rounded-2xl py-20 text-center shadow-sm">
-                  <UtensilsCrossed size={40} className="mx-auto mb-3 text-gray-200" />
+                <div className="ws-panel ws-empty">
+                  <UtensilsCrossed />
                   {search || filterCat !== 'all' || filterAvail !== 'all' ? (
                     // Filters are active — just tell user to adjust them, no Add button
                     <>
-                      <p className="text-gray-500 font-semibold mb-1">
+                      <h3>
                         {lang === 'uz' ? 'Natija topilmadi' : lang === 'ru' ? 'Ничего не найдено' : 'No results found'}
-                      </p>
-                      <p className="text-sm text-gray-400">
+                      </h3>
+                      <p>
                         {lang === 'uz' ? 'Filtrni tozalang yoki boshqa qidiruv kiriting' : lang === 'ru' ? 'Попробуйте другой фильтр или запрос' : 'Try adjusting your filters or search'}
                       </p>
                     </>
                   ) : (
                     // Truly empty — no items exist yet
                     <>
-                      <p className="text-gray-500 font-semibold mb-1">
+                      <h3>
                         {lang === 'uz' ? 'Menyu elementlari yo\'q' : lang === 'ru' ? 'Нет позиций меню' : 'No menu items yet'}
-                      </p>
-                      <p className="text-sm text-gray-400 mb-5">
+                      </h3>
+                      <p>
                         {lang === 'uz' ? 'Birinchi elementni qo\'shing' : lang === 'ru' ? 'Добавьте первую позицию' : 'Add your first item'}
                       </p>
                       {canEditMenu && <OrangeBtn onClick={openNewItem} icon={Plus}>{t(lang, 'addItem')}</OrangeBtn>}
@@ -3188,15 +3126,15 @@ export default function AdminMenu() {
                   : []
 
                 const DragGhost = () => activeItem ? (
-                  <div className="bg-white rounded-2xl border-2 border-[#ff5a00]/40 shadow-2xl opacity-95 w-44 rotate-2">
+                  <div className="w-44 rotate-2 overflow-hidden rounded-xl border border-[#e4e1de] bg-white opacity-95 shadow-2xl">
                     <SafeMenuImage
                       src={activeItem.image_url}
-                      className="aspect-square w-full rounded-t-2xl object-cover object-center"
-                      fallbackClassName="aspect-square w-full rounded-t-2xl"
+                      className="aspect-square w-full object-cover object-center"
+                      fallbackClassName="aspect-square w-full"
                       iconSize={24}
                     />
                     <div className="p-2.5">
-                      <p className="font-black text-gray-900 text-[12px] truncate">{getItemName(activeItem, lang)}</p>
+                      <p className="truncate text-[13px] font-semibold text-[#22201d]">{getItemName(activeItem, lang)}</p>
                       <MenuPrice item={activeItem} size="sm" />
                       {gramsLabel(activeItem, lang) && (
                         <p className="text-[#64748B] font-black text-[10px]">{gramsLabel(activeItem, lang)}</p>
@@ -3225,7 +3163,7 @@ export default function AdminMenu() {
                     >
                       {showGrouped ? (
                         // ── Grouped by category ──────────────────────────────
-                        <div className="space-y-8">
+                        <div className="space-y-9">
                           {sections.map(({ cat, items: catItems }) => (
                             <div
                               key={cat.id}
@@ -3233,28 +3171,28 @@ export default function AdminMenu() {
                               className="scroll-mt-24"
                             >
                               {/* Section header */}
-                              <div className="mb-3 flex flex-wrap items-center gap-2.5">
+                              <div className="mb-4 flex flex-wrap items-center gap-2.5">
                                 {cat.image_url && (
-                                  <img src={cat.image_url} alt="" className="h-7 w-7 flex-shrink-0 rounded-lg object-cover object-center" />
+                                  <img src={cat.image_url} alt="" className="h-8 w-8 flex-shrink-0 rounded-lg object-cover object-center" />
                                 )}
-                                <h3 className="text-xl font-black uppercase tracking-tight text-[#1F2937]">
+                                <h3 className="ws-display">
                                   {getCategoryName(cat, lang)}
                                 </h3>
-                                <span className="rounded-full bg-[#F3F4F6] px-2.5 py-0.5 text-xs font-bold text-[#6B7280]">
+                                <span className="ws-count">
                                   {catItems.length}
                                 </span>
                                 {cat.hidden && (
-                                  <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 ring-1 ring-blue-200">
+                                  <span className="ws-badge ws-tone-info">
                                     {hiddenFromPublicMenuLabel(lang)}
                                   </span>
                                 )}
                                 {cat.waiter_hidden && (
-                                  <span className="rounded-full bg-purple-50 px-2 py-1 text-[10px] font-black text-purple-700 ring-1 ring-purple-200">
+                                  <span className="ws-badge">
                                     {hiddenFromWaiterMenuLabel(lang)}
                                   </span>
                                 )}
                                 {cat.tourist_hidden && (
-                                  <span className="rounded-full bg-sky-50 px-2 py-1 text-[10px] font-black text-sky-700 ring-1 ring-sky-200">
+                                  <span className="ws-badge">
                                     {hiddenFromTouristMenuLabel(lang)}
                                   </span>
                                 )}
@@ -3279,7 +3217,7 @@ export default function AdminMenu() {
                                   ))}
                                 </div>
                               ) : (
-                                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                                <div className="ws-panel ws-panel-flush">
                                   {catItems.map(item => (
                                     <SortableItemRow
                                       key={item.id}
@@ -3303,11 +3241,11 @@ export default function AdminMenu() {
                           {/* Uncategorised items (edge case) */}
                           {uncategorised.length > 0 && (
                             <div>
-                              <div className="flex items-center gap-3 mb-3">
-                                <h3 className="text-xl font-black uppercase tracking-tight text-[#1F2937]">
+                              <div className="mb-4 flex items-center gap-2.5">
+                                <h3 className="ws-display">
                                   {lang === 'uz' ? 'Kategoriyasiz' : lang === 'ru' ? 'Без категории' : 'Uncategorised'}
                                 </h3>
-                                <span className="rounded-full bg-[#F3F4F6] px-2.5 py-0.5 text-xs font-bold text-[#6B7280]">
+                                <span className="ws-count">
                                   {uncategorised.length}
                                 </span>
                               </div>
@@ -3330,7 +3268,7 @@ export default function AdminMenu() {
                                   ))}
                                 </div>
                               ) : (
-                                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                                <div className="ws-panel ws-panel-flush">
                                   {uncategorised.map(item => (
                                     <SortableItemRow
                                       key={item.id}
@@ -3372,7 +3310,7 @@ export default function AdminMenu() {
                             ))}
                           </div>
                         ) : (
-                          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                          <div className="ws-panel ws-panel-flush">
                             {filteredItems.map(item => (
                               <SortableItemRow
                                 key={item.id}
@@ -3401,7 +3339,7 @@ export default function AdminMenu() {
               })()}
 
               {filteredItems.length > 0 && (
-                <p className="text-xs text-gray-400 text-center mt-4">
+                <p className="ws-caption text-center">
                   {lang === 'uz' ? `${filteredItems.length} ta element` :
                    lang === 'ru' ? `Итого: ${filteredItems.length} позиций` :
                    `Total ${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''}`}
@@ -3414,18 +3352,18 @@ export default function AdminMenu() {
           {tab === 'categories' && (
             <>
               {canEditMenu && (
-                <div className="flex justify-end mb-5">
+                <div className="flex justify-end">
                   <OrangeBtn onClick={openNewCat} icon={Plus}>{t(lang, 'addCategory')}</OrangeBtn>
                 </div>
               )}
 
               {realSortedCats.length === 0 ? (
-                <div className="bg-white border border-gray-100 rounded-2xl py-20 text-center shadow-sm">
-                  <FolderOpen size={40} className="mx-auto mb-3 text-gray-200" />
-                  <p className="text-gray-500 font-semibold mb-1">
+                <div className="ws-panel ws-empty">
+                  <FolderOpen />
+                  <h3>
                     {lang === 'uz' ? 'Kategoriyalar yo\'q' : lang === 'ru' ? 'Нет категорий' : 'No categories yet'}
-                  </p>
-                  <p className="text-sm text-gray-400 mb-5">
+                  </h3>
+                  <p>
                     {lang === 'uz' ? 'Birinchi kategoriyani qo\'shing' :
                      lang === 'ru' ? 'Добавьте первую категорию' : 'Add your first category'}
                   </p>
@@ -3433,8 +3371,8 @@ export default function AdminMenu() {
                 </div>
               ) : (
                 <>
-                  {canEditMenu && <p className="text-xs text-gray-400 mb-3 flex items-center gap-1.5">
-                    <GripVertical size={12} />
+                  {canEditMenu && <p className="ws-caption flex items-center gap-1.5">
+                    <GripVertical size={13} />
                     {lang === 'uz' ? 'Tartiblash uchun sudrang' : lang === 'ru' ? 'Перетащите для сортировки' : 'Drag to reorder'}
                   </p>}
                   <DndContext
@@ -3448,9 +3386,9 @@ export default function AdminMenu() {
                       items={realSortedCats.map(c => c.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                      <div className="ws-panel ws-panel-flush">
                         {/* Header uses the exact same edit/read-only grid as its rows. */}
-                        <div className={`${canEditMenu ? CAT_EDIT_GRID : CAT_READ_ONLY_GRID} py-3 bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wide`}>
+                        <div className={`${canEditMenu ? CAT_EDIT_GRID : CAT_READ_ONLY_GRID} ws-table-head py-3`}>
                           {canEditMenu && <span />}
                           <span />
                           <span>{lang === 'uz' ? 'Nomi' : lang === 'ru' ? 'Название' : 'Name'}</span>
@@ -3476,7 +3414,7 @@ export default function AdminMenu() {
                         ))}
 
                         {/* Footer */}
-                        <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-400 text-center">
+                        <div className="ws-caption border-t border-[#e4e1de] bg-[#f6f5f3] px-5 py-3 text-center">
                           {lang === 'uz' ? `Jami ${realSortedCats.length} ta kategoriya` :
                            lang === 'ru' ? `Всего категорий: ${realSortedCats.length}` :
                            `Total ${realSortedCats.length} categor${realSortedCats.length !== 1 ? 'ies' : 'y'}`}
@@ -3487,17 +3425,17 @@ export default function AdminMenu() {
                     {/* Drag overlay ghost */}
                     <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>
                       {activeCat && (
-                        <div className="bg-white border-2 border-[#ff5a00]/40 rounded-2xl shadow-2xl flex items-center gap-4 px-5 py-4 opacity-95">
+                        <div className="flex items-center gap-4 rounded-xl border border-[#e4e1de] bg-white px-5 py-4 opacity-95 shadow-2xl">
                           {activeCat.image_url ? (
-                            <img src={activeCat.image_url} alt="" className="h-12 w-12 flex-shrink-0 rounded-xl object-cover object-center" />
+                            <img src={activeCat.image_url} alt="" className="h-12 w-12 flex-shrink-0 rounded-lg object-cover object-center" />
                           ) : (
-                            <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-                              <Tag size={18} className="text-orange-300" />
+                            <div className="w-12 h-12 rounded-lg bg-[#efece9] flex items-center justify-center flex-shrink-0">
+                              <Tag size={18} className="text-[#68655f]" />
                             </div>
                           )}
                           <div>
-                            <p className="font-bold text-gray-900 text-sm">{getCategoryName(activeCat, lang)}</p>
-                            <p className="text-xs text-gray-400">{itemCountByCat[activeCat.id] || 0} items</p>
+                            <p className="text-sm font-semibold text-[#22201d]">{getCategoryName(activeCat, lang)}</p>
+                            <p className="ws-caption">{itemCountByCat[activeCat.id] || 0} items</p>
                           </div>
                         </div>
                       )}
@@ -3511,12 +3449,12 @@ export default function AdminMenu() {
           {/* ══ Quick Items tab ═════════════════════════════════════════════ */}
           {tab === 'quick_items' && (
             <>
-              <div className="mb-5 flex flex-col gap-3 rounded-[28px] border border-[#E5E7EB] bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="ws-panel ws-panel-title">
                 <div>
-                  <h2 className="text-lg font-black text-[#1F2937]">
+                  <h2 className="ws-display">
                     {lang === 'uz' ? 'Kassadagi tezkor mahsulotlar' : lang === 'ru' ? 'Быстрые товары у кассы' : 'Cashier Quick Items'}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-400">
+                  <p className="ws-muted mt-1.5">
                     {lang === 'uz'
                       ? 'Bu mahsulotlar faqat kassir to‘lov ekranida ko‘rinadi.'
                       : lang === 'ru'
@@ -3532,12 +3470,12 @@ export default function AdminMenu() {
               </div>
 
               {quickItems.length === 0 ? (
-                <div className="bg-white border border-gray-100 rounded-2xl py-20 text-center shadow-sm">
-                  <Tag size={40} className="mx-auto mb-3 text-gray-200" />
-                  <p className="text-gray-500 font-semibold mb-1">
+                <div className="ws-panel ws-empty">
+                  <Tag />
+                  <h3>
                     {lang === 'uz' ? 'Tezkor mahsulotlar yo‘q' : lang === 'ru' ? 'Быстрых товаров пока нет' : 'No quick items yet'}
-                  </p>
-                  <p className="text-sm text-gray-400 mb-5">
+                  </h3>
+                  <p>
                     {lang === 'uz'
                       ? 'Kassada tez qo‘shiladigan mahsulot yarating.'
                       : lang === 'ru'
@@ -3552,8 +3490,8 @@ export default function AdminMenu() {
                 </div>
               ) : (
                 <>
-                  {canEditMenu && <p className="text-xs text-gray-400 mb-3 flex items-center gap-1.5">
-                    <GripVertical size={12} />
+                  {canEditMenu && <p className="ws-caption flex items-center gap-1.5">
+                    <GripVertical size={13} />
                     {lang === 'uz' ? 'Tartiblash uchun sudrang' : lang === 'ru' ? 'Перетащите для сортировки' : 'Drag to reorder'}
                   </p>}
                   <DndContext
@@ -3587,15 +3525,15 @@ export default function AdminMenu() {
                     </SortableContext>
                     <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>
                       {activeItem && (
-                        <div className="bg-white rounded-2xl border-2 border-[#ff5a00]/40 shadow-2xl opacity-95 w-44 rotate-2">
+                        <div className="w-44 rotate-2 overflow-hidden rounded-xl border border-[#e4e1de] bg-white opacity-95 shadow-2xl">
                           <SafeMenuImage
                             src={activeItem.image_url}
-                            className="aspect-square w-full rounded-t-2xl object-cover object-center"
-                            fallbackClassName="aspect-square w-full rounded-t-2xl"
+                            className="aspect-square w-full object-cover object-center"
+                            fallbackClassName="aspect-square w-full"
                             iconSize={24}
                           />
                           <div className="p-2.5">
-                            <p className="font-black text-gray-900 text-[12px] truncate">{getItemName(activeItem, lang)}</p>
+                            <p className="truncate text-[13px] font-semibold text-[#22201d]">{getItemName(activeItem, lang)}</p>
                             <MenuPrice item={activeItem} size="sm" />
                           </div>
                         </div>
@@ -3615,13 +3553,13 @@ export default function AdminMenu() {
             const items = archivedItems.filter(item => !q || getItemName(item, lang).toLowerCase().includes(q) || String(item.external_id || '').toLowerCase().includes(q))
             const restoreButton = (type, id, disabledReason = '') => canDeleteMenuCatalog && (
               disabledReason
-                ? <span className="text-xs font-bold text-gray-400">{disabledReason}</span>
+                ? <span className="ws-caption">{disabledReason}</span>
                 : (
                   <button
                     type="button"
                     disabled={!!restoringId}
                     onClick={() => restoreArchived(type, id)}
-                    className="inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-xl border border-green-200 px-3 text-xs font-black text-green-700 transition hover:bg-green-50 disabled:opacity-50"
+                    className="ws-btn ws-btn-outline ws-btn-sm"
                   >
                     {restoringId === id ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
                     {labels.restore}
@@ -3630,34 +3568,35 @@ export default function AdminMenu() {
             )
             return (
               <>
-                <div className="mb-5 rounded-[28px] border border-[#E5E7EB] bg-white p-4 shadow-sm">
-                  <h2 className="text-lg font-black text-[#1F2937]">{labels.title}</h2>
-                  <p className="mt-1 text-sm text-gray-500">{labels.sub}</p>
-                  <div className="relative mt-3">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <div className="ws-panel">
+                  <h2 className="ws-display">{labels.title}</h2>
+                  <p className="ws-muted mt-1.5">{labels.sub}</p>
+                  <div className="relative mt-4">
+                    <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
                     <input
                       value={archiveSearch}
                       onChange={e => setArchiveSearch(e.target.value)}
                       placeholder={labels.search}
-                      className="h-11 w-full rounded-xl border border-[#E5E7EB] pl-9 pr-3 text-sm outline-none focus:border-[#ff5a00]"
+                      className="ws-input !pl-9"
                     />
                   </div>
                 </div>
                 {!cats.length && !items.length ? (
-                  <div className="rounded-[28px] border border-dashed border-[#E5E7EB] bg-white px-4 py-12 text-center text-sm font-bold text-gray-400">
-                    {labels.empty}
+                  <div className="ws-panel ws-empty">
+                    <Archive />
+                    <p>{labels.empty}</p>
                   </div>
                 ) : (
                   <div className="space-y-5">
                     {cats.length > 0 && (
-                      <section className="overflow-hidden rounded-[28px] border border-[#E5E7EB] bg-white shadow-sm">
-                        <h3 className="border-b border-gray-50 px-5 py-3 text-sm font-black text-gray-700">{labels.categories} ({cats.length})</h3>
+                      <section className="ws-panel ws-panel-flush">
+                        <h3 className="ws-heading flex items-center gap-2 border-b border-[#e4e1de] px-5 py-4">{labels.categories} <span className="ws-count">{cats.length}</span></h3>
                         {cats.map(cat => (
-                          <div key={cat.id} className="flex flex-wrap items-center gap-3 border-b border-gray-50 px-5 py-3 last:border-0">
-                            <FolderOpen size={20} className="flex-shrink-0 text-gray-400" />
+                          <div key={cat.id} className="ws-row flex flex-wrap items-center gap-3 px-5 py-3">
+                            <FolderOpen size={20} className="flex-shrink-0 text-[#68655f]" />
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-bold text-gray-900">{getCategoryName(cat, lang)}</p>
-                              <p className="text-xs text-gray-400">{labels.archivedAt} {formatLongDateTime(cat.deleted_at, lang)}</p>
+                              <p className="truncate text-sm font-semibold text-[#22201d]">{getCategoryName(cat, lang)}</p>
+                              <p className="ws-caption">{labels.archivedAt} {formatLongDateTime(cat.deleted_at, lang)}</p>
                             </div>
                             {restoreButton('RESTORE_CATEGORY', cat.id)}
                           </div>
@@ -3665,23 +3604,23 @@ export default function AdminMenu() {
                       </section>
                     )}
                     {items.length > 0 && (
-                      <section className="overflow-hidden rounded-[28px] border border-[#E5E7EB] bg-white shadow-sm">
-                        <h3 className="border-b border-gray-50 px-5 py-3 text-sm font-black text-gray-700">{labels.items} ({items.length})</h3>
+                      <section className="ws-panel ws-panel-flush">
+                        <h3 className="ws-heading flex items-center gap-2 border-b border-[#e4e1de] px-5 py-4">{labels.items} <span className="ws-count">{items.length}</span></h3>
                         {items.map(item => {
                           const cat = state.categories.find(c => c.id === item.category_id)
                           const categoryArchived = !!cat && isDeletedMenuCategory(cat)
                           return (
-                            <div key={item.id} className="flex flex-wrap items-center gap-3 border-b border-gray-50 px-5 py-3 last:border-0">
+                            <div key={item.id} className="ws-row flex flex-wrap items-center gap-3 px-5 py-3">
                               <SafeMenuImage
                                 src={item.image_url}
                                 alt={getItemName(item, lang)}
-                                className="h-12 w-12 flex-shrink-0 rounded-xl object-cover object-center opacity-70 grayscale"
-                                fallbackClassName="h-12 w-12 flex-shrink-0 rounded-xl"
+                                className="h-12 w-12 flex-shrink-0 rounded-lg object-cover object-center opacity-70 grayscale"
+                                fallbackClassName="h-12 w-12 flex-shrink-0 rounded-lg"
                                 iconSize={18}
                               />
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-bold text-gray-900">{getItemName(item, lang)}</p>
-                                <p className="text-xs text-gray-400">
+                                <p className="truncate text-sm font-semibold text-[#22201d]">{getItemName(item, lang)}</p>
+                                <p className="ws-caption">
                                   {[cat && getCategoryName(cat, lang), formatCurrency(item.price), `${labels.archivedAt} ${formatLongDateTime(item.deleted_at, lang)}`].filter(Boolean).join(' · ')}
                                 </p>
                               </div>
@@ -3718,20 +3657,20 @@ export default function AdminMenu() {
             aria-busy={archivePending}
             onKeyDown={handleDeleteDialogKeyDown}
             tabIndex={-1}
-            className="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-[24px] border border-white/70 bg-white p-5 shadow-2xl"
+            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto p-6"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
-              <Archive size={22} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#c4262c]/10 text-[#c4262c]">
+              <Archive size={20} />
             </div>
-            <h2 id="delete-menu-item-title" className="mt-4 text-xl font-black text-[#1F2937]">
+            <h2 id="delete-menu-item-title" className="ws-display mt-4 !text-[24px]">
               {archiveCandidateIsCategory
                 ? (lang === 'uz' ? 'Kategoriyani arxivlaysizmi?' : lang === 'ru' ? 'Архивировать категорию?' : 'Archive category?')
                 : (lang === 'uz' ? 'Mahsulotni arxivlaysizmi?' : lang === 'ru' ? 'Архивировать товар?' : 'Archive item?')}
             </h2>
-            <p className="mt-2 break-words text-sm font-semibold leading-6 text-[#6B7280]">
+            <p className="mt-2 break-words text-sm font-semibold leading-6 text-[#22201d]">
               {archiveCandidateIsCategory ? getCategoryName(archiveCandidate, lang) : getItemName(archiveCandidate, lang)}
             </p>
-            <p id="delete-menu-item-description" className="mt-2 text-xs leading-5 text-[#9CA3AF]">
+            <p id="delete-menu-item-description" className="ws-muted mt-2">
               {archiveCandidateIsCategory
                 ? (lang === 'uz'
                   ? 'Kategoriya va undagi taomlar menyudan yashiriladi. Hech narsa o‘chirilmaydi: «Arxiv» bo‘limidan tiklash mumkin.'
@@ -3745,17 +3684,17 @@ export default function AdminMenu() {
                     : 'The item will be archived from the menu. Previous order history will remain.')}
             </p>
             {deleteItemError && (
-              <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold leading-5 text-red-700">
+              <p role="alert" className="ws-notice ws-tone-negative mt-3">
                 {deleteItemError}
               </p>
             )}
-            <div className="mt-5 flex gap-3">
+            <div className="mt-6 flex gap-3">
               <button
                 ref={deleteCancelButtonRef}
                 type="button"
                 onClick={closeDeleteItemDialog}
                 disabled={archivePending}
-                className="h-12 flex-1 rounded-xl border border-[#E5E7EB] bg-white text-sm font-black text-[#6B7280] disabled:opacity-50"
+                className="ws-btn ws-btn-outline flex-1"
               >
                 {lang === 'uz' ? 'Bekor qilish' : lang === 'ru' ? 'Отмена' : 'Cancel'}
               </button>
@@ -3763,7 +3702,7 @@ export default function AdminMenu() {
                 type="button"
                 onClick={() => (archiveCandidateIsCategory ? archiveCategory(archiveCandidate.id) : deleteItem(archiveCandidate.id))}
                 disabled={archivePending}
-                className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-black text-white shadow-lg shadow-red-100 disabled:opacity-50"
+                className="ws-btn ws-btn-danger-solid flex-1"
               >
                 {archivePending
                   ? <Loader2 size={16} className="animate-spin" />
@@ -3782,16 +3721,16 @@ export default function AdminMenu() {
         <Modal title={itemModal === 'new' ? t(lang, 'addItem') : t(lang, 'editItem')} onClose={closeItemModal} closeDisabled={savingItemForm}>
           <div className="space-y-3">
             {menuNotice && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              <div role="alert" className="ws-notice ws-tone-negative">
                 {menuNotice.error ? formatWriteError(menuNotice.error, lang, menuNotice.actionType) : menuNotice.message}
               </div>
             )}
             <div>
-              <label className="block text-xs text-gray-500 font-semibold mb-1.5">{t(lang, 'category')}</label>
+              <label className="ws-caption mb-1.5 block font-medium">{t(lang, 'category')}</label>
               <select
                 value={form.category_id}
                 onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20"
+                className="ws-input"
               >
                 <option value="">— {t(lang, 'category')} —</option>
                 {realSortedCats.map(c => (
@@ -3802,11 +3741,11 @@ export default function AdminMenu() {
             <Field label={t(lang, 'nameUz')} value={form.name_uz} onChange={setF('name_uz')} onBlur={trimF('name_uz')} />
             <Field label={t(lang, 'nameRu')} value={form.name_ru} onChange={setF('name_ru')} onBlur={trimF('name_ru')} />
             <Field label={t(lang, 'nameEn')} value={form.name_en} onChange={setF('name_en')} onBlur={trimF('name_en')} />
-            <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2.5">
-              <p className="mb-1 text-[11px] font-black uppercase tracking-wide text-[#818CF8]">
+            <div>
+              <p className="ws-caption mb-1.5 font-medium">
                 {lang === 'uz' ? 'Tashqi ID' : lang === 'ru' ? 'Внешний ID' : 'External ID'}
               </p>
-              <p className="font-black text-[#4F46E5]">{form.external_id || '—'}</p>
+              <p className="truncate rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-3 py-2.5 font-mono text-sm text-[#22201d]">{form.external_id || '—'}</p>
             </div>
             <DescriptionField label={t(lang, 'descUz')} value={form.description_uz} onChange={setF('description_uz')} onBlur={trimF('description_uz')} lang={lang} />
             <DescriptionField label={t(lang, 'descRu')} value={form.description_ru} onChange={setF('description_ru')} onBlur={trimF('description_ru')} lang={lang} />
@@ -3859,13 +3798,13 @@ export default function AdminMenu() {
               onChange={setF('quick_item_sort_order')}
               placeholder="1"
             />
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-gray-500">{scheduleLabels.section}</p>
+            <div className="rounded-xl border border-[#e4e1de] p-4">
+              <p className="mb-3 text-sm font-semibold text-[#22201d]">{scheduleLabels.section}</p>
               <div className="grid grid-cols-2 gap-3">
                 <Field label={scheduleLabels.from} type="time" value={form.visible_from_time || ''} onChange={setF('visible_from_time')} />
                 <Field label={scheduleLabels.until} type="time" value={form.visible_until_time || ''} onChange={setF('visible_until_time')} />
               </div>
-              <p className="mt-2 text-[11px] font-semibold text-gray-400">{scheduleLabels.hint}</p>
+              <p className="ws-caption mt-2">{scheduleLabels.hint}</p>
             </div>
             <OwnerOnlyMenuItemCheckbox
               id="modal-product-availability"
@@ -3877,16 +3816,16 @@ export default function AdminMenu() {
               ownerOnlyLabel={t(lang, 'available_item')}
               lang={lang}
             />
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex min-h-[44px] items-center gap-3">
               <input
                 id="cashierQuick"
                 type="checkbox"
                 checked={!!form.show_in_cashier_quick_items}
                 onChange={e => setForm(f => ({ ...f, show_in_cashier_quick_items: e.target.checked }))}
                 disabled={savingItemForm}
-                className="accent-[#ff5a00] w-4 h-4 disabled:cursor-wait"
+                className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
               />
-              <label htmlFor="cashierQuick" className="text-sm text-gray-700 font-medium">
+              <label htmlFor="cashierQuick" className="cursor-pointer text-sm font-medium text-[#22201d]">
                 {lang === 'uz' ? 'Kassir tezkor mahsulotlarida ko‘rsatish' : lang === 'ru' ? 'Показывать в быстрых товарах кассира' : 'Show in cashier quick items'}
               </label>
             </div>
@@ -3900,24 +3839,24 @@ export default function AdminMenu() {
               ownerOnlyLabel={ownerOnlyPublicVisibilityLabel(lang)}
               lang={lang}
             />
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex min-h-[44px] items-center gap-3">
               <input
                 id="cashierOnly"
                 type="checkbox"
                 checked={!!form.cashier_only}
                 onChange={e => setForm(f => ({ ...f, cashier_only: e.target.checked }))}
                 disabled={savingItemForm}
-                className="accent-[#ff5a00] w-4 h-4 disabled:cursor-wait"
+                className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
               />
-              <label htmlFor="cashierOnly" className="text-sm text-gray-700 font-medium">
+              <label htmlFor="cashierOnly" className="cursor-pointer text-sm font-medium text-[#22201d]">
                 {lang === 'uz' ? 'Faqat kassirda ko‘rsatish' : lang === 'ru' ? 'Только для кассира' : 'Cashier only'}
               </label>
             </div>
             <div className="flex gap-2 pt-2">
-              <button onClick={closeItemModal} disabled={savingItemForm} className="flex-1 border-2 border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:cursor-wait disabled:opacity-50">
+              <button onClick={closeItemModal} disabled={savingItemForm} className="ws-btn ws-btn-outline flex-1 disabled:cursor-wait">
                 {t(lang, 'cancel')}
               </button>
-              <button onClick={saveItem} disabled={!canSaveItemForm} className="flex-1 inline-flex items-center justify-center gap-2 bg-[#ff5a00] text-white rounded-xl py-2.5 text-sm font-bold hover:bg-[#cc4800] transition-colors shadow-md shadow-orange-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none">
+              <button onClick={saveItem} disabled={!canSaveItemForm} className="ws-btn ws-btn-primary flex-1">
                 {savingItemForm && <Loader2 size={15} className="animate-spin" />}
                 {savingItemForm ? savingLabel(lang) : t(lang, 'save')}
               </button>

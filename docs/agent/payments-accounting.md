@@ -41,7 +41,7 @@
 - Wait for expenses, paid-order summary/history, and salary data before ending loading.
 - KPIs use permission-checked aggregates, never full history. The all-time cash remainder excludes unpaid salary liability.
 - Detailed order rows belong to reports, receipts, and drilldowns.
-- Use four then three KPI cards on large screens; collapse payment-method balances in the left column.
+- Accounting: recording, spending/salary KPIs, open method balances. Financial analysis + Estimate: `financial_analysis` (needs `expenses`; `230`). Growth: `229`.
 
 ## Expenses and estimates
 
@@ -49,31 +49,31 @@
 - Bonus display rows are projections: deletion targets `employee_salary_bonuses.source_id`, never a synthetic display id.
 - Salary payments/accruals and Daily Bazaar totals remain protected from overview deletion.
 - Fines reduce payroll liability but are not cash expenses.
-- Monthly Estimate is selected-month actuals plus expected salary, rent, and utilities for that month only. Do not add older arrears/liabilities.
-- Calculate salary operating cost per employee so one employee's advance or older-debt payment cannot distort another employee.
+- Monthly Estimate: selected-month actuals plus expected salary, rent, utilities, and bazaar/sales at completed-day pace; no older arrears. Last-month comparison uses salary cost.
+- Compute salary operating cost per employee so one advance or older-debt payment cannot distort another.
 - `business_settings.monthly_utilities_uzs` is the plan; only recorded `utilities` rows are monthly actuals.
 - `business_settings.average_daily_break_even_income_uzs` is the operator-entered Dashboard benchmark; it does not alter Accounting totals.
 
 ## Cash Telegram
 
 - New cash expenses queue one immutable Investor delivery: manual text or a Bazaar PNG receipt and caption.
-- Edits/deletes do not announce again. Do not project salary, bonus, employee meal, or calculated rows into this flow.
+- Edits/deletes do not announce again; never project salary, bonus, meal, or calculated rows here.
 
 ## Daily Bazaar
 
 Migrations `097`, `160`–`163`, `182`.
 
-- Receipts contain product, category, quantity, unit, and exact amount.
+- Receipts: product, category, quantity, unit, exact amount.
 - Product rows share one height; notes are multiline.
 - Snapshot buyer ID/name. New entries use cash/card; preserve historical terminal.
 - New lines require active `bazaar_product_catalog` ingredients; no arbitrary names.
 - `/admin/ingredients` manages canonical names, categories, purchase units, normal unit prices, and active/archive state. Migration `182` allows owner renames; saves keep catalog keys and historical snapshots.
 - `186`: active owners/admins with `ingredients` may write; viewers read. Bazaar/Tech Card access grants catalog reads only.
 - Migration `161` starts the managed list empty without changing history.
-- Suggested line totals remain editable; exact paid totals drive Accounting.
+- Suggested totals stay editable; exact paid totals drive Accounting.
 - Snapshot normal unit price, quantity-scaled total and variance (`paid - normal`). UI/Investor show line/total variances: positive above normal, negative below.
 - Saved lines retain their original normal-price snapshot.
-- Catalog deletion is archival. Existing purchase lines keep their historical name, category, unit, and exact paid amount snapshots.
+- Catalog deletion is archival; purchase lines keep name, category, unit, and paid snapshots.
 - Ingredient writes reconcile before retry and update locally.
 - ISO dates.
 - Server calculates totals. Create retries reuse a request UUID.

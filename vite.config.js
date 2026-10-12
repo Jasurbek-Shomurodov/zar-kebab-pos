@@ -6,6 +6,7 @@ import uploadMenuImage from './api/menu-image/upload.js'
 import deleteMenuImage from './api/menu-image/delete.js'
 import notifyTelegramEmployee from './api/telegram/employee-notification.js'
 import notifyTelegramOrderStatus from './api/telegram/order-status.js'
+import { darkThemePlugin } from './scripts/build-dark-theme.mjs'
 
 const SERVER_ENV_KEYS = [
   'VITE_SUPABASE_URL',
@@ -53,7 +54,7 @@ export default defineConfig(({ mode }) => {
   const supabaseUrl = loadEnv(mode, process.cwd(), '').VITE_SUPABASE_URL
 
   return {
-    plugins: [react(), localApiRoutes()],
+    plugins: [darkThemePlugin(), react(), localApiRoutes()],
     server: {
       port: 5173,
       strictPort: true,

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft,
   BookOpenCheck,
   CheckCircle2,
   ChevronRight,
@@ -151,8 +150,8 @@ function TechCardImage({ item, className = '' }) {
       className={`h-full w-full object-cover object-center ${className}`}
       containerClassName="h-full w-full"
       fallback={
-        <div className="flex h-full w-full items-center justify-center bg-orange-50 text-orange-200">
-          <UtensilsCrossed size={28} />
+        <div className="flex h-full w-full items-center justify-center bg-[#efece9] text-[#68655f]">
+          <UtensilsCrossed size={24} />
         </div>
       }
     />
@@ -202,24 +201,24 @@ function ingredientUnitOptions(bazaarIngredient, currentUnit) {
   return units.includes(currentUnit) ? units : [...units, currentUnit]
 }
 
-function SummaryTile({ label, value, icon: Icon, tone = 'orange' }) {
-  const tones = {
-    orange: 'bg-orange-50 text-orange-600',
-    green: 'bg-emerald-50 text-emerald-600',
-    amber: 'bg-amber-50 text-amber-600',
-    blue: 'bg-blue-50 text-blue-600',
-  }
+// Workspace KPI tile, as on Expenses: caption label, quiet value, neutral icon circle.
+function SummaryTile({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone] || tones.orange}`}>
-        <Icon size={19} />
+    <div className="ws-panel h-full">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="ws-caption">{label}</p>
+          <p className="mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{value}</p>
+        </div>
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+          <Icon size={16} />
+        </div>
       </div>
-      <p className="text-2xl font-black tabular-nums text-gray-900">{value}</p>
-      <p className="mt-0.5 text-xs font-bold text-gray-400">{label}</p>
     </div>
   )
 }
 
+// Same look as the Menu category tiles: white hairline card, orange border and ring when active.
 function CategoryFilterTile({ category, label, count, selected, onClick }) {
   const isAll = category.id === 'all'
   return (
@@ -227,27 +226,29 @@ function CategoryFilterTile({ category, label, count, selected, onClick }) {
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`group relative w-[104px] shrink-0 overflow-hidden rounded-2xl border-2 text-left transition-all sm:w-[116px] ${selected
-        ? 'border-[#ff5a00] bg-orange-50 shadow-sm'
-        : 'border-gray-200 bg-white hover:border-orange-200 hover:shadow-md'}`}
+      className={`relative w-[104px] shrink-0 overflow-hidden rounded-xl border bg-white text-center transition-colors md:w-[112px] xl:w-[120px] ${selected
+        ? 'border-[#ff5a00] ring-1 ring-[#ff5a00]'
+        : 'border-[#e4e1de] hover:bg-[#f6f5f3]'}`}
     >
-      <div className={`flex aspect-[4/3] w-full items-center justify-center overflow-hidden ${selected ? 'bg-orange-100' : 'bg-gray-50'}`}>
+      <div className="flex aspect-square w-full items-center justify-center overflow-hidden bg-[#efece9]">
         {isAll ? (
-          <LayoutGrid size={28} className={selected ? 'text-[#ff5a00]' : 'text-orange-300'} />
+          <span className={`grid h-11 w-11 place-items-center rounded-full ${selected ? 'bg-[#fff1e8] text-[#ff5a00]' : 'bg-white text-[#68655f]'}`}>
+            <LayoutGrid size={20} />
+          </span>
         ) : (
           <MenuMedia
             src={category.image_url}
             alt=""
-            className="h-full w-full object-cover object-center transition-transform group-hover:scale-105"
+            className="h-full w-full object-cover object-center"
             containerClassName="h-full w-full"
-            fallback={<UtensilsCrossed size={26} className={selected ? 'text-[#ff5a00]' : 'text-orange-300'} />}
+            fallback={<UtensilsCrossed size={24} className={selected ? 'text-[#ff5a00]' : 'text-[#68655f]'} />}
           />
         )}
       </div>
-      <div className="min-h-[48px] px-2.5 py-2">
-        <p className={`line-clamp-2 text-xs font-black leading-tight ${selected ? 'text-[#ff5a00]' : 'text-gray-800'}`}>{label}</p>
+      <div className="flex min-h-[44px] items-center justify-center px-2 py-2">
+        <p className={`line-clamp-2 text-[13px] font-medium leading-tight ${selected ? 'text-[#ff5a00]' : 'text-[#22201d]'}`}>{label}</p>
       </div>
-      <span className={`absolute right-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-lg px-1.5 text-[11px] font-black tabular-nums shadow-sm ${selected ? 'bg-[#ff5a00] text-white' : 'bg-white text-gray-600'}`}>
+      <span className="ws-count absolute right-1.5 top-1.5 !bg-white shadow-[0_1px_2px_rgb(34_32_29/10%)]">
         {count}
       </span>
     </button>
@@ -545,53 +546,56 @@ export default function TechCards() {
       ? null
       : getSaleProfitSummary(price, summary.portionCost)
 
-    return (
-      <AppShell title={`${l.title} · ${getItemName(editorItem, lang)}`}>
-        <div className="min-h-full bg-[#FAF6EE]">
-          <div className="border-b border-gray-100 bg-white px-4 py-4 sm:px-6">
-            <div className="mx-auto flex w-full max-w-[1180px] items-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigate('/admin/tech-cards')}
-                aria-label={l.back}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <div className="min-w-0 flex-1">
-                <h1 className="truncate text-xl font-black text-gray-900 sm:text-2xl">{getItemName(editorItem, lang)}</h1>
-                <p className="mt-0.5 truncate text-xs font-semibold text-gray-400 sm:text-sm">{l.editorSubtitle}</p>
-              </div>
-              {!mayEdit && <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-500">{l.readOnly}</span>}
-            </div>
-          </div>
+    const saveDisabled = saving || !dirty || !!validationError
+    const ingredientColumns = 'sm:grid-cols-[minmax(140px,1.5fr)_90px_90px_minmax(120px,1fr)_110px_40px]'
+    const fieldLabel = 'ws-caption mb-1 block sm:sr-only'
 
-          <div className="mx-auto w-full max-w-[1180px] px-4 py-5">
-            <div className="mb-5 flex flex-wrap items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl"><TechCardImage item={editorItem} /></div>
+    return (
+      <AppShell
+        title={`${l.title} · ${getItemName(editorItem, lang)}`}
+        back={{ label: l.back, onClick: () => navigate('/admin/tech-cards') }}
+        titleAccessory={!mayEdit ? <span className="ws-badge">{l.readOnly}</span> : null}
+        headerActions={mayEdit ? (
+          <button
+            type="button"
+            onClick={saveCard}
+            disabled={saveDisabled}
+            title={validationError || ''}
+            aria-label={saving ? l.saving : l.save}
+            className="ws-btn ws-btn-primary !h-[38px]"
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            <span className="hidden sm:inline">{saving ? l.saving : l.save}</span>
+          </button>
+        ) : null}
+      >
+        <div className="min-h-full bg-[#f6f5f3]">
+          <div className="ws-page">
+            <div className="ws-panel flex flex-wrap items-center gap-4">
+              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg"><TechCardImage item={editorItem} /></div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-lg font-black text-gray-900">{getItemName(editorItem, lang)}</p>
-                <p className="text-xs font-bold text-gray-400">{category ? getCategoryName(category, lang) : '—'} · {editorItem.external_id || editorItem.id}</p>
+                <p className="truncate text-[15px] font-semibold text-[#22201d]">{getItemName(editorItem, lang)}</p>
+                <p className="ws-caption truncate">{category ? getCategoryName(category, lang) : '—'} · {editorItem.external_id || editorItem.id}</p>
               </div>
               <button
                 type="button"
                 onClick={() => navigate(`/admin/menu/product/${encodeURIComponent(editorItem.id)}`)}
-                className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-600 hover:bg-gray-50"
+                className="ws-btn ws-btn-outline ws-btn-sm"
               >
                 {l.editProduct}
               </button>
             </div>
 
             {(saveError || saveNotice) && (
-              <div className={`mb-4 rounded-xl border px-4 py-3 text-sm font-bold ${saveError ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+              <div role={saveError ? 'alert' : 'status'} className={`ws-notice ${saveError ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
                 {saveError || saveNotice}
               </div>
             )}
 
             {editorVariants.length > 0 && (
-              <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <p className="mb-3 text-xs font-black uppercase tracking-wide text-gray-400">{l.variantRecipe}</p>
-                <div className="flex flex-wrap gap-2">
+              <section className="ws-panel">
+                <p className="ws-caption mb-3 font-medium">{l.variantRecipe}</p>
+                <div className="ws-segmented">
                   {[{ id: '', label: l.baseRecipe }, ...editorVariants].map(option => {
                     const selected = activeVariantOptionId === option.id
                     const ready = !!cardsByItemId[techCardStorageKey(editorItem.id, option.id)]
@@ -602,7 +606,8 @@ export default function TechCards() {
                         onClick={() => setActiveVariantOptionId(option.id)}
                         disabled={saving || (dirty && !selected)}
                         title={dirty && !selected ? l.save : ''}
-                        className={`rounded-xl border px-3 py-2 text-xs font-black ${selected ? 'border-[#ff5a00] bg-[#ff5a00] text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-orange-300 disabled:opacity-50'}`}
+                        aria-pressed={selected}
+                        className="disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {option.label} {ready ? '✓' : ''}
                       </button>
@@ -611,18 +616,18 @@ export default function TechCards() {
                 </div>
 
                 {mayEdit && !cardsByItemId[techCardStorageKey(editorItem.id, activeVariantOptionId)] && Object.keys(cardsByItemId).some(key => key.startsWith(`${editorItem.id}::`)) && (
-                  <div className="mt-4 grid gap-3 rounded-xl bg-orange-50 p-3 sm:grid-cols-[minmax(180px,1fr)_110px_auto] sm:items-end">
+                  <div className="mt-4 grid gap-3 rounded-[10px] bg-[#f6f5f3] p-3 sm:grid-cols-[minmax(180px,1fr)_110px_auto] sm:items-end">
                     <label>
-                      <span className="mb-1 block text-[10px] font-black uppercase text-gray-500">{l.copyFrom}</span>
-                      <select value={copySourceOptionId} onChange={event => setCopySourceOptionId(event.target.value)} className="h-10 w-full rounded-xl border border-orange-200 bg-white px-3 text-sm font-bold">
+                      <span className="ws-caption mb-1 block">{l.copyFrom}</span>
+                      <select value={copySourceOptionId} onChange={event => setCopySourceOptionId(event.target.value)} className="ws-input !h-10 !py-0">
                         {[{ id: '', label: l.baseRecipe }, ...editorVariants].filter(option => !!cardsByItemId[techCardStorageKey(editorItem.id, option.id)]).map(option => <option key={option.id || 'base'} value={option.id}>{option.label}</option>)}
                       </select>
                     </label>
                     <label>
-                      <span className="mb-1 block text-[10px] font-black uppercase text-gray-500">{l.scale}</span>
-                      <input inputMode="decimal" value={copyScale} onChange={event => setCopyScale(event.target.value)} className="h-10 w-full rounded-xl border border-orange-200 bg-white px-3 text-sm font-bold" />
+                      <span className="ws-caption mb-1 block">{l.scale}</span>
+                      <input inputMode="decimal" value={copyScale} onChange={event => setCopyScale(event.target.value)} className="ws-input !h-10 tabular-nums" />
                     </label>
-                    <button type="button" onClick={copyRecipe} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-xs font-black text-[#ff5a00] ring-1 ring-orange-200"><Copy size={14} />{l.copy}</button>
+                    <button type="button" onClick={copyRecipe} className="ws-btn ws-btn-outline !h-10"><Copy size={14} />{l.copy}</button>
                   </div>
                 )}
               </section>
@@ -630,39 +635,47 @@ export default function TechCards() {
 
             <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
               <div className="min-w-0 space-y-5">
-                <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                <section className="ws-panel">
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-black text-gray-900">{l.ingredients}</h2>
-                      <p className="mt-0.5 text-xs font-semibold text-gray-400">{l.ingredientHint}</p>
+                    <div className="min-w-0">
+                      <h2 className="ws-heading">{l.ingredients}</h2>
+                      <p className="ws-caption mt-0.5">{l.ingredientHint}</p>
                     </div>
                     {mayEdit && (
-                      <button type="button" onClick={addIngredient} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-xl bg-orange-50 px-3 text-xs font-black text-[#ff5a00] hover:bg-orange-100 disabled:opacity-50">
+                      <button type="button" onClick={addIngredient} disabled={saving} className="ws-btn ws-btn-outline ws-btn-sm">
                         <Plus size={15} /> {l.addIngredient}
                       </button>
                     )}
                   </div>
 
                   {bazaarIngredientsError && (
-                    <p role="alert" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                    <p role="alert" className="ws-notice ws-tone-caution mb-3">
                       {l.ingredientCatalogError} {bazaarIngredientsError}
                     </p>
                   )}
 
                   {form.ingredients.length === 0 ? (
-                    <button type="button" onClick={mayEdit ? addIngredient : undefined} className="flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 px-4 py-10 text-center disabled:cursor-default" disabled={!mayEdit}>
-                      <ClipboardList size={28} className="mb-2 text-orange-300" />
-                      <span className="text-sm font-black text-gray-500">{l.addIngredient}</span>
+                    <button type="button" onClick={mayEdit ? addIngredient : undefined} className="ws-empty w-full rounded-[10px] border border-dashed border-[#e4e1de] !py-10 disabled:cursor-default" disabled={!mayEdit}>
+                      <ClipboardList size={22} />
+                      <span className="text-sm font-medium text-[#68655f]">{l.addIngredient}</span>
                     </button>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="overflow-hidden rounded-[10px] border border-[#e4e1de]">
+                      <div className={`ws-table-head hidden gap-2 px-3 py-2 sm:grid ${ingredientColumns}`} aria-hidden="true">
+                        <span>{l.ingredient}</span>
+                        <span>{l.quantity}</span>
+                        <span>{l.unit}</span>
+                        <span>{l.unitPrice}</span>
+                        <span className="text-right">{l.lineCost}</span>
+                        <span />
+                      </div>
                       {form.ingredients.map((ingredient, index) => {
                         const line = summary.ingredients[index]
                         const selectedBazaarIngredient = bazaarIngredientSuggestions.find(item => item.name === ingredient.name)
                         return (
-                          <div key={ingredient.id || index} className="grid min-w-0 gap-2 rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:grid-cols-[minmax(140px,1.5fr)_90px_90px_minmax(120px,1fr)_110px_40px] sm:items-end">
-                            <label className="min-w-0">
-                              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.ingredient}</span>
+                          <div key={ingredient.id || index} className={`ws-row grid min-w-0 grid-cols-2 gap-2 p-3 sm:items-center ${ingredientColumns}`}>
+                            <label className="col-span-2 min-w-0 sm:col-span-1">
+                              <span className={fieldLabel}>{l.ingredient}</span>
                               <BazaarIngredientPicker
                                 suggestions={bazaarIngredientSuggestions}
                                 value={selectedBazaarIngredient?.key || ''}
@@ -676,33 +689,33 @@ export default function TechCards() {
                                 invalid={!selectedBazaarIngredient}
                               />
                             </label>
-                            <label>
-                              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.quantity}</span>
-                              <input inputMode="decimal" value={ingredient.quantity} onChange={event => updateIngredient(index, { quantity: event.target.value })} disabled={!mayEdit || saving} className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm tabular-nums outline-none focus:border-[#ff5a00] disabled:bg-gray-100" />
+                            <label className="min-w-0">
+                              <span className={fieldLabel}>{l.quantity}</span>
+                              <input inputMode="decimal" value={ingredient.quantity} onChange={event => updateIngredient(index, { quantity: event.target.value })} disabled={!mayEdit || saving} className="ws-input tabular-nums disabled:bg-[#efece9]" />
                             </label>
-                            <label>
-                              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.unit}</span>
+                            <label className="min-w-0">
+                              <span className={fieldLabel}>{l.unit}</span>
                               <select
                                 value={ingredient.unit}
                                 onChange={event => updateIngredient(index, selectedBazaarIngredient
                                   ? getBazaarIngredientTechCardPatch(selectedBazaarIngredient, event.target.value)
                                   : { unit: event.target.value })}
                                 disabled={!mayEdit || saving}
-                                className="h-10 w-full rounded-xl border border-gray-200 bg-white px-2 text-sm outline-none focus:border-[#ff5a00] disabled:bg-gray-100"
+                                className="ws-input !px-2 !pr-6 disabled:bg-[#efece9]"
                               >
                                 {ingredientUnitOptions(selectedBazaarIngredient, ingredient.unit).map(unit => <option key={unit} value={unit}>{unitLabel(unit, lang)}</option>)}
                               </select>
                             </label>
                             <label className="min-w-0">
-                              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.unitPrice}</span>
-                              <input inputMode="numeric" value={formatTechCardUnitPrice(ingredient.unit_price_uzs)} disabled className="h-10 w-full min-w-0 cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 px-3 text-sm tabular-nums text-gray-600" />
+                              <span className={fieldLabel}>{l.unitPrice}</span>
+                              <input inputMode="numeric" value={formatTechCardUnitPrice(ingredient.unit_price_uzs)} disabled className="ws-input min-w-0 cursor-not-allowed !border-[#e4e1de] !bg-[#f6f5f3] tabular-nums !text-[#68655f]" />
                             </label>
-                            <div>
-                              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.lineCost}</span>
-                              <div className="flex h-10 items-center rounded-xl bg-white px-2 text-xs font-black tabular-nums text-gray-700 ring-1 ring-gray-200">{formatCurrency(Math.round(line?.lineCost || 0))}</div>
+                            <div className="min-w-0">
+                              <span className={fieldLabel}>{l.lineCost}</span>
+                              <div className="flex h-11 items-center text-sm font-semibold tabular-nums text-[#22201d] sm:justify-end">{formatCurrency(Math.round(line?.lineCost || 0))}</div>
                             </div>
                             {mayEdit && (
-                              <button type="button" onClick={() => removeIngredient(index)} disabled={saving} aria-label="Remove ingredient" className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-white text-red-400 hover:bg-red-50 disabled:opacity-50">
+                              <button type="button" onClick={() => removeIngredient(index)} disabled={saving} aria-label="Remove ingredient" className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon self-end justify-self-end sm:self-center">
                                 <Trash2 size={15} />
                               </button>
                             )}
@@ -713,32 +726,32 @@ export default function TechCards() {
                   )}
                 </section>
 
-                <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                <section className="ws-panel">
                   <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-black text-gray-900">{l.includedItems}</h2>
-                      <p className="mt-0.5 max-w-2xl text-xs font-semibold text-gray-400">{l.includedItemsHint}</p>
+                    <div className="min-w-0">
+                      <h2 className="ws-heading">{l.includedItems}</h2>
+                      <p className="ws-caption mt-0.5 max-w-2xl">{l.includedItemsHint}</p>
                     </div>
                     {mayEdit && (
-                      <button type="button" onClick={addComponent} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-xl bg-orange-50 px-3 text-xs font-black text-[#ff5a00] hover:bg-orange-100 disabled:opacity-50">
+                      <button type="button" onClick={addComponent} disabled={saving} className="ws-btn ws-btn-outline ws-btn-sm">
                         <Plus size={15} /> {l.addIncludedItem}
                       </button>
                     )}
                   </div>
 
                   {form.components.length === 0 ? (
-                    <button type="button" onClick={mayEdit ? addComponent : undefined} className="flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 px-4 py-8 text-center disabled:cursor-default" disabled={!mayEdit}>
-                      <UtensilsCrossed size={27} className="mb-2 text-orange-300" />
-                      <span className="text-sm font-black text-gray-500">{mayEdit ? l.addIncludedItem : l.noIncludedItems}</span>
+                    <button type="button" onClick={mayEdit ? addComponent : undefined} className="ws-empty w-full rounded-[10px] border border-dashed border-[#e4e1de] !py-8 disabled:cursor-default" disabled={!mayEdit}>
+                      <UtensilsCrossed size={22} />
+                      <span className="text-sm font-medium text-[#68655f]">{mayEdit ? l.addIncludedItem : l.noIncludedItems}</span>
                     </button>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="overflow-hidden rounded-[10px] border border-[#e4e1de]">
                       {form.components.map((component, index) => {
                         const componentSummary = summary.components[index]
                         return (
-                        <div key={component.id || index} className="grid min-w-0 gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:grid-cols-[minmax(220px,1fr)_130px_40px] sm:items-start">
+                        <div key={component.id || index} className="ws-row grid min-w-0 gap-3 p-3 sm:grid-cols-[minmax(220px,1fr)_130px_40px] sm:items-start">
                           <label className="min-w-0">
-                            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.includedItems}</span>
+                            <span className="ws-caption mb-1 block">{l.includedItems}</span>
                             <MenuItemPicker
                               items={activeItems.filter(item => item.id !== editorItem.id)}
                               categories={state.categories}
@@ -752,7 +765,7 @@ export default function TechCards() {
                               disabled={!mayEdit || saving}
                             />
                             {component.component_menu_item_id && (
-                              <span className="mt-1.5 block text-[11px] font-bold text-gray-400">
+                              <span className="ws-caption mt-1.5 block tabular-nums">
                                 {l.savedCost}: {componentSummary?.costAvailable
                                   ? `${formatCurrency(Math.round(componentSummary.unitCost))} × ${formatDecimal(componentSummary.quantity, lang)} = ${formatCurrency(Math.round(componentSummary.lineCost))}`
                                   : '—'}
@@ -760,22 +773,22 @@ export default function TechCards() {
                             )}
                           </label>
                           <label>
-                            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.quantity}</span>
+                            <span className="ws-caption mb-1 block">{l.quantity}</span>
                             <div className="relative">
                               <input
                                 inputMode="decimal"
                                 value={component.quantity}
                                 onChange={event => updateComponent(index, { quantity: event.target.value })}
                                 disabled={!mayEdit || saving}
-                                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 pr-14 text-sm font-bold tabular-nums outline-none focus:border-[#ff5a00] disabled:bg-gray-100"
+                                className="ws-input !pr-14 tabular-nums disabled:bg-[#efece9]"
                               />
-                              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-gray-400">
+                              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">
                                 {unitLabel(activeItems.find(item => item.id === component.component_menu_item_id)?.sale_unit || 'piece', lang)}
                               </span>
                             </div>
                           </label>
                           {mayEdit && (
-                            <button type="button" onClick={() => removeComponent(index)} disabled={saving} aria-label="Remove included menu item" className="flex h-11 w-10 items-center justify-center rounded-xl border border-red-100 bg-white text-red-400 hover:bg-red-50 disabled:opacity-50 sm:mt-[22px]">
+                            <button type="button" onClick={() => removeComponent(index)} disabled={saving} aria-label="Remove included menu item" className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon !h-11 justify-self-end sm:mt-[22px]">
                               <Trash2 size={15} />
                             </button>
                           )}
@@ -786,42 +799,42 @@ export default function TechCards() {
                   )}
                 </section>
 
-                <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-                  <h2 className="mb-4 text-lg font-black text-gray-900">{l.batch}</h2>
+                <section className="ws-panel">
+                  <h2 className="ws-heading mb-4">{l.batch}</h2>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <label>
-                      <span className="mb-1.5 block text-xs font-bold text-gray-500">{l.batchOutput}</span>
-                      <input inputMode="decimal" value={form.batch_output_quantity} onChange={event => { setForm(current => ({ ...current, batch_output_quantity: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} placeholder="5" className="h-11 w-full rounded-xl border border-gray-200 px-3 text-sm tabular-nums outline-none focus:border-[#ff5a00] disabled:bg-gray-100" />
+                      <span className="ws-caption mb-1.5 block">{l.batchOutput}</span>
+                      <input inputMode="decimal" value={form.batch_output_quantity} onChange={event => { setForm(current => ({ ...current, batch_output_quantity: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} placeholder="5" className="ws-input tabular-nums disabled:bg-[#efece9]" />
                     </label>
                     <label>
-                      <span className="mb-1.5 block text-xs font-bold text-gray-500">{l.unit}</span>
-                      <select value={form.batch_output_unit} onChange={event => { setForm(current => ({ ...current, batch_output_unit: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-[#ff5a00] disabled:bg-gray-100">
+                      <span className="ws-caption mb-1.5 block">{l.unit}</span>
+                      <select value={form.batch_output_unit} onChange={event => { setForm(current => ({ ...current, batch_output_unit: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} className="ws-input disabled:bg-[#efece9]">
                         {TECH_CARD_UNITS.map(unit => <option key={unit} value={unit}>{unitLabel(unit, lang)}</option>)}
                       </select>
                     </label>
                     <label>
-                      <span className="mb-1.5 block text-xs font-bold text-gray-500">{l.portions}</span>
-                      <input inputMode="decimal" value={form.portion_count} onChange={event => { setForm(current => ({ ...current, portion_count: event.target.value })); setSaveNotice('') }} placeholder="50" disabled={!mayEdit || saving} className="h-11 w-full rounded-xl border border-gray-200 px-3 text-sm tabular-nums outline-none focus:border-[#ff5a00] disabled:bg-gray-100" />
+                      <span className="ws-caption mb-1.5 block">{l.portions}</span>
+                      <input inputMode="decimal" value={form.portion_count} onChange={event => { setForm(current => ({ ...current, portion_count: event.target.value })); setSaveNotice('') }} placeholder="50" disabled={!mayEdit || saving} className="ws-input tabular-nums disabled:bg-[#efece9]" />
                     </label>
                   </div>
                 </section>
 
-                <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                <section className="ws-panel">
                   <label className="block">
-                    <span className="mb-1.5 block text-sm font-black text-gray-800">{l.method}</span>
-                    <textarea rows="8" value={form.preparation_steps} onChange={event => { setForm(current => ({ ...current, preparation_steps: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} placeholder={l.methodPlaceholder} className="w-full resize-y rounded-xl border border-gray-200 px-3 py-3 text-sm leading-relaxed outline-none focus:border-[#ff5a00] disabled:bg-gray-100" />
+                    <span className="mb-1.5 block text-sm font-medium text-[#22201d]">{l.method}</span>
+                    <textarea rows="8" value={form.preparation_steps} onChange={event => { setForm(current => ({ ...current, preparation_steps: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} placeholder={l.methodPlaceholder} className="ws-input !h-auto resize-y !py-3 leading-relaxed disabled:bg-[#efece9]" />
                   </label>
                   <label className="mt-4 block">
-                    <span className="mb-1.5 block text-sm font-black text-gray-800">{l.notes}</span>
-                    <textarea rows="3" value={form.notes} onChange={event => { setForm(current => ({ ...current, notes: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} placeholder={l.notesPlaceholder} className="w-full resize-y rounded-xl border border-gray-200 px-3 py-3 text-sm leading-relaxed outline-none focus:border-[#ff5a00] disabled:bg-gray-100" />
+                    <span className="mb-1.5 block text-sm font-medium text-[#22201d]">{l.notes}</span>
+                    <textarea rows="3" value={form.notes} onChange={event => { setForm(current => ({ ...current, notes: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} placeholder={l.notesPlaceholder} className="ws-input !h-auto resize-y !py-3 leading-relaxed disabled:bg-[#efece9]" />
                   </label>
                 </section>
               </div>
 
               <aside className="min-w-0 space-y-4 lg:sticky lg:top-5 lg:self-start">
-                <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-500">{l.title}</h2>
-                  <div className="space-y-2.5">
+                <section className="ws-panel">
+                  <h2 className="ws-heading mb-2">{l.title}</h2>
+                  <div className="divide-y divide-[#e4e1de]/60">
                     {[
                       [l.salePrice, formatCurrency(price)],
                       [l.savedCost, savedCost == null ? '—' : formatCurrency(savedCost)],
@@ -829,17 +842,17 @@ export default function TechCards() {
                       [l.portionCost, summary.portionCost == null ? '—' : formatCurrency(Math.round(summary.portionCost))],
                       [l.outputPerPortion, formatOutputPerPortion(summary, form.batch_output_unit, lang)],
                     ].map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
-                        <span className="text-xs font-bold text-gray-500">{label}</span>
-                        <span className="text-right text-sm font-black tabular-nums text-gray-900">{value}</span>
+                      <div key={label} className="flex items-center justify-between gap-3 py-2.5">
+                        <span className="text-[13px] text-[#68655f]">{label}</span>
+                        <span className="text-right text-sm font-semibold tabular-nums text-[#22201d]">{value}</span>
                       </div>
                     ))}
-                    <div className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${estimatedProfit == null || estimatedProfit.profit >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                      <span className="text-xs font-bold">{l.estimatedProfit}</span>
-                      <span className="text-sm font-black tabular-nums">{estimatedProfit == null
-                        ? '—'
-                        : formatCurrencyWithPercentage(estimatedProfit.profit, estimatedProfit.marginPct, lang)}</span>
-                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3 rounded-[10px] bg-[#f6f5f3] px-3 py-2.5">
+                    <span className="text-[13px] text-[#68655f]">{l.estimatedProfit}</span>
+                    <span className={`text-right text-sm font-semibold tabular-nums ${estimatedProfit == null ? 'text-[#22201d]' : estimatedProfit.profit >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>{estimatedProfit == null
+                      ? '—'
+                      : formatCurrencyWithPercentage(estimatedProfit.profit, estimatedProfit.marginPct, lang)}</span>
                   </div>
                 </section>
 
@@ -847,15 +860,15 @@ export default function TechCards() {
                   <button
                     type="button"
                     onClick={saveCard}
-                    disabled={saving || !dirty || !!validationError}
+                    disabled={saveDisabled}
                     title={validationError || ''}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ff5a00] px-4 text-sm font-black text-white shadow-md shadow-orange-200 hover:bg-[#dd4e00] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
+                    className="ws-btn ws-btn-primary w-full lg:hidden"
                   >
-                    {saving ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                     {saving ? l.saving : l.save}
                   </button>
                 )}
-                {validationError && dirty && <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">{validationError}</p>}
+                {validationError && dirty && <p className="ws-notice ws-tone-caution text-[13px]">{validationError}</p>}
               </aside>
             </div>
           </div>
@@ -866,24 +879,18 @@ export default function TechCards() {
 
   return (
     <AppShell title={l.title} headerActions={<TechCardPdfDownload items={techCardItems} cards={cardsByItemId} categories={state.categories} allItems={activeItems} lang={lang} labels={l} />}>
-      <div className="min-h-full bg-[#FAF6EE]">
-        <div className="border-b border-gray-100 bg-white px-4 py-5 sm:px-6">
-          <div className="mx-auto w-full max-w-[1180px]">
-            <h1 className="text-2xl font-black text-gray-900">{l.title}</h1>
-            <p className="mt-1 text-sm font-semibold text-gray-400">{l.subtitle}</p>
-          </div>
-        </div>
-        <div className="mx-auto w-full max-w-[1180px] px-4 py-5">
-          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <SummaryTile label={l.total} value={techCardItems.length} icon={UtensilsCrossed} />
-            <SummaryTile label={l.configured} value={configuredCards.length} icon={BookOpenCheck} tone="green" />
-            <SummaryTile label={l.needSetup} value={techCardItems.length - configuredCards.length} icon={ClipboardList} tone="amber" />
-            <SummaryTile label={l.average} value={formatCurrency(Math.round(averagePortionCost))} icon={CircleDollarSign} tone="blue" />
+            <SummaryTile label={l.configured} value={configuredCards.length} icon={BookOpenCheck} />
+            <SummaryTile label={l.needSetup} value={techCardItems.length - configuredCards.length} icon={ClipboardList} />
+            <SummaryTile label={l.average} value={formatCurrency(Math.round(averagePortionCost))} icon={CircleDollarSign} />
           </div>
 
-          <section className="mb-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" aria-labelledby="tech-card-categories-heading">
-            <h2 id="tech-card-categories-heading" className="mb-3 text-base font-black text-gray-900">{l.categories}</h2>
-            <div className="flex gap-3 overflow-x-auto pb-1">
+          <section className="ws-panel" aria-labelledby="tech-card-categories-heading">
+            <h2 id="tech-card-categories-heading" className="ws-heading mb-3">{l.categories}</h2>
+            <div className="flex gap-3 overflow-x-auto p-px pb-1">
               {[
                 { id: 'all', image_url: null },
                 ...mealCategories,
@@ -900,16 +907,16 @@ export default function TechCards() {
             </div>
           </section>
 
-          <div className="mb-5 flex flex-wrap gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="relative min-w-[220px] flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={event => setSearch(event.target.value)} placeholder={l.search} className="h-11 w-full rounded-xl border border-gray-200 pl-9 pr-3 text-sm outline-none focus:border-[#ff5a00]" />
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
+              <input value={search} onChange={event => setSearch(event.target.value)} placeholder={l.search} aria-label={l.search} className="ws-input !pl-9" />
             </label>
-            <div className="flex rounded-xl border border-gray-200 bg-gray-50 p-1">
+            <div className="ws-segmented">
               {[
                 ['all', l.all], ['ready', l.ready], ['missing', l.missing],
               ].map(([key, label]) => (
-                <button key={key} type="button" onClick={() => setFilter(key)} className={`rounded-lg px-3 py-2 text-xs font-black transition-colors ${filter === key ? 'bg-white text-[#ff5a00] shadow-sm' : 'text-gray-500'}`}>
+                <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}>
                   {label}
                 </button>
               ))}
@@ -917,22 +924,20 @@ export default function TechCards() {
           </div>
 
           {filteredItems.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-14 text-center">
-              <ClipboardList size={32} className="mx-auto mb-3 text-gray-300" />
-              <p className="font-black text-gray-600">{l.noResults}</p>
-              <p className="mt-1 text-xs font-semibold text-gray-400">{l.noResultsHint}</p>
+            <div className="ws-panel ws-empty">
+              <ClipboardList size={22} />
+              <h3>{l.noResults}</h3>
+              <p>{l.noResultsHint}</p>
             </div>
           ) : (
-            <div className="space-y-7">
+            <div className="space-y-8">
               {filteredSections.map(section => (
                 <section key={section.id} aria-labelledby={`tech-card-section-${section.id}`}>
                   <div className="mb-3 flex items-center gap-3">
-                    <span className="h-6 w-1 rounded-full bg-[#ff5a00]" aria-hidden="true" />
-                    <h2 id={`tech-card-section-${section.id}`} className="text-lg font-black text-gray-900">{section.label}</h2>
-                    <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-orange-100 px-1.5 text-xs font-black tabular-nums text-[#ff5a00]">{section.items.length}</span>
-                    <span className="h-px flex-1 bg-gray-200" aria-hidden="true" />
+                    <h2 id={`tech-card-section-${section.id}`} className="ws-display">{section.label}</h2>
+                    <span className="ws-count">{section.items.length}</span>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {section.items.map(item => {
                       const card = cardsByItemId[techCardStorageKey(item.id)]
                         || Object.entries(cardsByItemId).find(([key]) => key.startsWith(`${item.id}::`))?.[1]
@@ -950,30 +955,29 @@ export default function TechCards() {
                           key={item.id}
                           type="button"
                           onClick={() => navigate(`/admin/tech-cards/${encodeURIComponent(item.id)}`)}
-                          className="group flex min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+                          className="ws-panel ws-panel-flush group relative flex min-w-0 text-left transition-shadow hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40"
                         >
-                          <div className="relative h-auto w-28 shrink-0">
+                          <div className="relative w-24 shrink-0 self-stretch sm:w-28">
                             <TechCardImage item={item} />
-                            {cardProfit && (
-                              <span className={`absolute -left-5 top-3 w-20 -rotate-45 py-1 text-center text-[10px] font-black tabular-nums shadow-sm ${cardProfit.profit >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                                {formatDecimal(cardProfit.marginPct, lang, 1)}%
-                              </span>
-                            )}
                           </div>
                           <div className="min-w-0 flex-1 p-4">
                             <div className="flex items-start gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-base font-black text-gray-900">{getItemName(item, lang)}</p>
-                              </div>
-                              <ChevronRight size={18} className="shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#ff5a00]" />
+                              <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[#22201d]">{getItemName(item, lang)}</p>
+                              {cardProfit ? (
+                                <span className={`ws-badge shrink-0 tabular-nums ${cardProfit.profit >= 0 ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
+                                  {formatDecimal(cardProfit.marginPct, lang, 1)}%
+                                </span>
+                              ) : (
+                                <ChevronRight size={18} className="shrink-0 text-[#68655f] transition-transform group-hover:translate-x-0.5 group-hover:text-[#ff5a00]" />
+                              )}
                             </div>
                             {card ? (
                               <>
-                                <p className="mt-3 text-xs font-bold text-gray-400">{l.portionCost}</p>
-                                <p className="text-sm font-black tabular-nums text-gray-900">{summary.portionCost == null ? '—' : formatCurrency(Math.round(summary.portionCost))}</p>
+                                <p className="ws-caption mt-3">{l.portionCost}</p>
+                                <p className="text-sm font-semibold tabular-nums text-[#22201d]">{summary.portionCost == null ? '—' : formatCurrency(Math.round(summary.portionCost))}</p>
                               </>
                             ) : (
-                              <div className="mt-4 rounded-xl border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">{l.unsaved}</div>
+                              <span className="ws-status ws-tone-caution mt-4">{l.unsaved}</span>
                             )}
                           </div>
                         </button>

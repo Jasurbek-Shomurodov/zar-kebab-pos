@@ -1,9 +1,10 @@
 import CalendarPicker from '../components/CalendarPicker'
 import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
 import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, History, Loader2, Pencil, Percent, Power, UserRound, Users, WalletCards, X } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, History, Loader2, Pencil, Power, UserRound, Users, WalletCards, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import PageShimmer from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
 import { supabase } from '../lib/supabase'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -500,55 +501,48 @@ export default function Employees() {
     await loadEmployees()
   }
 
+  const back = { label: l.back, onClick: () => navigate('/admin/accounting/salaries') }
+
   return (
-    <AppShell title={l.title}>
-      <div className="h-full overflow-y-auto bg-[#FAF7F0]">
-        <div className="mx-auto max-w-[1200px] px-4 py-5 sm:px-5 sm:py-6">
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <button onClick={() => navigate('/admin/accounting/salaries')} className="mb-3 inline-flex items-center gap-2 text-xs font-black text-[#6B7280] hover:text-[#ff5a00]">
-                <ArrowLeft size={14} />{l.back}
-              </button>
-              <h1 className="text-2xl font-black text-[#1F2937]">{l.title}</h1>
-              <p className="mt-1 text-sm font-medium text-[#6B7280]">{l.sub}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Kpi icon={Users} label={l.active} value={activeCount} />
-              <Kpi icon={CalendarX2} label={l.absentToday} value={absentTodayCount} danger={absentTodayCount > 0} />
-              <Kpi icon={CalendarDays} label={l.activeDaily} value={formatCurrency(activeDailySalary)} />
-              <Kpi icon={WalletCards} label={l.due} value={formatCurrency(totalDue)} hot={totalDue > 0} />
-            </div>
+    <AppShell title={l.title} back={back}>
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Kpi icon={Users} label={l.active} value={activeCount} />
+            <Kpi icon={CalendarX2} label={l.absentToday} value={absentTodayCount} danger={absentTodayCount > 0} />
+            <Kpi icon={CalendarDays} label={l.activeDaily} value={formatCurrency(activeDailySalary)} />
+            <Kpi icon={WalletCards} label={l.due} value={formatCurrency(totalDue)} hot={totalDue > 0} />
           </div>
 
-          <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[#E5E7EB] bg-white p-4 sm:flex-row sm:items-end">
-            <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-xs font-bold text-[#6B7280]">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="ws-caption flex w-full flex-col gap-1.5 font-medium sm:w-auto">
               {l.jobFunction}
-              <select value={roleFilter} onChange={event => setRoleFilter(event.target.value)} className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm font-semibold text-[#1F2937] focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100">
+              <select value={roleFilter} onChange={event => setRoleFilter(event.target.value)} className="ws-input sm:w-[240px] sm:min-w-[220px]">
                 <option value="all">{l.allRoles}</option>
                 {EMPLOYEE_JOB_FUNCTIONS.map(job => <option key={job.value} value={job.value}>{employeeJobFunctionLabel(job.value, lang)}</option>)}
                 <option value="unassigned">{l.noJobFunction}</option>
               </select>
             </label>
-            <label className="flex min-w-0 flex-1 flex-col gap-1.5 text-xs font-bold text-[#6B7280]">
+            <label className="ws-caption flex w-full flex-col gap-1.5 font-medium sm:w-auto">
               {l.sortBy}
-              <select value={sortBy} onChange={event => setSortBy(event.target.value)} className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm font-semibold text-[#1F2937] focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100">
+              <select value={sortBy} onChange={event => setSortBy(event.target.value)} className="ws-input sm:w-[240px] sm:min-w-[220px]">
                 <option value="default">{l.defaultSort}</option>
                 {['balanceDesc', 'balanceAsc', 'salaryDesc', 'salaryAsc', 'nameAsc', 'joinedDesc', 'joinedAsc'].map(value => <option key={value} value={value}>{l[value]}</option>)}
               </select>
             </label>
             {(roleFilter !== 'all' || sortBy !== 'default') && (
-              <button type="button" onClick={() => { setRoleFilter('all'); setSortBy('default') }} className="rounded-xl px-3 py-2.5 text-sm font-bold text-[#ff5a00] hover:bg-orange-50">{l.resetFilters}</button>
+              <button type="button" onClick={() => { setRoleFilter('all'); setSortBy('default') }} className="ws-btn ws-btn-ghost h-11">{l.resetFilters}</button>
             )}
           </div>
 
-          {error && <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+          {error && <div className="ws-notice ws-tone-negative">{error}</div>}
 
           {loading ? (
-            <div className="flex justify-center py-20"><Loader2 size={30} className="animate-spin text-gray-300" /></div>
+            <PageShimmer layout="table" className="!p-0" />
           ) : employees.length === 0 ? (
-            <div className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-16 text-center text-sm font-bold text-[#9CA3AF]">{l.empty}</div>
+            <div className="ws-panel ws-empty"><Users /><p>{l.empty}</p></div>
           ) : employeeGridEntries.length === 0 ? (
-            <div role="status" className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-16 text-center text-sm font-bold text-[#9CA3AF]">{l.noMatches}</div>
+            <div role="status" className="ws-panel ws-empty"><Users /><p>{l.noMatches}</p></div>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {employeeGridEntries.map(entry => {
@@ -559,21 +553,21 @@ export default function Employees() {
                       type="button"
                       onClick={() => setInactiveExpanded(current => !current)}
                       aria-expanded={inactiveExpanded}
-                      className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-[#E5E7EB] bg-[#F3F4F6] px-4 py-3 text-left shadow-sm transition-colors hover:border-gray-300 md:col-span-2 xl:col-span-3"
+                      className="ws-panel flex min-h-20 items-center justify-between gap-4 !py-3 text-left transition-colors hover:!bg-[#faf9f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40 md:col-span-2 xl:col-span-3"
                     >
                       <span className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-200 text-[#6B7280]">
-                          <Users size={18} />
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+                          <Users size={16} />
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-sm font-black text-[#1F2937]">{l.inactiveSection}</span>
-                          <span className="mt-0.5 block text-xs font-semibold text-[#9CA3AF]">{sortBy === 'default' ? l.inactiveNewestFirst : l[sortBy]}</span>
+                          <span className="block text-[15px] font-semibold text-[#22201d]">{l.inactiveSection}</span>
+                          <span className="ws-caption mt-0.5 block">{sortBy === 'default' ? l.inactiveNewestFirst : l[sortBy]}</span>
                         </span>
                       </span>
                       <span className="flex min-w-0 items-center gap-2 sm:gap-4">
-                        <span className="text-right text-sm font-bold text-[#1F2937]">{l.inactiveSalaryDue}: <span className="whitespace-nowrap">{formatCurrency(inactiveSalaryDue)}</span></span>
-                        <span className="flex-shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-black text-[#6B7280]">{inactiveEmployees.length}</span>
-                        {inactiveExpanded ? <ChevronUp size={18} className="text-[#6B7280]" /> : <ChevronDown size={18} className="text-[#6B7280]" />}
+                        <span className="text-right text-[13px] text-[#68655f]">{l.inactiveSalaryDue}: <span className="whitespace-nowrap font-semibold tabular-nums text-[#22201d]">{formatCurrency(inactiveSalaryDue)}</span></span>
+                        <span className="ws-count flex-shrink-0">{inactiveEmployees.length}</span>
+                        {inactiveExpanded ? <ChevronUp size={18} className="text-[#68655f]" /> : <ChevronDown size={18} className="text-[#68655f]" />}
                       </span>
                     </button>
                   )
@@ -594,23 +588,17 @@ export default function Employees() {
                 const deactivateDate = normalizeSalaryEndDate(employee, deactivateDates[employee.id], today)
                 const effectiveKpiRule = getEffectiveKpiRule(kpiRules, employee.id, today)
                 return (
-                  <section key={employee.id} className={`min-w-0 rounded-2xl border p-4 shadow-sm ${
+                  <section key={employee.id} className={`ws-panel flex flex-col ${
                     inactive
-                      ? 'border-[#E5E7EB] bg-[#F3F4F6]'
+                      ? '!bg-[#faf9f7]'
                       : absentToday
-                        ? 'border-red-300 bg-red-50/80 ring-2 ring-red-100'
-                        : 'border-[#E5E7EB] bg-white'
+                        ? '!border-[#c4262c]/40 ring-2 ring-[#c4262c]/10'
+                        : ''
                   }`}>
-                    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-                          inactive
-                            ? 'bg-gray-200 text-[#6B7280]'
-                            : absentToday
-                              ? 'bg-red-100 text-red-600'
-                              : 'bg-orange-50 text-[#ff5a00]'
-                        }`}>
-                          {absentToday ? <CalendarX2 size={19} /> : <UserRound size={19} />}
+                    <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[14px] font-semibold text-[#68655f]">
+                          {absentToday ? <CalendarX2 size={16} /> : (employeeName(employee).trim().charAt(0).toUpperCase() || <UserRound size={16} />)}
                         </div>
                         <div className="min-w-0 flex-1">
                           {editingEmployeeName ? (
@@ -626,7 +614,7 @@ export default function Employees() {
                                 maxLength={120}
                                 autoFocus
                                 aria-label={l.employeeName}
-                                className="h-9 min-w-0 flex-1 rounded-lg border border-orange-300 bg-white px-2.5 text-sm font-black text-[#1F2937] outline-none ring-2 ring-orange-100"
+                                className="ws-input !h-9 flex-1 !px-2.5 !py-0 font-semibold"
                               />
                               <button
                                 type="button"
@@ -634,7 +622,7 @@ export default function Employees() {
                                 disabled={saving === nameSavingKey}
                                 title={l.saveName}
                                 aria-label={l.saveName}
-                                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#ff5a00] text-white disabled:opacity-60"
+                                className="ws-btn ws-btn-primary ws-btn-sm ws-btn-icon"
                               >
                                 {saving === nameSavingKey ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
                               </button>
@@ -644,21 +632,21 @@ export default function Employees() {
                                 disabled={saving === nameSavingKey}
                                 title={l.cancel}
                                 aria-label={l.cancel}
-                                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] disabled:opacity-60"
+                                className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
                               >
                                 <X size={15} />
                               </button>
                             </div>
                           ) : (
-                            <div className="flex min-w-0 items-center gap-1.5">
-                              <h2 className={`truncate text-base font-black ${inactive ? 'text-[#6B7280]' : 'text-[#1F2937]'}`}>{employeeName(employee)}</h2>
+                            <div className="flex min-w-0 items-center gap-1">
+                              <h2 className={`truncate text-[15px] font-semibold ${inactive ? 'text-[#68655f]' : 'text-[#22201d]'}`}>{employeeName(employee)}</h2>
                               {canEditName && (
                                 <button
                                   type="button"
                                   onClick={() => startNameEdit(employee)}
                                   title={l.editName}
                                   aria-label={`${l.editName}: ${employeeName(employee)}`}
-                                  className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-orange-50 hover:text-[#ff5a00]"
+                                  className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"
                                 >
                                   <Pencil size={13} />
                                 </button>
@@ -666,13 +654,13 @@ export default function Employees() {
                             </div>
                           )}
                           {editingEmployeeName ? (
-                            <label className="mt-2 block text-xs font-bold text-[#6B7280]">
+                            <label className="ws-caption mt-2 block font-medium">
                               {l.jobFunction}
                               <select
                                 value={editingJobFunction}
                                 onChange={event => setEditingJobFunction(event.target.value)}
                                 disabled={saving === nameSavingKey}
-                                className="mt-1 h-9 w-full rounded-lg border border-orange-300 bg-white px-2 text-sm text-[#1F2937]"
+                                className="ws-input mt-1 !h-9 !py-0"
                               >
                                 <option value="">{l.noJobFunction}</option>
                                 {EMPLOYEE_JOB_FUNCTIONS.map(job => (
@@ -681,24 +669,24 @@ export default function Employees() {
                               </select>
                             </label>
                           ) : (
-                            <p className="mt-1 text-xs font-bold text-[#9CA3AF]">{employeeJobFunctionLabel(employee.job_function, lang) || l.noJobFunction}</p>
+                            <p className="ws-caption">{employeeJobFunctionLabel(employee.job_function, lang) || l.noJobFunction}</p>
                           )}
                         </div>
                       </div>
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-black ${
+                      <span className={`ws-status ${
                         inactive
-                          ? 'bg-gray-100 text-[#6B7280]'
+                          ? ''
                           : absentToday
-                            ? 'bg-red-100 text-red-700 ring-1 ring-red-200'
-                            : 'bg-green-50 text-green-700'
+                            ? 'ws-tone-negative'
+                            : 'ws-tone-positive'
                       }`}>
                         {inactive ? l.inactive : absentToday ? l.absentToday : l.active}
                       </span>
                     </div>
 
-                    <div className="space-y-2 text-xs font-bold text-[#6B7280]">
-                      <Row label={l.joined} value={formatLongDate(employee.joined_at, lang, employee.joined_at)} icon={CalendarDays} />
-                      {inactive && employee.ended_at && <Row label={l.ended} value={formatLongDate(employee.ended_at, lang, employee.ended_at)} icon={CalendarDays} />}
+                    <div className="divide-y divide-[#e4e1de]/60">
+                      <Row label={l.joined} value={formatLongDate(employee.joined_at, lang, employee.joined_at)} />
+                      {inactive && employee.ended_at && <Row label={l.ended} value={formatLongDate(employee.ended_at, lang, employee.ended_at)} />}
                       <Row label={l.daily} value={formatCurrency(getDailySalaryAmount(employee, activeUntil))} />
                       <EmployeeKpiRow
                         label={l.kpi}
@@ -719,8 +707,8 @@ export default function Employees() {
                     </div>
 
                     {!inactive && confirmToggle && (
-                      <label className="mt-3 block rounded-xl border border-red-100 bg-red-50 px-3 py-2">
-                        <span className="mb-1 block text-[11px] font-black uppercase tracking-wide text-red-600">{l.endDate}</span>
+                      <label className="ws-notice ws-tone-negative mt-3 block !px-3 !py-2">
+                        <span className="mb-1 block text-[13px] font-medium">{l.endDate}</span>
                         <DateInput
                           value={deactivateDate}
                           min={joinedDate || undefined}
@@ -735,16 +723,16 @@ export default function Employees() {
                     )}
 
                     {confirmUndoAbsence && (
-                      <p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-relaxed text-amber-800">
+                      <p role="alert" className="ws-notice ws-tone-caution mt-3 !px-3 !py-2 text-[13px] leading-relaxed">
                         {l.undoAbsenceWarning}
                       </p>
                     )}
 
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
                       <button
                         type="button"
                         onClick={() => navigate(`/admin/accounting/employees/${employee.id}/history`)}
-                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-xs font-black text-[#6B7280]"
+                        className="ws-btn ws-btn-outline ws-btn-sm"
                       >
                         <History size={14} />{l.historyBtn}
                       </button>
@@ -755,10 +743,10 @@ export default function Employees() {
                               type="button"
                               onClick={() => undoEmployeeAbsence(employee)}
                               disabled={saving === undoAbsenceKey}
-                              className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${
+                              className={`ws-btn ws-btn-sm ${
                                 confirmUndoAbsence
-                                  ? 'border-red-200 bg-red-50 text-red-600'
-                                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                  ? 'ws-btn-danger-solid'
+                                  : 'ws-btn-outline'
                               }`}
                             >
                               {saving === undoAbsenceKey
@@ -771,8 +759,10 @@ export default function Employees() {
                             type="button"
                             onClick={() => toggleEmployeeActive(employee)}
                             disabled={saving === `employee-toggle-${employee.id}`}
-                            className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-black ${
-                              inactive ? 'border-[#E5E7EB] bg-white text-[#1F2937]' : 'border-red-200 bg-red-50 text-red-600'
+                            className={`ws-btn ws-btn-sm ${
+                              inactive
+                                ? confirmToggle ? 'ws-btn-primary' : 'ws-btn-outline'
+                                : confirmToggle ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'
                             }`}
                           >
                             {saving === toggleKey ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
@@ -793,22 +783,27 @@ export default function Employees() {
 }
 
 function Kpi({ icon: Icon, label, value, hot = false, danger = false }) {
-  const highlighted = hot || danger
+  const valueTone = danger ? 'text-[#c4262c]' : hot ? 'text-[#9a5a00]' : 'text-[#22201d]'
   return (
-    <div className={`rounded-xl border px-3 py-2 shadow-sm ${danger ? 'border-red-200 bg-red-50' : hot ? 'border-orange-200 bg-orange-50' : 'border-[#E5E7EB] bg-white'}`}>
-      <p className={`flex items-center gap-1 text-[11px] font-black uppercase tracking-wide ${danger ? 'text-red-600' : hot ? 'text-[#ff5a00]' : 'text-[#9CA3AF]'}`}>
-        <Icon size={13} />{label}
-      </p>
-      <p className={`text-sm font-black ${highlighted && danger ? 'text-red-700' : 'text-[#1F2937]'}`}>{value}</p>
+    <div className="ws-panel min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="ws-caption">{label}</p>
+          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone}`}>{value}</p>
+        </div>
+        <div className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f] sm:flex">
+          <Icon size={16} />
+        </div>
+      </div>
     </div>
   )
 }
 
-function Row({ icon: Icon, label, value, hot = false, negative = false }) {
+function Row({ label, value, hot = false, negative = false }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F9FAFB] px-3 py-2">
-      <span className="inline-flex items-center gap-1.5 text-[#9CA3AF]">{Icon && <Icon size={13} />}{label}</span>
-      <span className={`min-w-0 break-words text-right font-black ${negative ? 'text-red-600' : hot ? 'text-[#ff5a00]' : 'text-[#1F2937]'}`}>{value}</span>
+    <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+      <span className="text-[13px] text-[#68655f]">{label}</span>
+      <span className={`min-w-0 break-words text-right text-[13px] font-semibold tabular-nums ${negative ? 'text-[#c4262c]' : hot ? 'text-[#9a5a00]' : 'text-[#22201d]'}`}>{value}</span>
     </div>
   )
 }
@@ -834,23 +829,17 @@ function EmployeeKpiRow({
         : disabledLabel
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F9FAFB] px-3 py-2">
-      <span className="inline-flex items-center gap-1.5 text-[#9CA3AF]"><Percent size={13} />{label}</span>
+    <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+      <span className="text-[13px] text-[#68655f]">{label}</span>
       <span className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 text-right">
         {configured && available && (
-          <span className={`font-black ${enabled ? 'text-violet-600' : 'text-[#6B7280]'}`}>
+          <span className={`text-[13px] font-semibold tabular-nums ${enabled ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
             {formatKpiRatePercent(rule.rate_bps, lang)}
-            <span className="block text-[10px] font-semibold">{formatKpiSalesBasis(rule.sales_basis, lang)}</span>
-            <span className="block text-[10px] font-semibold">{formatKpiStartTime(rule.start_time, lang)}</span>
+            <span className="block text-[12px] font-normal text-[#68655f]">{formatKpiSalesBasis(rule.sales_basis, lang)}</span>
+            <span className="block text-[12px] font-normal text-[#68655f]">{formatKpiStartTime(rule.start_time, lang)}</span>
           </span>
         )}
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
-          enabled
-            ? 'bg-violet-100 text-violet-700'
-            : configured && available
-              ? 'bg-gray-200 text-[#6B7280]'
-              : 'bg-gray-100 text-[#9CA3AF]'
-        }`}>
+        <span className={`ws-badge ${enabled ? 'ws-tone-positive' : ''}`}>
           {statusLabel}
         </span>
       </span>

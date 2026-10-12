@@ -94,13 +94,13 @@ export default function BazaarIngredientPicker({
         aria-haspopup="listbox"
         aria-invalid={invalid}
         onClick={() => !disabled && setOpen(current => !current)}
-        className={`flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border bg-white px-3 text-left outline-none transition-all hover:border-orange-300 focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/10 disabled:bg-gray-50 ${invalid ? 'border-red-300 bg-red-50' : 'border-[#E5E7EB]'}`}
+        className={`flex h-11 w-full min-w-0 items-center gap-2 rounded-[10px] border px-3 text-left outline-none transition-[border-color,box-shadow] focus:border-[#ff5a00] focus:shadow-[0_0_0_3px_rgb(255_90_0/22%)] disabled:cursor-not-allowed disabled:bg-[#efece9] ${invalid ? 'border-[#c4262c] bg-[#fdf3f3]' : 'border-[#dcd9d6] bg-white'}`}
       >
-        <Package size={15} className="shrink-0 text-[#9CA3AF]" />
-        <span className={`min-w-0 flex-1 truncate text-sm font-bold ${selected || fallbackLabel ? 'text-[#1F2937]' : 'text-[#9CA3AF]'}`}>
+        <Package size={15} className="shrink-0 text-[#68655f]" />
+        <span className={`min-w-0 flex-1 truncate text-sm ${selected || fallbackLabel ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
           {selected?.name || fallbackLabel || l.select}
         </span>
-        <ChevronDown size={16} className={`shrink-0 text-[#6B7280] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`shrink-0 text-[#68655f] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

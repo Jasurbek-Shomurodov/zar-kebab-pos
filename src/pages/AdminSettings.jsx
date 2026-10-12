@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Store, Percent, Globe, Printer, Bell, Shield, Table2, ChefHat,
-  Check, ChevronRight, Activity, AlertTriangle, RefreshCw, Home, Zap, UtensilsCrossed, BadgeDollarSign,
+  Check, ChevronRight, Activity, AlertTriangle, RefreshCw, Home, Zap, UtensilsCrossed, BadgeDollarSign, Moon, Sun,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -10,31 +10,55 @@ import AppShell from '../components/AppShell'
 import { runDbHealthChecks } from '../lib/dbHealth'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { canEditFeature } from '../lib/permissions'
+import { useTheme, setTheme } from '../lib/theme'
+
+// Settings page group and card labels (sections are shown in one column, grouped).
+const SETTINGS_NAV_LABELS = {
+  uz: {
+    groups: { restaurant: 'Restoran', workspace: 'Ish joyi' },
+    sections: { restaurant: 'Restoran ma’lumotlari', billing: 'Xizmat haqi', costs: 'Xarajatlar va maqsadlar', preferences: 'Sozlamalar va ko‘rinish', printing: 'Chop etish', tables: 'Stollar', health: 'Tizim holati' },
+    cards: { restaurant: 'Asosiy', billing: 'Xizmat haqi', costs: 'Oylik va kunlik ko‘rsatkichlar', language: 'Til', appearance: 'Ko‘rinish', notifications: 'Bildirishnomalar', printing: 'Cheklar', tables: 'Zal' },
+    theme: 'Mavzu', themeSub: 'Faqat shu qurilma uchun', themes: { light: 'Yorug‘', dark: 'Qorong‘i' },
+  },
+  ru: {
+    groups: { restaurant: 'Ресторан', workspace: 'Рабочее место' },
+    sections: { restaurant: 'Данные ресторана', billing: 'Сервисный сбор', costs: 'Расходы и цели', preferences: 'Настройки и вид', printing: 'Печать', tables: 'Столы', health: 'Состояние системы' },
+    cards: { restaurant: 'Основное', billing: 'Сервисный сбор', costs: 'Месячные и дневные показатели', language: 'Язык', appearance: 'Оформление', notifications: 'Уведомления', printing: 'Чеки', tables: 'Зал' },
+    theme: 'Тема', themeSub: 'Только для этого устройства', themes: { light: 'Светлая', dark: 'Тёмная' },
+  },
+  en: {
+    groups: { restaurant: 'Restaurant', workspace: 'Workspace' },
+    sections: { restaurant: 'Restaurant details', billing: 'Service charge', costs: 'Costs & targets', preferences: 'Preferences', printing: 'Printing', tables: 'Tables', health: 'System health' },
+    cards: { restaurant: 'General', billing: 'Service charge', costs: 'Monthly and daily figures', language: 'Language', appearance: 'Appearance', notifications: 'Notifications', printing: 'Receipts', tables: 'Floor' },
+    theme: 'Theme', themeSub: 'Applies to this device only', themes: { light: 'Light', dark: 'Dark' },
+  },
+}
 
 function Section({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden mb-5">
-      <div className="px-5 py-3.5 border-b border-[#F3F4F6]">
-        <p className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-widest">{title}</p>
+    <section className="ws-panel ws-panel-flush">
+      <div className="border-b border-[#e4e1de] px-5 py-4">
+        <h2 className="ws-heading">{title}</h2>
       </div>
-      <div className="divide-y divide-[#F9FAFB]">{children}</div>
-    </div>
+      <div>{children}</div>
+    </section>
   )
 }
 
-function SettingRow({ icon: Icon, label, sub, children }) {
+function SettingRow({ icon: Icon, label, sub, children, compact = false }) {
+  // On phones a wide control drops below its label at full width; toggles stay beside it.
   return (
-    <div className="flex items-center justify-between gap-4 px-5 py-4">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 rounded-xl bg-[#F9FAFB] border border-[#F3F4F6] flex items-center justify-center flex-shrink-0">
-          <Icon size={16} className="text-[#6B7280]" />
+    <div className="ws-row flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4 sm:px-5">
+      <div className={`flex min-w-0 flex-1 items-center gap-3 ${compact ? '' : 'basis-full sm:basis-0'}`}>
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+          <Icon size={16} />
         </div>
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-[#1F2937]">{label}</p>
-          {sub && <p className="text-[12px] text-[#9CA3AF] mt-0.5">{sub}</p>}
+          <p className="text-sm font-semibold text-[#22201d]">{label}</p>
+          {sub && <p className="ws-caption mt-0.5">{sub}</p>}
         </div>
       </div>
-      <div className="flex-shrink-0">{children}</div>
+      <div className={compact ? 'flex-shrink-0' : 'w-full sm:w-auto sm:flex-shrink-0'}>{children}</div>
     </div>
   )
 }
@@ -42,11 +66,14 @@ function SettingRow({ icon: Icon, label, sub, children }) {
 function Toggle({ value, onChange, disabled = false }) {
   return (
     <button
+      type="button"
+      role="switch"
+      aria-checked={!!value}
       disabled={disabled}
       onClick={() => onChange(!value)}
-      className={`relative w-11 h-6 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${value ? 'bg-[#ff5a00]' : 'bg-[#E5E7EB]'}`}
+      className={`relative h-6 w-11 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5a00] disabled:cursor-not-allowed disabled:opacity-60 ${value ? 'bg-[#ff5a00]' : 'bg-[#dcd9d6]'}`}
     >
-      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${value ? 'left-[22px]' : 'left-0.5'}`} />
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/20%)] transition-all ${value ? 'left-[22px]' : 'left-0.5'}`} />
     </button>
   )
 }
@@ -71,6 +98,7 @@ export default function AdminSettings() {
   const { state, dispatch } = useApp()
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const { theme } = useTheme()
   const lang     = state.lang
   const settings = state.settings
   const canManageSettings = canEditFeature(profile || { role: state.user?.role }, 'settings')
@@ -105,6 +133,7 @@ export default function AdminSettings() {
     setAutoPrintKitchenCheck(!!settings.autoPrintKitchenCheck)
     setReceiptMarketing(settings.receiptMarketing || 'compactFooter')
   }, [settings.restaurantName, settings.serviceRate, settings.touristServiceRate, settings.monthlyRentUzs, settings.monthlyUtilitiesUzs, settings.averageDailyEmployeeMealUzs, settings.averageDailyBreakEvenIncomeUzs, settings.autoPrint, settings.autoPrintKitchenCheck, settings.receiptMarketing])
+
 
   async function saveSettings(overrides = {}) {
     if (!canManageSettings) return { error: new Error('Settings write access is required') }
@@ -389,249 +418,282 @@ export default function AdminSettings() {
   }
   const l = L[lang] || L.en
 
+  const nav = SETTINGS_NAV_LABELS[lang] || SETTINGS_NAV_LABELS.en
+
   return (
     <AppShell title={l.title}>
-      <div className="max-w-[720px] mx-auto px-5 py-6">
+      <div className="min-h-full bg-[#f6f5f3]">
+      <div className="ws-page !max-w-[880px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <h2 className="ws-heading mt-1">{nav.groups.restaurant}</h2>
 
-        {/* Heading */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-black text-[#1F2937]">{l.title}</h1>
-          <p className="text-sm text-[#6B7280] mt-0.5">{l.sub}</p>
-        </div>
-
-        {/* Restaurant details */}
-        <Section title={l.restaurant}>
-          <SettingRow icon={Store} label={l.restaurantName} sub={l.restaurantNameSub}>
-            <input
-              type="text"
-              value={restaurantName}
-              onChange={e => setRestaurantName(e.target.value)}
-              disabled={!canManageSettings}
-              className="w-[180px] border border-[#E5E7EB] rounded-xl px-3 py-2 text-[13px] text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 focus:border-[#ff5a00] transition-all text-right disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[#9CA3AF]"
-            />
-          </SettingRow>
-        </Section>
-
-        {/* Billing */}
-        <Section title={l.billing}>
-          <SettingRow icon={Percent} label={l.serviceCharge} sub={l.serviceChargeSub}>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {[0, 10, 15, 20].map(v => (
-                  <button
-                    key={v}
-                    onClick={() => handleServiceRateChange(v)}
-                    disabled={!canManageSettings}
-                    className={`px-2.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
-                      serviceRate === v
-                        ? 'bg-[#ff5a00] text-white'
-                        : 'bg-[#F3F4F6] text-[#6B7280] hover:bg-gray-200'
-                    }`}
-                  >
-                    {v}%
-                  </button>
-                ))}
-              </div>
-            </div>
-          </SettingRow>
-          <SettingRow icon={Percent} label={l.touristServiceCharge} sub={l.touristServiceChargeSub}>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {[0, 10, 15, 20].map(v => (
-                  <button
-                    key={v}
-                    onClick={() => handleTouristServiceRateChange(v)}
-                    disabled={!canManageSettings}
-                    className={`px-2.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
-                      touristServiceRate === v
-                        ? 'bg-[#ff5a00] text-white'
-                        : 'bg-[#F3F4F6] text-[#6B7280] hover:bg-gray-200'
-                    }`}
-                  >
-                    {v}%
-                  </button>
-                ))}
-              </div>
-            </div>
-          </SettingRow>
-          <SettingRow icon={Home} label={l.monthlyRent} sub={l.monthlyRentSub}>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={formatMoneyInput(monthlyRentUzs)}
-                onChange={event => setMonthlyRentUzs(normalizeMoneyInput(event.target.value))}
-                disabled={!canManageSettings}
-                className="w-[180px] rounded-xl border border-[#E5E7EB] px-3 py-2 pr-12 text-right text-[13px] font-bold tabular-nums text-[#1F2937] transition-all focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[#9CA3AF]"
-                placeholder="0"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-[#9CA3AF]">UZS</span>
-            </div>
-          </SettingRow>
-          <SettingRow icon={Zap} label={l.monthlyUtilities} sub={l.monthlyUtilitiesSub}>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={formatMoneyInput(monthlyUtilitiesUzs)}
-                onChange={event => setMonthlyUtilitiesUzs(normalizeMoneyInput(event.target.value))}
-                disabled={!canManageSettings}
-                className="w-[180px] rounded-xl border border-[#E5E7EB] px-3 py-2 pr-12 text-right text-[13px] font-bold tabular-nums text-[#1F2937] transition-all focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[#9CA3AF]"
-                placeholder="0"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-[#9CA3AF]">UZS</span>
-            </div>
-          </SettingRow>
-          <SettingRow icon={UtensilsCrossed} label={l.averageDailyEmployeeMeal} sub={l.averageDailyEmployeeMealSub}>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={formatMoneyInput(averageDailyEmployeeMealUzs)}
-                onChange={event => setAverageDailyEmployeeMealUzs(normalizeMoneyInput(event.target.value))}
-                disabled={!canManageSettings}
-                className="w-[180px] rounded-xl border border-[#E5E7EB] px-3 py-2 pr-12 text-right text-[13px] font-bold tabular-nums text-[#1F2937] transition-all focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[#9CA3AF]"
-                placeholder="0"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-[#9CA3AF]">UZS</span>
-            </div>
-          </SettingRow>
-          <SettingRow icon={BadgeDollarSign} label={l.averageDailyBreakEvenIncome} sub={l.averageDailyBreakEvenIncomeSub}>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={formatMoneyInput(averageDailyBreakEvenIncomeUzs)}
-                onChange={event => setAverageDailyBreakEvenIncomeUzs(normalizeMoneyInput(event.target.value))}
-                disabled={!canManageSettings}
-                className="w-[180px] rounded-xl border border-[#E5E7EB] px-3 py-2 pr-12 text-right text-[13px] font-bold tabular-nums text-[#1F2937] transition-all focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[#9CA3AF]"
-                placeholder="0"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-[#9CA3AF]">UZS</span>
-            </div>
-          </SettingRow>
-        </Section>
-
-        {/* System */}
-        <Section title={l.system}>
-          <SettingRow icon={Table2} label={l.tableManagement} sub={l.tableManagementSub}>
-            <button
-              onClick={() => navigate('/admin/tables')}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-gray-50 px-3 py-2 text-[13px] font-bold text-[#1F2937] transition-colors hover:bg-gray-100"
-            >
-              {l.open}
-              <ChevronRight size={14} />
-            </button>
-          </SettingRow>
-          <SettingRow icon={Globe} label={l.language} sub={l.languageSub}>
-            <div className="flex gap-1 bg-[#F3F4F6] p-1 rounded-xl">
-              {['uz', 'ru', 'en'].map(lg => (
-                <button
-                  key={lg}
-                  onClick={() => dispatch({ type: 'SET_LANG', payload: lg })}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase transition-all ${
-                    lang === lg ? 'bg-white text-[#1F2937] shadow-sm' : 'text-[#9CA3AF] hover:text-[#6B7280]'
-                  }`}
-                >
-                  {lg}
-                </button>
-              ))}
-            </div>
-          </SettingRow>
-          <SettingRow icon={Printer} label={l.autoPrint} sub={l.autoPrintSub}>
-            <Toggle value={autoPrint} onChange={handleAutoPrintChange} disabled={!canManageSettings || saving} />
-          </SettingRow>
-          <SettingRow icon={ChefHat} label={l.autoPrintKitchenCheck} sub={l.autoPrintKitchenCheckSub}>
-            <Toggle value={autoPrintKitchenCheck} onChange={setAutoPrintKitchenCheck} disabled={!canManageSettings} />
-          </SettingRow>
-          <SettingRow icon={Printer} label={l.receiptMarketing} sub={l.receiptMarketingSub}>
-            <select
-              value={receiptMarketing}
-              onChange={event => setReceiptMarketing(event.target.value)}
-              disabled={!canManageSettings}
-              className="w-[170px] rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] font-bold text-[#1F2937] focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[#9CA3AF]"
-            >
-              {['none', 'compactFooter', 'loyaltyOnly', 'instagramOnly', 'full'].map(mode => (
-                <option key={mode} value={mode}>{l.receiptMarketingModes[mode]}</option>
-              ))}
-            </select>
-          </SettingRow>
-          <SettingRow icon={Bell} label={l.notifications} sub={l.notifSub}>
-            <Toggle value={notifications} onChange={setNotifications} disabled={!canManageSettings} />
-          </SettingRow>
-        </Section>
-
-        <Section title={l.systemHealth}>
-          <div className="px-5 py-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[#F3F4F6] bg-[#F9FAFB]">
-                  <Activity size={16} className="text-[#6B7280]" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[14px] font-semibold text-[#1F2937]">{l.systemHealth}</p>
-                  <p className="mt-0.5 text-[12px] text-[#9CA3AF]">{l.systemHealthSub}</p>
-                </div>
-              </div>
-              <button
-                onClick={checkHealth}
-                disabled={healthLoading}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-gray-50 px-3 py-2 text-[13px] font-bold text-[#1F2937] transition-colors hover:bg-gray-100 disabled:opacity-60"
-              >
-                <RefreshCw size={14} className={healthLoading ? 'animate-spin' : ''} />
-                {l.runHealth}
-              </button>
-            </div>
-
-            {healthError && (
-              <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
-                {healthError}
-              </p>
+            {(
+              <Section title={nav.sections.restaurant}>
+              <SettingRow icon={Store} label={l.restaurantName} sub={l.restaurantNameSub}>
+                <input
+                  type="text"
+                  value={restaurantName}
+                  onChange={e => setRestaurantName(e.target.value)}
+                  disabled={!canManageSettings}
+                  className="ws-input !w-full sm:!w-[220px] sm:text-right disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                />
+              </SettingRow>
+              </Section>
             )}
 
-            {health && (
-              <div className="mt-4 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3">
-                <div className={`mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black ${
-                  health.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                }`}>
-                  {health.ok ? <Check size={13} /> : <AlertTriangle size={13} />}
-                  {health.ok ? l.healthy : l.unhealthy}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {health.checks.map(check => (
-                    <div key={`${check.type}-${check.name}`} className="rounded-xl bg-white px-3 py-2 text-xs">
-                      <p className="font-black text-[#1F2937]">{healthCheckName(check, l)}</p>
-                      <p className={check.ok ? 'font-bold text-emerald-600' : 'font-bold text-red-600'}>{healthMessage(check, l)}</p>
-                      {!check.ok && healthHint(check) && (
-                        <p className="mt-1 font-mono text-[11px] font-bold text-[#6B7280]">{healthHint(check)}</p>
-                      )}
-                    </div>
+            {(
+              <Section title={nav.sections.billing}>
+              <SettingRow icon={Percent} label={l.serviceCharge} sub={l.serviceChargeSub}>
+                <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={l.serviceCharge}>
+                  {[0, 10, 15, 20].map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={serviceRate === v}
+                      onClick={() => handleServiceRateChange(v)}
+                      disabled={!canManageSettings}
+                      className="!px-3 tabular-nums disabled:cursor-not-allowed"
+                    >
+                      {v}%
+                    </button>
                   ))}
                 </div>
+              </SettingRow>
+              <SettingRow icon={Percent} label={l.touristServiceCharge} sub={l.touristServiceChargeSub}>
+                <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={l.touristServiceCharge}>
+                  {[0, 10, 15, 20].map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      aria-pressed={touristServiceRate === v}
+                      onClick={() => handleTouristServiceRateChange(v)}
+                      disabled={!canManageSettings}
+                      className="!px-3 tabular-nums disabled:cursor-not-allowed"
+                    >
+                      {v}%
+                    </button>
+                  ))}
+                </div>
+              </SettingRow>
+              </Section>
+            )}
+
+            {(
+              <Section title={nav.sections.costs}>
+              <SettingRow icon={Home} label={l.monthlyRent} sub={l.monthlyRentSub}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatMoneyInput(monthlyRentUzs)}
+                    onChange={event => setMonthlyRentUzs(normalizeMoneyInput(event.target.value))}
+                    disabled={!canManageSettings}
+                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                    placeholder="0"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                </div>
+              </SettingRow>
+              <SettingRow icon={Zap} label={l.monthlyUtilities} sub={l.monthlyUtilitiesSub}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatMoneyInput(monthlyUtilitiesUzs)}
+                    onChange={event => setMonthlyUtilitiesUzs(normalizeMoneyInput(event.target.value))}
+                    disabled={!canManageSettings}
+                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                    placeholder="0"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                </div>
+              </SettingRow>
+              <SettingRow icon={UtensilsCrossed} label={l.averageDailyEmployeeMeal} sub={l.averageDailyEmployeeMealSub}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatMoneyInput(averageDailyEmployeeMealUzs)}
+                    onChange={event => setAverageDailyEmployeeMealUzs(normalizeMoneyInput(event.target.value))}
+                    disabled={!canManageSettings}
+                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                    placeholder="0"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                </div>
+              </SettingRow>
+              <SettingRow icon={BadgeDollarSign} label={l.averageDailyBreakEvenIncome} sub={l.averageDailyBreakEvenIncomeSub}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatMoneyInput(averageDailyBreakEvenIncomeUzs)}
+                    onChange={event => setAverageDailyBreakEvenIncomeUzs(normalizeMoneyInput(event.target.value))}
+                    disabled={!canManageSettings}
+                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                    placeholder="0"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                </div>
+              </SettingRow>
+              </Section>
+            )}
+
+            <h2 className="ws-heading mt-4">{nav.groups.workspace}</h2>
+
+            {(
+              <>
+                <Section title={nav.cards.language}>
+                <SettingRow icon={Globe} label={l.language} sub={l.languageSub}>
+                  <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={l.language}>
+                    {['uz', 'ru', 'en'].map(lg => (
+                      <button
+                        key={lg}
+                        type="button"
+                        aria-pressed={lang === lg}
+                        onClick={() => dispatch({ type: 'SET_LANG', payload: lg })}
+                        className="!px-3 uppercase"
+                      >
+                        {lg}
+                      </button>
+                    ))}
+                  </div>
+                </SettingRow>
+                </Section>
+                <Section title={nav.cards.appearance}>
+                  <SettingRow icon={theme === 'dark' ? Moon : Sun} label={nav.theme} sub={nav.themeSub}>
+                    <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={nav.theme}>
+                      {['light', 'dark'].map(mode => (
+                        <button
+                          key={mode}
+                          type="button"
+                          aria-pressed={theme === mode}
+                          onClick={() => setTheme(mode)}
+                          className="!px-3"
+                        >
+                          {nav.themes[mode]}
+                        </button>
+                      ))}
+                    </div>
+                  </SettingRow>
+                </Section>
+                <Section title={nav.cards.notifications}>
+                <SettingRow icon={Bell} label={l.notifications} sub={l.notifSub} compact>
+                  <Toggle value={notifications} onChange={setNotifications} disabled={!canManageSettings} />
+                </SettingRow>
+                </Section>
+              </>
+            )}
+
+            {(
+              <Section title={nav.sections.printing}>
+              <SettingRow icon={Printer} label={l.autoPrint} sub={l.autoPrintSub} compact>
+                <Toggle value={autoPrint} onChange={handleAutoPrintChange} disabled={!canManageSettings || saving} />
+              </SettingRow>
+              <SettingRow icon={ChefHat} label={l.autoPrintKitchenCheck} sub={l.autoPrintKitchenCheckSub} compact>
+                <Toggle value={autoPrintKitchenCheck} onChange={setAutoPrintKitchenCheck} disabled={!canManageSettings} />
+              </SettingRow>
+              <SettingRow icon={Printer} label={l.receiptMarketing} sub={l.receiptMarketingSub}>
+                <select
+                  value={receiptMarketing}
+                  onChange={event => setReceiptMarketing(event.target.value)}
+                  disabled={!canManageSettings}
+                  className="ws-input !w-full sm:!w-[220px] disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                >
+                  {['none', 'compactFooter', 'loyaltyOnly', 'instagramOnly', 'full'].map(mode => (
+                    <option key={mode} value={mode}>{l.receiptMarketingModes[mode]}</option>
+                  ))}
+                </select>
+              </SettingRow>
+              </Section>
+            )}
+
+            {(
+              <Section title={nav.sections.tables}>
+              <SettingRow icon={Table2} label={l.tableManagement} sub={l.tableManagementSub} compact>
+                <button
+                  onClick={() => navigate('/admin/tables')}
+                  className="ws-btn ws-btn-outline ws-btn-sm"
+                >
+                  {l.open}
+                  <ChevronRight size={14} />
+                </button>
+              </SettingRow>
+              </Section>
+            )}
+
+            {(
+              <Section title={l.systemHealth}>
+              <div className="px-5 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+                      <Activity size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#22201d]">{l.systemHealth}</p>
+                      <p className="ws-caption mt-0.5">{l.systemHealthSub}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={checkHealth}
+                    disabled={healthLoading}
+                    className="ws-btn ws-btn-outline ws-btn-sm"
+                  >
+                    <RefreshCw size={14} className={healthLoading ? 'animate-spin' : ''} />
+                    {l.runHealth}
+                  </button>
+                </div>
+
+                {healthError && (
+                  <p className="ws-notice ws-tone-negative mt-3">
+                    {healthError}
+                  </p>
+                )}
+
+                {health && (
+                  <div className="mt-4 rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-3">
+                    <div className={`ws-badge mb-3 !text-[13px] ${health.ok ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
+                      {health.ok ? <Check size={13} /> : <AlertTriangle size={13} />}
+                      {health.ok ? l.healthy : l.unhealthy}
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {health.checks.map(check => (
+                        <div key={`${check.type}-${check.name}`} className="rounded-lg border border-[#e4e1de] bg-white px-3 py-2 text-[13px]">
+                          <p className="font-semibold text-[#22201d]">{healthCheckName(check, l)}</p>
+                          <p className={check.ok ? 'text-[#1d7a52]' : 'text-[#c4262c]'}>{healthMessage(check, l)}</p>
+                          {!check.ok && healthHint(check) && (
+                            <p className="mt-1 font-mono text-[11px] text-[#68655f]">{healthHint(check)}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+              </Section>
+            )}
+
+            {(
+              <>
+            {/* Save button */}
+            <button
+              onClick={handleSave}
+              disabled={saving || !canManageSettings}
+              className={`ws-btn ws-btn-primary !h-11 w-full ${saved ? '!bg-[#1d7a52]' : ''}`}
+            >
+              {saved ? <Check size={16} /> : <Shield size={16} />}
+              {saved ? l.saved : saving ? l.saving : l.save}
+            </button>
+            {error && (
+              <p className="ws-notice ws-tone-negative">
+                {l.saveError}: {error}
+              </p>
+            )}
+              </>
             )}
           </div>
-        </Section>
-
-        {/* Save button */}
-        <button
-          onClick={handleSave}
-          disabled={saving || !canManageSettings}
-          className={`w-full rounded-2xl font-black text-[14px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-            saved
-              ? 'bg-green-500 text-white'
-              : 'bg-[#ff5a00] text-white hover:bg-[#cc4800] shadow-lg shadow-orange-100 disabled:cursor-not-allowed disabled:opacity-70'
-          }`}
-          style={{ height: '52px' }}
-        >
-          {saved ? <Check size={18} /> : <Shield size={18} />}
-          {saved ? l.saved : saving ? l.saving : l.save}
-        </button>
-        {error && (
-          <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {l.saveError}: {error}
-          </p>
-        )}
+      </div>
       </div>
     </AppShell>
   )

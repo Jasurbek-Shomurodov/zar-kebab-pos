@@ -27,6 +27,64 @@ function CategoryImage({ src, alt, active }) {
   )
 }
 
+// Admin pages share the Hoggish-style workspace look: hairline cards and one accent.
+function WorkspaceCategoryCard({ category, active, title, onClick }) {
+  const isAll = category.id === 'all'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`w-[104px] flex-shrink-0 overflow-hidden rounded-xl border bg-white text-center transition-colors md:w-[112px] xl:w-[120px] ${
+        active
+          ? 'border-[#ff5a00] ring-1 ring-[#ff5a00]'
+          : 'border-[#e4e1de] hover:bg-[#f6f5f3]'
+      }`}
+    >
+      <div className="aspect-square w-full overflow-hidden bg-[#efece9]">
+        {isAll ? (
+          <div className="flex h-full w-full items-center justify-center">
+            <span className={`grid h-11 w-11 place-items-center rounded-full ${active ? 'bg-[#fff1e8] text-[#ff5a00]' : 'bg-white text-[#68655f]'}`}>
+              <LayoutGrid size={20} />
+            </span>
+          </div>
+        ) : (
+          <CategoryImage src={category.image_url} alt={title} active={active} />
+        )}
+      </div>
+      <div className="flex min-h-[44px] items-center justify-center px-2 py-2">
+        <p className={`line-clamp-2 text-[13px] font-medium leading-tight ${active ? 'text-[#ff5a00]' : 'text-[#22201d]'}`}>
+          {title}
+        </p>
+      </div>
+    </button>
+  )
+}
+
+function WorkspaceCategoryChip({ category, active, title, count, onClick }) {
+  const isAll = category.id === 'all'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex h-9 flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-full border pl-1.5 pr-2.5 text-sm font-medium transition-colors ${
+        active
+          ? 'border-[#ff5a00] bg-white text-[#ff5a00]'
+          : 'border-[#e4e1de] bg-white text-[#22201d] hover:bg-[#ebe8e5]'
+      }`}
+    >
+      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#efece9] text-[#68655f]">
+        {isAll ? <LayoutGrid size={14} /> : category.image_url ? <CategoryImage src={category.image_url} alt={title} active={active} /> : <UtensilsCrossed size={14} />}
+      </span>
+      <span>{title}</span>
+      {Number.isFinite(count) && <span className="ws-count">{count}</span>}
+    </button>
+  )
+}
+
 function LargeCategoryCard({ category, active, title, onClick }) {
   const isAll = category.id === 'all'
 
@@ -133,7 +191,11 @@ export default function MenuCategoryScroller({
   collapsedSurfaceClass = 'bg-[#FAF6EE]/95',
   collapsedPosition = 'sticky',
   scrollOffset = 84,
+  variant = 'default',
 }) {
+  const workspace = variant === 'workspace'
+  const Card = workspace ? WorkspaceCategoryCard : LargeCategoryCard
+  const Chip = workspace ? WorkspaceCategoryChip : CategoryChip
   const [collapsed, setCollapsed] = useState(false)
   const [fixedInsets, setFixedInsets] = useState(null)
   const sentinelRef = useRef(null)
@@ -327,10 +389,10 @@ export default function MenuCategoryScroller({
             return (
               <React.Fragment key={category.id}>
                 {compactMobile && <div className="shrink-0 sm:hidden">
-                  <CategoryChip category={category} title={title} count={itemCounts[category.id]} active={activeCategoryId === category.id} onClick={() => handleClick(category)} />
+                  <Chip category={category} title={title} count={itemCounts[category.id]} active={activeCategoryId === category.id} onClick={() => handleClick(category)} />
                 </div>}
                 <div className={compactMobile ? 'hidden shrink-0 sm:block' : 'contents'}>
-              <LargeCategoryCard
+              <Card
                 key={category.id}
                 category={category}
                 title={title}
@@ -345,7 +407,7 @@ export default function MenuCategoryScroller({
       </div>
 
       <div
-        className={`${collapsedPosition === 'fixed' ? 'fixed left-0 right-0' : 'sticky -mx-1 overflow-hidden'} z-30 border-b border-[#E5E7EB] ${collapsedSurfaceClass} px-1 py-1.5 backdrop-blur transition-all duration-200 ${
+        className={`${collapsedPosition === 'fixed' ? 'fixed left-0 right-0' : 'sticky -mx-1 overflow-hidden'} z-30 border-b ${workspace ? 'border-[#e4e1de]' : 'border-[#E5E7EB]'} ${collapsedSurfaceClass} px-1 py-1.5 backdrop-blur transition-all duration-200 ${
           collapsed ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
         } ${compactMobile ? 'max-sm:hidden' : ''} ${collapsedClassName}`}
         style={{
@@ -359,7 +421,7 @@ export default function MenuCategoryScroller({
           {cards.map(category => {
             const title = titleFor(category)
             return (
-              <CategoryChip
+              <Chip
                 key={category.id}
                 category={category}
                 title={title}

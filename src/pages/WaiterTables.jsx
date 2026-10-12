@@ -6,9 +6,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatCurrency } from '../lib/formatCurrency'
 import AppShell from '../components/AppShell'
 import {
-  UtensilsCrossed, Clock, CheckCircle2,
-  Receipt, Coffee, Plus,
+  Clock, CheckCircle2, Receipt,
   Search, CreditCard, Settings, CalendarClock, Phone,
+  ShoppingBag, Truck, Gamepad2,
 } from 'lucide-react'
 import { getOrderTotal } from '../lib/analytics'
 import { getReservationSummary, getWaiterTableStatus, sortWaiterTableInfosByOpenedTime } from '../lib/tableManagement'
@@ -148,76 +148,44 @@ function tr(lang, key, ...args) {
 
 // ── Status config ─────────────────────────────────────────────────────────────
 
+// Each status keeps its own pill tone and 3px card edge so the floor stays scannable:
+// free → positive, kitchen work → accent, food ready → caution, bill → negative,
+// reserved → info, eating → neutral.
 const STATUS_CFG = {
   available: {
-    border: 'border-emerald-200',
-    hoverBorder: 'hover:border-emerald-400',
-    bg: 'bg-emerald-50',
-    badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-    dot: 'bg-emerald-400',
-    icon: Coffee,
-    chipBg: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-    chipActiveBg: 'bg-emerald-500 text-white',
+    tone: 'ws-tone-positive',
+    edge: 'bg-[#1d7a52]',
+    dot: 'bg-[#1d7a52]',
   },
   waiting_kitchen: {
-    border: 'border-yellow-200',
-    hoverBorder: 'hover:border-yellow-400',
-    bg: 'bg-yellow-50',
-    badge: 'bg-yellow-100 text-yellow-700 border border-yellow-200',
-    dot: 'bg-yellow-400',
-    icon: Clock,
-    chipBg: 'bg-yellow-100 text-yellow-700 border border-yellow-200',
-    chipActiveBg: 'bg-yellow-500 text-white',
+    tone: 'ws-tone-accent',
+    edge: 'bg-[#ff5a00]/60',
+    dot: 'bg-[#ff5a00]/60',
   },
   preparing: {
-    border: 'border-orange-200',
-    hoverBorder: 'hover:border-orange-400',
-    bg: 'bg-orange-50',
-    badge: 'bg-orange-100 text-orange-700',
-    dot: 'bg-orange-400',
-    icon: Clock,
-    chipBg: 'bg-orange-100 text-orange-700',
-    chipActiveBg: 'bg-orange-500 text-white',
+    tone: 'ws-tone-accent',
+    edge: 'bg-[#ff5a00]',
+    dot: 'bg-[#ff5a00]',
   },
   ready: {
-    border: 'border-blue-200',
-    hoverBorder: 'hover:border-blue-400',
-    bg: 'bg-blue-50',
-    badge: 'bg-blue-100 text-blue-700 border border-blue-200',
-    dot: 'bg-blue-500',
-    icon: CheckCircle2,
-    chipBg: 'bg-blue-100 text-blue-700 border border-blue-200',
-    chipActiveBg: 'bg-blue-500 text-white',
+    tone: 'ws-tone-caution',
+    edge: 'bg-[#9a5a00]',
+    dot: 'bg-[#9a5a00]',
   },
   occupied: {
-    border: 'border-indigo-200',
-    hoverBorder: 'hover:border-indigo-400',
-    bg: 'bg-indigo-50',
-    badge: 'bg-indigo-100 text-indigo-700',
-    dot: 'bg-indigo-500',
-    icon: UtensilsCrossed,
-    chipBg: 'bg-indigo-100 text-indigo-700',
-    chipActiveBg: 'bg-indigo-500 text-white',
+    tone: '',
+    edge: 'bg-[#68655f]',
+    dot: 'bg-[#68655f]',
   },
   reserved: {
-    border: 'border-purple-200',
-    hoverBorder: 'hover:border-purple-400',
-    bg: 'bg-purple-50',
-    badge: 'bg-purple-100 text-purple-700 border border-purple-200',
-    dot: 'bg-purple-500',
-    icon: CalendarClock,
-    chipBg: 'bg-purple-100 text-purple-700 border border-purple-200',
-    chipActiveBg: 'bg-purple-500 text-white',
+    tone: 'ws-tone-info',
+    edge: 'bg-[#2a6fdb]',
+    dot: 'bg-[#2a6fdb]',
   },
   needs_bill: {
-    border: 'border-red-300',
-    hoverBorder: 'hover:border-red-500',
-    bg: 'bg-red-50',
-    badge: 'bg-red-100 text-red-700 border border-red-200',
-    dot: 'bg-red-500',
-    icon: Receipt,
-    chipBg: 'bg-red-100 text-red-700 border border-red-200',
-    chipActiveBg: 'bg-red-500 text-white',
+    tone: 'ws-tone-negative',
+    edge: 'bg-[#c4262c]',
+    dot: 'bg-[#c4262c]',
   },
 }
 
@@ -299,23 +267,17 @@ function elapsedSince(isoString, lang) {
 
 function FilterChip({ label, count, active, cfg, onClick }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap
-        ${active ? cfg.chipActiveBg : cfg.chipBg + ' hover:opacity-80'}`}
-    >
+    <button type="button" aria-pressed={active} onClick={onClick}>
+      {cfg?.dot && <span className={`h-2 w-2 shrink-0 rounded-full ${cfg.dot}`} aria-hidden="true" />}
       {label}
-      <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold
-        ${active ? 'bg-white/30 text-inherit' : 'bg-white/60 text-inherit'}`}>
-        {count}
-      </span>
+      <span className="ws-count">{count}</span>
     </button>
   )
 }
 
-function StatusChip({ label, color }) {
+function StatusChip({ label, tone = '' }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${color}`}>
+    <span className={`ws-badge ${tone}`}>
       {label}
     </span>
   )
@@ -336,21 +298,30 @@ function statusLabel(lang, status) {
 }
 
 function actionForStatus(lang, status) {
-  if (status === 'ready') return { label: tr(lang, 'confirmServed'), Icon: CheckCircle2, cls: 'bg-blue-600 text-white hover:bg-blue-700' }
-  if (status === 'preparing') return { label: tr(lang, 'viewKitchen'), Icon: Clock, cls: 'bg-orange-500 text-white hover:bg-orange-600' }
-  if (status === 'waiting_kitchen') return { label: tr(lang, 'requestBill'), Icon: Receipt, cls: 'bg-yellow-500 text-white hover:bg-yellow-600' }
-  if (status === 'needs_bill') return { label: tr(lang, 'takePayment'), Icon: CreditCard, cls: 'bg-red-600 text-white hover:bg-red-700' }
-  if (status === 'reserved') return { label: tr(lang, 'seatReserved'), Icon: CalendarClock, cls: 'bg-purple-600 text-white hover:bg-purple-700' }
-  if (status === 'occupied') return { label: tr(lang, 'requestBill'), Icon: Receipt, cls: 'bg-indigo-600 text-white hover:bg-indigo-700' }
+  if (status === 'ready') return { label: tr(lang, 'confirmServed'), Icon: CheckCircle2, cls: 'ws-btn-primary' }
+  if (status === 'preparing') return { label: tr(lang, 'viewKitchen'), Icon: Clock, cls: 'ws-btn-outline' }
+  if (status === 'waiting_kitchen') return { label: tr(lang, 'requestBill'), Icon: Receipt, cls: 'ws-btn-outline' }
+  if (status === 'needs_bill') return { label: tr(lang, 'takePayment'), Icon: CreditCard, cls: 'ws-btn-primary' }
+  if (status === 'reserved') return { label: tr(lang, 'seatReserved'), Icon: CalendarClock, cls: 'ws-btn-primary' }
+  if (status === 'occupied') return { label: tr(lang, 'requestBill'), Icon: Receipt, cls: 'ws-btn-outline' }
   return null
+}
+
+function ItemCountAndTotal({ counts, className = 'mt-2' }) {
+  return (
+    <div className={`flex w-full items-center justify-between gap-2 ${className}`}>
+      <span className="ws-count">×{counts.itemCount}</span>
+      <p className="text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(counts.total)}</p>
+    </div>
+  )
 }
 
 function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAction, onManage }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.available
   const zone = getTableZoneVisual(table, zones)
   const zoneName = getTableZoneName(table)
-  const cardBorder = status === 'available' ? zone.border : cfg.border
-  const cardHoverBorder = status === 'available' ? zone.hoverBorder : cfg.hoverBorder
+  // Free tables show their zone colour on the edge; busy tables show their status colour.
+  const cardEdge = status === 'available' ? zone.dot : cfg.edge
   const elapsed = counts?.createdAt ? elapsedSince(counts.createdAt, lang) : null
   const action = actionForStatus(lang, status)
   const ActionIcon = action?.Icon
@@ -363,26 +334,27 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
       role={canEdit ? 'button' : undefined}
       tabIndex={canEdit ? 0 : undefined}
       onKeyDown={e => canEdit && e.key === 'Enter' && onClick()}
-      className={`group relative flex min-h-[116px] w-full flex-col overflow-hidden rounded-xl border border-[#E5E7EB] border-l-4 bg-white p-3 pt-4 text-left shadow-sm transition-all ${canEdit ? `cursor-pointer hover:-translate-y-0.5 hover:shadow-md ${cardHoverBorder}` : ''} ${cardBorder}`}
+      className={`ws-panel group relative flex min-h-[116px] w-full flex-col overflow-hidden !py-3 !pl-4 !pr-3 text-left transition-shadow ${canEdit ? 'cursor-pointer hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40' : ''}`}
     >
-      <span className={`absolute inset-x-0 top-0 h-1 ${zone.bar}`} aria-hidden="true" />
+      <span className={`absolute inset-y-0 left-0 w-[3px] ${cardEdge}`} aria-hidden="true" />
       {/* Header */}
-      <div className="mb-1.5 flex items-start justify-between gap-2">
-        <p className="min-w-0 truncate text-base font-black leading-none text-gray-900">{table.name}</p>
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="min-w-0 truncate text-[15px] font-semibold leading-tight text-[#22201d]">{table.name}</p>
         {counts?.waiterNames?.length > 0 && (
-          <p className="min-w-0 max-w-[55%] break-words text-right text-xs font-semibold leading-4 text-gray-600">
+          <p className="ws-caption min-w-0 max-w-[55%] break-words text-right !text-xs !leading-4">
             {lang === 'ru' ? 'Официант' : lang === 'uz' ? 'Ofitsiant' : 'Waiter'}: {counts.waiterNames.join(', ')}
           </p>
         )}
       </div>
 
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className={`inline-flex min-w-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black ${zone.badge}`}>
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <span className={`ws-status ${cfg.tone}`}>{statusLabel(lang, status)}</span>
+        <span className="ws-badge min-w-0">
           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${zone.dot}`} aria-hidden="true" />
           <span className="truncate">{zoneName}</span>
         </span>
         {elapsed && status !== 'available' && (
-          <p className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-gray-400">
+          <p className="ws-caption ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap !text-xs tabular-nums">
             <Clock size={11} className="shrink-0" />
             {elapsed}
           </p>
@@ -391,20 +363,20 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
 
       {/* State-specific content */}
       {status === 'available' && (
-        <p className="mt-auto text-[11px] text-gray-400">{tr(lang, 'tapToStart')}</p>
+        <p className="ws-caption mt-auto !text-xs">{tr(lang, 'tapToStart')}</p>
       )}
 
       {status === 'reserved' && reservation && (
-        <div className="mt-1 space-y-1.5">
-          <p className="text-sm font-black text-purple-700">{tr(lang, 'reservedFor')}: {reservation.name || '-'}</p>
+        <div className="mt-1 space-y-1">
+          <p className="text-sm font-semibold text-[#22201d]">{tr(lang, 'reservedFor')}: {reservation.name || '-'}</p>
           {reservation.startsAt && (
-            <p className="flex items-center gap-1 text-xs font-semibold text-gray-500">
+            <p className="ws-caption flex items-center gap-1 tabular-nums">
               <Clock size={12} />
               {formatDateTime(reservation.startsAt)}
             </p>
           )}
           {reservation.phone && (
-            <p className="flex items-center gap-1 text-xs font-semibold text-gray-500">
+            <p className="ws-caption flex items-center gap-1 tabular-nums">
               <Phone size={12} />
               {reservation.phone}
             </p>
@@ -415,57 +387,42 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
       {(status === 'waiting_kitchen') && (
         <div className="flex flex-wrap gap-1 mt-1">
           {counts.newCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsNew', counts.newCount)} color="bg-yellow-100 text-yellow-700 border border-yellow-200" />
+            <StatusChip label={tr(lang, 'itemsNew', counts.newCount)} />
           )}
-          <div className="mt-2 flex w-full items-center justify-between gap-2">
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">×{counts.itemCount}</span>
-            <p className="text-[#ff5a00] font-black text-sm">{formatCurrency(counts.total)}</p>
-          </div>
+          <ItemCountAndTotal counts={counts} />
         </div>
       )}
 
       {(status === 'preparing') && (
         <div className="flex flex-wrap gap-1 mt-1">
           {counts.newCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsNew', counts.newCount)} color="bg-yellow-100 text-yellow-700 border border-yellow-200" />
+            <StatusChip label={tr(lang, 'itemsNew', counts.newCount)} />
           )}
           {counts.preparingCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsPreparing', counts.preparingCount)} color="bg-orange-100 text-orange-700" />
+            <StatusChip label={tr(lang, 'itemsPreparing', counts.preparingCount)} tone="ws-tone-accent" />
           )}
           {counts.readyCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsReady', counts.readyCount)} color="bg-blue-100 text-blue-700 border border-blue-200" />
+            <StatusChip label={tr(lang, 'itemsReady', counts.readyCount)} tone="ws-tone-caution" />
           )}
-          <div className="mt-2 flex w-full items-center justify-between gap-2">
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">×{counts.itemCount}</span>
-            <p className="text-[#ff5a00] font-black text-sm">{formatCurrency(counts.total)}</p>
-          </div>
+          <ItemCountAndTotal counts={counts} />
         </div>
       )}
 
       {status === 'ready' && (
         <div className="mt-1">
           {counts.readyCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsReady', counts.readyCount)} color="bg-blue-100 text-blue-700 border border-blue-200" />
+            <StatusChip label={tr(lang, 'itemsReady', counts.readyCount)} tone="ws-tone-caution" />
           )}
-          <div className="mt-2 flex w-full items-center justify-between gap-2">
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">×{counts.itemCount}</span>
-            <p className="text-[#ff5a00] font-black text-sm">{formatCurrency(counts.total)}</p>
-          </div>
+          <ItemCountAndTotal counts={counts} />
         </div>
       )}
 
       {status === 'occupied' && (
-        <div className="mt-auto flex items-center justify-between gap-2">
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">×{counts.itemCount}</span>
-          <p className="text-[#ff5a00] font-black text-sm">{formatCurrency(counts.total)}</p>
-        </div>
+        <ItemCountAndTotal counts={counts} className="mt-auto" />
       )}
 
       {status === 'needs_bill' && (
-        <div className="mt-auto flex items-center justify-between gap-2">
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">×{counts.itemCount}</span>
-          <p className="text-[#ff5a00] font-black text-sm">{formatCurrency(counts.total)}</p>
-        </div>
+        <ItemCountAndTotal counts={counts} className="mt-auto" />
       )}
 
       {canEdit && (action || canManageActiveOrder) && (
@@ -477,7 +434,7 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
                 e.stopPropagation()
                 onManage?.(table)
               }}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-black text-gray-700 transition-all hover:bg-gray-50 active:scale-[0.98]"
+              className="ws-btn ws-btn-outline !h-11 w-full !px-3"
             >
               <Search size={15} />
               {tr(lang, 'manageOrder')}
@@ -490,7 +447,7 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
                 e.stopPropagation()
                 onAction?.(status, table)
               }}
-              className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-black transition-all active:scale-[0.98] ${action.cls}`}
+              className={`ws-btn !h-11 w-full !px-3 ${action.cls}`}
             >
               <ActionIcon size={15} />
               {action.label}
@@ -508,45 +465,40 @@ function ReservationStrip({ reservations, lang, canEdit, onSeat, onCancel, onCal
   }
 
   return (
-    <div className="mb-5 rounded-2xl border border-purple-100 bg-white p-3 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-            <CalendarClock size={17} />
-          </span>
-          <div>
-            <p className="text-sm font-black text-[#1F2937]">{tr(lang, 'todaysReservations')}</p>
-            <p className="text-xs font-semibold text-gray-400">{tableCountLabel(lang, reservations.length)}</p>
-          </div>
-        </div>
+    <section className="ws-panel">
+      <div className="mb-4 flex items-center gap-2">
+        <h2 className="ws-heading">{tr(lang, 'todaysReservations')}</h2>
+        <span className="ws-count">{tableCountLabel(lang, reservations.length)}</span>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1">
         {reservations.map(({ table, reservation }) => (
-          <div key={table.id} className="min-w-[260px] rounded-2xl border border-purple-100 bg-purple-50/50 p-3">
+          <div key={table.id} className="relative min-w-[260px] overflow-hidden rounded-[12px] border border-[#e4e1de] bg-white py-3 pl-4 pr-3">
+            <span className="absolute inset-y-0 left-0 w-[3px] bg-[#2a6fdb]" aria-hidden="true" />
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[#1F2937]">{table.name}</p>
-                <p className="truncate text-xs font-bold text-purple-700">{reservation.name || '-'}</p>
+                <p className="truncate text-[15px] font-semibold text-[#22201d]">{table.name}</p>
+                <p className="ws-caption truncate">{reservation.name || '-'}</p>
               </div>
-              <span className="rounded-full bg-white px-2 py-1 text-xs font-black text-purple-700">
+              <span className="ws-status ws-tone-info tabular-nums">
                 {formatTime(reservation.startsAt)}
               </span>
             </div>
             <div className={`mt-3 grid gap-1.5 ${canEdit ? 'grid-cols-3' : 'grid-cols-1'}`}>
               {canEdit && (
                 <>
-                  <button onClick={() => onSeat(table)} className="h-8 rounded-lg bg-purple-600 text-[11px] font-black text-white">
+                  <button type="button" onClick={() => onSeat(table)} className="ws-btn ws-btn-primary ws-btn-sm !px-2">
                     {tr(lang, 'seat')}
                   </button>
-                  <button onClick={() => onCancel(table)} className="h-8 rounded-lg border border-purple-100 bg-white text-[11px] font-black text-purple-700">
+                  <button type="button" onClick={() => onCancel(table)} className="ws-btn ws-btn-outline ws-btn-sm !px-2">
                     {tr(lang, 'cancelReservation')}
                   </button>
                 </>
               )}
               <button
+                type="button"
                 onClick={() => onCall(reservation.phone)}
                 disabled={!reservation.phone}
-                className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-purple-100 bg-white text-[11px] font-black text-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="ws-btn ws-btn-outline ws-btn-sm !px-2"
               >
                 <Phone size={12} />
                 {tr(lang, 'call')}
@@ -555,7 +507,7 @@ function ReservationStrip({ reservations, lang, canEdit, onSeat, onCancel, onCal
           </div>
         ))}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -587,7 +539,6 @@ export default function WaiterTables() {
     return () => window.removeEventListener('pageshow', handlePageShow)
   }, [refreshPOSData])
 
-  const waiterName = profile?.full_name || state.user?.name || 'Waiter'
   const role = (profile?.role || state.user?.role || '').toLowerCase()
   const canEditTables = canEditFeature(profile || { role }, 'tables')
   const canCreateOffPremiseOrders = canUseOffPremiseOrders(profile || { role })
@@ -809,59 +760,64 @@ export default function WaiterTables() {
     navigate('/waiter/take-away?orderType=delivery')
   }
 
-  const allCfg = {
-    chipBg: 'bg-gray-100 text-gray-600',
-    chipActiveBg: 'bg-gray-800 text-white',
-  }
+  // Header buttons stay 38px on desktop and grow to a 44px target on touch screens.
+  const headerButton = 'ws-btn ws-btn-sm !h-[38px] [@media(pointer:coarse)]:!h-11 [@media(pointer:coarse)]:min-w-[44px]'
+
+  const headerActions = (canCreateOffPremiseOrders || canManageTables) ? (
+    <>
+      {canCreateOffPremiseOrders && (
+        <>
+          <button
+            type="button"
+            onClick={handleTakeAway}
+            aria-label={tr(lang, 'takeAwayOrder')}
+            title={tr(lang, 'takeAwayOrder')}
+            className={`${headerButton} ws-btn-primary`}
+          >
+            <ShoppingBag />
+            <span className="hidden md:inline">{tr(lang, 'takeAwayOrder')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDelivery}
+            aria-label={tr(lang, 'deliveryOrder')}
+            title={tr(lang, 'deliveryOrder')}
+            className={`${headerButton} ws-btn-outline`}
+          >
+            <Truck />
+            <span className="hidden md:inline">{tr(lang, 'deliveryOrder')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/waiter/take-away?orderType=game_club')}
+            aria-label="Game Club"
+            title="Game Club"
+            className={`${headerButton} ws-btn-outline`}
+          >
+            <Gamepad2 />
+            <span className="hidden md:inline">Game Club</span>
+          </button>
+        </>
+      )}
+      {canManageTables && (
+        <button
+          type="button"
+          onClick={() => navigate('/admin/tables')}
+          aria-label={tr(lang, 'manageTables')}
+          title={tr(lang, 'manageTables')}
+          className={`${headerButton} ws-btn-outline`}
+        >
+          <Settings />
+          <span className="hidden 2xl:inline">{tr(lang, 'manageTables')}</span>
+        </button>
+      )}
+    </>
+  ) : null
 
   return (
-    <AppShell title={tr(lang, 'tables')}>
-      <div className="min-h-screen bg-[#faf9f7] pb-10">
-        <div className="p-4 md:p-5 max-w-[1440px] mx-auto">
-
-          {/* Header */}
-          <div className="mb-5 flex flex-col gap-4 rounded-[28px] border border-[#E5E7EB] bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-2xl font-black text-gray-900">{tr(lang, 'tables')}</h2>
-              <p className="text-sm text-gray-400 mt-0.5">{tr(lang, 'welcome')}, {waiterName}</p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-              {canCreateOffPremiseOrders && (
-                <>
-                  <button
-                    onClick={handleTakeAway}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ff5a00] px-4 text-sm font-black text-white shadow-sm shadow-orange-200 transition-colors hover:bg-[#cc4800]"
-                  >
-                    <Plus size={15} className="shrink-0" />
-                    <span className="truncate whitespace-nowrap">{tr(lang, 'takeAwayOrder')}</span>
-                  </button>
-                  <button
-                    onClick={handleDelivery}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 text-sm font-black text-white shadow-sm shadow-purple-100 transition-colors hover:bg-purple-700"
-                  >
-                    <Plus size={15} className="shrink-0" />
-                    <span className="truncate whitespace-nowrap">{tr(lang, 'deliveryOrder')}</span>
-                  </button>
-                  <button
-                    onClick={() => navigate('/waiter/take-away?orderType=game_club')}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-emerald-700"
-                  >
-                    <Plus size={15} className="shrink-0" />
-                    <span className="truncate whitespace-nowrap">Game Club</span>
-                  </button>
-                </>
-              )}
-              {canManageTables && (
-                <button
-                  onClick={() => navigate('/admin/tables')}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-black"
-                >
-                  <Settings size={15} className="shrink-0" />
-                  <span className="truncate whitespace-nowrap">{tr(lang, 'manageTables')}</span>
-                </button>
-              )}
-            </div>
-          </div>
+    <AppShell title={tr(lang, 'tables')} headerActions={headerActions}>
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
 
           <ReservationStrip
             reservations={todaysReservations}
@@ -872,44 +828,44 @@ export default function WaiterTables() {
             onCall={callReservation}
           />
 
-          {/* Filter chips */}
-          <div className="mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {/* All chip */}
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap
-                ${activeFilter === 'all' ? allCfg.chipActiveBg : allCfg.chipBg + ' hover:opacity-80'}`}
+          {/* Status filter */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div
+              role="group"
+              aria-label={tr(lang, 'tables')}
+              className="ws-segmented [@media(pointer:coarse)]:[&>button]:!h-11"
             >
-              {tr(lang, 'all')}
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold bg-white/30">
-                {countsPerStatus.all}
-              </span>
-            </button>
-
-            {FILTER_ORDER.filter(s => s !== 'all').map(status => {
-              const cnt = countsPerStatus[status] || 0
-              const cfg = STATUS_CFG[status]
-              return (
-                <FilterChip
-                  key={status}
-                  label={statusLabel(lang, status)}
-                  count={cnt}
-                  active={activeFilter === status}
-                  cfg={cfg}
-                  onClick={() => setActiveFilter(status)}
-                />
-              )
-            })}
+              <FilterChip
+                label={tr(lang, 'all')}
+                count={countsPerStatus.all}
+                active={activeFilter === 'all'}
+                onClick={() => setActiveFilter('all')}
+              />
+              {FILTER_ORDER.filter(s => s !== 'all').map(status => {
+                const cnt = countsPerStatus[status] || 0
+                const cfg = STATUS_CFG[status]
+                return (
+                  <FilterChip
+                    key={status}
+                    label={statusLabel(lang, status)}
+                    count={cnt}
+                    active={activeFilter === status}
+                    cfg={cfg}
+                    onClick={() => setActiveFilter(status)}
+                  />
+                )
+              })}
+            </div>
           </div>
 
           {/* Zone color legend */}
           {visibleZones.length > 0 && (
-            <div className="mb-6 flex items-center gap-2 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2.5 shadow-sm scrollbar-hide">
-              <span className="shrink-0 text-[11px] font-black uppercase tracking-wide text-gray-400">{tr(lang, 'zones')}</span>
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+              <span className="ws-caption shrink-0">{tr(lang, 'zones')}</span>
               {visibleZones.map(zoneItem => {
                 const zone = getTableZoneVisual(zoneItem, visibleZones)
                 return (
-                  <span key={zoneItem.id || zoneItem.name} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-black ${zone.badge}`}>
+                  <span key={zoneItem.id || zoneItem.name} className="ws-badge shrink-0 !bg-white">
                     <span className={`h-2 w-2 rounded-full ${zone.dot}`} aria-hidden="true" />
                     {zoneItem.name}
                   </span>
@@ -919,23 +875,18 @@ export default function WaiterTables() {
           )}
 
           {/* Status sections */}
-          <div className="space-y-9">
+          <div className="space-y-8">
             {sections.map(({ status, items }) => {
               const cfg = STATUS_CFG[status]
-              const Icon = cfg.icon
               const availableZoneGroups = status === 'available'
                 ? groupTableInfosByZone(items, visibleZones)
                 : []
               return (
-                <section key={status} className="border-t border-[#E5E7EB] pt-5 first:border-t-0 first:pt-0">
-                  <div className="sticky top-0 z-10 -mx-1 mb-3 flex items-center gap-3 rounded-2xl bg-[#faf9f7]/95 px-1 py-2 backdrop-blur">
-                    <span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${cfg.badge}`}>
-                      <Icon size={18} />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="text-lg font-black uppercase tracking-tight text-[#1F2937]">{statusLabel(lang, status)}</h3>
-                      <p className="text-xs font-semibold text-[#8A94A6]">{tableCountLabel(lang, items.length)}</p>
-                    </div>
+                <section key={status} className="border-t border-[#e4e1de] pt-5 first:border-t-0 first:pt-0">
+                  <div className="sticky top-0 z-10 -mx-1 mb-3 flex items-center gap-2.5 bg-[#f6f5f3]/95 px-1 py-2 backdrop-blur">
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${cfg.dot}`} aria-hidden="true" />
+                    <h3 className="ws-heading min-w-0 truncate">{statusLabel(lang, status)}</h3>
+                    <span className="ws-count">{tableCountLabel(lang, items.length)}</span>
                   </div>
                   {status === 'available' ? (
                     <div className="space-y-6">
@@ -943,12 +894,12 @@ export default function WaiterTables() {
                         const zone = getTableZoneVisual(zoneItem, visibleZones)
                         return (
                           <div key={zoneItem.id || zoneItem.name}>
-                            <div className={`mb-2.5 flex items-center justify-between rounded-xl border px-3 py-2 ${zone.badge}`}>
+                            <div className="mb-2.5 flex items-center justify-between gap-3 px-1">
                               <div className="flex min-w-0 items-center gap-2">
                                 <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${zone.dot}`} aria-hidden="true" />
-                                <h4 className="truncate text-sm font-black uppercase tracking-wide">{zoneItem.name}</h4>
+                                <h4 className="truncate text-[15px] font-semibold text-[#22201d]">{zoneItem.name}</h4>
                               </div>
-                              <span className="shrink-0 text-xs font-bold opacity-75">{tableCountLabel(lang, zoneItems.length)}</span>
+                              <span className="ws-caption shrink-0">{tableCountLabel(lang, zoneItems.length)}</span>
                             </div>
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-5">
                               {zoneItems.map(({ table, status: itemStatus, counts }) => (
@@ -993,11 +944,13 @@ export default function WaiterTables() {
             })}
 
             {sections.length === 0 && (
-              <div className="rounded-2xl border border-[#E5E7EB] bg-white p-10 text-center shadow-sm">
-                <Search size={34} className="mx-auto mb-3 text-gray-200" />
-                <p className="text-sm font-bold text-gray-500">
-                  {lang === 'uz' ? 'Stol topilmadi' : lang === 'ru' ? 'Стол не найден' : 'No tables found'}
-                </p>
+              <div className="ws-panel ws-panel-flush">
+                <div className="ws-empty">
+                  <Search />
+                  <h3>
+                    {lang === 'uz' ? 'Stol topilmadi' : lang === 'ru' ? 'Стол не найден' : 'No tables found'}
+                  </h3>
+                </div>
               </div>
             )}
           </div>

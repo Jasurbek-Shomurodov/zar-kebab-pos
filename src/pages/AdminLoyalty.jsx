@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Search, BadgeDollarSign, Plus, RefreshCw, ChevronLeft, ChevronRight, ArrowLeft, Trash2, X, Copy, Check } from 'lucide-react'
 import AppShell from '../components/AppShell'
+import { Shimmer } from '../components/PageShimmer'
 import { supabase } from '../lib/supabase'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatSignedMoneyInput, normalizeSignedMoneyInput } from '../lib/moneyInput'
@@ -23,9 +24,43 @@ import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatLongDateTime } from '../lib/dateFormat'
 
-const CARD_PAGE_SIZE = 20
+const CARD_PAGE_SIZE = 8
+const TRANSACTION_PAGE_SIZE = 5
 const CARD_SELECT_COLUMNS = 'id, card_number, public_token, customer_name, phone_number, cashback_type, balance, total_earned, total_redeemed, is_active, created_at, updated_at'
 const TRANSACTION_SELECT_COLUMNS = 'id, loyalty_card_id, order_id, type, amount, balance_before, balance_after, reason, created_by, cashback_percent_used, card_type_at_transaction, card_number_at_transaction, customer_name_at_transaction, phone_number_at_transaction, created_at'
+
+// Skeletons shaped like a loaded card row / transaction so paging doesn't jump.
+function CardRowShimmer() {
+  return (
+    <div className="rounded-[10px] border border-[#e4e1de] bg-white p-3">
+      <div className="flex items-center justify-between gap-3">
+        <Shimmer className="h-5 w-24 rounded-md" />
+        <Shimmer className="h-4 w-20 rounded-md" />
+      </div>
+      <Shimmer className="mt-2 h-3.5 w-36 rounded-md" />
+      <Shimmer className="mt-1.5 h-3 w-48 rounded-md" />
+    </div>
+  )
+}
+
+function TransactionShimmer() {
+  return (
+    <div className="rounded-xl border border-[#e4e1de] bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Shimmer className="h-4 w-32 rounded-md" />
+          <Shimmer className="mt-2 h-3 w-24 rounded-md" />
+        </div>
+        <Shimmer className="h-5 w-24 rounded-md" />
+      </div>
+      <Shimmer className="mt-4 h-3 w-52 rounded-md" />
+      <Shimmer className="mt-2.5 h-3.5 w-56 rounded-md" />
+      <div className="mt-4 flex justify-end">
+        <Shimmer className="h-6 w-16 rounded-md" />
+      </div>
+    </div>
+  )
+}
 
 export default function AdminLoyalty() {
   const { state } = useApp()
@@ -41,6 +76,9 @@ export default function AdminLoyalty() {
   const [cards, setCards] = useState([])
   const [selected, setSelected] = useState(null)
   const [transactions, setTransactions] = useState([])
+  const [transactionPage, setTransactionPage] = useState(0)
+  const [totalTransactions, setTotalTransactions] = useState(0)
+  const [loadingTransactions, setLoadingTransactions] = useState(false)
   const [form, setForm] = useState({ card_number: '', customer_name: '', phone_number: '', cashback_type: DEFAULT_CASHBACK_TYPE })
   const [profileForm, setProfileForm] = useState({ customer_name: '', phone_number: '' })
   const [adjustment, setAdjustment] = useState({ amount: '', reason: '' })
@@ -48,11 +86,13 @@ export default function AdminLoyalty() {
   const [confirmDeleteId, setConfirmDeleteId] = useState('')
   const [deletingTransactionId, setDeletingTransactionId] = useState('')
   const [supportsCashbackType, setSupportsCashbackType] = useState(true)
-  const [loadingCards, setLoadingCards] = useState(false)
+  const [loadingCards, setLoadingCards] = useState(true)
   const [cardPage, setCardPage] = useState(0)
   const [totalCards, setTotalCards] = useState(0)
   const [copiedCardNumber, setCopiedCardNumber] = useState('')
   const cardSearchRequestRef = useRef(0)
+  const transactionRequestRef = useRef(0)
+  const transactionListTopRef = useRef(null)
   const copiedFeedbackTimeoutRef = useRef(null)
   const cardListTopRef = useRef(null)
 
@@ -331,8 +371,8 @@ export default function AdminLoyalty() {
   function transactionAmountClass(tx) {
     const signedAmount = Number(tx.amount) || 0
     return signedAmount > 0 || (signedAmount === 0 && (tx.type === 'cashback_earned' || tx.type === 'manual_adjustment' && Number(tx.balance_after) >= Number(tx.balance_before)))
-      ? 'text-[#16A34A]'
-      : 'text-[#DC2626]'
+      ? 'text-[#1d7a52]'
+      : 'text-[#c4262c]'
   }
 
   function transactionDescription(tx) {
@@ -393,25 +433,51 @@ export default function AdminLoyalty() {
     if (loaded) cardListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  async function loadTransactions(card) {
+  async function loadTransactions(card, { page = 0 } = {}) {
+    const requestId = transactionRequestRef.current + 1
+    transactionRequestRef.current = requestId
+    if (selected?.id !== card.id) {
+      setTransactions([])
+      setTotalTransactions(0)
+      setTransactionPage(0)
+    }
     setSelected(card)
     setConfirmDeleteId('')
     setProfileForm({
       customer_name: card.customer_name || '',
       phone_number: card.phone_number || '',
     })
-    const { data, error } = await supabase
+    setLoadingTransactions(true)
+    const nextPage = Math.max(0, page)
+    const from = nextPage * TRANSACTION_PAGE_SIZE
+    const { data, error, count } = await supabase
       .from('loyalty_transactions')
-      .select(TRANSACTION_SELECT_COLUMNS)
+      .select(TRANSACTION_SELECT_COLUMNS, { count: 'exact' })
       .eq('loyalty_card_id', card.id)
       .order('created_at', { ascending: false })
-      .limit(50)
+      .order('id', { ascending: false })
+      .range(from, from + TRANSACTION_PAGE_SIZE - 1)
+    if (requestId !== transactionRequestRef.current) return
+    setLoadingTransactions(false)
     if (error) {
       setMessage(error.message)
       setTransactions([])
       return
     }
+    const total = count ?? (data || []).length
+    const lastPage = Math.max(0, Math.ceil(total / TRANSACTION_PAGE_SIZE) - 1)
+    // A delete can empty the last page; step back to the new last page.
+    if (nextPage > lastPage) return loadTransactions(card, { page: lastPage })
     setTransactions(data || [])
+    setTransactionPage(nextPage)
+    setTotalTransactions(total)
+    return true
+  }
+
+  async function goToTransactionPage(page) {
+    if (!selected || loadingTransactions || page === transactionPage || page < 0 || page >= Math.ceil(totalTransactions / TRANSACTION_PAGE_SIZE)) return
+    const loaded = await loadTransactions(selected, { page })
+    if (loaded) transactionListTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   async function createCard() {
@@ -478,6 +544,8 @@ export default function AdminLoyalty() {
     }
     setSelected(null)
     setTransactions([])
+    setTotalTransactions(0)
+    setTransactionPage(0)
     setConfirmDeleteId('')
     setMessage('')
     const nextPage = cards.length === 1 && cardPage > 0 ? cardPage - 1 : cardPage
@@ -588,7 +656,7 @@ export default function AdminLoyalty() {
     setCards(prev => prev.map(row => row.id === nextCard.id ? nextCard : row))
     setSelected(nextCard)
     setConfirmDeleteId('')
-    loadTransactions(nextCard)
+    loadTransactions(nextCard, { page: transactionPage })
   }
 
   useEffect(() => {
@@ -606,83 +674,88 @@ export default function AdminLoyalty() {
     { length: Math.min(5, totalCardPages) },
     (_, index) => firstVisibleCardPage + index,
   )
+  const totalTransactionPages = Math.ceil(totalTransactions / TRANSACTION_PAGE_SIZE)
+  const firstVisibleTransactionPage = Math.max(0, Math.min(transactionPage - 2, totalTransactionPages - 5))
+  const visibleTransactionPages = Array.from(
+    { length: Math.min(5, totalTransactionPages) },
+    (_, index) => firstVisibleTransactionPage + index,
+  )
 
   return (
-    <AppShell title={selected ? l.detailsTitle : l.title}>
-      <div className="w-full max-w-full overflow-x-hidden p-4 md:p-6">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="hidden md:block">
-            <h1 className="text-2xl font-black text-[#1F2937]">{l.title}</h1>
-            <p className="text-sm font-semibold text-[#6B7280]">{l.subtitle}</p>
-          </div>
-          <button onClick={() => searchCards(query, { page: cardPage })} disabled={loadingCards} className="flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 py-2 text-sm font-black text-[#1F2937] disabled:opacity-60">
-            <RefreshCw size={15} className={loadingCards ? 'animate-spin' : ''} /> {l.refresh}
-          </button>
-        </div>
+    <AppShell
+      title={selected ? l.detailsTitle : l.title}
+      headerActions={(
+        <button type="button" onClick={() => searchCards(query, { page: cardPage })} disabled={loadingCards} aria-label={l.refresh} className="ws-btn ws-btn-outline !h-[38px]">
+          <RefreshCw size={16} className={loadingCards ? 'animate-spin' : ''} /><span className="hidden sm:inline">{l.refresh}</span>
+        </button>
+      )}
+    >
+      <div className="min-h-full w-full max-w-full overflow-x-hidden bg-[#f6f5f3]">
+        <div className="ws-page">
+        {message && <div className="ws-notice ws-tone-caution">{message}</div>}
 
-        {message && <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">{message}</div>}
-
-        <div className="grid max-w-full gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
-          <section className={`${selected ? 'hidden lg:block' : ''} rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm md:p-5`}>
-            <h2 className="mb-3 text-sm font-black text-[#1F2937]">{l.createTitle}</h2>
+        <div className="grid max-w-full gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
+          <section className={`${selected ? 'hidden lg:block' : ''} ws-panel self-start`}>
+            <h2 className="ws-heading mb-4">{l.createTitle}</h2>
             <div className="space-y-2">
-              <input value={form.card_number} onChange={e => setForm({ ...form, card_number: String(e.target.value || '').replace(/\D/g, '').slice(0, 8) })} placeholder={l.cardNumber} inputMode="numeric" maxLength={8} className="w-full rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-semibold" />
-              <input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} placeholder={l.customerName} className="w-full rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-semibold" />
-              <input value={form.phone_number} onChange={e => setForm({ ...form, phone_number: formatUzPhoneNumberInput(e.target.value) })} placeholder="+998 91 132 32 32" className="w-full rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-semibold" />
-              <select value={form.cashback_type} onChange={e => setForm({ ...form, cashback_type: e.target.value })} disabled={!canCreate} className="w-full rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-semibold disabled:bg-gray-50 disabled:text-[#9CA3AF]">
+              <input value={form.card_number} onChange={e => setForm({ ...form, card_number: String(e.target.value || '').replace(/\D/g, '').slice(0, 8) })} placeholder={l.cardNumber} inputMode="numeric" maxLength={8} className="ws-input" />
+              <input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} placeholder={l.customerName} className="ws-input" />
+              <input value={form.phone_number} onChange={e => setForm({ ...form, phone_number: formatUzPhoneNumberInput(e.target.value) })} placeholder="+998 91 132 32 32" className="ws-input" />
+              <select value={form.cashback_type} onChange={e => setForm({ ...form, cashback_type: e.target.value })} disabled={!canCreate} className="ws-input disabled:bg-[#efece9] disabled:text-[#68655f]">
                 {Object.entries(CASHBACK_TYPES).map(([key, config]) => (
                   <option key={key} value={key}>{config.label} · {config.percent}%</option>
                 ))}
               </select>
-              <button onClick={createCard} disabled={!canCreate} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff5a00] px-4 py-3 text-sm font-black text-white disabled:bg-gray-200 disabled:text-[#9CA3AF]">
+              <button onClick={createCard} disabled={!canCreate} className="ws-btn ws-btn-primary w-full">
                 <Plus size={16} /> {l.createCard}
               </button>
-              {!canCreate && <p className="text-xs font-bold text-[#9CA3AF]">{l.ownerOnly}</p>}
+              {!canCreate && <p className="ws-caption">{l.ownerOnly}</p>}
             </div>
 
             <div ref={cardListTopRef} className="mt-5 scroll-mt-4">
-              <div className="mb-3 flex items-center gap-2 rounded-xl border border-[#E5E7EB] px-3 py-2">
-                <Search size={15} className="text-[#9CA3AF]" />
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder={l.searchPlaceholder} className="min-w-0 flex-1 text-sm font-semibold outline-none" />
+              <div className="relative mb-3">
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
+                <input value={query} onChange={e => setQuery(e.target.value)} placeholder={l.searchPlaceholder} className="ws-input !pl-9" />
               </div>
-              <div className="space-y-2">
-                {cards.map(card => {
+              <div className="space-y-2" aria-busy={loadingCards}>
+                {loadingCards && Array.from({ length: cards.length || CARD_PAGE_SIZE }, (_, index) => <CardRowShimmer key={index} />)}
+                {!loadingCards && cards.map(card => {
                   const isCopied = copiedCardNumber === String(card.card_number)
                   return (
-                    <div key={card.id} className={`relative w-full rounded-xl border p-3 ${selected?.id === card.id ? 'border-[#ff5a00] bg-[#fff7f2]' : 'border-[#E5E7EB] bg-white'}`}>
+                    <div key={card.id} className={`relative w-full rounded-[10px] border p-3 transition-colors ${selected?.id === card.id ? 'border-[#ff5a00] bg-[#fff1e8]' : 'border-[#e4e1de] bg-white hover:bg-[#f6f5f3]'}`}>
                       <button
                         type="button"
                         onClick={() => loadTransactions(card)}
                         aria-label={`${card.card_number}, ${card.customer_name || l.unnamedCustomer}`}
-                        className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00] focus-visible:ring-offset-1"
+                        className="absolute inset-0 rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00] focus-visible:ring-offset-1"
                       />
                       <div className="pointer-events-none relative flex items-center justify-between gap-3">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-black text-[#1F2937]">{card.card_number}</span>
+                          <span className="font-semibold tabular-nums text-[#22201d]">{card.card_number}</span>
                           <button
                             type="button"
                             onClick={() => copyCardNumber(card.card_number)}
                             aria-label={isCopied ? l.cardNumberCopied : `${l.copyCardNumber} ${card.card_number}`}
                             title={isCopied ? l.cardNumberCopied : l.copyCardNumber}
-                            className={`pointer-events-auto relative z-10 flex h-7 w-7 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00] ${isCopied ? 'bg-emerald-50 text-emerald-600' : 'text-[#9CA3AF] hover:bg-gray-100 hover:text-[#1F2937]'}`}
+                            className={`pointer-events-auto relative z-10 flex h-7 w-7 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00] ${isCopied ? 'bg-[#1d7a52]/10 text-[#1d7a52]' : 'text-[#68655f] hover:bg-[#ebe8e5] hover:text-[#22201d]'}`}
                           >
                             {isCopied ? <Check size={15} strokeWidth={3} /> : <Copy size={14} />}
                           </button>
                         </div>
-                        <span className="text-sm font-black text-[#16A34A]">{formatCurrency(card.balance || 0)}</span>
+                        <span className="text-sm font-semibold tabular-nums text-[#1d7a52]">{formatCurrency(card.balance || 0)}</span>
                       </div>
                       <div className="pointer-events-none relative mt-1 flex min-w-0 items-end justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold text-[#6B7280]">{card.customer_name || l.unnamedCustomer} · {statusLabel(card)}</p>
-                          <p className="mt-1 truncate text-xs font-bold text-[#9CA3AF]">{card.phone_number || l.noPhoneNumber} · {cashbackTypeLabel(card.cashback_type)}</p>
+                          <p className="truncate text-[13px] text-[#22201d]">{card.customer_name || l.unnamedCustomer} · {statusLabel(card)}</p>
+                          <p className="ws-caption mt-0.5 truncate">{card.phone_number || l.noPhoneNumber} · {cashbackTypeLabel(card.cashback_type)}</p>
                         </div>
-                        <ChevronRight size={16} className="flex-shrink-0 text-[#9CA3AF] lg:hidden" />
+                        <ChevronRight size={16} className="flex-shrink-0 text-[#68655f] lg:hidden" />
                       </div>
                     </div>
                   )
                 })}
                 {!loadingCards && cards.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white p-5 text-center text-sm font-bold text-[#6B7280]">
+                  <div className="ws-empty">
                     {l.noCards}
                   </div>
                 )}
@@ -694,7 +767,7 @@ export default function AdminLoyalty() {
                       disabled={loadingCards || cardPage === 0}
                       aria-label={l.previousPage}
                       title={l.previousPage}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#1F2937] disabled:cursor-not-allowed disabled:opacity-35"
+                      className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
                     >
                       <ChevronLeft size={17} />
                     </button>
@@ -706,7 +779,7 @@ export default function AdminLoyalty() {
                         disabled={loadingCards}
                         aria-label={`${l.page} ${page + 1}`}
                         aria-current={page === cardPage ? 'page' : undefined}
-                        className={`h-9 min-w-9 rounded-lg px-2 text-sm font-black transition-colors ${page === cardPage ? 'bg-[#ff5a00] text-white' : 'border border-[#E5E7EB] bg-white text-[#1F2937] hover:border-[#ff5a00] hover:text-[#ff5a00]'} disabled:opacity-50`}
+                        className={`ws-btn ws-btn-sm min-w-[34px] !px-2 tabular-nums ${page === cardPage ? 'ws-btn-primary' : 'ws-btn-ghost'}`}
                       >
                         {page + 1}
                       </button>
@@ -717,7 +790,7 @@ export default function AdminLoyalty() {
                       disabled={loadingCards || cardPage >= totalCardPages - 1}
                       aria-label={l.nextPage}
                       title={l.nextPage}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#1F2937] disabled:cursor-not-allowed disabled:opacity-35"
+                      className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
                     >
                       <ChevronRight size={17} />
                     </button>
@@ -727,112 +800,113 @@ export default function AdminLoyalty() {
             </div>
           </section>
 
-          <section className={`${selected ? '' : 'hidden lg:block'} min-w-0 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm md:p-5`}>
+          <section className={`${selected ? '' : 'hidden lg:block'} ws-panel min-w-0`}>
             {selected ? (
               <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(320px,430px)_minmax(0,1fr)]">
                 <div className="xl:col-span-2 lg:hidden">
-                  <button onClick={() => setSelected(null)} className="mb-3 flex items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-sm font-black text-[#1F2937]">
+                  <button onClick={() => setSelected(null)} className="ws-btn ws-btn-outline ws-btn-sm mb-1">
                     <ArrowLeft size={16} /> {l.back}
                   </button>
                 </div>
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-[#E5E7EB] bg-[#FBFCFE] p-5">
+                  <div className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-xs font-black uppercase tracking-widest text-[#9CA3AF]">{l.profileTitle}</p>
-                        <h2 className="mt-2 truncate text-2xl font-black text-[#1F2937]">{selectedName(selected)}</h2>
-                        <p className="mt-1 text-sm font-semibold text-[#6B7280]">{selectedPhone(selected)} · {l.cardNo}: {selected.card_number}</p>
+                        <p className="ws-caption font-medium">{l.profileTitle}</p>
+                        <h2 className="ws-display mt-1 truncate">{selectedName(selected)}</h2>
+                        <p className="ws-muted mt-1">{selectedPhone(selected)} · {l.cardNo}: {selected.card_number}</p>
                       </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-black ${selected.is_active === false ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                      <span className={`ws-status ${selected.is_active === false ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
                         {statusLabel(selected)}
                       </span>
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
-                      <p className="text-xs font-black uppercase tracking-widest text-[#9CA3AF]">{l.customerName}</p>
+                    <div className="mt-4 rounded-xl border border-[#e4e1de] bg-white p-4">
+                      <p className="ws-caption font-medium">{l.customerName}</p>
                       {canEdit ? (
                         <div className="mt-3 grid gap-2">
-                          <input value={profileForm.customer_name} onChange={e => setProfileForm({ ...profileForm, customer_name: e.target.value })} placeholder={l.noCustomerName} className="w-full rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-semibold" />
-                          <input value={profileForm.phone_number} onChange={e => setProfileForm({ ...profileForm, phone_number: formatUzPhoneNumberInput(e.target.value) })} placeholder="+998 91 132 32 32" className="w-full rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-semibold" />
-                          <button onClick={updateCustomerProfile} className="rounded-xl bg-[#1F2937] px-4 py-2.5 text-sm font-black text-white">{l.saveCustomer}</button>
+                          <input value={profileForm.customer_name} onChange={e => setProfileForm({ ...profileForm, customer_name: e.target.value })} placeholder={l.noCustomerName} className="ws-input" />
+                          <input value={profileForm.phone_number} onChange={e => setProfileForm({ ...profileForm, phone_number: formatUzPhoneNumberInput(e.target.value) })} placeholder="+998 91 132 32 32" className="ws-input" />
+                          <button onClick={updateCustomerProfile} className="ws-btn ws-btn-outline">{l.saveCustomer}</button>
                         </div>
                       ) : (
                         <div className="mt-3 space-y-1">
-                          <p className="text-sm font-black text-[#1F2937]">{selectedName(selected)}</p>
-                          <p className="text-sm font-semibold text-[#6B7280]">{selectedPhone(selected)}</p>
+                          <p className="text-sm font-semibold text-[#22201d]">{selectedName(selected)}</p>
+                          <p className="ws-muted">{selectedPhone(selected)}</p>
                         </div>
                       )}
-                      <p className="mt-3 text-xs font-bold text-[#9CA3AF]">{l.cardNo}: {selected.card_number}</p>
+                      <p className="ws-caption mt-3">{l.cardNo}: {selected.card_number}</p>
                     </div>
 
-                    <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4">
-                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700">{l.balance}</p>
-                      <p className="mt-1 text-4xl font-black text-[#16A34A]">{formatCurrency(selected.balance || 0)}</p>
+                    <div className="mt-4 rounded-xl border border-[#e4e1de] bg-white px-4 py-4">
+                      <p className="ws-caption font-medium">{l.balance}</p>
+                      <p className="mt-1 text-[clamp(26px,2.4vw,32px)] font-semibold tracking-[-.02em] tabular-nums text-[#1d7a52]">{formatCurrency(selected.balance || 0)}</p>
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
+                    <div className="mt-4 rounded-xl border border-[#e4e1de] bg-white p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-xs font-black uppercase tracking-widest text-[#9CA3AF]">{l.cashbackType}</p>
-                          <p className="mt-1 text-sm font-black text-[#1F2937]">{cashbackTypeLabel(selected.cashback_type)}</p>
+                          <p className="ws-caption font-medium">{l.cashbackType}</p>
+                          <p className="mt-1 text-sm font-semibold text-[#22201d]">{cashbackTypeLabel(selected.cashback_type)}</p>
                         </div>
-                        <span className="rounded-full bg-[#fff1e8] px-3 py-1 text-xs font-black text-[#ff5a00]">{l.cashbackRate}: {getCashbackTypePercent(selected.cashback_type || DEFAULT_CASHBACK_TYPE)}%</span>
+                        <span className="ws-badge ws-tone-accent">{l.cashbackRate}: {getCashbackTypePercent(selected.cashback_type || DEFAULT_CASHBACK_TYPE)}%</span>
                       </div>
-                      <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-xs font-bold text-[#6B7280]">{l.ownerTypeOnly}</p>
+                      <p className="ws-caption mt-3 rounded-lg bg-[#efece9] px-3 py-2">{l.ownerTypeOnly}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl bg-gray-50 p-4"><p className="text-xs font-bold text-[#6B7280]">{l.totalEarned}</p><p className="mt-1 font-black text-[#1F2937]">{formatCurrency(selected.total_earned || 0)}</p></div>
-                    <div className="rounded-2xl bg-gray-50 p-4"><p className="text-xs font-bold text-[#6B7280]">{l.totalUsed}</p><p className="mt-1 font-black text-[#1F2937]">{formatCurrency(selected.total_redeemed || 0)}</p></div>
-                    <div className="rounded-2xl bg-gray-50 p-4"><p className="text-xs font-bold text-[#6B7280]">{l.status}</p><p className="mt-1 font-black text-[#1F2937]">{statusLabel(selected)}</p></div>
-                    <div className="rounded-2xl bg-gray-50 p-4"><p className="text-xs font-bold text-[#6B7280]">{l.cashbackType}</p><p className="mt-1 font-black text-[#1F2937]">{cashbackTypeLabel(selected.cashback_type)}</p></div>
+                    <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.totalEarned}</p><p className="mt-1 font-semibold tabular-nums text-[#22201d]">{formatCurrency(selected.total_earned || 0)}</p></div>
+                    <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.totalUsed}</p><p className="mt-1 font-semibold tabular-nums text-[#22201d]">{formatCurrency(selected.total_redeemed || 0)}</p></div>
+                    <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.status}</p><p className="mt-1 font-semibold tabular-nums text-[#22201d]">{statusLabel(selected)}</p></div>
+                    <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.cashbackType}</p><p className="mt-1 font-semibold tabular-nums text-[#22201d]">{cashbackTypeLabel(selected.cashback_type)}</p></div>
                   </div>
 
-                  <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
+                  <div className="rounded-xl border border-[#e4e1de] bg-white p-4">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="flex items-center gap-2 text-sm font-black text-[#1F2937]"><BadgeDollarSign size={16} /> {l.ownerActions}</h3>
-                        <p className="mt-1 text-xs font-bold text-[#6B7280]">{l.manualAdjustment}</p>
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-[#22201d]"><BadgeDollarSign size={16} /> {l.ownerActions}</h3>
+                        <p className="ws-caption mt-1">{l.manualAdjustment}</p>
                       </div>
-                      <button onClick={() => removeCard(selected)} disabled={!canRemoveCard} className="flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-xs font-black text-red-600 disabled:opacity-40">
+                      <button onClick={() => removeCard(selected)} disabled={!canRemoveCard} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm">
                         <Trash2 size={14} /> {confirmDeleteId === `card:${selected.id}` ? l.confirmRemoveCard : l.removeCard}
                       </button>
                     </div>
-                    {canRemoveCard && <p className="mb-3 text-xs font-semibold text-red-500">{l.removeCardHelp}</p>}
-                    <p className="mb-3 text-xs font-semibold text-[#9CA3AF]">{canAdjust ? l.adjustmentHelper : l.ownerAdjustOnly}</p>
+                    {canRemoveCard && <p className="ws-caption mb-3 !text-[#c4262c]">{l.removeCardHelp}</p>}
+                    <p className="ws-caption mb-3">{canAdjust ? l.adjustmentHelper : l.ownerAdjustOnly}</p>
                     <div className="grid gap-2">
-                      <input type="text" value={formatSignedMoneyInput(adjustment.amount)} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, amount: normalizeSignedMoneyInput(e.target.value) })} placeholder={l.amountPlaceholder} className="rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-semibold disabled:bg-gray-50" />
-                      <input value={adjustment.reason} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, reason: e.target.value })} placeholder={l.reason} className="rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm font-semibold disabled:bg-gray-50" />
-                      <button onClick={adjustBalance} disabled={!canAdjust} className="rounded-xl bg-[#0f3b2e] px-4 py-2.5 text-sm font-black text-white disabled:bg-gray-200 disabled:text-[#9CA3AF]">{l.apply}</button>
+                      <input type="text" value={formatSignedMoneyInput(adjustment.amount)} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, amount: normalizeSignedMoneyInput(e.target.value) })} placeholder={l.amountPlaceholder} className="ws-input disabled:bg-[#efece9]" />
+                      <input value={adjustment.reason} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, reason: e.target.value })} placeholder={l.reason} className="ws-input disabled:bg-[#efece9]" />
+                      <button onClick={adjustBalance} disabled={!canAdjust} className="ws-btn ws-btn-primary">{l.apply}</button>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-[#E5E7EB] bg-[#FBFCFE] p-5">
+                <div ref={transactionListTopRef} className="scroll-mt-4 rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-5">
                   <div className="mb-4">
-                    <h3 className="text-base font-black text-[#1F2937]">{l.transactionHistory}</h3>
-                    <p className="mt-1 text-xs font-bold text-[#9CA3AF]">{canDeleteTransactions ? l.latestTransactions : l.ownerDeleteOnly}</p>
+                    <h3 className="ws-heading">{l.transactionHistory}</h3>
+                    <p className="ws-caption mt-1">{canDeleteTransactions ? l.latestTransactions : l.ownerDeleteOnly}</p>
                   </div>
-                  <div className="space-y-3">
-                    {transactions.map(tx => (
-                      <div key={tx.id} className="rounded-2xl border border-[#E5E7EB] bg-white p-4 text-sm">
+                  <div className="space-y-3" aria-busy={loadingTransactions}>
+                    {loadingTransactions && Array.from({ length: transactions.length || TRANSACTION_PAGE_SIZE }, (_, index) => <TransactionShimmer key={index} />)}
+                    {!loadingTransactions && transactions.map(tx => (
+                      <div key={tx.id} className="rounded-xl border border-[#e4e1de] bg-white p-4 text-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="font-black text-[#1F2937]">{transactionTypeLabel(tx.type)}</p>
-                            <p className="mt-1 text-xs font-semibold text-[#6B7280]">{transactionDescription(tx)}</p>
+                            <p className="font-semibold text-[#22201d]">{transactionTypeLabel(tx.type)}</p>
+                            <p className="ws-caption mt-1">{transactionDescription(tx)}</p>
                           </div>
-                          <p className={`text-base font-black ${transactionAmountClass(tx)}`}>{transactionAmount(tx)}</p>
+                          <p className={`text-base font-semibold tabular-nums ${transactionAmountClass(tx)}`}>{transactionAmount(tx)}</p>
                         </div>
                         {tx.type === 'cashback_earned' && (
-                          <p className="mt-3 text-xs font-bold text-[#92400E]">{transactionCardType(tx)}</p>
+                          <p className="ws-caption mt-3 !text-[#9a5a00]">{transactionCardType(tx)}</p>
                         )}
-                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-[#6B7280]">
+                        <div className="ws-caption mt-2 flex flex-wrap gap-x-3 gap-y-1">
                           {tx.order_id && <span>{l.orderPrefix} #{tx.order_id}</span>}
                           {tx.created_at && <span>{formatTransactionDate(tx.created_at)}</span>}
                         </div>
                         {tx.balance_before != null && tx.balance_after != null && (
-                          <p className="mt-2 text-xs font-bold text-[#1F2937]">{l.balanceFlow}: {formatCurrency(tx.balance_before)} -&gt; {formatCurrency(tx.balance_after)}</p>
+                          <p className="mt-2 text-[13px] font-medium tabular-nums text-[#22201d]">{l.balanceFlow}: {formatCurrency(tx.balance_before)} -&gt; {formatCurrency(tx.balance_after)}</p>
                         )}
                         {canDeleteTransactions && (
                           <div className="mt-3 flex flex-wrap justify-end gap-2">
@@ -840,7 +914,7 @@ export default function AdminLoyalty() {
                               <button
                                 type="button"
                                 onClick={() => setConfirmDeleteId('')}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-black text-[#6B7280]"
+                                className="ws-btn ws-btn-outline ws-btn-sm"
                               >
                                 <X size={13} /> {l.cancel}
                               </button>
@@ -849,11 +923,7 @@ export default function AdminLoyalty() {
                               type="button"
                               onClick={() => deleteTransaction(tx)}
                               disabled={deletingTransactionId === tx.id}
-                              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black ${
-                                confirmDeleteId === tx.id
-                                  ? 'bg-red-600 text-white'
-                                  : 'border border-red-200 bg-red-50 text-red-600'
-                              } disabled:opacity-60`}
+                              className={`ws-btn ws-btn-sm ${confirmDeleteId === tx.id ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'}`}
                             >
                               <Trash2 size={13} />
                               {deletingTransactionId === tx.id
@@ -864,22 +934,58 @@ export default function AdminLoyalty() {
                         )}
                       </div>
                     ))}
-                    {transactions.length === 0 && (
-                      <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white p-6 text-center text-sm font-semibold text-[#6B7280]">{l.noTransactions}</div>
+                    {!loadingTransactions && transactions.length === 0 && (
+                      <div className="ws-empty rounded-xl border border-dashed border-[#e4e1de] bg-white">{l.noTransactions}</div>
+                    )}
+                    {totalTransactionPages > 1 && (
+                      <nav className="flex items-center justify-center gap-1 pt-1" aria-label={l.page}>
+                        <button
+                          type="button"
+                          onClick={() => goToTransactionPage(transactionPage - 1)}
+                          disabled={loadingTransactions || transactionPage === 0}
+                          aria-label={l.previousPage}
+                          title={l.previousPage}
+                          className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
+                        >
+                          <ChevronLeft size={17} />
+                        </button>
+                        {visibleTransactionPages.map(page => (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => goToTransactionPage(page)}
+                            disabled={loadingTransactions}
+                            aria-label={`${l.page} ${page + 1}`}
+                            aria-current={page === transactionPage ? 'page' : undefined}
+                            className={`ws-btn ws-btn-sm min-w-[34px] !px-2 tabular-nums ${page === transactionPage ? 'ws-btn-primary' : 'ws-btn-ghost'}`}
+                          >
+                            {page + 1}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => goToTransactionPage(transactionPage + 1)}
+                          disabled={loadingTransactions || transactionPage >= totalTransactionPages - 1}
+                          aria-label={l.nextPage}
+                          title={l.nextPage}
+                          className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
+                        >
+                          <ChevronRight size={17} />
+                        </button>
+                      </nav>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="flex min-h-[420px] items-center justify-center text-center">
-                <div>
-                  <BadgeDollarSign size={40} className="mx-auto mb-3 text-[#ff5a00]" />
-                  <p className="font-black text-[#1F2937]">{l.selectCard}</p>
-                  <p className="text-sm font-semibold text-[#6B7280]">{l.selectCardSub}</p>
-                </div>
+              <div className="ws-empty flex min-h-[420px] content-center">
+                <BadgeDollarSign />
+                <h3>{l.selectCard}</h3>
+                <p>{l.selectCardSub}</p>
               </div>
             )}
           </section>
+        </div>
         </div>
       </div>
     </AppShell>

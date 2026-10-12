@@ -2,7 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import { loadAccountingAllTimeBalance, loadAccountingPaidOrderSummary } from '../src/lib/accountingSummary.js'
+import {
+  isMissingAccountingMonthlyCashflowRpc,
+  loadAccountingAllTimeBalance,
+  loadAccountingMonthlyCashflow,
+  loadAccountingPaidOrderSummary,
+} from '../src/lib/accountingSummary.js'
 
 const migration = readFileSync(
   new URL('../migrations/109_accounting_paid_order_summary.sql', import.meta.url),
@@ -96,4 +101,43 @@ test('Accounting freezes legacy costs and never joins current menu costs for his
   assert.match(immutableSnapshotsMigration, /greatest\(0, sold_item\.cost_price::numeric\)/)
   assert.doesNotMatch(immutableSnapshotsMigration, /left join public\.menu_item_costs/)
   assert.match(immutableSnapshotsMigration, /coalesce\(orders\.total, 0\)/)
+})
+
+const monthlyCashflowMigration = readFileSync(
+  new URL('../migrations/229_accounting_monthly_cashflow.sql', import.meta.url),
+  'utf8'
+)
+
+test('monthly cash flow loader caps the month count and normalizes one aggregate', async () => {
+  const calls = []
+  const dbClient = {
+    rpc(name, args) {
+      calls.push({ name, args })
+      return Promise.resolve({
+        data: {
+          months: [{ month_start: '2026-10-01', cafe_income: '120', order_count: 3, sales_cost: '40', investor_support: 0, other_income: 5, spent: '90', salaries: 50 }],
+          totals: { investor_support: '1000', operating_cash: '-25', first_order_month: '2026-06-01', first_investment_month: null },
+        },
+        error: null,
+      })
+    },
+  }
+  const result = await loadAccountingMonthlyCashflow(99, { dbClient })
+  assert.deepEqual(calls, [{ name: 'get_accounting_monthly_cashflow', args: { p_month_count: 36 } }])
+  assert.deepEqual(result.months[0], { monthStart: '2026-10-01', cafeIncome: 120, orderCount: 3, salesCost: 40, investorSupport: 0, otherIncome: 5, spent: 90, salaries: 50 })
+  assert.deepEqual(result.totals, { investorSupport: 1000, operatingCash: -25, firstOrderMonth: '2026-06', firstInvestmentMonth: null })
+  assert.equal(isMissingAccountingMonthlyCashflowRpc({ code: 'PGRST202' }), true)
+  assert.equal(isMissingAccountingMonthlyCashflowRpc({ code: '42501', message: 'Accounting access is required' }), false)
+})
+
+test('monthly cash flow aggregates in SQL with Accounting access and the balance rules', () => {
+  assert.match(monthlyCashflowMigration, /current_staff_can_access\('expenses'\)/)
+  assert.match(monthlyCashflowMigration, /coalesce\(o\.paid_at, o\.created_at\)/)
+  assert.match(monthlyCashflowMigration, /'Asia\/Tashkent'/)
+  assert.match(monthlyCashflowMigration, /b\.accrues_to_salary is not true/)
+  assert.match(monthlyCashflowMigration, /public\.employee_daily_meal_expenses/)
+  assert.match(monthlyCashflowMigration, /category = 'investor_support'/)
+  assert.doesNotMatch(monthlyCashflowMigration, /employee_salary_rates|employee_salary_fines/)
+  assert.match(monthlyCashflowMigration, /revoke all on function public\.get_accounting_monthly_cashflow\(integer\)\s+from public, anon, authenticated/)
+  assert.match(monthlyCashflowMigration, /grant execute on function public\.get_accounting_monthly_cashflow\(integer\)\s+to authenticated/)
 })

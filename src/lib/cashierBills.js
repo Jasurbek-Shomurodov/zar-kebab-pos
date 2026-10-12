@@ -29,6 +29,16 @@ export function isCashierVisibleBill(order) {
   return getOrderPaymentSummary(order, billableItems, order.service_rate_pct).total > 0
 }
 
+// One cashier bill per table for dine-in; take-away/delivery stay one bill per order.
+export function cashierBillKey(order) {
+  return isOffPremiseBill(order) || !order?.table_id ? `order:${order?.id}` : `table:${order.table_id}`
+}
+
+/** Bills waiting on the cashier, counted the same way the Cashier page groups them. */
+export function countCashierAttentionBills(orders = []) {
+  return new Set(orders.filter(isCashierVisibleBill).map(cashierBillKey)).size
+}
+
 // Recovery candidates only; empty shells must never become payable bills.
 export function getEmptyCashierOrders(orders = [], { tableId, orderId } = {}) {
   if (!tableId && !orderId) return []

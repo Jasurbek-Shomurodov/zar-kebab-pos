@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Receipt, CreditCard, Menu as MenuIcon, Clock, Users, Search,
+  Receipt, CreditCard, Clock, Users, Search,
   ChevronDown, Table2, Banknote, Monitor,
   UtensilsCrossed, ArrowUpDown, X, HelpCircle, Trash2, RotateCcw, Plus,
 } from 'lucide-react'
@@ -21,8 +21,10 @@ import {
   toLocalDateStr,
 } from '../lib/analytics'
 import { getOrderItemUnitPrice, getPriceModeLabel, normalizePriceMode } from '../lib/priceModes'
-import { getCashierBillableItems, isCashierVisibleBill, isTakeAwayBill } from '../lib/cashierBills'
+import { cashierBillKey, getCashierBillableItems, isCashierVisibleBill, isTakeAwayBill } from '../lib/cashierBills'
 import UnifiedSidebar from '../components/UnifiedSidebar'
+import MobileDrawer from '../components/MobileDrawer'
+import WorkspaceTopBar from '../components/WorkspaceTopBar'
 import { inferOrderType, isDeliveryOrderType, isOffPremiseOrderType, orderTypeLabel } from '../lib/orderTypes'
 import { getItemName } from '../lib/i18n'
 import { getQuickItemSortOrder, isActiveMenuItem, isCashierQuickItem } from '../lib/menuItems'
@@ -67,6 +69,8 @@ const L = {
     activeBills:     'Faol hisoblar',
     needsBill:       'Hisob kerak',
     paidToday:       "Bugun to'langan",
+    attentionBills:  'hisob kassirni kutmoqda',
+    billsTab:        'Hisoblar',
     payMethods:      "Bugungi to'lov usullari",
     tables:          'stol',
     waitingPay:      "To'lovni kutmoqda",
@@ -117,6 +121,8 @@ const L = {
     activeBills:     'Активные счета',
     needsBill:       'Нужен счёт',
     paidToday:       'Оплачено сегодня',
+    attentionBills:  'счетов ждут кассира',
+    billsTab:        'Счета',
     payMethods:      'Способы оплаты сегодня',
     tables:          'столов',
     waitingPay:      'Ожидают оплаты',
@@ -166,6 +172,8 @@ const L = {
     activeBills:     'Active Bills',
     needsBill:       'Needs Bill',
     paidToday:       'Paid Today',
+    attentionBills:  'bills waiting for the cashier',
+    billsTab:        'Bills',
     payMethods:      'Payment Methods Today',
     tables:          'tables',
     waitingPay:      'Waiting for payment',
@@ -248,21 +256,6 @@ const SORT_OPTIONS = (l) => [
 ]
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, sub, accent, icon: Icon, iconBg, iconColor }) {
-  return (
-    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-          <Icon size={18} className={iconColor} />
-        </div>
-      </div>
-      <p className={`font-black text-2xl leading-none mb-1 ${accent}`}>{value}</p>
-      <p className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">{label}</p>
-      {sub && <p className="text-[11px] text-[#9CA3AF] mt-0.5">{sub}</p>}
-    </div>
-  )
-}
 
 function TableStatusBadge({ status, lang }) {
   const l = L[lang] || L.en
@@ -527,7 +520,7 @@ function BillsSection({ title, count, icon: Icon, tone, children }) {
 
   return (
     <section className="mb-8 border-t border-[#E5E7EB] pt-5 first:border-t-0 first:pt-0">
-      <div className="sticky top-0 z-10 -mx-5 mb-3 flex items-center justify-between gap-3 border-b border-[#E5E7EB] bg-[#FAF7F0] px-5 py-2">
+      <div className="sticky top-0 z-10 -mx-5 mb-3 flex items-center justify-between gap-3 border-b border-[#E5E7EB] bg-[#f6f5f3] px-5 py-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className={`w-8 h-8 rounded-xl border flex items-center justify-center flex-shrink-0 ${toneClasses}`}>
             <Icon size={16} />
@@ -545,41 +538,38 @@ function BillsSection({ title, count, icon: Icon, tone, children }) {
   )
 }
 
-function PaidTodaySummary({ orders, lang, expanded, onToggle, onOpenReceipt }) {
+// Paid today is its own Cashier view (top-bar tab): day totals, payment-method split, and every paid bill.
+function PaidTodaySummary({ orders, lang, methodTotals = {}, onOpenReceipt }) {
   const l = L[lang] || L.en
   const total = orders.reduce((sum, order) => sum + (order.cashier_total ?? getOrderTotal(order)), 0)
   const latest = [...orders]
     .sort((a, b) => parseInstantDate(getOrderDate(b)) - parseInstantDate(getOrderDate(a)))
-    .slice(0, 8)
+  const methods = PAY_METHOD_CONFIG.filter(config => methodTotals[config.key]?.amount > 0)
 
   return (
-    <section className="mt-8 border-t border-[#E5E7EB] pt-5">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full bg-white border border-[#E5E7EB] rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition-all text-left"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center flex-shrink-0">
-              <CreditCard size={17} className="text-[#16A34A]" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="font-black text-[#1F2937] text-[15px] leading-tight">{l.paidToday}</h2>
-              <p className="text-[11px] font-semibold text-[#9CA3AF]">
-                {countLabel(orders.length, lang)} · {formatCurrency(total)}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-[12px] font-bold text-[#16A34A]">
-            <span className="hidden sm:inline">{expanded ? l.hidePaid : l.showPaid}</span>
-            <ChevronDown size={16} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
-          </div>
+    <section aria-label={l.paidToday} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+          <p className="text-[12px] font-semibold text-[#6B7280]">{l.paidToday}</p>
+          <p className="mt-1 text-[22px] font-black tabular-nums text-[#16A34A]">{formatCurrency(total)}</p>
+          <p className="text-[12px] text-[#9CA3AF]">{countLabel(orders.length, lang)}</p>
         </div>
-      </button>
+        {methods.map(config => {
+          const MethodIcon = config.icon
+          return (
+            <div key={config.key} className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+              <p className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: config.color }}>
+                <MethodIcon size={13} />
+                {getPaymentMethodLabel(config, lang)}
+              </p>
+              <p className="mt-1 text-[18px] font-black tabular-nums text-[#1F2937]">{formatCurrency(methodTotals[config.key].amount)}</p>
+              <p className="text-[12px] text-[#9CA3AF]">{countLabel(methodTotals[config.key].count, lang)}</p>
+            </div>
+          )
+        })}
+      </div>
 
-      {expanded && (
-        <div className="mt-3 bg-white border border-[#E5E7EB] rounded-2xl shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
           {latest.length === 0 ? (
             <p className="px-5 py-4 text-[13px] text-[#6B7280]">{l.noPayData}</p>
           ) : (
@@ -638,8 +628,7 @@ function PaidTodaySummary({ orders, lang, expanded, onToggle, onOpenReceipt }) {
               )
             })
           )}
-        </div>
-      )}
+      </div>
     </section>
   )
 }
@@ -658,7 +647,10 @@ export default function CashierTables() {
   const [filterWaiter,setFilterWaiter]= useState('all')
   const [filterStatus,setFilterStatus]= useState('all')
   const [sortKey,     setSortKey]     = useState('newest')
-  const [showPaidToday, setShowPaidToday] = useState(true)
+  // Bills vs Paid today views; kept in ?view= so reloads and back/forward keep the open view.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const showPaidToday = searchParams.get('view') === 'paid'
+  const setCashierView = view => setSearchParams(view === 'paid' ? { view: 'paid' } : {}, { replace: true })
   const [confirmDeleteOrderId, setConfirmDeleteOrderId] = useState('')
   const [deletingOrderId, setDeletingOrderId] = useState('')
   const [deleteErrorByOrderId, setDeleteErrorByOrderId] = useState({})
@@ -689,9 +681,7 @@ export default function CashierTables() {
     const raw = state.orders.filter(isCashierVisibleBill)
     const grouped = {}
     raw.forEach(order => {
-      const key = isOffPremiseOrderType(inferOrderType(order)) || !order.table_id
-        ? `order:${order.id}`
-        : `table:${order.table_id}`
+      const key = cashierBillKey(order)
       if (!grouped[key]) {
         grouped[key] = {
           ...order,
@@ -721,10 +711,6 @@ export default function CashierTables() {
   )
 
   // ── KPI values ─────────────────────────────────────────────────────────────
-  const needsBillCount = activeBills.filter(o => o.status === 'needs_bill').length
-  const paidTodayCount = useMemo(() => {
-    return paidTodayOrders.length
-  }, [paidTodayOrders])
 
   // Payment method breakdown — tracks { amount, count } per method
   const payMethodTotals = useMemo(() => {
@@ -888,11 +874,11 @@ export default function CashierTables() {
 
   if (!loaded || loadError) {
     return (
-      <div className="flex overflow-hidden bg-[#FAF7F0]" style={{ height: '100dvh' }}>
+      <div className="flex overflow-hidden bg-[#f6f5f3]" style={{ height: '100dvh' }}>
         <div className="hidden h-full flex-shrink-0 lg:block"><UnifiedSidebar /></div>
         <div className="flex-1 overflow-y-auto">
           {!loaded ? (
-            <OperationalLoading
+            <OperationalLoading layout="cards"
               title={lang === 'uz' ? 'Kassa yuklanmoqda' : lang === 'ru' ? 'Загрузка кассы' : 'Loading cashier'}
               description={lang === 'uz' ? 'Faol hisoblar va bugungi to‘lovlar olinmoqda.' : lang === 'ru' ? 'Получаем активные счета и сегодняшние платежи.' : 'Fetching active bills and today’s payments.'}
             />
@@ -910,7 +896,7 @@ export default function CashierTables() {
   }
 
   return (
-    <div className="flex overflow-hidden bg-[#FAF7F0]" style={{ height: '100dvh' }}>
+    <div className="flex overflow-hidden bg-[#f6f5f3]" style={{ height: '100dvh' }}>
 
       {/* Sidebar – desktop */}
       <div className="hidden lg:block flex-shrink-0 h-full">
@@ -918,93 +904,46 @@ export default function CashierTables() {
       </div>
 
       {/* Sidebar – mobile overlay */}
-      {sidebarOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
-          <div className="relative z-10 h-full">
-            <UnifiedSidebar onClose={() => setSidebarOpen(false)} />
-          </div>
-        </div>
-      )}
+      <MobileDrawer open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
+        <UnifiedSidebar onClose={() => setSidebarOpen(false)} />
+      </MobileDrawer>
 
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* Header */}
-        <header className="flex-shrink-0 bg-white border-b border-[#E5E7EB] px-5 py-3 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-1 rounded-xl hover:bg-gray-100 transition-colors"
-            >
-              <MenuIcon size={20} className="text-[#6B7280]" />
-            </button>
-            <div>
-              <p className="font-black text-[#1F2937] text-[16px] leading-tight">{l.title}</p>
-              <p className="text-[11px] text-[#6B7280] font-medium">{l.subtitle}</p>
-            </div>
-          </div>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-            {['uz', 'ru', 'en'].map(lg => (
-              <button
-                key={lg}
-                onClick={() => dispatch({ type: 'SET_LANG', payload: lg })}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase transition-colors ${
-                  lang === lg ? 'bg-white text-[#1F2937] shadow-sm' : 'text-[#6B7280] hover:text-[#1F2937]'
-                }`}
-              >
-                {lg}
-              </button>
-            ))}
-          </div>
-        </header>
+        <WorkspaceTopBar
+          lang={lang}
+          title={l.title}
+          badge={activeBills.length}
+          badgeLabel={l.attentionBills}
+          onOpenDrawer={() => setSidebarOpen(true)}
+          drawerLabel={lang === 'uz' ? 'Yon panel' : lang === 'ru' ? 'Боковая панель' : 'Toggle Sidebar'}
+          tabs={{
+            label: l.title,
+            value: showPaidToday ? 'paid' : 'bills',
+            onChange: setCashierView,
+            items: [
+              { key: 'bills', label: l.billsTab },
+              { key: 'paid', label: `${l.paidToday}${paidTodayOrders.length ? ` (${paidTodayOrders.length})` : ''}` },
+            ],
+          }}
+        />
 
         {/* Scrollable content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {/* Keep padding inside the scrollport so sticky headings reach its top edge. */}
           <div className="p-5">
 
-          {/* ── KPI cards ── */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <KpiCard
-              label={l.activeBills}
-              value={activeBills.length}
-              sub={`${activeBills.length} ${l.tables}`}
-              accent="text-[#ff5a00]"
-              icon={Receipt}
-              iconBg="bg-orange-50"
-              iconColor="text-[#ff5a00]"
+          {showPaidToday ? (
+            <PaidTodaySummary
+              orders={paidTodayOrders}
+              lang={lang}
+              methodTotals={payMethodTotals}
+              onOpenReceipt={order => navigate(`/receipt/${order.id}`)}
             />
-            <KpiCard
-              label={l.needsBill}
-              value={needsBillCount}
-              sub={l.waitingPay}
-              accent="text-[#DC2626]"
-              icon={CreditCard}
-              iconBg="bg-red-50"
-              iconColor="text-[#DC2626]"
-            />
-            <KpiCard
-              label={l.paidToday}
-              value={paidTodayCount}
-              sub={l.completed}
-              accent="text-[#16A34A]"
-              icon={Users}
-              iconBg="bg-green-50"
-              iconColor="text-[#16A34A]"
-            />
-          </div>
-
-          {/* ── Active Bills section ── */}
-          <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <h2 className="font-black text-[#1F2937] text-[16px]">{l.activeBillsSec}</h2>
-              <span className="bg-[#ff5a00] text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                {visibleBillCount}
-              </span>
-            </div>
-          </div>
-
+          ) : (
+          <>
           {/* ── Filter bar ── */}
           <div className="flex flex-wrap items-center gap-2 mb-5">
             {/* Search */}
@@ -1096,14 +1035,8 @@ export default function CashierTables() {
               </BillsSection>
             ))
           )}
-
-          <PaidTodaySummary
-            orders={paidTodayOrders}
-            lang={lang}
-            expanded={showPaidToday}
-            onToggle={() => setShowPaidToday(value => !value)}
-            onOpenReceipt={order => navigate(`/receipt/${order.id}`)}
-          />
+          </>
+          )}
 
           </div>
         </main>

@@ -108,7 +108,7 @@ function LoginCard({
         <div className="mx-auto mb-3 h-px w-32 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
         <h2
           className="text-4xl font-bold leading-tight text-[#F5EBD4] sm:text-[40px]"
-          style={{ fontFamily: 'Georgia, Times New Roman, serif' }}
+          style={{ fontFamily: "'Onest', sans-serif" }}
         >
           {isForgot
             ? t(lang, 'forgotTitle')
@@ -527,7 +527,7 @@ export default function Login({ googleOnly = false, staffOnly = false }) {
             <div className="mx-auto my-5 h-px w-32 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
             <h1
               className="max-w-[340px] text-3xl font-bold leading-tight text-[#F5EBD4]"
-              style={{ fontFamily: 'Georgia, Times New Roman, serif' }}
+              style={{ fontFamily: "'Onest', sans-serif" }}
             >
               {t(lang, 'premiumLoginHeroTitle')}
             </h1>
@@ -568,7 +568,7 @@ export default function Login({ googleOnly = false, staffOnly = false }) {
             <div className="max-w-[430px]">
               <h1
                 className="text-4xl font-bold leading-tight text-[#F5EBD4]"
-                style={{ fontFamily: 'Georgia, Times New Roman, serif' }}
+                style={{ fontFamily: "'Onest', sans-serif" }}
               >
                 {t(lang, 'premiumLoginHeroTitle')}
               </h1>
@@ -611,7 +611,7 @@ export default function Login({ googleOnly = false, staffOnly = false }) {
                 <div className="mx-auto mb-3 h-px w-32 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
                 <h2
                   className="text-4xl font-bold leading-tight text-[#F5EBD4] sm:text-[40px]"
-                  style={{ fontFamily: 'Georgia, Times New Roman, serif' }}
+                  style={{ fontFamily: "'Onest', sans-serif" }}
                 >
                   {isForgot
                     ? t(lang, 'forgotTitle')

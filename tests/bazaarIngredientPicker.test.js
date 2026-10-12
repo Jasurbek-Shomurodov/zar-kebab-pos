@@ -7,5 +7,5 @@ const picker = readFileSync(new URL('../src/components/BazaarIngredientPicker.js
 test('Bazaar ingredient picker preserves a legacy Tech Card ingredient name until replacement', () => {
   assert.match(picker, /fallbackLabel = ''/)
   assert.match(picker, /selected\?\.name \|\| fallbackLabel \|\| l\.select/)
-  assert.match(picker, /selected \|\| fallbackLabel \? 'text-\[#1F2937\]'/)
+  assert.match(picker, /selected \|\| fallbackLabel \? 'text-\[#22201d\]'/)
 })

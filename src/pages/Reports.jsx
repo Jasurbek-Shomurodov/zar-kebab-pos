@@ -87,11 +87,7 @@ function PriceModeBadge({ mode, lang }) {
   const tourist = normalized === 'tourist'
   const Icon = tourist ? Globe2 : UserRound
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ring-1 ${
-      tourist
-        ? 'bg-violet-50 text-violet-700 ring-violet-200'
-        : 'bg-slate-50 text-slate-600 ring-slate-200'
-    }`}>
+    <span className={`ws-badge ${tourist ? 'ws-tone-info' : ''}`}>
       <Icon size={11} aria-hidden="true" />
       {getPriceModeLabel(normalized, lang)}
     </span>
@@ -134,19 +130,19 @@ const TABS = [
 ]
 
 const STATUS_CFG = {
-  paid:      { label: { uz: 'To\'landi',   ru: 'Оплачен',    en: 'Paid'      }, cls: 'bg-green-50 text-green-700 border-green-200'   },
-  unpaid:    { label: { uz: 'To\'lanmagan',ru: 'Не оплачен', en: 'Unpaid'    }, cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  cancelled: { label: { uz: 'Bekor',       ru: 'Отменён',    en: 'Cancelled' }, cls: 'bg-red-50 text-red-600 border-red-200'          },
+  paid:      { label: { uz: 'To\'landi',   ru: 'Оплачен',    en: 'Paid'      }, cls: 'ws-tone-positive' },
+  unpaid:    { label: { uz: 'To\'lanmagan',ru: 'Не оплачен', en: 'Unpaid'    }, cls: 'ws-tone-caution'  },
+  cancelled: { label: { uz: 'Bekor',       ru: 'Отменён',    en: 'Cancelled' }, cls: 'ws-tone-negative' },
 }
 
 const PAY_CFG = {
-  salary: { label: { uz: 'Maoshdan', ru: 'Из зарплаты', en: 'Salary deduction' }, cls: 'bg-blue-50 text-blue-700', Icon: Banknote, bar: '#2563EB' },
-  cash:     { label: { uz: 'Naqd',      ru: 'Наличные',   en: 'Cash'     }, cls: 'bg-green-50 text-green-700',   Icon: Banknote,   bar: '#16A34A' },
-  card:     { label: { uz: 'Karta',     ru: 'Карта',      en: 'Card'     }, cls: 'bg-blue-50 text-blue-700',     Icon: CreditCard, bar: '#2563EB' },
-  terminal: { label: { uz: 'Terminal',  ru: 'Терминал',   en: 'Terminal' }, cls: 'bg-purple-50 text-purple-700', Icon: Monitor,    bar: '#7C3AED' },
-  loyalty_card: { label: { uz: 'Sodiqlik', ru: 'Лояльность', en: 'Loyalty' }, cls: 'bg-amber-50 text-amber-700', Icon: Tag, bar: '#D97706' },
-  mixed:    { label: { uz: 'Aralash',    ru: 'Смешанная',  en: 'Mixed'    }, cls: 'bg-teal-50 text-teal-700',     Icon: CreditCard, bar: '#0F766E' },
-  unknown:  { label: { uz: "Noma'lum",  ru: 'Неизвестно', en: 'Unknown'  }, cls: 'bg-gray-50 text-gray-600',     Icon: HelpCircle, bar: '#9CA3AF' },
+  salary: { label: { uz: 'Maoshdan', ru: 'Из зарплаты', en: 'Salary deduction' }, cls: 'ws-tone-info', Icon: Banknote, bar: '#2a6fdb' },
+  cash:     { label: { uz: 'Naqd',      ru: 'Наличные',   en: 'Cash'     }, cls: 'ws-tone-positive', Icon: Banknote,   bar: '#1d7a52' },
+  card:     { label: { uz: 'Karta',     ru: 'Карта',      en: 'Card'     }, cls: 'ws-tone-info',     Icon: CreditCard, bar: '#2a6fdb' },
+  terminal: { label: { uz: 'Terminal',  ru: 'Терминал',   en: 'Terminal' }, cls: 'ws-tone-accent',   Icon: Monitor,    bar: '#ff5a00' },
+  loyalty_card: { label: { uz: 'Sodiqlik', ru: 'Лояльность', en: 'Loyalty' }, cls: 'ws-tone-caution', Icon: Tag, bar: '#9a5a00' },
+  mixed:    { label: { uz: 'Aralash',    ru: 'Смешанная',  en: 'Mixed'    }, cls: '',                 Icon: CreditCard, bar: '#68655f' },
+  unknown:  { label: { uz: "Noma'lum",  ru: 'Неизвестно', en: 'Unknown'  }, cls: '',                 Icon: HelpCircle, bar: '#a8a49e' },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,7 +165,7 @@ function orderTableLabel(order, lang) {
 function StatusBadge({ status, lang }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.unpaid
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${cfg.cls}`}>
+    <span className={`ws-status ${cfg.cls}`}>
       {cfg.label[lang] || cfg.label.en}
     </span>
   )
@@ -181,16 +177,16 @@ function PayBadge({ method, lang, amount = null }) {
   const { Icon } = cfg
   const hasAmount = amount != null
   return (
-    <span className={`inline-flex items-center font-semibold ${cfg.cls} ${
+    <span className={`inline-flex items-center font-medium ${
       hasAmount
-        ? 'min-w-[170px] flex-1 justify-between gap-3 rounded-xl px-3 py-2.5 text-xs'
-        : 'gap-1 rounded-full px-2 py-0.5 text-[11px]'
+        ? 'min-w-[170px] flex-1 justify-between gap-3 rounded-[10px] border border-[#e4e1de] bg-white px-3 py-2.5 text-xs text-[#22201d]'
+        : `ws-badge ${cfg.cls}`
     }`}>
       <span className={`inline-flex items-center whitespace-nowrap ${hasAmount ? 'gap-1.5' : 'gap-1'}`}>
-        <Icon size={hasAmount ? 13 : 10} />
+        <Icon size={hasAmount ? 13 : 10} className={hasAmount ? 'text-[#68655f]' : ''} />
         {cfg.label[lang] || cfg.label.en}
       </span>
-      {hasAmount && <span className="whitespace-nowrap font-black tabular-nums">{formatCurrency(amount)}</span>}
+      {hasAmount && <span className="whitespace-nowrap font-semibold tabular-nums">{formatCurrency(amount)}</span>}
     </span>
   )
 }
@@ -217,22 +213,24 @@ function PaymentMethodBadges({ order, lang, showAmounts = false }) {
 
 function KpiCard({ icon: Icon, iconCls, label, value, sub }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5 shadow-sm flex flex-col gap-3">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconCls}`}>
-        <Icon size={20} />
+    <div className="ws-panel h-full">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="ws-caption">{label}</p>
+          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${iconCls || 'text-[#22201d]'}`}>{value}</p>
+        </div>
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+          <Icon size={16} />
+        </div>
       </div>
-      <div>
-        <p className="text-xs text-[#6B7280] font-medium mb-1">{label}</p>
-        <p className="text-2xl font-black text-[#1F2937] leading-tight">{value}</p>
-        {sub && <p className="text-[11px] text-[#ff5a00] font-semibold mt-1">{sub}</p>}
-      </div>
+      {sub && <p className="ws-caption mt-3 leading-relaxed">{sub}</p>}
     </div>
   )
 }
 
 function ProgressBar({ pct, color = '#ff5a00' }) {
   return (
-    <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+    <div className="mt-2 h-1.5 bg-[#efece9] rounded-full overflow-hidden">
       <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
     </div>
   )
@@ -240,12 +238,12 @@ function ProgressBar({ pct, color = '#ff5a00' }) {
 
 function EmptyState({ label, lang }) {
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-2xl py-20 text-center shadow-sm">
-      <BarChart2 size={36} className="mx-auto mb-3 text-gray-200" />
-      <p className="text-[#6B7280] font-semibold">
+    <div className="ws-panel ws-empty">
+      <BarChart2 aria-hidden="true" />
+      <h3>
         {label || (lang === 'uz' ? "Bu davr uchun ma'lumot yo'q" : lang === 'ru' ? 'Нет данных за этот период' : 'No data for this period')}
-      </p>
-      <p className="text-[12px] text-[#9CA3AF] mt-1">
+      </h3>
+      <p>
         {lang === 'uz' ? 'Boshqa sana yoki filterni tanlang' : lang === 'ru' ? 'Выберите другую дату или уберите фильтры' : 'Try selecting a different date or removing filters'}
       </p>
     </div>
@@ -257,11 +255,8 @@ function PageBtn({ children, onClick, disabled, active }) {
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
-        active   ? 'bg-[#ff5a00] text-white' :
-        disabled ? 'text-gray-300 cursor-not-allowed' :
-                   'text-[#6B7280] hover:bg-gray-100'
-      }`}
+      aria-current={active ? 'page' : undefined}
+      className={`ws-btn ws-btn-sm ws-btn-icon tabular-nums ${active ? 'ws-btn-primary' : 'ws-btn-ghost'}`}
     >
       {children}
     </button>
@@ -271,8 +266,8 @@ function PageBtn({ children, onClick, disabled, active }) {
 function SummaryRow({ label, value, bold, valueClass }) {
   return (
     <div className="flex justify-between items-center">
-      <span className={`text-sm ${bold ? 'font-black text-[#1F2937]' : 'text-[#6B7280] font-medium'}`}>{label}</span>
-      <span className={`text-sm tabular-nums ${bold ? `font-black ${valueClass || 'text-[#ff5a00]'}` : `font-semibold text-[#1F2937] ${valueClass || ''}`}`}>
+      <span className={`text-sm ${bold ? 'font-semibold text-[#22201d]' : 'text-[#68655f]'}`}>{label}</span>
+      <span className={`text-sm tabular-nums ${bold ? `font-semibold ${valueClass || 'text-[#22201d]'}` : `font-medium text-[#22201d] ${valueClass || ''}`}`}>
         {value}
       </span>
     </div>
@@ -298,55 +293,55 @@ function ExpenseBreakdownDialog({ rows, expenseSummary, expenseCashflow, cashflo
     : `${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-5" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#22201d]/40 backdrop-blur-[2px] sm:items-center sm:p-5" onClick={onClose}>
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="expense-breakdown-title"
         onClick={event => event.stopPropagation()}
-        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-[#FAF7F0] shadow-2xl sm:max-w-2xl sm:rounded-3xl"
+        className="ws-dialog flex max-h-[92vh] w-full flex-col overflow-hidden !rounded-b-none !bg-[#f6f5f3] sm:max-w-2xl sm:!rounded-2xl"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-[#E5E7EB] bg-white px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-[#e4e1de] bg-white px-5 py-4">
           <div>
-            <h2 id="expense-breakdown-title" className="text-lg font-black text-[#1F2937]">{labels.expenseDetails}</h2>
-            <p className="mt-0.5 text-xs font-semibold text-[#9CA3AF]">{periodLabel}</p>
+            <h2 id="expense-breakdown-title" className="ws-display">{labels.expenseDetails}</h2>
+            <p className="ws-caption mt-1">{periodLabel}</p>
           </div>
           <button
             type="button"
             aria-label={labels.close}
             onClick={onClose}
-            className="flex h-10 w-10 flex-shrink-0 touch-manipulation items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#6B7280] transition-colors hover:bg-gray-50"
+            className="ws-btn ws-btn-ghost !h-10 !w-10 flex-shrink-0 touch-manipulation !px-0"
           >
             <X size={18} />
           </button>
         </div>
 
         <div className="overflow-y-auto overscroll-contain p-4 sm:p-5">
-          <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-            <p className="mb-3 text-sm font-black text-[#1F2937]">{labels.leftAfterExpenses}</p>
+          <div className="ws-panel mb-4">
+            <h3 className="ws-heading mb-3">{labels.leftAfterExpenses}</h3>
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <SummaryRow label={labels.cash} value={formatCurrency(expenseCashflow.byMethod.cash.left)} />
               <SummaryRow label={labels.card} value={formatCurrency(expenseCashflow.byMethod.card.left)} />
               <SummaryRow label={labels.terminal} value={formatCurrency(expenseCashflow.byMethod.terminal.left)} />
               <SummaryRow label={labels.employeeMeals} value={formatCurrency(expenseSummary.byCategory.employee_meals || 0)} />
-              <SummaryRow label={labels.totalLeft} value={formatCurrency(cashflowLeft)} bold valueClass={cashflowLeft < 0 ? 'text-red-600' : 'text-emerald-700'} />
+              <SummaryRow label={labels.totalLeft} value={formatCurrency(cashflowLeft)} bold valueClass={cashflowLeft < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'} />
             </div>
           </div>
 
           <div className="mb-3 flex items-center justify-between gap-3 px-1">
             <div>
-              <p className="text-sm font-black text-[#1F2937]">{labels.periodExpenses}</p>
-              <p className="text-xs font-semibold text-[#9CA3AF]">{rows.length} {labels.entries}</p>
+              <h3 className="ws-heading">{labels.periodExpenses}</h3>
+              <p className="ws-caption">{rows.length} {labels.entries}</p>
             </div>
-            <p className="text-lg font-black tabular-nums text-red-600">{formatCurrency(expenseSummary.total)}</p>
+            <p className="text-lg font-semibold tracking-[-.02em] tabular-nums text-[#c4262c]">{formatCurrency(expenseSummary.total)}</p>
           </div>
 
           {rows.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[#D1D5DB] bg-white px-4 py-12 text-center text-sm font-bold text-[#9CA3AF]">
+            <div className="ws-panel ws-empty">
               {labels.noExpenses}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+            <div className="ws-panel ws-panel-flush">
               {rows.map(expense => {
                 const title = expense.is_salary_payment
                   ? labels.salaryPayment
@@ -355,15 +350,15 @@ function ExpenseBreakdownDialog({ rows, expenseSummary, expenseCashflow, cashflo
                     : expenseCategoryLabel(expense.category, lang)
                 const details = [expense.vendor, expenseDescriptionLabel(expense.description, lang)].filter(Boolean).join(' · ')
                 return (
-                  <div key={expense.id} className="flex items-start justify-between gap-3 border-b border-[#F3F4F6] px-4 py-4 last:border-b-0">
+                  <div key={expense.id} className="ws-row flex items-start justify-between gap-3 px-4 py-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-black text-[#1F2937]">{title}</p>
-                      <p className="mt-1 text-xs font-bold text-[#9CA3AF]">
+                      <p className="text-sm font-semibold text-[#22201d]">{title}</p>
+                      <p className="ws-caption mt-1">
                         {formatLongDate(expense.expense_date, lang, expense.expense_date)} · {expensePaymentMethodLabel(expense.payment_method, lang)}
                       </p>
-                      {details && <p className="mt-1 break-words text-sm font-semibold text-[#4B5563]">{details}</p>}
+                      {details && <p className="mt-1 break-words text-sm text-[#22201d]">{details}</p>}
                     </div>
-                    <p className="flex-shrink-0 text-sm font-black tabular-nums text-red-600">−{formatCurrency(expense.amount)}</p>
+                    <p className="flex-shrink-0 text-sm font-semibold tabular-nums text-[#c4262c]">−{formatCurrency(expense.amount)}</p>
                   </div>
                 )
               })}
@@ -398,22 +393,26 @@ function hourLabel(hour) {
 
 function CompactEmpty({ label }) {
   return (
-    <div className="rounded-xl bg-gray-50 px-4 py-8 text-center">
-      <BarChart2 size={22} className="mx-auto mb-2 text-gray-200" />
-      <p className="text-sm font-semibold text-[#9CA3AF]">{label}</p>
+    <div className="ws-empty !py-8">
+      <BarChart2 aria-hidden="true" />
+      <p>{label}</p>
     </div>
   )
 }
 
 function DishMetric({ icon: Icon, iconCls, label, value, sub }) {
   return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-      <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${iconCls}`}>
-        <Icon size={18} />
+    <div className="ws-panel h-full">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="ws-caption">{label}</p>
+          <p className={`mt-1 break-words text-xl font-semibold leading-tight tracking-[-.02em] tabular-nums ${iconCls || 'text-[#22201d]'}`}>{value}</p>
+        </div>
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+          <Icon size={16} />
+        </div>
       </div>
-      <p className="text-xs font-semibold text-[#6B7280]">{label}</p>
-      <p className="mt-1 text-xl font-black leading-tight text-[#1F2937]">{value}</p>
-      {sub && <p className="mt-1 text-[11px] font-semibold text-[#9CA3AF]">{sub}</p>}
+      {sub && <p className="ws-caption mt-2">{sub}</p>}
     </div>
   )
 }
@@ -469,57 +468,57 @@ function BestSellingTab({ orders, menuItemMap, categories, lang }) {
     <div>
       {/* Sort toggle */}
       <div className="flex items-center justify-end gap-2 mb-4">
-        <span className="text-[12px] text-[#9CA3AF]">{s.sortBy[lang] || s.sortBy.en}</span>
-        {['quantity', 'revenue'].map(k => (
-          <button
-            key={k}
-            onClick={() => setSortBy(k)}
-            className={`px-3 py-1 rounded-lg text-[12px] font-bold transition-all ${
-              sortBy === k ? 'bg-[#ff5a00] text-white' : 'bg-gray-100 text-[#6B7280] hover:bg-gray-200'
-            }`}
-          >
-            {k === 'quantity' ? (s.units[lang] || s.units.en) : (s.revenue[lang] || s.revenue.en)}
-          </button>
-        ))}
+        <span className="ws-caption">{s.sortBy[lang] || s.sortBy.en}</span>
+        <div className="ws-segmented">
+          {['quantity', 'revenue'].map(k => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={sortBy === k}
+              onClick={() => setSortBy(k)}
+            >
+              {k === 'quantity' ? (s.units[lang] || s.units.en) : (s.revenue[lang] || s.revenue.en)}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="w-full overflow-x-auto rounded-2xl border border-[#E5E7EB] shadow-sm">
-        <div className="bg-white rounded-2xl overflow-hidden min-w-[520px]">
+      <div className="ws-panel ws-panel-flush w-full !overflow-x-auto">
+        <div className="min-w-[520px]">
         {/* Header */}
-        <div className="hidden md:grid grid-cols-[32px_48px_1fr_120px_80px_110px] gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">
+        <div className="ws-table-head hidden md:grid grid-cols-[32px_48px_1fr_120px_80px_110px] gap-3 px-5 py-3">
           <span>#</span><span></span><span>{s.product[lang] || s.product.en}</span><span>{s.category[lang] || s.category.en}</span>
           <span className="text-center">{s.sold[lang] || s.sold.en}</span><span className="text-right">{s.revenue[lang] || s.revenue.en}</span>
         </div>
 
         {items.slice(0, 20).map((item, i) => (
-          <div key={i} className="grid grid-cols-[32px_48px_1fr_120px_80px_110px] gap-3 px-5 py-3.5 items-center border-b border-[#F9FAFB] last:border-0">
-            <span className={`w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center ${
+          <div key={i} className="ws-row grid grid-cols-[32px_48px_1fr_120px_80px_110px] gap-3 px-5 py-3.5 items-center">
+            <span className={`w-7 h-7 rounded-full text-[11px] font-semibold tabular-nums flex items-center justify-center ${
               i === 0 ? 'bg-[#ff5a00] text-white' :
-              i === 1 ? 'bg-orange-100 text-[#ff5a00]' :
-              i === 2 ? 'bg-orange-50 text-orange-400' :
-                        'bg-gray-100 text-gray-500'
+              i < 3   ? 'bg-[#fff1e8] text-[#ff5a00]' :
+                        'bg-[#efece9] text-[#68655f]'
             }`}>{i + 1}</span>
 
-            <div className="w-12 h-12 rounded-xl overflow-hidden bg-orange-50 border border-gray-100 flex-shrink-0">
+            <div className="w-12 h-12 rounded-[10px] overflow-hidden bg-[#efece9] border border-[#e4e1de] flex-shrink-0">
               {item.image ? (
                 <img src={item.image} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <UtensilsCrossed size={14} className="text-orange-200" />
+                  <UtensilsCrossed size={14} className="text-[#a8a49e]" />
                 </div>
               )}
             </div>
 
             <div className="min-w-0">
-              <p className="font-semibold text-sm text-[#1F2937] truncate">{item.name}</p>
+              <p className="font-medium text-sm text-[#22201d] truncate">{item.name}</p>
               <ProgressBar pct={sortBy === 'revenue'
                 ? Math.round(item.revenue  / maxRev  * 100)
                 : Math.round(item.quantity / maxQty * 100)} />
             </div>
 
-            <span className="text-[12px] text-[#6B7280] truncate">{item.category}</span>
-            <span className="text-center text-sm font-bold text-[#1F2937]">{item.quantity}</span>
-            <span className="text-right font-bold text-sm text-[#ff5a00]">{formatCurrency(item.revenue)}</span>
+            <span className="ws-caption truncate">{item.category}</span>
+            <span className="text-center text-sm font-semibold tabular-nums text-[#22201d]">{item.quantity}</span>
+            <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(item.revenue)}</span>
           </div>
         ))}
         </div>
@@ -664,14 +663,14 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+      <div className="ws-panel">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-black text-[#1F2937]">{selectedName}</p>
-            <p className="text-xs font-semibold text-[#9CA3AF]">
+            <h2 className="ws-heading">{selectedName}</h2>
+            <p className="ws-caption mt-0.5">
               {analysis.selectedDish ? dishCategoryLabel(analysis.selectedDish, categories, lang) : `${analysis.dishes.length} ${s.menuItems[lang] || s.menuItems.en}`}
             </p>
-            <p className="mt-1 whitespace-pre-line text-sm text-[#6B7280]">
+            <p className="ws-muted mt-1 whitespace-pre-line">
               {analysis.selectedDish?.[`description_${lang}`] || analysis.selectedDish?.description_en}
             </p>
           </div>
@@ -679,41 +678,42 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
             <button
               type="button"
               onClick={() => setPickerOpen(open => !open)}
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-left shadow-sm transition-colors hover:border-orange-300 lg:min-w-[360px]"
+              aria-expanded={pickerOpen}
+              className="ws-input flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:bg-[#ebe8e5] lg:min-w-[360px]"
             >
-              <SlidersHorizontal size={14} className="flex-shrink-0 text-[#9CA3AF]" />
-              <span className="flex-shrink-0 text-[11px] font-bold uppercase tracking-wide text-[#9CA3AF]">{s.dish[lang] || s.dish.en}</span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[#1F2937]">{selectedName}</span>
-              <ChevronRight size={14} className={`flex-shrink-0 text-[#9CA3AF] transition-transform ${pickerOpen ? 'rotate-90' : ''}`} />
+              <SlidersHorizontal size={14} className="flex-shrink-0 text-[#68655f]" />
+              <span className="ws-caption flex-shrink-0 font-medium">{s.dish[lang] || s.dish.en}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#22201d]">{selectedName}</span>
+              <ChevronRight size={14} className={`flex-shrink-0 text-[#68655f] transition-transform ${pickerOpen ? 'rotate-90' : ''}`} />
             </button>
 
             {pickerOpen && (
-              <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-full overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl sm:w-[620px]">
-                <div className="border-b border-gray-100 p-3">
+              <div className="ws-dialog absolute right-0 top-[calc(100%+8px)] z-30 w-full overflow-hidden !rounded-xl sm:w-[620px]">
+                <div className="border-b border-[#e4e1de] p-3">
                   <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
                     <input
                       value={pickerSearch}
                       onChange={event => setPickerSearch(event.target.value)}
                       placeholder={s.search[lang] || s.search.en}
-                      className="h-10 w-full rounded-xl border border-[#E5E7EB] bg-gray-50 pl-9 pr-3 text-sm font-semibold text-[#1F2937] outline-none transition-colors focus:border-[#ff5a00] focus:bg-white focus:ring-2 focus:ring-[#ff5a00]/15"
+                      className="ws-input !h-10 !pl-9"
                     />
                   </div>
                 </div>
 
                 <div className="grid max-h-[440px] min-h-[260px] grid-cols-1 overflow-hidden sm:grid-cols-[230px_1fr]">
-                  <div className="border-b border-gray-100 bg-gray-50/70 p-2 sm:border-b-0 sm:border-r">
+                  <div className="border-b border-[#e4e1de] bg-[#f6f5f3] p-2 sm:border-b-0 sm:border-r">
                     <button
                       type="button"
                       onClick={() => selectDish(ALL_DISHES_KEY)}
-                      className={`mb-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                      className={`mb-1 flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
                         selectedDishKey === ALL_DISHES_KEY
                           ? 'bg-[#ff5a00] text-white'
-                          : 'text-[#1F2937] hover:bg-white'
+                          : 'text-[#22201d] hover:bg-white'
                       }`}
                     >
-                      <span className="truncate text-sm font-black">{s.allDishes[lang] || s.allDishes.en}</span>
-                      <span className={`text-[11px] font-black ${selectedDishKey === ALL_DISHES_KEY ? 'text-white/80' : 'text-[#9CA3AF]'}`}>
+                      <span className="truncate text-sm font-semibold">{s.allDishes[lang] || s.allDishes.en}</span>
+                      <span className={`text-[11px] font-semibold tabular-nums ${selectedDishKey === ALL_DISHES_KEY ? 'text-white/80' : 'text-[#68655f]'}`}>
                         {analysis.dishes.length}
                       </span>
                     </button>
@@ -725,12 +725,12 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
                           onMouseEnter={() => setActiveSectionKey(section.key)}
                           onFocus={() => setActiveSectionKey(section.key)}
                           onClick={() => setActiveSectionKey(section.key)}
-                          className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                            activeSection?.key === section.key ? 'bg-white text-[#ff5a00] shadow-sm' : 'text-[#1F2937] hover:bg-white'
+                          className={`flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+                            activeSection?.key === section.key ? 'bg-white text-[#ff5a00] shadow-[0_1px_2px_rgb(34_32_29/8%)]' : 'text-[#22201d] hover:bg-white'
                           }`}
                         >
-                          <span className="min-w-0 truncate text-sm font-bold">{section.label}</span>
-                          <span className="flex-shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-[#6B7280]">
+                          <span className="min-w-0 truncate text-sm font-medium">{section.label}</span>
+                          <span className="ws-count flex-shrink-0">
                             {section.dishes.length}
                           </span>
                         </button>
@@ -741,8 +741,8 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
                   <div className="max-h-[440px] overflow-y-auto p-2">
                     {activeSection ? (
                       <>
-                        <div className="sticky top-0 z-10 mb-1 rounded-xl bg-white/95 px-3 py-2 backdrop-blur">
-                          <p className="truncate text-xs font-black uppercase tracking-wide text-[#9CA3AF]">{activeSection.label}</p>
+                        <div className="sticky top-0 z-10 mb-1 rounded-[10px] bg-white/95 px-3 py-2 backdrop-blur">
+                          <p className="ws-caption truncate font-medium">{activeSection.label}</p>
                         </div>
                         {activeSection.dishes.map(dish => {
                           const isSelected = selectedDishKey === dish.key
@@ -751,22 +751,22 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
                               key={dish.key}
                               type="button"
                               onClick={() => selectDish(dish.key)}
-                              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                                isSelected ? 'bg-orange-50 text-[#ff5a00]' : 'text-[#1F2937] hover:bg-gray-50'
+                              className={`flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+                                isSelected ? 'bg-[#fff1e8] text-[#ff5a00]' : 'text-[#22201d] hover:bg-[#f6f5f3]'
                               }`}
                             >
-                              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-orange-50">
+                              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-[10px] border border-[#e4e1de] bg-[#efece9]">
                                 {dish.image_url ? (
                                   <img src={dish.image_url} alt="" className="h-full w-full object-cover" />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center">
-                                    <UtensilsCrossed size={13} className="text-orange-200" />
+                                    <UtensilsCrossed size={13} className="text-[#a8a49e]" />
                                   </div>
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-black">{dishDisplayName(dish, lang)}</p>
-                                <p className="text-[11px] font-semibold text-[#9CA3AF]">
+                                <p className="truncate text-sm font-medium">{dishDisplayName(dish, lang)}</p>
+                                <p className="ws-caption">
                                   {formatQuantity(dish.quantity)} {s.sold[lang] || s.sold.en}
                                 </p>
                               </div>
@@ -787,7 +787,7 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
       </div>
 
       {analysis.selectedDish && (
-        <p className="text-xs text-[#6B7280]">
+        <p className="ws-caption">
           {lang === 'ru' ? 'Продажи в сетах учитываются по сохранённому составу при продаже. Для старых продаж без сохранённого состава эти количества недоступны.' : lang === 'uz' ? 'Setlardagi sotuvlar sotuv vaqtida saqlangan tarkib bo‘yicha hisoblanadi. Tarkibi saqlanmagan eski sotuvlar uchun bu miqdorlar mavjud emas.' : 'Set quantities use the contents saved at the time of sale. Older sales without saved set contents cannot be included.'}
         </p>
       )}
@@ -795,42 +795,38 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <DishMetric
           icon={Package}
-          iconCls="bg-orange-50 text-[#ff5a00]"
           label={s.sold[lang] || s.sold.en}
           value={formatQuantity(analysis.totals.quantity)}
           sub={selectedDishKey === ALL_DISHES_KEY ? `${analysis.totals.saleLines} ${lang === 'uz' ? 'qator' : lang === 'ru' ? 'строк' : 'lines'}` : `${s.direct[lang]}: ${formatQuantity(analysis.totals.directQuantity)} · ${s.included[lang]}: ${formatQuantity(analysis.totals.includedQuantity)}`}
         />
         <DishMetric
           icon={ShoppingBag}
-          iconCls="bg-blue-50 text-blue-600"
           label={s.orders[lang] || s.orders.en}
           value={analysis.totals.orders}
           sub={`${s.avgOrder[lang] || s.avgOrder.en}: ${formatQuantity(analysis.totals.averagePerOrder)}`}
         />
         <DishMetric
           icon={DollarSign}
-          iconCls="bg-green-50 text-green-600"
           label={selectedDishKey === ALL_DISHES_KEY ? s.revenue[lang] : s.directRevenue[lang]}
           value={formatCurrency(analysis.totals.revenue)}
         />
         <DishMetric
           icon={Clock}
-          iconCls="bg-purple-50 text-purple-600"
           label={s.lastSale[lang] || s.lastSale.en}
           value={analysis.totals.lastSoldAt ? formatLongDateTime(analysis.totals.lastSoldAt, lang) : '—'}
         />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
+        <div className="ws-panel">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-black text-[#1F2937]">{selectedDishKey === ALL_DISHES_KEY ? s.mostSold[lang] : s.sources[lang]}</p>
-            <span className="text-[11px] font-bold text-[#9CA3AF]">{mostSoldMeals.length}</span>
+            <h2 className="ws-heading">{selectedDishKey === ALL_DISHES_KEY ? s.mostSold[lang] : s.sources[lang]}</h2>
+            <span className="ws-count">{mostSoldMeals.length}</span>
           </div>
           {selectedDishKey !== ALL_DISHES_KEY && (
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl bg-orange-50 px-4 py-3">
-              <span className="text-sm font-bold text-[#1F2937]">{s.overall[lang] || s.overall.en}</span>
-              <span className="text-xl font-black text-[#ff5a00]">{formatQuantity(analysis.totals.quantity)}</span>
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-[10px] bg-[#f6f5f3] px-4 py-3">
+              <span className="text-sm font-medium text-[#22201d]">{s.overall[lang] || s.overall.en}</span>
+              <span className="text-xl font-semibold tracking-[-.02em] tabular-nums text-[#22201d]">{formatQuantity(analysis.totals.quantity)}</span>
             </div>
           )}
           {mostSoldMeals.length === 0 ? (
@@ -841,18 +837,18 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
                 const pct = Math.round(row.quantity / maxMealQty * 100)
                 return (
                   <div key={row.key} className="flex items-center gap-3">
-                    <span className="w-28 flex-shrink-0 text-right text-[12px] font-bold text-[#6B7280]">
+                    <span className="w-28 flex-shrink-0 text-right text-[12px] font-medium text-[#68655f]">
                       {selectedDishKey === ALL_DISHES_KEY ? dishDisplayName(row, lang) : row.includedInSet ? `${s.included[lang]}: ${dishDisplayName(analysis.dishes.find(dish => dish.key === row.key) || row, lang)}` : s.direct[lang]}
                     </span>
-                    <div className="h-8 flex-1 overflow-hidden rounded-lg bg-gray-100">
+                    <div className="h-8 flex-1 overflow-hidden rounded-lg bg-[#efece9]">
                       <div
                         className="flex h-full items-center rounded-lg bg-[#ff5a00] px-2"
                         style={{ width: `${Math.max(pct, 3)}%` }}
                       >
-                        {pct > 16 && <span className="truncate text-[10px] font-black text-white">{formatQuantity(row.quantity)}</span>}
+                        {pct > 16 && <span className="truncate text-[10px] font-semibold tabular-nums text-white">{formatQuantity(row.quantity)}</span>}
                       </div>
                     </div>
-                    <span className="w-20 flex-shrink-0 text-right text-[12px] font-black text-[#1F2937]">
+                    <span className="w-20 flex-shrink-0 text-right text-[12px] font-semibold tabular-nums text-[#22201d]">
                       {formatQuantity(row.quantity)}
                     </span>
                   </div>
@@ -862,10 +858,10 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
           )}
         </div>
 
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
+        <div className="ws-panel">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-sm font-black text-[#1F2937]">{s.byHour[lang] || s.byHour.en}</p>
-            <span className="text-[11px] font-bold text-[#9CA3AF]">{analysis.hourly.length}</span>
+            <h2 className="ws-heading">{s.byHour[lang] || s.byHour.en}</h2>
+            <span className="ws-count">{analysis.hourly.length}</span>
           </div>
           {analysis.hourly.length === 0 ? (
             <CompactEmpty label={s.noSales[lang] || s.noSales.en} />
@@ -875,16 +871,16 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
                 const pct = Math.round(row.quantity / maxHourlyQty * 100)
                 return (
                   <div key={row.hour} className="flex items-center gap-3">
-                    <span className="w-14 flex-shrink-0 text-right text-[12px] font-bold text-[#6B7280]">{hourLabel(row.hour)}</span>
-                    <div className="h-8 flex-1 overflow-hidden rounded-lg bg-gray-100">
+                    <span className="w-14 flex-shrink-0 text-right text-[12px] font-medium text-[#68655f]">{hourLabel(row.hour)}</span>
+                    <div className="h-8 flex-1 overflow-hidden rounded-lg bg-[#efece9]">
                       <div
-                        className="flex h-full items-center rounded-lg bg-[#FDBA74] px-2"
+                        className="flex h-full items-center rounded-lg bg-[#ff5a00]/45 px-2"
                         style={{ width: `${Math.max(pct, 3)}%` }}
                       >
-                        {pct > 16 && <span className="truncate text-[10px] font-black text-white">{formatQuantity(row.quantity)}</span>}
+                        {pct > 16 && <span className="truncate text-[10px] font-semibold tabular-nums text-white">{formatQuantity(row.quantity)}</span>}
                       </div>
                     </div>
-                    <span className="w-20 flex-shrink-0 text-right text-[12px] font-black text-[#1F2937]">
+                    <span className="w-20 flex-shrink-0 text-right text-[12px] font-semibold tabular-nums text-[#22201d]">
                       {formatQuantity(row.quantity)}
                     </span>
                   </div>
@@ -896,62 +892,62 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
       </div>
 
       <div className={`grid gap-5 ${selectedDishKey === ALL_DISHES_KEY ? 'xl:grid-cols-2' : ''}`}>
-        {selectedDishKey === ALL_DISHES_KEY && <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-5 py-3.5">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-[#9CA3AF]">{s.lowSellers[lang] || s.lowSellers.en}</p>
-            <span className="text-[11px] font-black text-[#ff5a00]">{lowSellers.length}</span>
+        {selectedDishKey === ALL_DISHES_KEY && <div className="ws-panel ws-panel-flush">
+          <div className="flex items-center justify-between gap-3 border-b border-[#e4e1de] px-5 py-4">
+            <h2 className="ws-heading">{s.lowSellers[lang] || s.lowSellers.en}</h2>
+            <span className="ws-count">{lowSellers.length}</span>
           </div>
           {lowSellers.length === 0 ? (
             <CompactEmpty label={s.noSales[lang] || s.noSales.en} />
           ) : (
             <div className="max-h-[440px] overflow-y-auto">
               {lowSellers.map((dish, index) => (
-                <div key={dish.key} className="grid grid-cols-[30px_44px_1fr_76px_96px] items-center gap-3 border-b border-[#F9FAFB] px-5 py-3 last:border-0">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-[10px] font-black text-[#6B7280]">{index + 1}</span>
-                  <div className="h-11 w-11 overflow-hidden rounded-xl border border-gray-100 bg-orange-50">
+                <div key={dish.key} className="ws-row grid grid-cols-[30px_44px_1fr_76px_96px] items-center gap-3 px-5 py-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#efece9] text-[10px] font-semibold tabular-nums text-[#68655f]">{index + 1}</span>
+                  <div className="h-11 w-11 overflow-hidden rounded-[10px] border border-[#e4e1de] bg-[#efece9]">
                     {dish.image_url ? (
                       <img src={dish.image_url} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center">
-                        <UtensilsCrossed size={13} className="text-orange-200" />
+                        <UtensilsCrossed size={13} className="text-[#a8a49e]" />
                       </div>
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-[#1F2937]">{dishDisplayName(dish, lang)}</p>
-                    <p className="truncate text-[11px] font-semibold text-[#9CA3AF]">{dishCategoryLabel(dish, categories, lang)}</p>
+                    <p className="truncate text-sm font-medium text-[#22201d]">{dishDisplayName(dish, lang)}</p>
+                    <p className="ws-caption truncate">{dishCategoryLabel(dish, categories, lang)}</p>
                   </div>
-                  <span className={`text-right text-sm font-black ${dish.quantity === 0 ? 'text-red-500' : 'text-[#1F2937]'}`}>
+                  <span className={`text-right text-sm font-semibold tabular-nums ${dish.quantity === 0 ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>
                     {dish.quantity === 0 ? '0' : formatQuantity(dish.quantity)}
                   </span>
-                  <span className="text-right text-sm font-black text-[#ff5a00]">{formatCurrency(dish.revenue)}</span>
+                  <span className="text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(dish.revenue)}</span>
                 </div>
               ))}
             </div>
           )}
         </div>}
 
-        <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-5 py-3.5">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-[#9CA3AF]">{s.saleLog[lang] || s.saleLog.en}</p>
-            <span className="text-[11px] font-black text-[#ff5a00]">{analysis.sales.length}</span>
+        <div className="ws-panel ws-panel-flush">
+          <div className="flex items-center justify-between gap-3 border-b border-[#e4e1de] px-5 py-4">
+            <h2 className="ws-heading">{s.saleLog[lang] || s.saleLog.en}</h2>
+            <span className="ws-count">{analysis.sales.length}</span>
           </div>
           {visibleSales.length === 0 ? (
             <CompactEmpty label={s.noSales[lang] || s.noSales.en} />
           ) : (
             <div className="max-h-[440px] overflow-y-auto">
               {visibleSales.map((sale, index) => (
-                <div key={`${sale.orderId}-${sale.dishKey}-${index}`} className="border-b border-[#F9FAFB] px-5 py-3 last:border-0">
+                <div key={`${sale.orderId}-${sale.dishKey}-${index}`} className="ws-row px-5 py-3">
                   <div className="mb-1 flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[#1F2937]">
+                      <p className="truncate text-sm font-medium text-[#22201d]">
                         {selectedDishKey === ALL_DISHES_KEY ? sale.dishName : `#${String(sale.orderId).slice(-4).toUpperCase()}`}
                       </p>
-                      <p className="text-[11px] font-semibold text-[#9CA3AF]">{formatLongDateTime(sale.orderDate, lang, '—')}</p>
+                      <p className="ws-caption">{formatLongDateTime(sale.orderDate, lang, '—')}</p>
                     </div>
-                    <p className="flex-shrink-0 text-sm font-black text-[#ff5a00]">{sale.includedInSet ? s.setRevenue[lang] : formatCurrency(sale.revenue)}</p>
+                    <p className="flex-shrink-0 text-sm font-semibold tabular-nums text-[#22201d]">{sale.includedInSet ? s.setRevenue[lang] : formatCurrency(sale.revenue)}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-[#6B7280]">
+                  <div className="ws-caption flex flex-wrap items-center gap-2">
                     <span>{s.qty[lang] || s.qty.en}: {formatQuantity(sale.quantity)}</span>
                     {sale.includedInSet && <span>· {s.included[lang]}: {sale.sourceName}</span>}
                     <span>·</span>
@@ -1004,29 +1000,29 @@ function ByCategoryTab({ orders, categories, menuItemMap, lang }) {
 
   const maxRev = data[0]?.revenue || 1
   return (
-    <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+    <div className="ws-panel ws-panel-flush">
       {data.map((d, i) => (
-        <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-[#F9FAFB] last:border-0">
-          <span className={`w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center flex-shrink-0 ${
-            i === 0 ? 'bg-[#ff5a00] text-white' : i === 1 ? 'bg-orange-100 text-[#ff5a00]' : 'bg-gray-100 text-gray-500'
+        <div key={i} className="ws-row flex items-center gap-4 px-5 py-4">
+          <span className={`w-7 h-7 rounded-full text-[11px] font-semibold tabular-nums flex items-center justify-center flex-shrink-0 ${
+            i === 0 ? 'bg-[#ff5a00] text-white' : i === 1 ? 'bg-[#fff1e8] text-[#ff5a00]' : 'bg-[#efece9] text-[#68655f]'
           }`}>{i + 1}</span>
 
-          <div className="w-10 h-10 rounded-xl overflow-hidden bg-orange-50 border border-gray-100 flex-shrink-0">
+          <div className="w-10 h-10 rounded-[10px] overflow-hidden bg-[#efece9] border border-[#e4e1de] flex-shrink-0">
             {d.image ? (
               <img src={d.image} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Tag size={12} className="text-orange-300" />
+                <Tag size={12} className="text-[#a8a49e]" />
               </div>
             )}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1">
-              <p className="font-semibold text-sm text-[#1F2937]">{d.label}</p>
+              <p className="font-medium text-sm text-[#22201d]">{d.label}</p>
               <div className="flex items-center gap-3">
-                <span className="text-[11px] text-[#9CA3AF]">{d.qty} {lang === 'uz' ? 'dona' : lang === 'ru' ? 'шт.' : 'items'} · {d.pct}%</span>
-                <span className="font-bold text-sm text-[#ff5a00]">{formatCurrency(d.revenue)}</span>
+                <span className="ws-caption tabular-nums">{d.qty} {lang === 'uz' ? 'dona' : lang === 'ru' ? 'шт.' : 'items'} · {d.pct}%</span>
+                <span className="font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(d.revenue)}</span>
               </div>
             </div>
             <ProgressBar pct={Math.round(d.revenue / maxRev * 100)} />
@@ -1074,35 +1070,35 @@ function ByHourTab({ orders, lang }) {
           { label: lang === 'ru' ? 'Заказов в пик' : lang === 'uz' ? 'Buyurtmalar' : 'Peak Orders',
             value: peak.count },
         ].map(({ label, value }) => (
-          <div key={label} className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4 text-center">
-            <p className="text-[11px] text-[#9CA3AF] font-medium uppercase tracking-wide mb-1">{label}</p>
-            <p className="text-xl font-black text-[#ff5a00]">{value}</p>
+          <div key={label} className="ws-panel">
+            <p className="ws-caption mb-1">{label}</p>
+            <p className="break-words text-xl font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{value}</p>
           </div>
         ))}
       </div>
 
       {/* Hourly bars */}
-      <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5">
+      <div className="ws-panel">
         <div className="space-y-2">
           {activeHours.map(h => {
             const isPeak = h.hour === peakIdx
             const pct    = Math.round(h.revenue / maxRev * 100)
             return (
               <div key={h.hour} className="flex items-center gap-3">
-                <span className="w-12 text-[12px] font-bold text-[#6B7280] flex-shrink-0 text-right">
+                <span className="w-12 text-[12px] font-medium tabular-nums text-[#68655f] flex-shrink-0 text-right">
                   {String(h.hour).padStart(2, '0')}:00
                 </span>
-                <div className="flex-1 h-7 bg-gray-100 rounded-lg overflow-hidden">
+                <div className="flex-1 h-7 bg-[#efece9] rounded-lg overflow-hidden">
                   <div
                     className="h-full rounded-lg flex items-center px-2 transition-all"
-                    style={{ width: `${Math.max(pct, 2)}%`, background: isPeak ? '#ff5a00' : '#FDBA74' }}
+                    style={{ width: `${Math.max(pct, 2)}%`, background: isPeak ? '#ff5a00' : 'rgb(255 90 0 / 45%)' }}
                   >
                     {pct > 15 && (
-                      <span className="text-[10px] font-bold text-white truncate">{formatCurrency(h.revenue)}</span>
+                      <span className="text-[10px] font-semibold tabular-nums text-white truncate">{formatCurrency(h.revenue)}</span>
                     )}
                   </div>
                 </div>
-                <span className="text-[11px] text-[#9CA3AF] w-16 text-right flex-shrink-0">
+                <span className="ws-caption w-16 text-right flex-shrink-0">
                   {h.count} {lang === 'ru' ? 'зак.' : lang === 'uz' ? 'brt.' : 'orders'}
                 </span>
               </div>
@@ -1155,15 +1151,17 @@ function PaymentMethodsTab({ orders, lang }) {
           const cfg   = PAY_CFG[d.method] || PAY_CFG.unknown
           const { Icon } = cfg
           return (
-            <div key={d.method} className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`w-8 h-8 rounded-xl flex items-center justify-center ${cfg.cls}`}>
-                  <Icon size={14} />
+            <div key={d.method} className="ws-panel">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="ws-caption">{cfg.label[lang] || cfg.label.en}</p>
+                  <p className="mt-1 break-words text-xl font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(d.revenue)}</p>
+                </div>
+                <span className="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center bg-[#efece9] text-[#68655f]">
+                  <Icon size={16} />
                 </span>
-                <span className="font-bold text-[13px] text-[#1F2937]">{cfg.label[lang] || cfg.label.en}</span>
               </div>
-              <p className="font-black text-xl text-[#ff5a00]">{formatCurrency(d.revenue)}</p>
-              <p className="text-[11px] text-[#9CA3AF] mt-0.5">{d.count} {lang === 'uz' ? 'ta' : lang === 'ru' ? 'зак.' : 'orders'} · {d.pct}%</p>
+              <p className="ws-caption mt-1 tabular-nums">{d.count} {lang === 'uz' ? 'ta' : lang === 'ru' ? 'зак.' : 'orders'} · {d.pct}%</p>
               <ProgressBar pct={d.pct} color={cfg.bar} />
             </div>
           )
@@ -1171,40 +1169,40 @@ function PaymentMethodsTab({ orders, lang }) {
       </div>
 
       {/* Detailed breakdown */}
-      <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50">
-          <p className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-widest">{lang === 'uz' ? 'Tafsilot' : lang === 'ru' ? 'Детали' : 'Breakdown'}</p>
+      <div className="ws-panel ws-panel-flush">
+        <div className="px-5 py-4 border-b border-[#e4e1de]">
+          <h2 className="ws-heading">{lang === 'uz' ? 'Tafsilot' : lang === 'ru' ? 'Детали' : 'Breakdown'}</h2>
         </div>
         {data.map(d => {
           const cfg = PAY_CFG[d.method] || PAY_CFG.unknown
           const { Icon } = cfg
           return (
-            <div key={d.method} className="flex items-center gap-4 px-5 py-4 border-b border-[#F9FAFB] last:border-0">
-              <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.cls}`}>
+            <div key={d.method} className="ws-row flex items-center gap-4 px-5 py-4">
+              <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-[#efece9] text-[#68655f]">
                 <Icon size={16} />
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between mb-1">
-                  <p className="font-semibold text-sm text-[#1F2937]">{cfg.label[lang] || cfg.label.en}</p>
-                  <p className="font-bold text-sm text-[#ff5a00]">{formatCurrency(d.revenue)}</p>
+                  <p className="font-medium text-sm text-[#22201d]">{cfg.label[lang] || cfg.label.en}</p>
+                  <p className="font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(d.revenue)}</p>
                 </div>
                 <ProgressBar pct={d.pct} color={cfg.bar} />
               </div>
               <div className="text-right flex-shrink-0 min-w-[60px]">
-                <p className="text-[12px] font-bold text-[#1F2937]">{d.pct}%</p>
-                <p className="text-[11px] text-[#9CA3AF]">{d.count} {lang === 'uz' ? 'ta' : lang === 'ru' ? 'зак.' : 'orders'}</p>
+                <p className="text-[12px] font-semibold tabular-nums text-[#22201d]">{d.pct}%</p>
+                <p className="ws-caption">{d.count} {lang === 'uz' ? 'ta' : lang === 'ru' ? 'зак.' : 'orders'}</p>
               </div>
             </div>
           )
         })}
         {/* Totals row */}
-        <div className="flex items-start justify-between gap-4 px-5 py-4 bg-gray-50 border-t border-gray-100">
-          <span className="font-black text-sm text-[#1F2937]">
+        <div className="flex items-start justify-between gap-4 px-5 py-4 bg-[#f6f5f3] border-t border-[#e4e1de]">
+          <span className="font-semibold text-sm text-[#22201d]">
             {lang === 'uz' ? 'Daromad' : lang === 'ru' ? 'Доход' : 'Income'}
           </span>
           <span className="text-right">
-            <span className="block font-black text-lg text-[#ff5a00]">{formatCurrency(totalRevenue)}</span>
-            <span className="mt-1 block text-xs font-bold text-amber-700">
+            <span className="block font-semibold text-lg tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(totalRevenue)}</span>
+            <span className="ws-badge ws-tone-caution mt-1">
               {lang === 'uz' ? 'Loyallik daromadi' : lang === 'ru' ? 'Доход по лояльности' : 'Loyalty income'}: {formatCurrency(loyaltyIncome)}
             </span>
           </span>
@@ -1244,9 +1242,9 @@ function OrderTypesTab({ orders, lang }) {
 
   const colors = {
     dine_in: '#ff5a00',
-    take_away: '#2563EB',
-    delivery: '#7C3AED',
-    game_club: '#059669',
+    take_away: '#2a6fdb',
+    delivery: '#9a5a00',
+    game_club: '#1d7a52',
   }
   const total = data.reduce((sum, row) => sum + row.revenue, 0)
   const maxRev = Math.max(...data.map(row => row.revenue), 1)
@@ -1255,13 +1253,13 @@ function OrderTypesTab({ orders, lang }) {
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
         {data.map(row => (
-          <div key={row.type} className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-black text-[#1F2937]">{row.label}</p>
-              <span className="rounded-full bg-gray-50 px-2.5 py-1 text-[11px] font-black text-[#6B7280]">{row.pct}%</span>
+          <div key={row.type} className="ws-panel">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <p className="ws-caption">{row.label}</p>
+              <span className="ws-count">{row.pct}%</span>
             </div>
-            <p className="text-2xl font-black text-[#ff5a00]">{formatCurrency(row.revenue)}</p>
-            <p className="mt-1 text-[12px] font-semibold text-[#9CA3AF]">
+            <p className="break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
+            <p className="ws-caption mt-1 tabular-nums">
               {row.orders} {lang === 'uz' ? 'buyurtma' : lang === 'ru' ? 'заказов' : 'orders'} · {row.items} {lang === 'uz' ? 'dona' : lang === 'ru' ? 'поз.' : 'items'}
             </p>
             <ProgressBar pct={Math.round(row.revenue / maxRev * 100)} color={colors[row.type]} />
@@ -1269,20 +1267,20 @@ function OrderTypesTab({ orders, lang }) {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
+      <div className="ws-panel ws-panel-flush">
         {data.map(row => (
-          <div key={row.type} className="flex items-center gap-4 border-b border-[#F9FAFB] px-5 py-4 last:border-0">
+          <div key={row.type} className="ws-row flex items-center gap-4 px-5 py-4">
             <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ background: colors[row.type] }} />
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex items-center justify-between gap-3">
-                <p className="text-sm font-bold text-[#1F2937]">{row.label}</p>
-                <p className="text-sm font-black text-[#ff5a00]">{formatCurrency(row.revenue)}</p>
+                <p className="text-sm font-medium text-[#22201d]">{row.label}</p>
+                <p className="text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
               </div>
               <ProgressBar pct={total > 0 ? row.pct : 0} color={colors[row.type]} />
             </div>
             <div className="min-w-[88px] text-right">
-              <p className="text-[12px] font-black text-[#1F2937]">{row.pct}%</p>
-              <p className="text-[11px] text-[#9CA3AF]">{row.orders} {lang === 'ru' ? 'зак.' : lang === 'uz' ? 'brt.' : 'orders'}</p>
+              <p className="text-[12px] font-semibold tabular-nums text-[#22201d]">{row.pct}%</p>
+              <p className="ws-caption">{row.orders} {lang === 'ru' ? 'зак.' : lang === 'uz' ? 'brt.' : 'orders'}</p>
             </div>
           </div>
         ))}
@@ -1315,10 +1313,10 @@ function WaiterPerformanceTab({ orders, lang }) {
   const maxRev = data[0]?.revenue || 1
 
   return (
-    <div className="w-full overflow-x-auto rounded-2xl border border-[#E5E7EB] shadow-sm">
-    <div className="bg-white rounded-2xl overflow-hidden min-w-[640px]">
+    <div className="ws-panel ws-panel-flush w-full !overflow-x-auto">
+    <div className="min-w-[640px]">
       {/* Header */}
-      <div className="hidden md:grid grid-cols-[32px_1fr_80px_140px_140px_80px] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">
+      <div className="ws-table-head hidden md:grid grid-cols-[32px_1fr_80px_140px_140px_80px] gap-4 px-5 py-3">
         <span>#</span><span>{lang === 'uz' ? 'Ofitsiant' : lang === 'ru' ? 'Официант' : 'Waiter'}</span>
         <span className="text-center">{lang === 'uz' ? 'Brt.' : lang === 'ru' ? 'Зак.' : 'Orders'}</span>
         <span className="text-right">{lang === 'uz' ? 'Daromad' : lang === 'ru' ? 'Выручка' : 'Revenue'}</span>
@@ -1327,43 +1325,43 @@ function WaiterPerformanceTab({ orders, lang }) {
       </div>
 
       {data.map((d, i) => (
-        <div key={d.name} className="px-5 py-4 border-b border-[#F9FAFB] last:border-0">
+        <div key={d.name} className="ws-row px-5 py-4">
           {/* Desktop row */}
           <div className="hidden md:grid grid-cols-[32px_1fr_80px_140px_140px_80px] gap-4 items-center">
-            <span className={`w-7 h-7 rounded-full text-[11px] font-black flex items-center justify-center ${
-              i === 0 ? 'bg-[#ff5a00] text-white' : i === 1 ? 'bg-orange-100 text-[#ff5a00]' : 'bg-gray-100 text-gray-500'
+            <span className={`w-7 h-7 rounded-full text-[11px] font-semibold tabular-nums flex items-center justify-center ${
+              i === 0 ? 'bg-[#ff5a00] text-white' : i === 1 ? 'bg-[#fff1e8] text-[#ff5a00]' : 'bg-[#efece9] text-[#68655f]'
             }`}>{i + 1}</span>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2.5 mb-1">
-                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#ff5a00] text-[11px] font-black">
+                <div className="w-8 h-8 rounded-full bg-[#efece9] flex items-center justify-center flex-shrink-0">
+                  <span className="text-[#68655f] text-[11px] font-semibold">
                     {(d.name[0] || '?').toUpperCase()}
                   </span>
                 </div>
-                <p className="font-semibold text-sm text-[#1F2937] truncate">{d.name}</p>
+                <p className="font-medium text-sm text-[#22201d] truncate">{d.name}</p>
               </div>
               <ProgressBar pct={Math.round(d.revenue / maxRev * 100)} />
             </div>
 
-            <span className="text-center text-sm font-bold text-[#1F2937]">{d.orders}</span>
-            <span className="text-right font-bold text-sm text-[#ff5a00]">{formatCurrency(d.revenue)}</span>
-            <span className="text-right text-sm text-[#6B7280]">{formatCurrency(d.avg)}</span>
-            <span className="text-center text-sm text-[#6B7280]">{d.items}</span>
+            <span className="text-center text-sm font-semibold tabular-nums text-[#22201d]">{d.orders}</span>
+            <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(d.revenue)}</span>
+            <span className="text-right text-sm tabular-nums text-[#68655f]">{formatCurrency(d.avg)}</span>
+            <span className="text-center text-sm tabular-nums text-[#68655f]">{d.items}</span>
           </div>
 
           {/* Mobile card */}
           <div className="md:hidden">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center ${
-                  i === 0 ? 'bg-[#ff5a00] text-white' : 'bg-gray-100 text-gray-500'
+                <span className={`w-6 h-6 rounded-full text-[10px] font-semibold tabular-nums flex items-center justify-center ${
+                  i === 0 ? 'bg-[#ff5a00] text-white' : 'bg-[#efece9] text-[#68655f]'
                 }`}>{i + 1}</span>
-                <p className="font-bold text-[14px] text-[#1F2937]">{d.name}</p>
+                <p className="font-medium text-[14px] text-[#22201d]">{d.name}</p>
               </div>
-              <p className="font-black text-[#ff5a00]">{formatCurrency(d.revenue)}</p>
+              <p className="font-semibold tabular-nums text-[#22201d]">{formatCurrency(d.revenue)}</p>
             </div>
-            <div className="flex gap-4 text-[12px] text-[#6B7280]">
+            <div className="ws-caption flex gap-4">
               <span>{d.orders} {lang === 'uz' ? 'brt.' : lang === 'ru' ? 'зак.' : 'orders'}</span>
               <span>{lang === 'uz' ? "o'rt." : lang === 'ru' ? 'ср.' : 'avg'} {formatCurrency(d.avg)}</span>
               <span>{d.items} {lang === 'uz' ? 'dona' : lang === 'ru' ? 'шт.' : 'items'}</span>
@@ -1419,12 +1417,12 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
   return (
     <div className="flex flex-col h-full">
       {/* Drawer header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB] flex-shrink-0 bg-white">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[#e4e1de] flex-shrink-0 bg-white">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <span className="font-black text-[#1F2937] text-base flex items-center gap-1.5">
+          <span className="ws-heading flex items-center gap-1.5">
             {lang === 'uz' ? 'Buyurtma' : lang === 'ru' ? 'Заказ' : 'Order'} {orderNum}
             {sessionCnt > 1 && (
-              <span className="text-[10px] font-black bg-orange-100 text-[#ff5a00] rounded-md px-1.5 py-0.5 leading-none">
+              <span className="ws-badge ws-tone-accent">
                 {sessionCnt} {lang === 'uz' ? 'tur' : lang === 'ru' ? 'раунд' : 'rounds'}
               </span>
             )}
@@ -1432,7 +1430,7 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
           <StatusBadge status={order.payment_status || (isPaidOrder(order) ? 'paid' : 'unpaid')} lang={lang} />
           <PriceModeBadge mode={order.price_mode} lang={lang} />
         </div>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-[#6B7280]">
+        <button type="button" onClick={onClose} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon">
           <X size={16} />
         </button>
       </div>
@@ -1452,16 +1450,16 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
             { label: lang === 'uz' ? 'Yaratildi' : lang === 'ru' ? 'Создан'    : 'Created',  value: fmtDate(order.created_at, lang) },
             { label: lang === 'uz' ? "To'landi"  : lang === 'ru' ? 'Оплачен'   : 'Paid At',  value: fmtDate(order.paid_at, lang) },
           ].map(({ label, value, fullWidth = false }) => (
-            <div key={label} className={`min-w-0 rounded-xl bg-gray-50 ${fullWidth ? 'col-span-2 p-4' : 'p-3'}`}>
-              <p className={`text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wide ${fullWidth ? 'mb-2' : 'mb-1'}`}>{label}</p>
-              <div className={`text-sm font-semibold text-[#1F2937] ${fullWidth ? 'w-full' : ''}`}>{value}</div>
+            <div key={label} className={`min-w-0 rounded-xl bg-[#f6f5f3] ${fullWidth ? 'col-span-2 p-4' : 'p-3'}`}>
+              <p className={`ws-caption font-medium ${fullWidth ? 'mb-2' : 'mb-1'}`}>{label}</p>
+              <div className={`text-sm font-medium text-[#22201d] ${fullWidth ? 'w-full' : ''}`}>{value}</div>
             </div>
           ))}
         </div>
 
         {/* Items */}
         <div>
-          <p className="text-xs font-bold text-[#9CA3AF] uppercase tracking-widest mb-3">
+          <p className="ws-caption font-medium mb-3">
             {lang === 'uz' ? 'Buyurtma qilingan' : lang === 'ru' ? 'Заказанные блюда' : 'Ordered Items'} ({items.length})
           </p>
           <div className="space-y-3">
@@ -1472,44 +1470,44 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
               const kcal = kcalLabel(mi || item, lang)
               return (
                 <div key={i} className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-orange-50 border border-gray-100 flex-shrink-0">
+                  <div className="w-12 h-12 rounded-[10px] overflow-hidden bg-[#efece9] border border-[#e4e1de] flex-shrink-0">
                     {(item.image_url || mi?.image_url) ? (
                       <img src={item.image_url || mi.image_url} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <UtensilsCrossed size={14} className="text-orange-200" />
+                        <UtensilsCrossed size={14} className="text-[#a8a49e]" />
                       </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-[#1F2937] truncate">{item.name || mi?.name_en || 'Item'}</p>
+                    <p className="font-medium text-sm text-[#22201d] truncate">{item.name || mi?.name_en || 'Item'}</p>
                     {(grams || millilitres || kcal) && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {grams && (
-                          <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+                          <span className="ws-badge">
                             {grams}
                           </span>
                         )}
                         {millilitres && (
-                          <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+                          <span className="ws-badge">
                             {millilitres}
                           </span>
                         )}
                         {kcal && (
-                          <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+                          <span className="ws-badge">
                             {kcal}
                           </span>
                         )}
                       </div>
                     )}
-                    {item.notes && <p className="text-[11px] text-[#9CA3AF]">{item.notes}</p>}
-                    <p className="text-[11px] text-[#6B7280] mt-0.5">
+                    {item.notes && <p className="ws-caption">{item.notes}</p>}
+                    <p className="ws-caption mt-0.5 tabular-nums">
                       {isMenuItemSoldByWeight(item)
                         ? `${formatMenuQuantity(item.quantity, item)} · ${formatCurrency(getOrderItemUnitPrice(item))} / kg`
                         : `${lang === 'uz' ? 'Dona' : lang === 'ru' ? 'Кол' : 'Qty'} ${formatMenuQuantity(item.quantity, item)} × ${formatCurrency(getOrderItemUnitPrice(item))}`}
                     </p>
                   </div>
-                  <p className="font-bold text-sm text-[#1F2937] flex-shrink-0">
+                  <p className="font-semibold tabular-nums text-sm text-[#22201d] flex-shrink-0">
                     {formatCurrency(getOrderItemUnitPrice(item) * (Number(item.quantity) || 1))}
                   </p>
                 </div>
@@ -1520,34 +1518,36 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
 
         {/* Payment summary */}
         <div>
-          <p className="text-xs font-bold text-[#9CA3AF] uppercase tracking-widest mb-3">{lang === 'uz' ? "To'lov xulosasi" : lang === 'ru' ? 'Итог оплаты' : 'Payment Summary'}</p>
-          <div className="bg-gray-50 rounded-2xl p-4 space-y-2.5">
+          <p className="ws-caption font-medium mb-3">{lang === 'uz' ? "To'lov xulosasi" : lang === 'ru' ? 'Итог оплаты' : 'Payment Summary'}</p>
+          <div className="bg-[#f6f5f3] rounded-xl p-4 space-y-2.5">
             <SummaryRow label={lang === 'uz' ? 'Jami' : lang === 'ru' ? 'Подитог' : 'Subtotal'}                                      value={formatCurrency(subtotal)}   />
             {loyaltyUsed > 0 && (
-              <SummaryRow label={lang === 'uz' ? 'Sodiqlik ishlatildi' : lang === 'ru' ? 'Использовано с карты' : 'Loyalty used'} value={`− ${formatCurrency(loyaltyUsed)}`} valueClass="text-green-600" />
+              <SummaryRow label={lang === 'uz' ? 'Sodiqlik ishlatildi' : lang === 'ru' ? 'Использовано с карты' : 'Loyalty used'} value={`− ${formatCurrency(loyaltyUsed)}`} valueClass="text-[#1d7a52]" />
             )}
             <SummaryRow label={`${lang === 'uz' ? 'Xizmat' : lang === 'ru' ? 'Сервис' : 'Service'} (${servicePct}%)`}               value={formatCurrency(serviceAmt)} />
-            <div className="border-t border-dashed border-gray-200 pt-2.5">
+            <div className="border-t border-dashed border-[#dcd9d6] pt-2.5">
               <SummaryRow label={lang === 'uz' ? "To'lash kerak" : lang === 'ru' ? 'К оплате' : 'Total to Pay'}                      value={formatCurrency(total)} bold />
             </div>
             {received > 0 && <SummaryRow label={lang === 'uz' ? 'Qabul qilindi' : lang === 'ru' ? 'Получено' : 'Amount Received'}    value={formatCurrency(received)} />}
-            {received > 0 && <SummaryRow label={lang === 'uz' ? 'Qaytim' : lang === 'ru' ? 'Сдача' : 'Change'}                       value={formatCurrency(change)} valueClass="text-green-600" />}
+            {received > 0 && <SummaryRow label={lang === 'uz' ? 'Qaytim' : lang === 'ru' ? 'Сдача' : 'Change'}                       value={formatCurrency(change)} valueClass="text-[#1d7a52]" />}
           </div>
         </div>
       </div>
 
       {/* Footer actions */}
-      <div className="max-h-[65dvh] overflow-y-auto flex-shrink-0 px-5 py-4 border-t border-[#E5E7EB] bg-white grid grid-cols-2 gap-2">
+      <div className="max-h-[65dvh] overflow-y-auto flex-shrink-0 px-5 py-4 border-t border-[#e4e1de] bg-white grid grid-cols-2 gap-2">
         <button
           onClick={() => navigate(`/receipt/${order.id}`)}
-          className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#E5E7EB] text-[12px] font-bold text-[#6B7280] hover:border-[#ff5a00] hover:text-[#ff5a00] hover:bg-orange-50 transition-colors"
+          type="button"
+          className="ws-btn ws-btn-outline"
         >
           <Eye size={14} />
           {lang === 'uz' ? 'Chek' : lang === 'ru' ? 'Чек' : 'View Check'}
         </button>
         <button
           onClick={() => { navigate(`/receipt/${order.id}`); setTimeout(() => window.print(), 800) }}
-          className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#E5E7EB] text-[12px] font-bold text-[#6B7280] hover:border-[#ff5a00] hover:text-[#ff5a00] hover:bg-orange-50 transition-colors"
+          type="button"
+          className="ws-btn ws-btn-outline"
         >
           <Printer size={14} />
           {lang === 'uz' ? 'Bosish' : lang === 'ru' ? 'Печать' : 'Print'}
@@ -1563,8 +1563,8 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
                 onSavingChange={onPaymentSplitSaving}
               />
             ) : paymentMethodOrderId === order.id ? (
-              <div className="grid gap-2 rounded-xl border border-orange-200 bg-orange-50 p-3">
-                <p className="text-[11px] font-semibold leading-relaxed text-orange-800">
+              <div className="grid gap-2 rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-3">
+                <p className="ws-caption leading-relaxed">
                   {lang === 'uz'
                     ? 'Har bir to‘lov turini alohida o‘zgartirish mumkin. Summalar va sodiqlik ma’lumotlari o‘zgarmaydi.'
                     : lang === 'ru'
@@ -1574,18 +1574,19 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
                 {(paymentRows.length > 0 ? paymentRows : [{ id: 'legacy', method: order.payment_method, amount: total }]).map((row, index) => (
                   <div key={row.id || `${row.method}-${index}`} className="grid grid-cols-[1fr_150px] items-center gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-bold text-[#1F2937]">
+                      <p className="truncate text-xs font-medium text-[#22201d]">
                         {row.method === 'loyalty_card'
                           ? (lang === 'uz' ? 'Sodiqlik' : lang === 'ru' ? 'Лояльность' : 'Loyalty')
                           : `${lang === 'uz' ? "To‘lov" : lang === 'ru' ? 'Платёж' : 'Payment'} ${index + 1}`}
                       </p>
-                      <p className="text-[11px] text-[#6B7280]">{formatCurrency(row.amount)}</p>
+                      <p className="ws-caption tabular-nums">{formatCurrency(row.amount)}</p>
                       {row.method !== 'loyalty_card' && Number(row.amount) >= 2
                         && ((row.id && row.id !== 'legacy') || !(order._mergedIds?.length > 1)) && (
                         <button
                           onClick={() => setSplitPayment(row)}
                           disabled={savingPaymentOrderId === order.id}
-                          className="mt-1 text-left text-xs font-bold text-[#ff5a00] hover:underline disabled:opacity-60"
+                          type="button"
+                          className="mt-1 text-left text-xs font-medium text-[#ff5a00] hover:underline disabled:opacity-60"
                         >
                           + {lang === 'uz' ? 'Ikkinchi to‘lovni qo‘shish' : lang === 'ru' ? 'Добавить второй платёж' : 'Add second payment'}
                         </button>
@@ -1598,7 +1599,7 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
                         value={paymentMethodDraft[row.id || 'legacy'] || row.method || 'cash'}
                         onChange={event => onPaymentMethodDraftChange(row.id || 'legacy', event.target.value)}
                         disabled={savingPaymentOrderId === order.id}
-                        className="h-10 rounded-xl border border-orange-200 bg-white px-3 text-sm font-bold text-[#1F2937] outline-none focus:border-[#ff5a00]"
+                        className="ws-input !h-10"
                       >
                         <option value="cash">{lang === 'uz' ? 'Naqd' : lang === 'ru' ? 'Наличные' : 'Cash'}</option>
                         {row.method === 'card' && (
@@ -1616,7 +1617,8 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
                   <button
                     onClick={() => onSavePaymentMethod(order)}
                     disabled={savingPaymentOrderId === order.id}
-                    className="rounded-xl bg-[#ff5a00] py-2.5 text-xs font-black text-white hover:bg-[#e65100] disabled:opacity-60"
+                    type="button"
+                    className="ws-btn ws-btn-primary"
                   >
                     {savingPaymentOrderId === order.id
                       ? (lang === 'uz' ? 'Saqlanmoqda...' : lang === 'ru' ? 'Сохранение...' : 'Saving...')
@@ -1625,7 +1627,8 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
                   <button
                     onClick={onCancelPaymentMethod}
                     disabled={savingPaymentOrderId === order.id}
-                    className="rounded-xl border border-[#E5E7EB] bg-white py-2.5 text-xs font-black text-[#6B7280] hover:bg-gray-50 disabled:opacity-60"
+                    type="button"
+                    className="ws-btn ws-btn-outline"
                   >
                     {lang === 'uz' ? 'Bekor qilish' : lang === 'ru' ? 'Отмена' : 'Cancel'}
                   </button>
@@ -1635,7 +1638,8 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
               <button
                 onClick={() => onStartPaymentMethodChange(order)}
                 disabled={deletingOrderId === order.id}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 py-2.5 text-[12px] font-black text-[#ff5a00] transition-colors hover:bg-orange-100 disabled:opacity-60"
+                type="button"
+                className="ws-btn ws-btn-outline"
               >
                 <Pencil size={14} />
                 {lang === 'uz' ? 'To‘lov turini o‘zgartirish' : lang === 'ru' ? 'Изменить способ оплаты' : 'Change payment method'}
@@ -1648,10 +1652,11 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
             <button
               onClick={() => onDeleteOrder(order)}
               disabled={deletingOrderId === order.id || savingPaymentOrderId === order.id}
-              className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-black disabled:opacity-60 transition-colors ${
+              type="button"
+              className={`ws-btn ${
                 confirmDeleteOrderId === order.id
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'border border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                  ? 'ws-btn-danger-solid'
+                  : 'ws-btn-outline ws-btn-danger !text-[#c4262c]'
               }`}
             >
               <Trash2 size={14} />
@@ -1664,7 +1669,8 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
             {confirmDeleteOrderId === order.id && (
               <button
                 onClick={onCancelDeleteOrder}
-                className="rounded-xl border border-[#E5E7EB] py-2 text-xs font-black text-[#6B7280] hover:bg-gray-50"
+                type="button"
+                className="ws-btn ws-btn-ghost"
               >
                 {lang === 'uz' ? 'Bekor qilish' : lang === 'ru' ? 'Отмена' : 'Cancel'}
               </button>
@@ -1706,16 +1712,16 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
       {/* In-tab filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative flex-1 min-w-[180px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
           <input
             type="text" value={search}
             onChange={e => { setSearch(e.target.value); resetPage() }}
             placeholder={lang === 'uz' ? 'Buyurtma, stol, xodim...' : lang === 'ru' ? 'Заказ, стол, сотрудник...' : 'Search by order, table, staff...'}
-            className="w-full pl-8 pr-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-sm placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 focus:border-[#ff5a00] transition-all"
+            className="ws-input !pl-9"
           />
         </div>
         <select value={filterPay} onChange={e => { setFilterPay(e.target.value); resetPage() }}
-          className="bg-white border border-[#E5E7EB] rounded-xl px-3 py-2 text-sm text-[#6B7280] focus:outline-none cursor-pointer">
+          className="ws-input !w-auto">
           <option value="all">{lang === 'uz' ? "Barcha to'lovlar" : lang === 'ru' ? 'Все методы' : 'All Payments'}</option>
           <option value="cash">{lang === 'uz' ? 'Naqd' : lang === 'ru' ? 'Наличные' : 'Cash'}</option>
           <option value="card">{lang === 'uz' ? 'Karta' : lang === 'ru' ? 'Карта' : 'Card'}</option>
@@ -1726,10 +1732,10 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
       {pageOrders.length === 0 ? (
         <EmptyState label={lang === 'uz' ? 'Buyurtmalar topilmadi' : lang === 'ru' ? 'Заказы не найдены' : 'No orders found'} lang={lang} />
       ) : (
-        <div className="w-full overflow-x-auto rounded-2xl border border-[#E5E7EB] shadow-sm">
-        <div className="bg-white rounded-2xl overflow-hidden lg:min-w-[1340px]">
+        <div className="ws-panel ws-panel-flush w-full !overflow-x-auto">
+        <div className="lg:min-w-[1340px]">
           {/* Desktop header */}
-          <div className="hidden lg:grid grid-cols-[80px_90px_90px_120px_120px_minmax(145px,1fr)_90px_140px_60px_60px_110px_100px] gap-2 px-4 py-3 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">
+          <div className="ws-table-head hidden lg:grid grid-cols-[80px_90px_90px_120px_120px_minmax(145px,1fr)_90px_140px_60px_60px_110px_100px] gap-2 px-4 py-3">
             <span>{lang === 'uz' ? 'Buyurtma' : lang === 'ru' ? 'Заказ' : 'Order ID'}</span>
             <span>{lang === 'uz' ? 'Stol' : lang === 'ru' ? 'Стол' : 'Table'}</span>
             <span>{lang === 'uz' ? 'Mijoz' : lang === 'ru' ? 'Клиент' : 'Customer'}</span>
@@ -1744,7 +1750,7 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
             <span className="text-right">{lang === 'uz' ? 'Amal' : lang === 'ru' ? 'Действие' : 'Action'}</span>
           </div>
 
-          <div className="divide-y divide-[#F9FAFB]">
+          <div>
             {pageOrders.map(order => {
               const orderNum    = order.id ? `#${String(order.id).slice(-4).toUpperCase()}` : '—'
               const sessionCnt  = order._orderCount || 1
@@ -1760,34 +1766,31 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
                 <div
                   key={order.id || orderNum}
                   onClick={() => onSelect(isSelected ? null : order)}
-                  className={`px-4 py-3 transition-colors cursor-pointer ${isSelected ? 'bg-orange-50/60' : 'hover:bg-gray-50/60'}`}
+                  className={`ws-row px-4 py-3 cursor-pointer ${isSelected ? '!bg-[#fff1e8]' : ''}`}
                 >
                   {/* Desktop row */}
                   <div className="hidden lg:grid grid-cols-[80px_90px_90px_120px_120px_minmax(145px,1fr)_90px_140px_60px_60px_110px_100px] gap-2 items-center">
-                    <span className="font-black text-[#ff5a00] text-sm flex items-center gap-1">
+                    <span className="font-semibold tabular-nums text-[#22201d] text-sm flex items-center gap-1">
                       {orderNum}
                       {sessionCnt > 1 && (
-                        <span className="text-[9px] font-black bg-orange-100 text-[#ff5a00] rounded px-1 py-0.5 leading-none">+{sessionCnt - 1}</span>
+                        <span className="ws-count !min-w-0 !px-1.5">+{sessionCnt - 1}</span>
                       )}
                     </span>
-                    <span className="text-sm font-medium text-[#1F2937] truncate">{orderTableLabel(order, lang)}</span>
+                    <span className="text-sm font-medium text-[#22201d] truncate">{orderTableLabel(order, lang)}</span>
                     <span><PriceModeBadge mode={order.price_mode} lang={lang} /></span>
-                    <span className="text-sm text-[#6B7280] truncate">{(order.opened_by_name || order.waiter_name || '—').split(' ')[0]}</span>
-                    <span className="text-sm text-[#6B7280] truncate">{(order.completed_by_name || '—').split(' ')[0]}</span>
-                    <span className="text-[12px] text-[#6B7280]">{fmtDate(getOrderDate(order), lang)}</span>
+                    <span className="text-sm text-[#68655f] truncate">{(order.opened_by_name || order.waiter_name || '—').split(' ')[0]}</span>
+                    <span className="text-sm text-[#68655f] truncate">{(order.completed_by_name || '—').split(' ')[0]}</span>
+                    <span className="ws-caption">{fmtDate(getOrderDate(order), lang)}</span>
                     <span><StatusBadge status={status} lang={lang} /></span>
                     <span><PaymentMethodBadges order={order} lang={lang} /></span>
-                    <span className="text-center text-sm text-[#6B7280]">{loyaltyUsed > 0 ? formatCurrency(loyaltyUsed) : '—'}</span>
-                    <span className="text-center text-sm text-[#6B7280]">{servicePct}%</span>
-                    <span className="text-right font-black text-sm text-[#ff5a00]">{formatCurrency(getOrderTotal(order))}</span>
+                    <span className="text-center text-sm tabular-nums text-[#68655f]">{loyaltyUsed > 0 ? formatCurrency(loyaltyUsed) : '—'}</span>
+                    <span className="text-center text-sm tabular-nums text-[#68655f]">{servicePct}%</span>
+                    <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(getOrderTotal(order))}</span>
                     <div className="flex justify-end">
                       <button
                         onClick={e => { e.stopPropagation(); onSelect(isSelected ? null : order) }}
-                        className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-colors ${
-                          isSelected
-                            ? 'border-[#ff5a00] text-[#ff5a00] bg-orange-50'
-                            : 'border-[#E5E7EB] text-[#6B7280] hover:border-[#ff5a00] hover:text-[#ff5a00] hover:bg-orange-50'
-                        }`}
+                        type="button"
+                        className={`ws-btn ws-btn-sm ${isSelected ? 'ws-btn-primary' : 'ws-btn-outline'}`}
                       >
                         {isSelected ? (lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close') : (lang === 'uz' ? 'Batafsil' : lang === 'ru' ? 'Детали' : 'Details')}
                       </button>
@@ -1798,22 +1801,22 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
                   <div className="lg:hidden flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-black text-[#ff5a00] text-sm">{orderNum}</span>
+                        <span className="font-semibold tabular-nums text-[#22201d] text-sm">{orderNum}</span>
                         <StatusBadge status={status} lang={lang} />
                         <PriceModeBadge mode={order.price_mode} lang={lang} />
                       </div>
-                      <p className="text-sm font-medium text-[#1F2937]">{orderTableLabel(order, lang)} · {(order.opened_by_name || order.waiter_name || '').split(' ')[0]}</p>
+                      <p className="text-sm font-medium text-[#22201d]">{orderTableLabel(order, lang)} · {(order.opened_by_name || order.waiter_name || '').split(' ')[0]}</p>
                       {order.completed_by_name && (
-                        <p className="text-[11px] text-[#6B7280] mt-0.5">
+                        <p className="ws-caption mt-0.5">
                           {lang === 'uz' ? 'Yopgan' : lang === 'ru' ? 'Закрыл' : 'Completed by'}: {order.completed_by_name.split(' ')[0]}
                         </p>
                       )}
-                      <p className="text-[11px] text-[#9CA3AF] mt-0.5">{fmtDate(getOrderDate(order), lang)}</p>
+                      <p className="ws-caption mt-0.5">{fmtDate(getOrderDate(order), lang)}</p>
                       <div className="mt-1.5"><PaymentMethodBadges order={order} lang={lang} /></div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
-                      <span className="font-black text-[#ff5a00] text-base">{formatCurrency(getOrderTotal(order))}</span>
-                      <button className="px-2.5 py-1 rounded-xl border border-[#E5E7EB] text-[11px] font-bold text-[#6B7280]">{lang === 'uz' ? 'Batafsil' : lang === 'ru' ? 'Детали' : 'Details'}</button>
+                      <span className="font-semibold tabular-nums text-[#22201d] text-base">{formatCurrency(getOrderTotal(order))}</span>
+                      <button type="button" className="ws-btn ws-btn-outline ws-btn-sm">{lang === 'uz' ? 'Batafsil' : lang === 'ru' ? 'Детали' : 'Details'}</button>
                     </div>
                   </div>
                 </div>
@@ -1822,8 +1825,8 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-t border-gray-100">
-            <p className="text-xs text-[#9CA3AF]">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-[#f6f5f3] border-t border-[#e4e1de]">
+            <p className="ws-caption tabular-nums">
               {filtered.length === 0
                 ? (lang === 'uz' ? "Buyurtma yo'q" : lang === 'ru' ? 'Нет заказов' : 'No orders')
                 : `${lang === 'uz' ? "Ko'rsatilmoqda" : lang === 'ru' ? 'Показано' : 'Showing'} ${Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)}–${Math.min(page * PAGE_SIZE, filtered.length)} ${lang === 'uz' ? 'dan' : lang === 'ru' ? 'из' : 'of'} ${filtered.length} ${lang === 'uz' ? 'ta buyurtma' : lang === 'ru' ? 'заказов' : 'orders'}`
@@ -1851,29 +1854,28 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
 
 function ReportsSkeleton({ canViewExpenses, lang }) {
   return (
-    <div role="status" aria-busy="true" className="space-y-6">
+    <div role="status" aria-busy="true" className="space-y-5">
       <span className="sr-only">{lang === 'ru' ? 'Загрузка отчётов' : lang === 'uz' ? 'Hisobotlar yuklanmoqda' : 'Loading reports'}</span>
       <div aria-hidden="true" className={`grid grid-cols-2 lg:grid-cols-3 ${canViewExpenses ? 'xl:grid-cols-6' : 'xl:grid-cols-3'} gap-4`}>
         {Array.from({ length: canViewExpenses ? 6 : 3 }, (_, index) => (
-          <div key={index} className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm motion-safe:animate-pulse">
-            <div className="mb-4 h-10 w-10 rounded-xl bg-gray-100" />
-            <div className="mb-3 h-3 w-2/3 rounded bg-gray-100" />
-            <div className="h-8 w-full rounded bg-gray-200" />
+          <div key={index} className="ws-panel motion-safe:animate-pulse">
+            <div className="mb-3 h-3 w-2/3 rounded bg-[#efece9]" />
+            <div className="h-7 w-full rounded bg-[#e4e1de]" />
           </div>
         ))}
       </div>
-      <div aria-hidden="true" className="space-y-6 motion-safe:animate-pulse">
+      <div aria-hidden="true" className="space-y-5 motion-safe:animate-pulse">
         {Array.from({ length: canViewExpenses ? 3 : 2 }, (_, index) => (
-          <div key={index} className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-            <div className="mb-4 h-4 w-40 rounded bg-gray-200" />
+          <div key={index} className="ws-panel">
+            <div className="mb-4 h-4 w-40 rounded bg-[#e4e1de]" />
             <div className="grid grid-cols-2 gap-4">
-              <div className="h-12 rounded bg-gray-100" />
-              <div className="h-12 rounded bg-gray-100" />
+              <div className="h-12 rounded bg-[#efece9]" />
+              <div className="h-12 rounded bg-[#efece9]" />
             </div>
           </div>
         ))}
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-5 space-y-6">
-          {Array.from({ length: 5 }, (_, index) => <div key={index} className="h-10 rounded bg-gray-100" />)}
+        <div className="ws-panel space-y-6">
+          {Array.from({ length: 5 }, (_, index) => <div key={index} className="h-10 rounded bg-[#efece9]" />)}
         </div>
       </div>
     </div>
@@ -2234,9 +2236,9 @@ export default function Reports() {
   if (!loaded || loadError) {
     return (
       <AppShell title={l.title}>
-        <div className="min-h-screen bg-[#FAF7F0]">
+        <div className="min-h-full bg-[#f6f5f3]">
           {!loaded ? (
-            <OperationalLoading
+            <OperationalLoading layout="dashboard"
               title={lang === 'uz' ? 'Hisobotlar yuklanmoqda' : lang === 'ru' ? 'Загрузка отчётов' : 'Loading reports'}
               description={lang === 'uz' ? 'Buyurtmalar va to‘lovlar olinmoqda.' : lang === 'ru' ? 'Получаем заказы и платежи.' : 'Fetching orders and payments.'}
             />
@@ -2253,56 +2255,91 @@ export default function Reports() {
     )
   }
 
+  const reportTabs = {
+    label: l.title,
+    value: activeTab,
+    onChange: setActiveTab,
+    items: TABS.map(({ key, label }) => ({ key, label: label[lang] || label.en })),
+  }
+
+  function renderFilters(compact) {
+    const control = compact ? '!h-[38px]' : '!h-11'
+    return (
+      <div className="flex flex-wrap items-stretch gap-2">
+        <DateRangePicker
+          l={l}
+          lang={lang}
+          rangeKey={activeRangeKey}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          today={todayStr()}
+          onPreset={selectQuickRange}
+          onApply={setCustomRange}
+          compact={compact}
+          className={compact ? 'w-[260px]' : 'w-full sm:w-auto sm:min-w-[280px] sm:max-w-[420px] sm:flex-1'}
+        />
+        <div className="flex flex-wrap items-stretch gap-2">
+          <select value={tableFilter} onChange={e => setTableFilter(e.target.value)}
+            aria-label={l.allTables}
+            className={`ws-input ${control} !w-auto max-w-[200px]`}>
+            <option value="all">{l.allTables}</option>
+            {state.tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <select value={waiterFilter} onChange={e => setWaiterFilter(e.target.value)}
+            aria-label={l.allWaiters}
+            className={`ws-input ${control} !w-auto max-w-[200px]`}>
+            <option value="all">{l.allWaiters}</option>
+            {uniqueWaiters.map(w => <option key={w} value={w}>{w}</option>)}
+          </select>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <AppShell title={l.title}>
-      <div className="flex h-full overflow-hidden bg-[#FAF7F0]">
+    <AppShell
+      title={l.title}
+      titleAccessory={<div className="zk-filters-in-header">{renderFilters(true)}</div>}
+      headerActions={(
+        <button
+          type="button"
+          onClick={exportCloseout}
+          disabled={reportsLoading || Boolean(ordersError)}
+          aria-label={l.export}
+          title={l.export}
+          className="ws-btn ws-btn-outline !h-[38px]"
+        >
+          <Download size={16} />
+          <span className="hidden sm:inline">{l.export}</span>
+        </button>
+      )}
+    >
+      <div className="flex h-full overflow-hidden bg-[#f6f5f3]">
 
         {/* ── Main content ── */}
         <div className={`flex-1 min-w-0 overflow-y-auto transition-all ${showDrawer ? 'lg:mr-[380px]' : ''}`}>
-          <div className="w-full max-w-[1400px] mx-auto px-5 py-6">
+          <div className="min-h-full bg-[#f6f5f3]">
+          <div className="ws-page">
 
-            {/* Heading + filters */}
-            <div className="mb-6">
-              <div>
-                <h1 className="text-2xl font-black text-[#1F2937]">{l.title}</h1>
-                <p className="text-sm text-[#6B7280] mt-0.5">{l.sub}</p>
-              </div>
-              <div className="mt-4">
-                <DateRangePicker
-                  l={l}
-                  lang={lang}
-                  rangeKey={activeRangeKey}
-                  dateFrom={dateFrom}
-                  dateTo={dateTo}
-                  today={todayStr()}
-                  onPreset={selectQuickRange}
-                  onApply={setCustomRange}
-                />
-                <div className="mt-2 flex flex-wrap items-stretch justify-end gap-2">
-                  <select value={tableFilter} onChange={e => setTableFilter(e.target.value)}
-                    className="h-11 bg-white border border-[#E5E7EB] rounded-xl px-3 text-sm text-[#6B7280] focus:outline-none shadow-sm cursor-pointer">
-                    <option value="all">{l.allTables}</option>
-                    {state.tables.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                  <select value={waiterFilter} onChange={e => setWaiterFilter(e.target.value)}
-                    className="h-11 bg-white border border-[#E5E7EB] rounded-xl px-3 text-sm text-[#6B7280] focus:outline-none shadow-sm cursor-pointer">
-                    <option value="all">{l.allWaiters}</option>
-                    {uniqueWaiters.map(w => <option key={w} value={w}>{w}</option>)}
-                  </select>
-                  <button onClick={exportCloseout} disabled={reportsLoading || Boolean(ordersError)} className="flex h-11 items-center gap-1.5 px-4 bg-white border border-[#E5E7EB] rounded-xl text-sm font-semibold text-[#6B7280] hover:bg-gray-50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Download size={14} />{l.export}
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* Report views sit at the top of the page; the filters live in the top bar when it has room. */}
+            <nav aria-label={reportTabs.label} className="ws-page-tabs -mt-2 border-b border-[#e4e1de]">
+              {reportTabs.items.map(item => (
+                <button key={item.key} type="button" aria-pressed={reportTabs.value === item.key} onClick={() => reportTabs.onChange(item.key)}>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* Filters fall back to the page when the top bar is too narrow (.zk-filters-in-page). */}
+            <div className="zk-filters-in-page">{renderFilters(false)}</div>
 
             {ordersError && (
-              <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              <div className="ws-notice ws-tone-negative" role="alert">
                 {ordersError}
               </div>
             )}
             {canViewExpenses && expensesError && (
-              <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700" role="alert">
+              <div className="ws-notice ws-tone-negative" role="alert">
                 {expensesError}
               </div>
             )}
@@ -2310,55 +2347,55 @@ export default function Reports() {
             {reportsLoading && (
               <ReportsSkeleton canViewExpenses={canViewExpenses} lang={lang} />
             )}
-            <div hidden={reportsLoading || Boolean(ordersError)}>
+            <div hidden={reportsLoading || Boolean(ordersError)} className="space-y-5">
             {/* KPI cards */}
-            <div className={`grid grid-cols-2 lg:grid-cols-3 ${canViewExpenses ? 'xl:grid-cols-6' : 'xl:grid-cols-3'} gap-4 mb-6`}>
-              <KpiCard icon={DollarSign}  iconCls="bg-green-50 text-green-600"   label={l.totalRev}  value={formatCurrency(kpiRevenue)} sub={`${l.loyaltyIncome}: ${formatCurrency(kpiLoyaltyIncome)}`} />
-              <KpiCard icon={ShoppingBag} iconCls="bg-orange-50 text-[#ff5a00]"  label={l.numOrders} value={kpiOrders} />
-              <KpiCard icon={BarChart2}   iconCls="bg-blue-50 text-blue-600"     label={l.avgOrder}  value={formatCurrency(kpiAvg)} />
+            <div className={`grid grid-cols-2 lg:grid-cols-3 ${canViewExpenses ? 'xl:grid-cols-6' : 'xl:grid-cols-3'} gap-4`}>
+              <KpiCard icon={DollarSign}  label={l.totalRev}  value={formatCurrency(kpiRevenue)} sub={`${l.loyaltyIncome}: ${formatCurrency(kpiLoyaltyIncome)}`} />
+              <KpiCard icon={ShoppingBag} label={l.numOrders} value={kpiOrders} />
+              <KpiCard icon={BarChart2}   label={l.avgOrder}  value={formatCurrency(kpiAvg)} />
               {canViewExpenses && (
                 <>
-                  <KpiCard icon={CreditCard} iconCls="bg-red-50 text-red-600" label={l.expenses} value={expensesError ? '—' : formatCurrency(expenseSummary.total)} sub={expensesError || ''} />
-                  <KpiCard icon={UtensilsCrossed} iconCls="bg-amber-50 text-amber-700" label={l.employeeMeals} value={expensesError ? '—' : formatCurrency(employeeMealTotal)} sub={l.employeeMealsSub} />
-                  <KpiCard icon={DollarSign} iconCls={netIncome >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'} label={l.netIncome} value={expensesError ? '—' : formatCurrency(netIncome)} />
+                  <KpiCard icon={CreditCard} label={l.expenses} value={expensesError ? '—' : formatCurrency(expenseSummary.total)} sub={expensesError || ''} />
+                  <KpiCard icon={UtensilsCrossed} label={l.employeeMeals} value={expensesError ? '—' : formatCurrency(employeeMealTotal)} sub={l.employeeMealsSub} />
+                  <KpiCard icon={DollarSign} iconCls={expensesError ? '' : netIncome >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'} label={l.netIncome} value={expensesError ? '—' : formatCurrency(netIncome)} />
                 </>
               )}
             </div>
 
-            <div className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-              <div className="mb-3">
-                <p className="text-sm font-black text-[#1F2937]">
+            <section className="ws-panel">
+              <div className="mb-4">
+                <h2 className="ws-heading">
                   {lang === 'uz' ? 'Menyu turi bo‘yicha savdo' : lang === 'ru' ? 'Продажи по типу меню' : 'Sales by menu type'}
-                </p>
-                <p className="text-xs font-semibold text-[#9CA3AF]">
+                </h2>
+                <p className="ws-caption mt-0.5">
                   {lang === 'uz' ? 'Oddiy va turist narxlari bo‘yicha daromad' : lang === 'ru' ? 'Доход по обычным и туристическим ценам' : 'Income split between regular and tourist pricing'}
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {priceModeBreakdown.map(row => (
-                  <div key={row.mode} className="rounded-xl border border-orange-100 bg-orange-50/40 p-3">
+                  <div key={row.mode} className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-black text-[#1F2937]">{getPriceModeLabel(row.mode, lang)}</span>
-                      <span className="text-xs font-bold text-[#9CA3AF]">{row.orders} {lang === 'uz' ? 'buyurtma' : lang === 'ru' ? 'заказов' : 'orders'}</span>
+                      <span className="text-sm font-medium text-[#22201d]">{getPriceModeLabel(row.mode, lang)}</span>
+                      <span className="ws-caption tabular-nums">{row.orders} {lang === 'uz' ? 'buyurtma' : lang === 'ru' ? 'заказов' : 'orders'}</span>
                     </div>
-                    <p className="mt-2 text-xl font-black text-[#ff5a00]">{formatCurrency(row.revenue)}</p>
+                    <p className="mt-2 text-xl font-semibold tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
-            <div className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-              <div className="mb-3 flex items-center justify-between gap-3">
+            <section className="ws-panel">
+              <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-black text-[#1F2937]">{l.closeout}</p>
-                  <p className="text-xs font-semibold text-[#9CA3AF]">
+                  <h2 className="ws-heading">{l.closeout}</h2>
+                  <p className="ws-caption mt-0.5">
                     {closeout.dateFrom === closeout.dateTo
                       ? formatLongDate(closeout.dateTo, lang, closeout.dateTo)
                       : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`}
                   </p>
                 </div>
-                <button onClick={exportCloseout} className="rounded-xl border border-[#E5E7EB] px-3 py-2 text-xs font-black text-[#6B7280]">
-                  <Download size={13} className="mr-1 inline" />{l.export}
+                <button type="button" onClick={exportCloseout} className="ws-btn ws-btn-outline ws-btn-sm">
+                  <Download size={14} />{l.export}
                 </button>
               </div>
               <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -2371,7 +2408,7 @@ export default function Reports() {
                 <SummaryRow label={l.cancelled} value={closeout.cancelledCount} />
                 <SummaryRow label={l.variance} value={closeout.variance == null ? (lang === 'ru' ? 'Не измерено' : lang === 'uz' ? 'O‘lchanmagan' : 'Not measured') : formatCurrency(closeout.variance)} />
               </div>
-            </div>
+            </section>
 
             {canViewExpenses && !expensesError && (
               <div
@@ -2385,18 +2422,18 @@ export default function Reports() {
                   event.preventDefault()
                   setExpenseBreakdownOpen(true)
                 }}
-                className="mb-6 block w-full cursor-pointer touch-manipulation rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-sm transition-all hover:border-orange-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00] active:scale-[0.995]"
+                className="ws-panel block w-full cursor-pointer touch-manipulation text-left transition-shadow hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40"
               >
-                <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-black text-[#1F2937]">{l.leftAfterExpenses}</p>
-                    <p className="text-xs font-semibold text-[#9CA3AF]">
+                    <h2 className="ws-heading">{l.leftAfterExpenses}</h2>
+                    <p className="ws-caption mt-0.5">
                       {closeout.dateFrom === closeout.dateTo
                         ? formatLongDate(closeout.dateTo, lang, closeout.dateTo)
                         : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`}
                     </p>
                   </div>
-                  <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs font-black text-[#ff5a00]">
+                  <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs font-medium text-[#ff5a00]">
                     {l.tapForDetails}<ChevronRight size={15} />
                   </span>
                 </div>
@@ -2407,26 +2444,10 @@ export default function Reports() {
                   <SummaryRow label={l.employeeMeals} value={formatCurrency(employeeMealTotal)} />
                   <SummaryRow label={l.expenses} value={formatCurrency(expenseSummary.total)} />
                   <SummaryRow label={l.totalLeft} value={formatCurrency(cashflowLeft)} />
-                  <p className="text-xs text-[#6B7280] sm:col-span-2 lg:col-span-4">{lang === 'ru' ? 'Движение за выбранный период, без начального остатка. Питание сотрудников уже включено в расходы как расчётная стоимость, без списания с наличных, карты или терминала.' : lang === 'uz' ? 'Tanlangan davr harakati, boshlang‘ich qoldiqsiz. Xodimlar ovqati hisoblangan xarajatga kiritilgan, naqd, karta yoki terminaldan yechilmagan.' : 'Movement for this period, excluding opening balances. Employee meals are already included in expenses as a calculated cost, with no cash, card or terminal deduction.'}</p>
+                  <p className="ws-caption sm:col-span-2 lg:col-span-4">{lang === 'ru' ? 'Движение за выбранный период, без начального остатка. Питание сотрудников уже включено в расходы как расчётная стоимость, без списания с наличных, карты или терминала.' : lang === 'uz' ? 'Tanlangan davr harakati, boshlang‘ich qoldiqsiz. Xodimlar ovqati hisoblangan xarajatga kiritilgan, naqd, karta yoki terminaldan yechilmagan.' : 'Movement for this period, excluding opening balances. Employee meals are already included in expenses as a calculated cost, with no cash, card or terminal deduction.'}</p>
                 </div>
               </div>
             )}
-
-            {/* Desktop tabs wrap; smaller screens can scroll horizontally. */}
-            <div className="flex lg:flex-wrap gap-0 border-b border-[#E5E7EB] mb-5 overflow-x-auto scrollbar-none">
-              {TABS.map(({ key, label, Icon }) => (
-                <button key={key} onClick={() => setActiveTab(key)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-3 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${
-                    activeTab === key
-                      ? 'text-[#ff5a00] border-[#ff5a00]'
-                      : 'text-[#6B7280] border-transparent hover:text-[#1F2937]'
-                  }`}
-                >
-                  <Icon size={14} />
-                  {label[lang] || label.en}
-                </button>
-              ))}
-            </div>
 
             {/* Tab content — all use filteredForAnalytics (same as KPI) */}
             {activeTab === 'best_selling'       && (
@@ -2469,13 +2490,14 @@ export default function Reports() {
 
             </div>
           </div>
+          </div>
         </div>
 
         {/* ── Right drawer ── */}
         {showDrawer && (
           <>
-            <div className="lg:hidden fixed inset-0 bg-black/40 z-30" onClick={() => setSelectedOrder(null)} />
-            <div className="fixed top-0 right-0 h-full w-full sm:w-[400px] lg:w-[380px] bg-white border-l border-[#E5E7EB] shadow-2xl z-40 flex flex-col overflow-hidden">
+            <div className="lg:hidden fixed inset-0 bg-[#22201d]/40 z-30" onClick={() => setSelectedOrder(null)} />
+            <div className="fixed top-0 right-0 h-full w-full sm:w-[400px] lg:w-[380px] bg-white border-l border-[#e4e1de] shadow-[0_24px_48px_-12px_rgb(34_32_29/25%)] z-40 flex flex-col overflow-hidden">
               <OrderDrawer
                 order={selectedOrder}
                 menuItemMap={menuItemMap}

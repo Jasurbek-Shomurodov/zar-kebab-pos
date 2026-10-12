@@ -207,3 +207,30 @@ test('admin can edit only viewer and guest team members', () => {
   assert.equal(canEditTeamMember('admin', 'owner'), false)
   assert.equal(canEditTeamMember('viewer', 'guest'), false)
 })
+
+test('Financial analysis is a Team feature that always comes with Accounting', async () => {
+  const { canViewPage, updateFeatureAccessSelection, FEATURE_DEFINITIONS } = await import('../src/lib/permissions.js')
+  const feature = FEATURE_DEFINITIONS.find(item => item.key === 'financial_analysis')
+  assert.equal(feature.kind, 'page')
+  assert.deepEqual(feature.requires, ['expenses'])
+  // Granting it adds Accounting; removing Accounting removes it.
+  assert.deepEqual(updateFeatureAccessSelection(['dashboard'], 'financial_analysis', true), ['dashboard', 'expenses', 'financial_analysis'])
+  assert.deepEqual(updateFeatureAccessSelection(['expenses', 'financial_analysis'], 'expenses', false), [])
+  assert.deepEqual(updateFeatureAccessSelection(['expenses', 'financial_analysis'], 'financial_analysis', false), ['expenses'])
+  // Accounting alone no longer opens the analysis; a stray key without Accounting does not either.
+  assert.equal(canViewPage({ role: 'admin', feature_access: ['expenses'] }, 'financial_analysis'), false)
+  assert.equal(canViewPage({ role: 'viewer', feature_access: ['financial_analysis'] }, 'financial_analysis'), false)
+  assert.equal(canViewPage({ role: 'viewer', feature_access: ['expenses', 'financial_analysis'] }, 'financial_analysis'), true)
+  assert.equal(canViewPage({ role: 'owner', feature_access: null }, 'financial_analysis'), true)
+})
+
+test('Financial analysis access is enforced in the database and keeps current Accounting holders', async () => {
+  const { readFileSync } = await import('node:fs')
+  const migration = readFileSync(new URL('../migrations/230_financial_analysis_feature_access.sql', import.meta.url), 'utf8')
+  const { FEATURE_KEYS } = await import('../src/lib/permissions.js')
+  const allowed = migration.match(/feature_access <@ array\[([\s\S]*?)\]::text\[\]/)[1].match(/'([a-z_]+)'/g).map(key => key.slice(1, -1))
+  assert.deepEqual([...allowed].sort(), [...FEATURE_KEYS].sort())
+  assert.match(migration, /not \('financial_analysis' = any\(feature_access\)\)\s+or 'expenses' = any\(feature_access\)/)
+  assert.match(migration, /set feature_access = array_append\(feature_access, 'financial_analysis'\)\s+where feature_access is not null\s+and 'expenses' = any\(feature_access\)/)
+  assert.match(migration, /current_staff_can_access\('expenses'\) and public\.current_staff_can_access\('financial_analysis'\)/)
+})

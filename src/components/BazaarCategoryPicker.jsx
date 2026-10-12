@@ -79,10 +79,10 @@ export default function BazaarCategoryPicker({
         aria-expanded={open}
         aria-haspopup="listbox"
         onClick={() => !disabled && setOpen(current => !current)}
-        className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-left outline-none transition-all hover:border-orange-300 focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/10 disabled:bg-gray-50"
+        className="ws-input flex !h-11 items-center gap-2 text-left disabled:bg-[#efece9]"
       >
-        <Tag size={15} className="shrink-0 text-[#9CA3AF]" />
-        <span className={`min-w-0 flex-1 truncate text-sm font-bold ${value ? 'text-[#1F2937]' : 'text-[#9CA3AF]'}`}>
+        <Tag size={15} className="shrink-0 text-[#68655f]" />
+        <span className={`min-w-0 flex-1 truncate text-sm ${value ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
           {value ? bazaarCategoryLabel(value, lang) : l.select}
         </span>
         <ChevronDown size={16} className={`shrink-0 text-[#6B7280] transition-transform ${open ? 'rotate-180' : ''}`} />

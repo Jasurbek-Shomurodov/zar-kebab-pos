@@ -694,7 +694,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{ state, dispatch: guardedDispatch, refreshPOSData, pendingKitchenSubmission }}>
       {state.connectionNotice && (
-        <div role="alert" className={`fixed top-3 left-1/2 z-[9999] max-w-[calc(100vw-2rem)] -translate-x-1/2 break-words rounded-xl px-4 py-2 text-center text-sm font-semibold shadow-lg ${
+        <div role="alert" className={`fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-[9999] max-w-[calc(100vw-2rem)] -translate-x-1/2 break-words rounded-xl px-4 py-2 text-center text-sm font-semibold shadow-lg ${
           state.connectionNotice.tone === 'error'
             ? 'bg-red-600 text-white'
             : state.connectionNotice.tone === 'success'

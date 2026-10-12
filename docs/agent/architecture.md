@@ -22,6 +22,7 @@ Read this guide for app startup, authentication, routes, permissions, shared sta
 - `ingredients` is an independent Team feature: owner/admin holders edit the catalog, viewer holders read only. Bazaar and Tech Cards access do not grant Ingredients access.
 - Centralize role and feature rules in `src/lib/permissions.js`. Do not duplicate access decisions in pages without matching database enforcement.
 - Menu catalog archival requires Manage Menu write access (any role). The UI permission and database archive trigger (migration `223`) must stay aligned.
+- Theme: `src/lib/theme.js`. Loads use `PageShimmer`, never spinners (`tests/pageLoading.test.js`).
 
 ## State architecture
 

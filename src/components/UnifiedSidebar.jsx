@@ -1,95 +1,127 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
-  UtensilsCrossed, LayoutDashboard, Table2, BookOpen,
+  LayoutDashboard, Table2, BookOpen,
   Receipt, Users, BarChart2, ShieldCheck, Settings, LogOut,
-  BadgeDollarSign, WalletCards, ShoppingBasket,
-  ClipboardList, PackagePlus,
+  BadgeDollarSign, WalletCards, ShoppingBasket, PieChart,
+  ClipboardList, PackagePlus, PanelLeft, ChevronRight,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { canViewPage, normalizeRole } from '../lib/permissions'
 import { t } from '../lib/i18n'
+import { useCashierAttentionCount } from '../store/appHooks'
+import AttentionBadge from './AttentionBadge'
 
 // ── Nav definition — roles come from PAGE_ACCESS to stay in sync ───────────────
+// Drawer groups, in display order. The overview group has no heading.
+const NAV_GROUPS = [
+  { key: 'overview', labels: null },
+  { key: 'service', labels: { uz: 'Xizmat', ru: 'Обслуживание', en: 'Service' } },
+  { key: 'kitchen', labels: { uz: 'Oshxona va ombor', ru: 'Кухня и склад', en: 'Kitchen & stock' } },
+  { key: 'business', labels: { uz: 'Biznes', ru: 'Бизнес', en: 'Business' } },
+]
+
 const NAV = [
   {
     key: 'dashboard',
     icon: LayoutDashboard,
     labels: { uz: 'Boshqaruv', ru: 'Панель', en: 'Dashboard' },
     path: '/admin',
+    group: 'overview',
   },
   {
     key: 'tables',
     icon: Table2,
     labels: { uz: 'Stollar', ru: 'Столы', en: 'Tables' },
     path: '/waiter/tables',
-  },
-  {
-    key: 'menu',
-    icon: BookOpen,
-    labels: { uz: 'Menyu', ru: 'Меню', en: 'Menu' },
-    path: '/admin/menu',
-  },
-  {
-    key: 'tech_cards',
-    icon: ClipboardList,
-    labels: { uz: 'Texnologik kartalar', ru: 'Техкарты', en: 'Tech Cards' },
-    path: '/admin/tech-cards',
+    group: 'service',
   },
   {
     key: 'cashier',
     icon: Receipt,
     labels: { uz: 'Kassir', ru: 'Кассир', en: 'Cashier' },
     path: '/cashier/tables',
+    group: 'service',
   },
   {
     key: 'loyalty',
     icon: BadgeDollarSign,
     labels: { uz: 'Sodiqlik', ru: 'Лояльность', en: 'Loyalty' },
     path: '/admin/loyalty',
+    group: 'service',
   },
   {
-    key: 'expenses',
-    icon: WalletCards,
-    labels: { uz: 'Buxgalteriya', ru: 'Бухгалтерия', en: 'Accounting' },
-    path: '/admin/accounting',
+    key: 'menu',
+    icon: BookOpen,
+    labels: { uz: 'Menyu', ru: 'Меню', en: 'Menu' },
+    path: '/admin/menu',
+    group: 'kitchen',
   },
   {
-    key: 'bazaar',
-    icon: ShoppingBasket,
-    labels: { uz: 'Kunlik bozor', ru: 'Ежедневный базар', en: 'Daily Bazaar' },
-    path: '/admin/bazaar',
+    key: 'tech_cards',
+    icon: ClipboardList,
+    labels: { uz: 'Texnologik kartalar', ru: 'Техкарты', en: 'Tech Cards' },
+    path: '/admin/tech-cards',
+    group: 'kitchen',
   },
   {
     key: 'ingredients',
     icon: PackagePlus,
     labels: { uz: 'Masalliqlar', ru: 'Ингредиенты', en: 'Ingredients' },
     path: '/admin/ingredients',
+    group: 'kitchen',
+  },
+  {
+    key: 'bazaar',
+    icon: ShoppingBasket,
+    labels: { uz: 'Kunlik bozor', ru: 'Ежедневный базар', en: 'Daily Bazaar' },
+    path: '/admin/bazaar',
+    group: 'kitchen',
+  },
+  {
+    key: 'expenses',
+    icon: WalletCards,
+    labels: { uz: 'Buxgalteriya', ru: 'Бухгалтерия', en: 'Accounting' },
+    path: '/admin/accounting',
+    group: 'business',
+  },
+  {
+    // Its own Team feature; it requires Accounting because it reads the same protected totals.
+    key: 'financial_analysis',
+    accessKey: 'financial_analysis',
+    icon: PieChart,
+    labels: { uz: 'Moliyaviy tahlil', ru: 'Финансовый анализ', en: 'Financial analysis' },
+    path: '/admin/financial-analysis',
+    group: 'business',
   },
   {
     key: 'team',
     icon: Users,
     labels: { uz: 'Jamoa', ru: 'Команда', en: 'Team' },
     path: '/admin/users',
+    group: 'business',
   },
   {
     key: 'reports',
     icon: BarChart2,
     labels: { uz: 'Hisobotlar', ru: 'Отчёты', en: 'Reports' },
     path: '/admin/reports',
+    group: 'business',
   },
   {
     key: 'audit',
     icon: ShieldCheck,
     labels: { uz: 'Audit', ru: 'Аудит', en: 'Audit' },
     path: '/admin/audit',
+    group: 'business',
   },
   {
     key: 'settings',
     icon: Settings,
     labels: { uz: 'Sozlamalar', ru: 'Настройки', en: 'Settings' },
     path: '/admin/settings',
+    group: 'business',
   },
 ]
 
@@ -106,6 +138,7 @@ function activeKey(pathname) {
   if (pathname.startsWith('/waiter/tables'))  return 'tables'
   if (pathname.startsWith('/cashier'))        return 'cashier'
   if (pathname.startsWith('/admin/loyalty'))  return 'loyalty'
+  if (pathname.startsWith('/admin/financial-analysis')) return 'financial_analysis'
   if (pathname.startsWith('/admin/accounting')) return 'expenses'
   if (pathname.startsWith('/admin/expenses')) return 'expenses'
   if (pathname.startsWith('/admin/ingredients')) return 'ingredients'
@@ -122,7 +155,12 @@ function activeKey(pathname) {
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
-export default function UnifiedSidebar({ onClose, navigationDisabled = false }) {
+// Mirrors the Hoggish Finance drawer: warm grey rail, mark + collapse button on
+// top, quiet 34px rows, and the account line (which opens Settings) at the foot.
+const LANGS = ['uz', 'ru', 'en']
+const NAV_ROW = 'flex h-[34px] w-full items-center gap-[10px] rounded-lg px-[10px] text-left text-sm font-medium text-[#22201d] transition-colors hover:bg-[#ebe8e5] disabled:cursor-wait disabled:opacity-50'
+
+export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled = false }) {
   const navigate   = useNavigate()
   const { pathname } = useLocation()
   const { state, dispatch } = useApp()
@@ -131,11 +169,20 @@ export default function UnifiedSidebar({ onClose, navigationDisabled = false }) 
   const lang    = state.lang
   const role    = normalizeRole(profile?.role || state.user?.role || 'guest')
   const current = activeKey(pathname)
+  const cashierAttention = useCashierAttentionCount()
+  const attentionLabel = lang === 'uz' ? 'hisob kassirni kutmoqda' : lang === 'ru' ? 'счетов ждут кассира' : 'bills waiting for the cashier'
 
   const displayName = profile?.full_name || state.user?.name || profile?.email || ''
   const initial     = (displayName || '?')[0].toUpperCase()
+  const roleLabel   = (ROLE_LABELS[role]?.[lang] || ROLE_LABELS[role]?.en) ?? role
 
-  const visibleNav = NAV.filter(item => canViewPage(profile || { role }, item.key))
+  const visibleNav = NAV.filter(item => canViewPage(profile || { role }, item.accessKey || item.key))
+  const mainNav = visibleNav.filter(item => item.key !== 'settings')
+  const settings = visibleNav.find(item => item.key === 'settings')
+  // On phones the drawer's own button closes it; on desktop it folds the rail away.
+  const hide = onClose || onCollapse
+  const hideLabel = lang === 'uz' ? 'Yon panelni yopish' : lang === 'ru' ? 'Скрыть панель' : 'Toggle Sidebar'
+  const logoutLabel = lang === 'uz' ? 'Chiqish' : lang === 'ru' ? 'Выйти' : 'Logout'
 
   function handleNav(item) {
     if (navigationDisabled) return
@@ -149,91 +196,121 @@ export default function UnifiedSidebar({ onClose, navigationDisabled = false }) 
     signOut?.()
   }
 
-  return (
-    <aside className="h-full max-h-[100dvh] w-[min(85vw,280px)] lg:w-[220px] bg-white border-r border-[#E5E7EB] flex flex-col flex-shrink-0 overflow-hidden">
+  function navRow(item) {
+    const Icon   = item.icon
+    const active = item.key === current
+    return (
+      <li key={item.key}>
+        <button
+          type="button"
+          onClick={() => handleNav(item)}
+          disabled={navigationDisabled}
+          data-active={active}
+          aria-current={active ? 'page' : undefined}
+          className={`${NAV_ROW} ${active ? 'bg-[#ebe8e5]' : ''}`}
+        >
+          <Icon size={17} strokeWidth={2} className={`flex-shrink-0 ${active ? 'opacity-100' : 'opacity-70'}`} />
+          <span className="truncate">{item.labels[lang] || item.labels.en}</span>
+          {item.key === 'cashier' && <AttentionBadge count={cashierAttention} label={attentionLabel} className="ml-auto" />}
+        </button>
+      </li>
+    )
+  }
 
-      {/* Brand */}
-      <div className="px-4 py-4 border-b border-[#E5E7EB] flex items-center gap-3 flex-shrink-0">
-        <div className="w-10 h-10 bg-[#ff5a00] rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm shadow-orange-200">
-          <UtensilsCrossed size={18} className="text-white" />
-        </div>
-        <div className="min-w-0">
-          <p className="font-black text-[#1F2937] text-[13px] leading-tight">Zar Kebab</p>
-          <p className="text-[10px] text-[#ff5a00] font-semibold capitalize">
-            {(ROLE_LABELS[role]?.[lang] || ROLE_LABELS[role]?.en) ?? role}
-          </p>
-        </div>
-        {role === 'viewer' && (
-          <span className="ml-auto flex-shrink-0 text-[9px] font-black bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md px-1.5 py-0.5 leading-none uppercase tracking-wide">
-            {t(lang, 'viewer')}
+  return (
+    <aside className="h-full max-h-[100dvh] w-[min(18rem,85vw)] lg:w-64 bg-[#f6f5f3] text-[#22201d] flex flex-col flex-shrink-0 overflow-hidden">
+
+      {/* Mark on one side, the drawer's own collapse button on the other */}
+      <div className="flex flex-shrink-0 items-center justify-between gap-2 pb-3 pl-[18px] pr-[10px] pt-[14px]">
+        <button
+          type="button"
+          onClick={() => handleNav(mainNav[0] || { path: '/' })}
+          disabled={navigationDisabled}
+          aria-label="Zar Kebab"
+          className="flex min-w-0 items-center gap-2 rounded-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#0f766e]"
+        >
+          <span className="grid h-[30px] w-[30px] flex-shrink-0 place-items-center rounded-[9px] bg-[#ff5a00] pr-[2px] text-[20px] font-bold tracking-[-.08em] text-white">z.</span>
+          <span className="truncate rounded-full bg-[#fff1e8] px-2 text-xs font-bold leading-[18px] tracking-[.04em] text-[#ff5a00]">
+            {role === 'viewer' ? t(lang, 'viewer') : roleLabel}
           </span>
+        </button>
+        {hide && (
+          <button
+            type="button"
+            onClick={hide}
+            aria-label={hideLabel}
+            title={hideLabel}
+            className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-[#68655f] transition-colors hover:bg-[#ebe8e5] hover:text-[#22201d]"
+          >
+            <PanelLeft size={17} />
+          </button>
         )}
       </div>
 
-      {/* Nav — flex-1 so it grows, overflow-y-auto so it scrolls internally if needed */}
-      <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto min-h-0">
-        {visibleNav.map(item => {
-          const Icon   = item.icon
-          const active = item.key === current
+      {/* Workspace rows — scroll inside the rail when the window is short */}
+      <nav aria-label="Zar Kebab" className="flex-1 min-h-0 overflow-y-auto px-[10px] pb-4 pt-0.5">
+        {NAV_GROUPS.map(group => {
+          const items = mainNav.filter(item => item.group === group.key)
+          if (items.length === 0) return null
+          const heading = group.labels && (group.labels[lang] || group.labels.en)
           return (
-            <button
-              key={item.key}
-              onClick={() => handleNav(item)}
-              disabled={navigationDisabled}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold transition-all text-left disabled:cursor-wait disabled:opacity-50 ${
-                active
-                  ? 'bg-[#fff1e8] text-[#ff5a00]'
-                  : 'text-[#6B7280] hover:text-[#1F2937] hover:bg-gray-50'
-              }`}
-            >
-              <Icon size={17} strokeWidth={active ? 2.5 : 2} className="flex-shrink-0" />
-              {item.labels[lang] || item.labels.en}
-            </button>
+            <div key={group.key} role="group" aria-label={heading || undefined} className="mb-4 last:mb-0">
+              {heading && <p className="px-[10px] pb-1.5 pt-1 text-xs font-medium text-[#68655f]">{heading}</p>}
+              <ul className="flex flex-col gap-1">{items.map(navRow)}</ul>
+            </div>
           )
         })}
       </nav>
 
-      {/* Language switcher */}
-      <div className="px-4 pb-2 flex-shrink-0">
-        <p className="text-[10px] text-[#9CA3AF] uppercase tracking-wider mb-1.5 font-semibold">
-          {lang === 'uz' ? 'Til' : lang === 'ru' ? 'Язык' : 'Language'}
-        </p>
-        <div className="flex gap-1">
-          {['uz', 'ru', 'en'].map(l => (
+      {/* Foot: language and the signed-in account (opens Settings when allowed) */}
+      <div className="flex flex-shrink-0 flex-col gap-1.5 p-3">
+        <div
+          role="group"
+          aria-label={lang === 'uz' ? 'Til' : lang === 'ru' ? 'Язык' : 'Language'}
+          className="flex gap-0.5 rounded-xl border border-[#e4e1de] bg-[#efece9] p-[3px]"
+        >
+          {LANGS.map(l => (
             <button
               key={l}
+              type="button"
+              aria-pressed={lang === l}
               onClick={() => dispatch({ type: 'SET_LANG', payload: l })}
-              className={`flex-1 py-1 rounded-lg text-[10px] font-bold uppercase transition-colors ${
+              className={`h-8 flex-1 rounded-[9px] text-sm font-medium uppercase transition-colors ${
                 lang === l
-                  ? 'bg-[#ff5a00] text-white'
-                  : 'bg-gray-100 text-[#6B7280] hover:bg-gray-200'
+                  ? 'bg-white text-[#22201d] shadow-[0_1px_2px_rgb(0_0_0/20%)]'
+                  : 'text-[#68655f] hover:text-[#22201d]'
               }`}
             >
               {l}
             </button>
           ))}
         </div>
-      </div>
-
-      {/* User + logout */}
-      <div className="px-4 py-3 border-t border-[#E5E7EB] flex-shrink-0">
-        <div className="flex items-center gap-2.5 mb-2 px-1">
-          <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-[#6B7280] text-xs font-black">{initial}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[#1F2937] text-xs font-semibold truncate">{displayName || t(lang, 'user')}</p>
-            <p className="text-[#9CA3AF] text-[10px] truncate">{profile?.email || ''}</p>
-          </div>
+        <div className="flex min-w-0 items-center gap-1 pt-1.5">
+          <button
+            type="button"
+            onClick={() => settings && handleNav(settings)}
+            disabled={navigationDisabled || !settings}
+            data-active={current === 'settings'}
+            className={`flex min-w-0 flex-1 items-center gap-[10px] rounded-lg p-1.5 text-left transition-colors enabled:hover:bg-[#ebe8e5] disabled:cursor-default ${current === 'settings' ? 'bg-[#ebe8e5]' : ''}`}
+          >
+            <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-[#ebe8e5] text-sm font-semibold text-[#22201d]">{initial}</span>
+            <span className="min-w-0 flex-1 leading-[1.35]">
+              <strong className="block truncate text-sm font-semibold">{displayName || t(lang, 'user')}</strong>
+              <span className="block truncate text-[13px] text-[#68655f]">{profile?.email || roleLabel}</span>
+            </span>
+            {settings && <ChevronRight size={16} className="flex-shrink-0 text-[#68655f]" />}
+          </button>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={navigationDisabled}
+            aria-label={logoutLabel}
+            title={logoutLabel}
+            className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-[#68655f] transition-colors hover:bg-[#ebe8e5] hover:text-[#c4262c] disabled:cursor-wait disabled:opacity-50"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
-        <button
-          onClick={handleSignOut}
-          disabled={navigationDisabled}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold text-[#6B7280] hover:text-red-500 hover:bg-red-50 transition-colors text-left disabled:cursor-wait disabled:opacity-50"
-        >
-          <LogOut size={15} className="flex-shrink-0" />
-          {lang === 'uz' ? 'Chiqish' : lang === 'ru' ? 'Выйти' : 'Logout'}
-        </button>
       </div>
     </aside>
   )

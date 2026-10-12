@@ -17,7 +17,7 @@ test('App waits for profile before role-based route redirects', () => {
   const signedOutRoute = functionBody(source, 'SignedOutRoute')
 
   assert.match(protectedRoute, /if \(authError\) return <ProfileLoadError \/>/)
-  assert.match(protectedRoute, /if \(!profile\) return <Spinner \/>/)
+  assert.match(protectedRoute, /if \(!profile\) return <AppShellShimmer \/>/)
   assert.match(protectedRoute, /defaultPathForHost\(profile\)/)
   assert.match(signedOutRoute, /if \(authError\) return <ProfileLoadError \/>/)
   assert.match(signedOutRoute, /defaultPathForHost\(profile \|\| 'guest'\)/)
@@ -380,15 +380,24 @@ test('AdminUsers can safely remove every still-pending request', () => {
 
 test('global AppShell mobile drawer overlays content consistently', () => {
   const shell = readSource('src/components/AppShell.jsx')
+  const drawer = readSource('src/components/MobileDrawer.jsx')
   const sidebar = readSource('src/components/UnifiedSidebar.jsx')
 
   assert.match(shell, /hidden lg:block/)
-  assert.match(shell, /lg:hidden fixed inset-0 z-50 flex h-\[100dvh\]/)
-  assert.match(shell, /absolute inset-0 bg-black\/40/)
-  assert.match(shell, /onClick=\{\(\) => setMobileOpen\(false\)\}/)
-  assert.match(shell, /max-w-\[85vw\]/)
+  assert.match(shell, /<MobileDrawer open=\{mobileOpen\} onClose=\{\(\) => setMobileOpen\(false\)\}>/)
+  assert.match(drawer, /lg:hidden fixed inset-0 z-50 flex h-\[100dvh\]/)
+  assert.match(drawer, /absolute inset-0 bg-black\/40/)
+  assert.match(drawer, /onClick=\{onClose\}/)
+  assert.match(drawer, /max-w-\[85vw\]/)
+  // The drawer slides/fades instead of popping, and the desktop rail folds its width.
+  assert.match(drawer, /open \? 'translate-x-0' : '-translate-x-full'/)
+  assert.match(drawer, /inert=\{open \? undefined : ''\}/)
+  assert.match(shell, /transition-\[width\] duration-300[\s\S]*?collapsed \? 'lg:w-0' : 'lg:w-64'/)
+  for (const page of ['CashierTables', 'CashierBill', 'WaiterOrder']) {
+    assert.match(readSource(`src/pages/${page}.jsx`), /<MobileDrawer open=\{sidebarOpen\}/, page)
+  }
   assert.match(sidebar, /max-h-\[100dvh\]/)
-  assert.match(sidebar, /w-\[min\(85vw,280px\)\] lg:w-\[220px\]/)
+  assert.match(sidebar, /w-\[min\(18rem,85vw\)\] lg:w-64/)
   assert.match(sidebar, /overflow-y-auto/)
 })
 

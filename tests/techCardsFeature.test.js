@@ -70,8 +70,7 @@ test('completed Tech Card list items show estimated profit as a badge', () => {
   assert.match(page, /\{formatDecimal\(cardProfit\.marginPct, lang, 1\)\}%/)
   assert.doesNotMatch(page, /formatCurrencyWithPercentage\(cardProfit\.profit, cardProfit\.marginPct, lang\)/)
   assert.doesNotMatch(page, /\{l\.estimatedProfit\}: \{formatCurrencyWithPercentage\(cardProfit\.profit/)
-  assert.match(page, /absolute -left-5 top-3 w-20 -rotate-45/)
-  assert.match(page, /cardProfit\.profit >= 0 \? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'/)
+  assert.match(page, /className=\{`ws-badge [^`]*\$\{cardProfit\.profit >= 0 \? 'ws-tone-positive' : 'ws-tone-negative'\}`\}/)
 })
 
 test('Tech Card list items omit the redundant category subtitle', () => {

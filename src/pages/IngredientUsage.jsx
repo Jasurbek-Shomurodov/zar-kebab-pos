@@ -1,18 +1,17 @@
 import React from 'react'
 import AppShell from '../components/AppShell'
-import IngredientNavigation from '../components/IngredientNavigation'
+import { useIngredientTabs } from '../components/IngredientNavigation'
 import IngredientMovement from '../components/IngredientMovement'
 import { useApp } from '../store/AppContext'
 
 export default function IngredientUsage() {
   const { state } = useApp()
   const lang = state.lang || 'ru'
-  const title = { en: 'Purchases & usage', ru: 'Закупки и расход', uz: 'Xaridlar va sarf' }[lang] || 'Purchases & usage'
+  const { title, tabs } = useIngredientTabs(lang)
   return (
-    <AppShell title={title}>
-      <div className="min-h-full bg-[#FAF7F0] px-4 py-5 sm:px-5 sm:py-6 lg:px-6 2xl:px-8">
-        <div className="mx-auto max-w-7xl">
-          <IngredientNavigation lang={lang} />
+    <AppShell title={title} tabs={tabs}>
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
           <IngredientMovement lang={lang} />
         </div>
       </div>

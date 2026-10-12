@@ -2,16 +2,12 @@ import CalendarPicker from '../components/CalendarPicker'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  ArrowDownLeft,
+  ArrowUpRight,
   Banknote,
-  BadgeDollarSign,
   CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
   Clock3,
   CreditCard,
-  HandCoins,
-  Info,
   Loader2,
   Plus,
   ReceiptText,
@@ -22,12 +18,12 @@ import {
   Trash2,
   UtensilsCrossed,
   WalletCards,
-  ShoppingBasket,
-  X,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import DateRangePicker from '../components/DateRangePicker'
 import { OperationalLoading } from '../components/OperationalState'
+import { Kpi, KpiExplanationDialog, toKpiDetail } from '../components/AccountingKpi'
+import { ChoiceGroup, ChoiceTile } from '../components/ChoiceTiles'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -38,7 +34,7 @@ import {
   getAccountingQuickRange,
 } from '../lib/accounting'
 import { loadAccountingAllTimeBalance, loadAccountingPaidOrderSummary } from '../lib/accountingSummary'
-import { formatCurrency, formatCurrencyWithPercentage } from '../lib/formatCurrency'
+import { formatCurrency } from '../lib/formatCurrency'
 import { formatLongDate, formatTime } from '../lib/dateFormat'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import {
@@ -66,7 +62,7 @@ import { collectPagedRows } from '../lib/orderHistory'
 import { notifyTelegramInvestorExpense } from '../lib/telegramNotifications'
 
 const SELECT_COLUMNS = 'id, entry_type, expense_date, category, payment_method, amount, vendor, description, created_by, created_by_name, created_at, updated_at'
-const FIELD_INPUT_CLASS = 'h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#1F2937] outline-none transition-colors focus:border-[#ff5a00] focus:ring-2 focus:ring-orange-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500'
+const FIELD_INPUT_CLASS = 'ws-input disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 const DATE_INPUT_CLASS = FIELD_INPUT_CLASS
 const ACCOUNTING_SECTION_GRID = 'grid items-start gap-5 lg:grid-cols-2'
 const HISTORY_SECTION_GRID = 'grid items-stretch gap-5 lg:grid-cols-2'
@@ -98,33 +94,33 @@ function expenseTone(expense) {
   const category = String(expense?.category || '')
   if (normalizeExpenseEntryType(expense?.entry_type) === 'income') {
     return {
-      row: 'border-l-4 border-l-green-500',
-      title: 'text-green-700',
-      badge: 'bg-green-50 text-green-700',
-      amount: 'text-green-600',
+      row: 'border-l-2 border-l-[#1d7a52]',
+      title: 'text-[#22201d]',
+      badge: 'ws-tone-positive',
+      amount: 'text-[#1d7a52]',
     }
   }
   if (category.startsWith('salary_') || expense?.is_salary_payment || expense?.is_salary_bonus) {
     return {
-      row: 'border-l-4 border-l-blue-500',
-      title: 'text-blue-700',
-      badge: 'bg-blue-50 text-blue-700',
-      amount: 'text-blue-600',
+      row: 'border-l-2 border-l-[#2a6fdb]',
+      title: 'text-[#22201d]',
+      badge: 'ws-tone-info',
+      amount: 'text-[#22201d]',
     }
   }
   if (category === 'products_bazaar') {
     return {
-      row: 'border-l-4 border-l-teal-500',
-      title: 'text-teal-700',
-      badge: 'bg-teal-50 text-teal-700',
-      amount: 'text-teal-600',
+      row: 'border-l-2 border-l-[#0f766e]',
+      title: 'text-[#22201d]',
+      badge: '',
+      amount: 'text-[#22201d]',
     }
   }
   return {
-    row: 'border-l-4 border-l-orange-500',
-    title: 'text-[#1F2937]',
-    badge: 'bg-gray-100 text-[#6B7280]',
-    amount: 'text-[#ff5a00]',
+    row: 'border-l-2 border-l-[#ff5a00]',
+    title: 'text-[#22201d]',
+    badge: '',
+    amount: 'text-[#22201d]',
   }
 }
 
@@ -172,9 +168,6 @@ function loadPagedResult(loadPage) {
     .catch(error => ({ data: [], error }))
 }
 
-function toKpiDetail([calculation, included]) {
-  return { calculation, included }
-}
 
 export default function Expenses() {
   const { state } = useApp()
@@ -216,15 +209,7 @@ export default function Expenses() {
       title: 'Buxgalteriya',
       sub: 'Daromad, xarajat, investor yordami va maoshlarni kuzatish',
       income: 'Daromad',
-      cafeIncome: 'Kafe daromadi',
       loyaltyIncome: 'Loyallik daromadi',
-      netProfit: 'Sof foyda',
-      netProfitSub: 'Kafe daromadi minus sotilgan mahsulot tannarxi',
-      avgDailyCafeIncome: "Kafe o'rtacha kunlik daromadi",
-      periodCafeIncome: 'Tanlangan davr kafe daromadi',
-      investorSupportSub: 'Investor kiritgan yordam',
-      otherIncomeSub: 'Boshqa daromad',
-      investorSupport: 'Investor yordami',
       expenses: 'Xarajatlar',
       employeeMeals: 'Xodimlar ovqatining o‘rtacha qiymati',
       employeeMealsSub: 'Davomat bo‘yicha hisoblangan',
@@ -251,20 +236,16 @@ export default function Expenses() {
       salaryDueAsOf: 'Hisoblangan sana',
       salaryDueMonthEnd: 'Oy oxirigacha maosh qarzi',
       salaryDueProjection: 'Prognoz sanasi',
-      estimate: 'Taxmin',
-      dailyBazaar: 'Kunlik bozor',
       period: 'Hisobot davri',
       periodHelp: 'Quyidagi barcha ko‘rsatkichlar va tarix tanlangan davrga tegishli.',
       overview: 'Moliyaviy ko‘rinish',
-      overviewHelp: 'Kafe daromadi, xarajatlar va qolgan mablag‘ bir joyda.',
-      overviewIncome: 'Daromad va foyda',
-      overviewIncomeHelp: 'Tanlangan davrdagi savdo natijalari va tashqi tushumlar.',
+      overviewHelp: 'Xarajatlar, qoldiq va maosh majburiyatlari bir joyda.',
       overviewCash: 'Xarajatlar va qoldiq',
       overviewCashHelp: 'Pul chiqimi va hozir mavjud bo‘lgan mablag‘.',
       overviewSalary: 'Maosh majburiyatlari',
       overviewSalaryHelp: 'Hozirgi qarz va oy oxirigacha kutilayotgan summa.',
-      operations: 'Yozuv va tahlil',
-      operationsHelp: 'Yangi operatsiyani yozing va pul qayerga ketayotganini ko‘ring.',
+      operations: 'Yozuvlar',
+      operationsHelp: 'Yangi xarajat yoki investor yordamini yozing.',
       recentActivity: 'So‘nggi operatsiyalar',
       recentActivityHelp: 'Investor yordami va xarajatlar yonma-yon ko‘rsatiladi.',
       recordExpenseHelp: 'Kafedan chiqqan pulni yozing.',
@@ -291,7 +272,6 @@ export default function Expenses() {
       to: 'Gacha',
       methodBalances: 'To‘lov turi qoldig‘i',
       methodBalancesHint: 'Kirim minus chiqim',
-      moneyFlow: 'Pul qayerga ketmoqda',
       incomeSources: 'Qo‘shimcha daromad manbalari',
       incomeIn: 'Kirdi',
       spentOut: 'Chiqdi',
@@ -327,15 +307,7 @@ export default function Expenses() {
       title: 'Бухгалтерия',
       sub: 'Учёт доходов, расходов, поддержки инвестора и зарплат',
       income: 'Доход',
-      cafeIncome: 'Доход кафе',
       loyaltyIncome: 'Доход по лояльности',
-      netProfit: 'Чистая прибыль',
-      netProfitSub: 'Доход кафе минус себестоимость проданных товаров',
-      avgDailyCafeIncome: 'Среднедневной доход кафе',
-      periodCafeIncome: 'Доход кафе за выбранный период',
-      investorSupportSub: 'Помощь, внесённая инвестором',
-      otherIncomeSub: 'Другой доход',
-      investorSupport: 'Поддержка инвестора',
       expenses: 'Расходы',
       employeeMeals: 'Среднее питание сотрудников',
       employeeMealsSub: 'Рассчитано по посещаемости',
@@ -362,20 +334,16 @@ export default function Expenses() {
       salaryDueAsOf: 'На дату',
       salaryDueMonthEnd: 'Долг по зарплате к концу месяца',
       salaryDueProjection: 'Прогноз на',
-      estimate: 'Прогноз',
-      dailyBazaar: 'Ежедневный базар',
       period: 'Отчётный период',
       periodHelp: 'Все показатели и история ниже относятся к выбранному периоду.',
       overview: 'Финансовый обзор',
-      overviewHelp: 'Доход кафе, расходы и остаток собраны в одном месте.',
-      overviewIncome: 'Доход и прибыль',
-      overviewIncomeHelp: 'Результаты продаж и внешние поступления за выбранный период.',
+      overviewHelp: 'Расходы, остаток и зарплатные обязательства в одном месте.',
       overviewCash: 'Расходы и остаток',
       overviewCashHelp: 'Отток денег и доступные средства на текущий момент.',
       overviewSalary: 'Зарплатные обязательства',
       overviewSalaryHelp: 'Текущий долг и прогнозируемая сумма к концу месяца.',
-      operations: 'Запись и анализ',
-      operationsHelp: 'Запишите новую операцию и посмотрите, куда уходят деньги.',
+      operations: 'Запись операций',
+      operationsHelp: 'Запишите новый расход или поддержку инвестора.',
       recentActivity: 'Последние операции',
       recentActivityHelp: 'Поддержка инвестора и расходы показаны рядом.',
       recordExpenseHelp: 'Запишите деньги, которые были потрачены из кассы кафе.',
@@ -402,7 +370,6 @@ export default function Expenses() {
       to: 'По',
       methodBalances: 'Остаток по способам оплаты',
       methodBalancesHint: 'Приход минус расход',
-      moneyFlow: 'Куда уходят деньги',
       incomeSources: 'Источники внешнего дохода',
       incomeIn: 'Приход',
       spentOut: 'Расход',
@@ -438,15 +405,7 @@ export default function Expenses() {
       title: 'Accounting',
       sub: 'Track income, expenses, investor support, and salaries',
       income: 'Income',
-      cafeIncome: 'Cafe income',
       loyaltyIncome: 'Loyalty income',
-      netProfit: 'Net Profit',
-      netProfitSub: 'Cafe income minus cost of sold items',
-      avgDailyCafeIncome: 'Avg daily cafe income',
-      periodCafeIncome: 'Selected period cafe income',
-      investorSupportSub: 'Investor support entries',
-      otherIncomeSub: 'Other income',
-      investorSupport: 'Investor support',
       expenses: 'Expenses',
       employeeMeals: 'Avg employees meal',
       employeeMealsSub: 'Calculated from attendance',
@@ -473,20 +432,16 @@ export default function Expenses() {
       salaryDueAsOf: 'As of',
       salaryDueMonthEnd: 'Salary due by month end',
       salaryDueProjection: 'Projected for',
-      estimate: 'Estimate',
-      dailyBazaar: 'Daily bazaar',
       period: 'Reporting period',
       periodHelp: 'All totals and history below use the selected period.',
       overview: 'Financial overview',
-      overviewHelp: 'Cafe income, expenses, and remaining money in one place.',
-      overviewIncome: 'Income and profit',
-      overviewIncomeHelp: 'Sales performance and external income for the selected period.',
+      overviewHelp: 'Spending, balances, and salary obligations in one place.',
       overviewCash: 'Spending and balances',
       overviewCashHelp: 'Money going out and the funds currently available.',
       overviewSalary: 'Salary obligations',
       overviewSalaryHelp: 'Amount due now and projected through the end of the month.',
-      operations: 'Record and analyse',
-      operationsHelp: 'Record a new transaction and see where the money is going.',
+      operations: 'Record',
+      operationsHelp: 'Record a new expense or investor support.',
       recentActivity: 'Recent activity',
       recentActivityHelp: 'Investor support and expenses are shown side by side.',
       recordExpenseHelp: 'Record money spent from the cafe.',
@@ -513,7 +468,6 @@ export default function Expenses() {
       to: 'To',
       methodBalances: 'Left by payment method',
       methodBalancesHint: 'In minus out',
-      moneyFlow: 'Where money is going',
       incomeSources: 'Other income sources',
       incomeIn: 'In',
       spentOut: 'Out',
@@ -715,19 +669,13 @@ export default function Expenses() {
   )
   const {
     cafeIncome,
-    loyaltyIncome,
-    cafeIncomeSummary: selectedRangeCafeIncome,
     expenseSummary: summary,
     cashflow,
     netIncome,
-    netProfit,
-    profitMarginPct,
     employeeMealExpensesTotal,
     investorSupportTotal,
-    otherIncomeTotal,
     incomeSummary,
   } = accountingSummary
-  const costTotal = Math.max(0, Number(paidOrderSummary.costTotal ?? paidOrderSummary.cost_total) || 0)
   const currentAccountingDate = todayExpenseDate()
   const salaryDueDate = dateTo < currentAccountingDate ? dateTo : currentAccountingDate
   const payableSalaryProfiles = useMemo(
@@ -747,10 +695,6 @@ export default function Expenses() {
   const kpiDetails = useMemo(() => {
     const text = {
       uz: {
-        cafeIncome: ['Tanlangan davrdagi to‘langan buyurtmalardan olingan haqiqiy tushum.', ['Naqd, karta va terminal orqali olingan to‘lovlar', `Loyallik mablag‘i (${formatCurrency(loyaltyIncome)}) alohida ko‘rsatiladi va sarflanadigan tushumga qo‘shilmaydi`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Kafe daromadi', 'Sotilgan mahsulotlarning buyurtma vaqtida saqlangan tannarxi', `Foiz: sof foyda ÷ kafe daromadi = ${profitMarginPct == null ? '—' : `${String(profitMarginPct).replace('.', ',')}%`}`]],
-        average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} kun = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Tanlangan davrning barcha kalendar kunlari (savdo bo‘lmagan kunlar ham)', 'Faqat kafe daromadi; loyallik mablag‘i kiritilmaydi']],
-        investor: ['Tanlangan davrdagi “Investor yordami” turidagi daromad yozuvlari yig‘indisi.', ['Investor yordami yozuvlari', `Boshqa daromad (${formatCurrency(otherIncomeTotal)}) alohida hisoblanadi va bu kartaga qo‘shilmaydi`]],
         expenses: ['Tanlangan davrdagi barcha xarajat yozuvlari yig‘indisi.', ['Qo‘lda kiritilgan xarajatlar va Kunlik bozor', 'To‘langan maoshlar va bonuslar', 'Yakunlangan xodimlar ovqati hisoblari', 'Daromad yozuvlari kiritilmaydi']],
         meals: ['Tanlangan davrdagi yakunlangan kunlik ovqat xarajatlari yig‘indisi.', ['Har kun uchun: o‘rtacha ovqat summasi × qatnashgan xodimlar soni', 'Faqat yakunlangan kunlik snapshotlar']],
         left: [`${formatCurrency(cafeIncome)} + ${formatCurrency(incomeSummary.total)} − ${formatCurrency(summary.total)} = ${formatCurrency(netIncome)}`, ['Kafe daromadi', 'Investor yordami va boshqa tashqi daromadlar', 'Barcha qayd etilgan xarajatlar', 'Loyallik mablag‘i kiritilmaydi']],
@@ -758,10 +702,6 @@ export default function Expenses() {
         salaryMonthEnd: ['Oy oxirigacha prognoz maosh + bonuslar − jarimalar − to‘lovlar.', ['Joriy maosh stavkalari oy oxirigacha davom etadi deb olinadi', 'Ma’lum yo‘qlik kunlari hisoblanmaydi', 'Oldingi qarzlar va qayd etilgan tuzatishlar']],
       },
       ru: {
-        cafeIncome: ['Фактически полученные деньги по оплаченным заказам за выбранный период.', ['Оплаты наличными, картой и терминалом', `Оплата лояльностью (${formatCurrency(loyaltyIncome)}) показана отдельно и не входит в доступную выручку`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Доход кафе', 'Историческая себестоимость проданных позиций, сохранённая в заказах', `Процент: чистая прибыль ÷ доход кафе = ${profitMarginPct == null ? '—' : `${String(profitMarginPct).replace('.', ',')}%`}`]],
-        average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} дн. = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Все календарные дни выбранного периода, включая дни без продаж', 'Только доход кафе; оплата лояльностью не включена']],
-        investor: ['Сумма записей дохода с категорией «Поддержка инвестора» за выбранный период.', ['Внесённая поддержка инвестора', `Другой доход (${formatCurrency(otherIncomeTotal)}) считается отдельно и в эту карточку не входит`]],
         expenses: ['Сумма всех расходных записей за выбранный период.', ['Ручные расходы и Ежедневный базар', 'Выплаченные зарплаты и бонусы', 'Завершённые расчёты питания сотрудников', 'Записи дохода не включены']],
         meals: ['Сумма завершённых дневных расчётов питания за выбранный период.', ['За каждый день: средняя стоимость питания × количество присутствовавших сотрудников', 'Только финализированные дневные снимки']],
         left: [`${formatCurrency(cafeIncome)} + ${formatCurrency(incomeSummary.total)} − ${formatCurrency(summary.total)} = ${formatCurrency(netIncome)}`, ['Доход кафе', 'Поддержка инвестора и другой внешний доход', 'Все учтённые расходы', 'Оплата лояльностью не включена']],
@@ -769,10 +709,6 @@ export default function Expenses() {
         salaryMonthEnd: ['Прогноз начислений до конца месяца + бонусы − штрафы − выплаты.', ['Текущие ставки продолжаются до конца месяца', 'Известные дни отсутствия не начисляются', 'Прошлый долг и записанные корректировки']],
       },
       en: {
-        cafeIncome: ['Money actually received from paid orders in the selected period.', ['Cash, card, and terminal payments', `Loyalty value (${formatCurrency(loyaltyIncome)}) is shown separately and is not spendable revenue`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Cafe income', 'Historical cost of sold items saved with the orders', `Percentage: net profit ÷ cafe income = ${profitMarginPct == null ? '—' : `${profitMarginPct}%`}`]],
-        average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} days = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Every calendar day in the selected period, including days with no sales', 'Cafe income only; loyalty value is excluded']],
-        investor: ['Total income entries categorized as Investor support in the selected period.', ['Recorded investor support', `Other income (${formatCurrency(otherIncomeTotal)}) is separate and excluded from this card`]],
         expenses: ['Total of all expense entries in the selected period.', ['Manual expenses and Daily Bazaar', 'Paid salaries and bonuses', 'Finalized employee meal calculations', 'Income entries are excluded']],
         meals: ['Total finalized daily employee-meal calculations in the selected period.', ['Per day: average meal amount × employees present', 'Finalized daily snapshots only']],
         left: [`${formatCurrency(cafeIncome)} + ${formatCurrency(incomeSummary.total)} − ${formatCurrency(summary.total)} = ${formatCurrency(netIncome)}`, ['Cafe income', 'Investor support and other external income', 'All recorded expenses', 'Loyalty value is excluded']],
@@ -781,19 +717,13 @@ export default function Expenses() {
       },
     }[lang] || null
     return {
-      cafeIncome: { title: l.cafeIncome, value: formatCurrency(cafeIncome), ...toKpiDetail(text.cafeIncome) },
-      netProfit: { title: l.netProfit, value: formatCurrencyWithPercentage(netProfit, profitMarginPct, lang), ...toKpiDetail(text.netProfit) },
-      average: { title: l.avgDailyCafeIncome, value: formatCurrency(selectedRangeCafeIncome.averageDaily), ...toKpiDetail(text.average) },
-      investor: { title: l.investorSupport, value: formatCurrency(investorSupportTotal), ...toKpiDetail(text.investor) },
       expenses: { title: l.expenses, value: formatCurrency(summary.total), ...toKpiDetail(text.expenses) },
       meals: { title: l.employeeMeals, value: formatCurrency(employeeMealExpensesTotal), ...toKpiDetail(text.meals) },
       left: { title: l.left, value: formatCurrency(netIncome), ...toKpiDetail(text.left) },
       salaryDue: { title: l.salaryDue, value: formatCurrency(totalSalaryDue), ...toKpiDetail(text.salaryDue) },
       salaryMonthEnd: { title: l.salaryDueMonthEnd, value: formatCurrency(totalSalaryDueByMonthEnd), ...toKpiDetail(text.salaryMonthEnd) },
     }
-  }, [lang, l, cafeIncome, loyaltyIncome, costTotal, netProfit, profitMarginPct, selectedRangeCafeIncome, otherIncomeTotal, investorSupportTotal, incomeSummary.total, summary.total, employeeMealExpensesTotal, netIncome, totalSalaryDue, totalSalaryDueByMonthEnd])
-  const categoryRows = Object.entries(summary.byCategory)
-    .sort((a, b) => b[1] - a[1])
+  }, [lang, l, cafeIncome, incomeSummary.total, summary.total, employeeMealExpensesTotal, netIncome, totalSalaryDue, totalSalaryDueByMonthEnd])
 
   function selectQuickRange(key) {
     const range = getAccountingQuickRange(key)
@@ -807,16 +737,6 @@ export default function Expenses() {
     setActiveRangeKey('custom')
     setDateFrom(from <= to ? from : to)
     setDateTo(from <= to ? to : from)
-  }
-
-  function openCategoryHistory(category) {
-    const params = new URLSearchParams({
-      type: 'expense',
-      category,
-      from: dateFrom,
-      to: dateTo,
-    })
-    navigate(`/admin/accounting/history?${params.toString()}`)
   }
 
   async function saveExpense(event) {
@@ -903,46 +823,53 @@ export default function Expenses() {
   }
 
   return (
-    <AppShell title={l.title}>
-      <div className="h-full overflow-y-auto bg-[#FAF7F0]">
-        <div className="mx-auto max-w-[1200px] px-4 py-5 sm:px-5 sm:py-6">
-          <header className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h1 className="text-2xl font-black text-[#1F2937] sm:text-3xl">{l.title}</h1>
-              <p className="mt-1 text-sm font-medium text-[#6B7280]">{l.sub}</p>
-            </div>
-            <nav aria-label={l.title} className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto">
-              <AccountingShortcut
-                icon={Users}
-                label={l.salaries}
-                count={loading ? null : payableSalaryProfiles.filter(salaryProfile => salaryProfile.is_active !== false).length}
-                tone="orange"
-                onClick={() => navigate('/admin/accounting/salaries')}
-              />
-              <AccountingShortcut icon={ReceiptText} label={l.estimate} tone="blue" onClick={() => navigate('/admin/accounting/estimate')} />
-              <AccountingShortcut icon={ShoppingBasket} label={l.dailyBazaar} tone="teal" onClick={() => navigate('/admin/bazaar')} />
-            </nav>
-          </header>
-
-          <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm" aria-labelledby="accounting-period-heading">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-3">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <CalendarDays size={18} />
-                </span>
-                <div className="min-w-0">
-                  <h2 id="accounting-period-heading" className="text-base font-black text-[#1F2937]">{l.period}</h2>
-                  <p className="mt-0.5 text-xs font-medium text-[#6B7280]">{l.periodHelp}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={loadExpenses}
-                disabled={loading}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-3 text-xs font-black text-[#6B7280] transition-colors hover:border-blue-200 hover:text-blue-600 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
-              >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}{l.refresh}
-              </button>
+    <AppShell
+      title={l.title}
+      titleAccessory={(
+        // Reporting period follows the page title when the content column is wide enough (see .zk-period-in-header).
+        <div className="zk-period-in-header w-[clamp(240px,32cqi,340px)]">
+          <DateRangePicker
+            l={l}
+            lang={lang}
+            rangeKey={activeRangeKey}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            today={todayExpenseDate()}
+            onPreset={selectQuickRange}
+            onApply={setCustomRange}
+            compact
+            className="w-full"
+          />
+        </div>
+      )}
+      headerActions={(
+        <nav aria-label={l.title} className="flex items-center gap-2">
+          <AccountingShortcut
+            icon={Users}
+            label={l.salaries}
+            count={loading ? null : payableSalaryProfiles.filter(salaryProfile => salaryProfile.is_active !== false).length}
+            onClick={() => navigate('/admin/accounting/salaries')}
+          />
+          <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-[#e4e1de] sm:block" />
+          <button
+            type="button"
+            onClick={loadExpenses}
+            disabled={loading}
+            aria-label={l.refresh}
+            title={l.refresh}
+            className="ws-btn ws-btn-outline !h-[38px] !w-[38px] !px-0"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+          </button>
+        </nav>
+      )}
+    >
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
+          <section className="ws-panel zk-period-in-page" aria-labelledby="accounting-period-heading">
+            <div className="min-w-0">
+              <h2 id="accounting-period-heading" className="ws-heading">{l.period}</h2>
+              <p className="ws-caption mt-0.5">{l.periodHelp}</p>
             </div>
             <div className="mt-4">
               <DateRangePicker
@@ -958,65 +885,30 @@ export default function Expenses() {
             </div>
           </section>
 
-          {error && <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
-          {message && !error && <div role="status" aria-live="polite" className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{message}</div>}
+          {error && <div role="alert" className="ws-notice ws-tone-negative">{error}</div>}
+          {message && !error && <div role="status" aria-live="polite" className="ws-notice ws-tone-positive">{message}</div>}
 
-          <section className="mb-7" aria-labelledby="accounting-overview-heading">
+          <section aria-labelledby="accounting-overview-heading">
             <SectionHeading
               id="accounting-overview-heading"
               title={l.overview}
               description={`${l.overviewHelp} · ${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`}
             />
-            <div className="space-y-5">
-              <div aria-labelledby="accounting-income-heading">
-                <OverviewGroupHeading id="accounting-income-heading" title={l.overviewIncome} description={l.overviewIncomeHelp} tone="green" />
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi icon={WalletCards} label={l.cafeIncome} value={loading ? '—' : formatCurrency(cafeIncome)} sub={loading ? '' : `${l.loyaltyIncome}: ${formatCurrency(loyaltyIncome)}`} tone="green" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.cafeIncome)} />
-            <Kpi
-              icon={BadgeDollarSign}
-              label={l.netProfit}
-              value={loading ? '—' : formatCurrencyWithPercentage(netProfit, profitMarginPct, lang)}
-              sub={l.netProfitSub}
-              tone={netProfit >= 0 ? 'green' : 'red'}
-              emphasizeValue
-              detailHint={l.tapForDetails}
-              onClick={loading ? null : () => setSelectedKpi(kpiDetails.netProfit)}
-            />
-            <Kpi
-              icon={CalendarDays}
-              label={l.avgDailyCafeIncome}
-              value={loading ? '—' : formatCurrency(selectedRangeCafeIncome.averageDaily)}
-              sub={loading ? l.periodHelp : `${l.periodCafeIncome}: ${formatCurrency(selectedRangeCafeIncome.total)} · ${l.loyaltyIncome}: ${formatCurrency(selectedRangeCafeIncome.loyaltyTotal)}`}
-              tone="blue"
-              detailHint={l.tapForDetails}
-              onClick={loading ? null : () => setSelectedKpi(kpiDetails.average)}
-            />
-            <Kpi
-              icon={HandCoins}
-              label={l.investorSupport}
-              value={loading ? '—' : formatCurrency(investorSupportTotal)}
-              sub={loading ? l.periodHelp : otherIncomeTotal > 0 ? `${l.otherIncomeSub}: ${formatCurrency(otherIncomeTotal)}` : l.investorSupportSub}
-              tone="purple"
-              detailHint={l.tapForDetails}
-              onClick={loading ? null : () => setSelectedKpi(kpiDetails.investor)}
-            />
-                </div>
-              </div>
-
+            <div className="space-y-6">
               <div aria-labelledby="accounting-cash-heading">
                 <OverviewGroupHeading id="accounting-cash-heading" title={l.overviewCash} description={l.overviewCashHelp} tone="orange" />
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi icon={ReceiptText} label={l.expenses} value={loading ? '—' : formatCurrency(summary.total)} sub={loading ? l.periodHelp : `${l.period}: ${periodLabel} · ${summary.count} ${l.expenses.toLowerCase()}`} tone="orange" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.expenses)} />
-            <Kpi icon={UtensilsCrossed} label={l.employeeMeals} value={loading ? '—' : formatCurrency(employeeMealExpensesTotal)} sub={l.employeeMealsSub} tone="orange" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.meals)} />
-            <Kpi icon={Banknote} label={l.left} value={loading ? '—' : formatCurrency(netIncome)} sub={loading ? l.periodHelp : `${l.period}: ${periodLabel}`} tone={netIncome >= 0 ? 'blue' : 'red'} detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.left)} />
-            <Kpi icon={WalletCards} label={l.allTimeLeft} value={loading || allTimeBalance == null ? '—' : formatCurrency(allTimeBalance)} sub={l.allTimeLeftSub} tone={allTimeBalance == null || allTimeBalance >= 0 ? 'blue' : 'red'} />
+            <Kpi loading={loading} icon={ReceiptText} label={l.expenses} value={loading ? '—' : formatCurrency(summary.total)} sub={loading ? l.periodHelp : `${l.period}: ${periodLabel} · ${summary.count} ${l.expenses.toLowerCase()}`} tone="orange" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.expenses)} />
+            <Kpi loading={loading} icon={UtensilsCrossed} label={l.employeeMeals} value={loading ? '—' : formatCurrency(employeeMealExpensesTotal)} sub={l.employeeMealsSub} tone="orange" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.meals)} />
+            <Kpi loading={loading} icon={Banknote} label={l.left} value={loading ? '—' : formatCurrency(netIncome)} sub={loading ? l.periodHelp : `${l.period}: ${periodLabel}`} tone={netIncome >= 0 ? 'blue' : 'red'} detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.left)} />
+            <Kpi loading={loading} icon={WalletCards} label={l.allTimeLeft} value={loading || allTimeBalance == null ? '—' : formatCurrency(allTimeBalance)} sub={l.allTimeLeftSub} tone={allTimeBalance == null || allTimeBalance >= 0 ? 'blue' : 'red'} />
                 </div>
               </div>
 
               <div aria-labelledby="accounting-salary-heading">
                 <OverviewGroupHeading id="accounting-salary-heading" title={l.overviewSalary} description={l.overviewSalaryHelp} tone="red" />
                 <div className="grid gap-3 sm:grid-cols-2 lg:max-w-[calc(50%-0.375rem)]">
-            <Kpi
+            <Kpi loading={loading}
               icon={Users}
               label={l.salaryDue}
               value={loading ? '—' : formatCurrency(totalSalaryDue)}
@@ -1025,7 +917,7 @@ export default function Expenses() {
               detailHint={l.tapForDetails}
               onClick={loading ? null : () => setSelectedKpi(kpiDetails.salaryDue)}
             />
-            <Kpi
+            <Kpi loading={loading}
               icon={CalendarDays}
               label={l.salaryDueMonthEnd}
               value={loading ? '—' : formatCurrency(totalSalaryDueByMonthEnd)}
@@ -1048,53 +940,41 @@ export default function Expenses() {
             />
           )}
 
-          <section className="mb-7" aria-labelledby="accounting-operations-heading">
+          <section aria-labelledby="accounting-operations-heading">
             <SectionHeading id="accounting-operations-heading" title={l.operations} description={l.operationsHelp} />
             <div className={ACCOUNTING_SECTION_GRID}>
               <div className="space-y-5">
-                <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+                <section className="ws-panel">
                   <CardHeading
-                    icon={form.entry_type === 'income' ? HandCoins : ReceiptText}
                     title={form.entry_type === 'income' ? l.addIncome : l.add}
                     description={formGuidance}
-                    tone={form.entry_type === 'income' ? 'green' : 'orange'}
                   />
                 {!canAdd ? (
-                  <p className="rounded-xl bg-gray-50 px-3 py-3 text-sm font-bold text-[#6B7280]">{l.readOnly}</p>
+                  <p className="ws-notice ws-tone-caution">{l.readOnly}</p>
                 ) : (
                   <form onSubmit={saveExpense} className="grid gap-4 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <Field label={l.entryType}>
-                      <div className="grid grid-cols-2 gap-2">
-                        {EXPENSE_ENTRY_TYPES.map(entryType => {
-                          const active = form.entry_type === entryType
-                          const incomeEntry = entryType === 'income'
-                          return (
-                            <button
-                              key={entryType}
-                              type="button"
-                              disabled={saving}
-                              aria-pressed={active}
-                              onClick={() => setForm(current => ({
-                                ...current,
-                                entry_type: entryType,
-                                category: entryType === 'income' ? 'investor_support' : 'charcoal',
-                              }))}
-                              className={`flex h-11 items-center justify-center rounded-xl border text-xs font-black transition-colors ${
-                                active && incomeEntry
-                                  ? 'border-green-400 bg-green-50 text-green-700 ring-2 ring-green-100'
-                                  : active
-                                    ? 'border-[#ff5a00] bg-orange-50 text-[#ff5a00] ring-2 ring-orange-100'
-                                    : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100'
-                              }`}
-                            >
-                              {entryType === 'income' ? l.incomeType : l.expenseType}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      </Field>
-                    </div>
+                    <ChoiceGroup label={l.entryType} className="sm:col-span-2" columns="sm:grid-cols-2">
+                      {EXPENSE_ENTRY_TYPES.map(entryType => {
+                        const active = form.entry_type === entryType
+                        const incomeEntry = entryType === 'income'
+                        return (
+                          <ChoiceTile
+                            key={entryType}
+                            active={active}
+                            disabled={saving}
+                            tone={incomeEntry ? 'green' : 'orange'}
+                            icon={incomeEntry ? ArrowDownLeft : ArrowUpRight}
+                            title={incomeEntry ? l.incomeType : l.expenseType}
+                            hint={incomeEntry ? l.recordIncomeHelp : l.recordExpenseHelp}
+                            onClick={() => setForm(current => ({
+                              ...current,
+                              entry_type: entryType,
+                              category: entryType === 'income' ? 'investor_support' : 'charcoal',
+                            }))}
+                          />
+                        )
+                      })}
+                    </ChoiceGroup>
                     <Field label={l.date}>
                       <DateInput
                         value={form.expense_date}
@@ -1103,7 +983,7 @@ export default function Expenses() {
                         disabled={saving}
                         min={form.entry_type === 'expense' ? expenseEntryMinDate : undefined}
                       />
-                      {form.entry_type === 'expense' && <p className="mt-1 text-[11px] font-semibold text-[#9CA3AF]">{l.expenseDateLimit}</p>}
+                      {form.entry_type === 'expense' && <p className="ws-caption mt-1">{l.expenseDateLimit}</p>}
                     </Field>
                     <Field label={l.amount}>
                       <input
@@ -1111,7 +991,7 @@ export default function Expenses() {
                         inputMode="numeric"
                         value={formatMoneyInput(form.amount)}
                         onChange={event => setForm(current => ({ ...current, amount: normalizeMoneyInput(event.target.value) }))}
-                        className={`${FIELD_INPUT_CLASS} text-lg font-black tabular-nums`}
+                        className={`${FIELD_INPUT_CLASS} !text-base font-semibold tabular-nums`}
                         placeholder="0 UZS"
                         disabled={saving}
                       />
@@ -1125,34 +1005,22 @@ export default function Expenses() {
                       </select>
                       </Field>
                     </div>
-                    <div className="sm:col-span-2">
-                      <Field label={l.method}>
-                      <div className="grid grid-cols-3 gap-2">
-                        {EXPENSE_PAYMENT_METHODS.map(method => {
-                          const Icon = methodIcon(method)
-                          const active = form.payment_method === method
-                          return (
-                            <button
-                              key={method}
-                              type="button"
-                              disabled={saving}
-                              aria-pressed={active}
-                              onClick={() => setForm(current => ({ ...current, payment_method: method }))}
-                              className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border text-xs font-black transition-colors ${
-                                active && form.entry_type === 'income'
-                                  ? 'border-green-400 bg-green-50 text-green-700 ring-2 ring-green-100'
-                                  : active
-                                    ? 'border-[#ff5a00] bg-orange-50 text-[#ff5a00] ring-2 ring-orange-100'
-                                    : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100'
-                              }`}
-                            >
-                              <Icon size={14} />{expensePaymentMethodLabel(method, lang)}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      </Field>
-                    </div>
+                    <ChoiceGroup label={l.method} className="sm:col-span-2" columns="grid-cols-3">
+                      {EXPENSE_PAYMENT_METHODS.map(method => {
+                        const active = form.payment_method === method
+                        return (
+                          <ChoiceTile
+                            key={method}
+                            active={active}
+                            disabled={saving}
+                            icon={methodIcon(method)}
+                            title={expensePaymentMethodLabel(method, lang)}
+                            compact
+                            onClick={() => setForm(current => ({ ...current, payment_method: method }))}
+                          />
+                        )
+                      })}
+                    </ChoiceGroup>
                     <div className="sm:col-span-2">
                       <Field label={form.entry_type === 'income' ? l.source : l.vendor}>
                         <input
@@ -1172,7 +1040,7 @@ export default function Expenses() {
                           value={form.description}
                           onChange={event => setForm(current => ({ ...current, description: event.target.value }))}
                           rows={3}
-                          className={`${FIELD_INPUT_CLASS} min-h-[88px] resize-y py-3`}
+                          className={`${FIELD_INPUT_CLASS} !h-auto min-h-[88px] resize-y py-3`}
                           disabled={saving}
                           autoCorrect="off"
                           autoCapitalize="none"
@@ -1182,26 +1050,19 @@ export default function Expenses() {
                     </div>
                     <button
                       disabled={!canSubmitExpense}
-                      className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-black text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none sm:col-span-2 ${form.entry_type === 'income' ? 'bg-green-600 shadow-green-100 hover:bg-green-700' : 'bg-[#ff5a00] shadow-orange-200 hover:bg-[#e85100]'}`}
+                      className={`ws-btn ws-btn-primary !h-11 w-full sm:col-span-2 ${form.entry_type === 'income' ? '!bg-[#1d7a52] hover:!bg-[#17633f]' : ''}`}
                     >
                       {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{saving ? l.saving : l.save}
                     </button>
                   </form>
                 )}
                 </section>
-                <MethodBalancesDisclosure rows={cashflow.rows} lang={lang} labels={l} />
               </div>
-              <ExpenseCategoryChart
-                title={l.moneyFlow}
-                rows={categoryRows}
-                total={summary.total}
-                lang={lang}
-                onCategoryClick={openCategoryHistory}
-              />
+              <MethodBalances rows={cashflow.rows} lang={lang} labels={l} />
             </div>
           </section>
 
-          <section className="mb-5" aria-labelledby="accounting-activity-heading">
+          <section aria-labelledby="accounting-activity-heading">
             <SectionHeading id="accounting-activity-heading" title={l.recentActivity} description={l.recentActivityHelp} />
             <div className={HISTORY_SECTION_GRID}>
               <ExpenseHistorySection
@@ -1249,66 +1110,53 @@ export default function Expenses() {
   )
 }
 
-function AccountingShortcut({ icon: Icon, label, count = null, tone = 'orange', onClick }) {
-  const tones = {
-    orange: 'border-orange-200 bg-orange-50 text-[#ff5a00] hover:bg-orange-100',
-    blue: 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100',
-    teal: 'border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100',
-  }
+function AccountingShortcut({ icon: Icon, label, count = null, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl border px-4 text-sm font-black shadow-sm transition-colors ${tones[tone] || tones.orange}`}
+      aria-label={label}
+      title={label}
+      className="ws-btn ws-btn-outline !h-[38px] !px-2.5 xl:!px-3.5"
     >
-      <Icon size={17} />
-      <span>{label}</span>
-      {count != null && (
-        <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-white px-2 py-0.5 text-xs text-[#1F2937] shadow-sm">
-          {count}
-        </span>
-      )}
+      <Icon size={16} />
+      <span className="hidden xl:inline">{label}</span>
+      {count != null && <span className="ws-count">{count}</span>}
     </button>
   )
 }
 
 function SectionHeading({ id, title, description }) {
   return (
-    <div className="mb-3">
-      <h2 id={id} className="text-lg font-black text-[#1F2937]">{title}</h2>
-      <p className="mt-0.5 text-sm font-medium text-[#6B7280]">{description}</p>
+    <div className="mb-4">
+      <h2 id={id} className="ws-display">{title}</h2>
+      <p className="ws-muted mt-1">{description}</p>
     </div>
   )
 }
 
 function OverviewGroupHeading({ id, title, description, tone }) {
   const dotTone = {
-    green: 'bg-green-500',
-    orange: 'bg-orange-500',
-    red: 'bg-red-500',
+    green: 'bg-[#1d7a52]',
+    orange: 'bg-[#ff5a00]',
+    red: 'bg-[#c4262c]',
   }
   return (
-    <div className="mb-2.5 flex items-start gap-2.5">
-      <span aria-hidden="true" className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${dotTone[tone] || dotTone.orange}`} />
+    <div className="mb-3 flex items-start gap-2.5">
+      <span aria-hidden="true" className={`mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full ${dotTone[tone] || dotTone.orange}`} />
       <div>
-        <h3 id={id} className="text-sm font-black text-[#374151]">{title}</h3>
-        <p className="mt-0.5 text-xs font-medium text-[#9CA3AF]">{description}</p>
+        <h3 id={id} className="text-sm font-semibold text-[#22201d]">{title}</h3>
+        <p className="ws-caption mt-0.5">{description}</p>
       </div>
     </div>
   )
 }
 
-function CardHeading({ icon: Icon, title, description, tone = 'orange' }) {
-  const iconTone = tone === 'green' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-[#ff5a00]'
+function CardHeading({ title, description }) {
   return (
-    <div className="mb-5 flex min-h-[56px] items-start gap-3">
-      <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${iconTone}`}>
-        <Icon size={17} />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-base font-black text-[#1F2937]">{title}</span>
-        <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[#6B7280]">{description}</span>
-      </span>
+    <div className="mb-5">
+      <span className="ws-heading block">{title}</span>
+      <span className="ws-caption mt-1 block">{description}</span>
     </div>
   )
 }
@@ -1333,13 +1181,13 @@ function ExpenseHistorySection({
   onSeeAll,
 }) {
   return (
-    <section className="h-full rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
-      <div className="border-b border-[#F3F4F6] px-4 py-4">
+    <section className="ws-panel ws-panel-flush h-full">
+      <div className="border-b border-[#e4e1de] px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-black text-[#1F2937]">{title}</h2>
+          <h2 className="ws-heading">{title}</h2>
           <div className="flex items-center gap-2">
             {titleAmount !== undefined && (
-              <span className="rounded-full bg-green-50 px-3 py-1 text-sm font-black text-green-700 tabular-nums">
+              <span className="ws-badge ws-tone-positive !text-[13px] font-semibold tabular-nums">
                 {formatCurrency(titleAmount)}
               </span>
             )}
@@ -1347,7 +1195,7 @@ function ExpenseHistorySection({
               <button
                 type="button"
                 onClick={onSeeAll}
-                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-600 transition-colors hover:border-blue-300 hover:bg-blue-100"
+                className="ws-btn ws-btn-outline ws-btn-sm"
               >
                 {seeAllLabel}
               </button>
@@ -1356,9 +1204,9 @@ function ExpenseHistorySection({
         </div>
       </div>
       {loading ? (
-        <OperationalLoading title={loadingTitle} description="" />
+        <OperationalLoading layout="table" title={loadingTitle} description="" />
       ) : rows.length === 0 ? (
-        <div className="px-4 py-12 text-center text-sm font-bold text-[#9CA3AF]">{emptyText}</div>
+        <div className="ws-empty">{emptyText}</div>
       ) : (
         <div className="max-h-[520px] overflow-y-auto">
           {rows.map(expense => {
@@ -1370,15 +1218,15 @@ function ExpenseHistorySection({
                 ? salaryBonusLabel
                 : expenseCategoryLabel(expense.category, lang)
             return (
-              <div key={expense.id} className={`flex flex-col gap-3 border-b border-[#F3F4F6] px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between ${tone.row}`}>
+              <div key={expense.id} className={`ws-row flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between ${tone.row}`}>
                 <div className="min-w-0">
                   <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className={`text-sm font-black ${tone.title}`}>{title}</span>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black ${tone.badge}`}>
+                    <span className={`text-sm font-semibold ${tone.title}`}>{title}</span>
+                    <span className={`ws-badge ${tone.badge}`}>
                       <Icon size={11} />{expensePaymentMethodLabel(expense.payment_method, lang)}
                     </span>
                   </div>
-                  <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-[#9CA3AF]">
+                  <p className="ws-caption flex flex-wrap items-center gap-1.5">
                     <span>{formatLongDate(expense.expense_date, lang, expense.expense_date)}</span>
                     <span>·</span>
                     <span className="inline-flex items-center gap-1"><Clock3 size={12} />{formatTime(expense.created_at, '—')}</span>
@@ -1386,21 +1234,19 @@ function ExpenseHistorySection({
                     <span>{expense.created_by_name || '—'}</span>
                   </p>
                   {(expense.vendor || expense.description) && (
-                    <p className="mt-1 break-words text-sm font-semibold text-[#4B5563]">
+                    <p className="mt-1 break-words text-sm text-[#22201d]">
                       {[expense.vendor, expenseDescriptionLabel(expense.description, lang)].filter(Boolean).join(' · ')}
                     </p>
                   )}
                 </div>
                 <div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
-                  <p className={`text-lg font-black ${tone.amount}`}>{formatCurrency(expense.amount)}</p>
+                  <p className={`text-base font-semibold tabular-nums ${tone.amount}`}>{formatCurrency(expense.amount)}</p>
                   {canDelete && getExpenseHistoryDeleteTarget(expense) && (
                     <button
                       type="button"
                       disabled={Boolean(deletingExpenseId)}
                       onClick={() => onDelete(expense)}
-                      className={`inline-flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-black disabled:cursor-not-allowed disabled:opacity-50 ${
-                        confirmDeleteId === expense.id ? 'border-red-200 bg-red-50 text-red-600' : 'border-[#E5E7EB] text-[#6B7280]'
-                      }`}
+                      className={`ws-btn ws-btn-sm ${confirmDeleteId === expense.id ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'}`}
                     >
                       {deletingExpenseId === expense.id
                         ? <Loader2 size={14} className="animate-spin" />
@@ -1418,106 +1264,51 @@ function ExpenseHistorySection({
   )
 }
 
-function ExpenseCategoryChart({ title, rows, total, lang, onCategoryClick }) {
-  const palette = ['#ff5a00', '#16a34a', '#2563eb', '#9333ea', '#dc2626', '#0f766e']
-  const visibleRows = rows.slice(0, 6)
 
+function MethodBalances({ rows, lang, labels }) {
   return (
-    <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-      <h2 className="mb-4 text-base font-black text-[#1F2937]">{title}</h2>
-      {visibleRows.length === 0 ? (
-        <p className="py-6 text-sm font-bold text-[#9CA3AF]">—</p>
-      ) : (
-        <div className="space-y-3">
-          {visibleRows.map(([key, amount], index) => {
-            const width = total > 0 ? Math.max(6, Math.round((amount / total) * 100)) : 0
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onCategoryClick?.(key)}
-                className="group grid w-full gap-2 rounded-xl p-1 text-left transition-colors hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/30 sm:grid-cols-[180px_1fr_120px] sm:items-center"
-              >
-                <span className="truncate text-sm font-black text-[#374151]">{expenseCategoryLabel(key, lang)}</span>
-                <div className="h-8 overflow-hidden rounded-xl bg-gray-100">
-                  <div
-                    className="flex h-full items-center justify-end rounded-xl pr-2 text-[11px] font-black text-white"
-                    style={{ width: `${width}%`, backgroundColor: palette[index % palette.length] }}
-                  >
-                    {width >= 18 ? `${width}%` : ''}
-                  </div>
-                </div>
-                <span className="flex items-center gap-1 text-sm font-black text-[#1F2937] sm:justify-end">
-                  {formatCurrency(amount)}
-                  <ChevronRight size={15} className="flex-shrink-0 text-[#9CA3AF] transition-transform group-hover:translate-x-0.5 group-hover:text-[#ff5a00]" />
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function MethodBalancesDisclosure({ rows, lang, labels }) {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+    <section className="ws-panel">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-black text-[#1F2937]">{labels.methodBalances}</h2>
-          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-[#9CA3AF]">{labels.methodBalancesHint}</p>
+          <h2 className="ws-heading">{labels.methodBalances}</h2>
+          <p className="ws-caption mt-0.5">{labels.methodBalancesHint}</p>
         </div>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls="accounting-method-balances"
-          onClick={() => setOpen(current => !current)}
-          className="inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 text-xs font-black text-[#ff5a00] transition-colors hover:bg-orange-100"
-        >
-          {open ? labels.showLess : labels.more}
-          {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
       </div>
 
-      {open && (
-        <div id="accounting-method-balances" className="mt-4 space-y-3">
+      <div id="accounting-method-balances" className="mt-4 space-y-3">
           {rows.map(row => {
             const Icon = methodIcon(row.method)
             const isLoyaltyIncome = row.method === 'loyalty_card'
             return (
-              <div key={row.method} className="rounded-xl border border-[#EEF0F3] bg-[#FBFCFD] p-3">
+              <div key={row.method} className="rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-orange-50 text-[#ff5a00]">
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#68655f]">
                       <Icon size={15} />
                     </span>
-                    <span className="truncate text-sm font-black text-[#1F2937]">{isLoyaltyIncome ? labels.loyaltyIncome : expensePaymentMethodLabel(row.method, lang)}</span>
+                    <span className="truncate text-sm font-semibold text-[#22201d]">{isLoyaltyIncome ? labels.loyaltyIncome : expensePaymentMethodLabel(row.method, lang)}</span>
                   </div>
                   <div className="text-right">
-                    <span className="block text-[9px] font-black uppercase tracking-wide text-[#9CA3AF]">{isLoyaltyIncome ? labels.loyaltyIncome : labels.remaining}</span>
-                    <span className={`mt-0.5 block text-base font-black leading-tight tabular-nums ${isLoyaltyIncome || row.left >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className="ws-caption block">{isLoyaltyIncome ? labels.loyaltyIncome : labels.remaining}</span>
+                    <span className={`mt-0.5 block text-base font-semibold leading-tight tabular-nums ${isLoyaltyIncome || row.left >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>
                       {formatCurrency(isLoyaltyIncome ? row.income : row.left)}
                     </span>
                   </div>
                 </div>
                 {!isLoyaltyIncome && <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div className="min-w-0 rounded-lg bg-green-50 px-2.5 py-2 text-green-700">
-                    <span className="block text-[9px] font-black uppercase tracking-wide text-green-500">{labels.incomeIn}</span>
-                    <span className="mt-1 block break-words text-xs font-black leading-tight tabular-nums">{formatCurrency(row.income)}</span>
+                  <div className="min-w-0 rounded-lg bg-white px-2.5 py-2">
+                    <span className="ws-caption block">{labels.incomeIn}</span>
+                    <span className="mt-0.5 block break-words text-[13px] font-semibold leading-tight tabular-nums text-[#1d7a52]">{formatCurrency(row.income)}</span>
                   </div>
-                  <div className="min-w-0 rounded-lg bg-orange-50 px-2.5 py-2 text-[#ff5a00]">
-                    <span className="block text-[9px] font-black uppercase tracking-wide text-orange-400">{labels.spentOut}</span>
-                    <span className="mt-1 block break-words text-xs font-black leading-tight tabular-nums">{formatCurrency(row.expenses)}</span>
+                  <div className="min-w-0 rounded-lg bg-white px-2.5 py-2">
+                    <span className="ws-caption block">{labels.spentOut}</span>
+                    <span className="mt-0.5 block break-words text-[13px] font-semibold leading-tight tabular-nums text-[#22201d]">{formatCurrency(row.expenses)}</span>
                   </div>
                 </div>}
               </div>
             )
           })}
         </div>
-      )}
     </section>
   )
 }
@@ -1525,106 +1316,20 @@ function MethodBalancesDisclosure({ rows, lang, labels }) {
 function Field({ label, children }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-bold text-[#596170]">{label}</span>
+      <span className="ws-caption mb-1.5 block font-medium">{label}</span>
       {children}
     </label>
   )
 }
 
-function Kpi({ icon: Icon, label, value, sub = '', tone = 'orange', emphasizeValue = false, detailHint = '', onClick = null }) {
-  const tones = {
-    green: 'bg-green-50 text-green-600',
-    orange: 'bg-orange-50 text-[#ff5a00]',
-    blue: 'bg-blue-50 text-blue-600',
-    red: 'bg-red-50 text-red-600',
-    purple: 'bg-purple-50 text-purple-600',
-  }
-  const valueTones = {
-    green: 'text-emerald-700',
-    orange: 'text-[#ff5a00]',
-    blue: 'text-blue-700',
-    red: 'text-red-600',
-    purple: 'text-purple-700',
-  }
-  const valueTone = emphasizeValue ? valueTones[tone] || valueTones.orange : 'text-[#1F2937]'
-  const Component = onClick ? 'button' : 'div'
-  return (
-    <Component
-      {...(onClick ? { type: 'button', onClick, 'aria-label': `${label}. ${detailHint}` } : {})}
-      className={`group h-full min-w-0 rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left shadow-sm ${onClick ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40' : ''}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-bold text-[#6B7280]">{label}</p>
-          <p className={`mt-1 break-words text-xl font-black leading-tight tabular-nums ${valueTone}`}>{value}</p>
-        </div>
-        <div className={`relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${tones[tone] || tones.orange}`}>
-          <Icon size={18} className={onClick ? 'transition-opacity group-hover:opacity-0' : ''} />
-          {onClick && <Info size={18} className="absolute opacity-0 transition-opacity group-hover:opacity-100" />}
-        </div>
-      </div>
-      {sub && <p className="mt-3 min-h-[30px] text-xs font-medium leading-relaxed text-[#9CA3AF]">{sub}</p>}
-    </Component>
-  )
-}
 
-function KpiExplanationDialog({ detail, period, labels, onClose }) {
-  useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
-      <section role="dialog" aria-modal="true" aria-labelledby="kpi-explanation-title" className="max-h-[88vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-w-lg sm:rounded-3xl">
-        <div className="sticky top-0 flex items-start justify-between gap-4 border-b border-[#EEF0F3] bg-white px-5 py-4 sm:px-6">
-          <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-wider text-[#ff5a00]">{labels.calculationDetails}</p>
-            <h2 id="kpi-explanation-title" className="mt-1 text-xl font-black text-[#1F2937]">{detail.title}</h2>
-            <p className="mt-1 text-xs font-semibold text-[#9CA3AF]">{period}</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label={labels.close} className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-[#6B7280] transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40">
-            <X size={19} />
-          </button>
-        </div>
-        <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="rounded-2xl bg-[#FAF7F0] p-4">
-            <p className="text-xs font-black uppercase tracking-wide text-[#9CA3AF]">{detail.title}</p>
-            <p className="mt-1 break-words text-2xl font-black tabular-nums text-[#1F2937]">{detail.value}</p>
-          </div>
-          <div>
-            <h3 className="text-sm font-black text-[#1F2937]">{labels.howCalculated}</h3>
-            <p className="mt-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold leading-relaxed text-blue-800">{detail.calculation}</p>
-          </div>
-          <div>
-            <h3 className="text-sm font-black text-[#1F2937]">{labels.included}</h3>
-            <ul className="mt-2 space-y-2">
-              {detail.included.map(item => (
-                <li key={item} className="flex gap-2.5 text-sm font-semibold leading-relaxed text-[#4B5563]">
-                  <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#ff5a00]" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <button type="button" onClick={onClose} className="h-12 w-full rounded-xl bg-[#1F2937] text-sm font-black text-white transition-colors hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40">
-            {labels.close}
-          </button>
-        </div>
-      </section>
-    </div>
-  )
-}
 
 function Breakdown({ title, rows, total, lang, type }) {
   return (
-    <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-      <h2 className="mb-3 text-sm font-black text-[#1F2937]">{title}</h2>
+    <section className="ws-panel">
+      <h2 className="ws-heading mb-3">{title}</h2>
       {rows.length === 0 ? (
-        <p className="py-4 text-sm font-bold text-[#9CA3AF]">—</p>
+        <p className="ws-muted py-4">—</p>
       ) : (
         <div className="space-y-3">
           {rows.map(([key, amount]) => {
@@ -1633,10 +1338,10 @@ function Breakdown({ title, rows, total, lang, type }) {
             return (
               <div key={key}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                  <span className="font-bold text-[#4B5563]">{label}</span>
-                  <span className="font-black text-[#1F2937]">{formatCurrency(amount)}</span>
+                  <span className="text-[#22201d]">{label}</span>
+                  <span className="font-semibold tabular-nums text-[#22201d]">{formatCurrency(amount)}</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                <div className="h-2 overflow-hidden rounded-full bg-[#efece9]">
                   <div className="h-full rounded-full bg-[#ff5a00]" style={{ width: `${width}%` }} />
                 </div>
               </div>

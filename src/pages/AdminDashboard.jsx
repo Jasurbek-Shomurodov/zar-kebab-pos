@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react'
 import {
   TrendingUp, ShoppingBag, Package, Receipt,
-  Clock, ArrowUpRight, ArrowDownRight, Users, Loader2,
+  Clock, ArrowUpRight, ArrowDownRight, Users,
   BadgeDollarSign,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
@@ -33,6 +33,7 @@ import {
   isOrderInDashboardPeriod,
 } from '../lib/dashboardAnalytics'
 import AppShell from '../components/AppShell'
+import PageShimmer from '../components/PageShimmer'
 import WeeklyIncomeChart from '../components/WeeklyIncomeChart'
 import BusyHoursCard from '../components/BusyHoursCard'
 import ProductContributionCard from '../components/ProductContributionCard'
@@ -341,49 +342,47 @@ function ShimmerBlock({ className = '' }) {
   return (
     <div
       aria-hidden="true"
-      className={`animate-pulse rounded-lg bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 ${className}`}
+      className={`animate-pulse rounded-lg bg-[#efece9] ${className}`}
     />
   )
 }
 
 function KpiCard({ icon: Icon, label, value, sub, subColor, badge, highlight, tone = 'default', loading = false }) {
-  const isProfit = tone === 'profit' && !highlight
-  const cardClass = highlight
-    ? 'border-red-200 bg-white'
-    : isProfit
-      ? 'border-emerald-200 bg-gradient-to-br from-white to-emerald-50/70'
-      : 'border-[#E5E7EB] bg-white'
-  const iconClass = highlight
-    ? 'bg-red-50 text-[#DC2626]'
-    : isProfit
-      ? 'bg-emerald-100 text-emerald-700'
-      : 'bg-gray-50 text-[#6B7280]'
-  const valueClass = highlight ? 'text-[#DC2626]' : isProfit ? 'text-emerald-700' : 'text-[#1F2937]'
+  const valueClass = highlight || tone === 'loss'
+    ? 'text-[#c4262c]'
+    : tone === 'profit'
+      ? 'text-[#1d7a52]'
+      : 'text-[#22201d]'
 
   return (
-    <div aria-busy={loading} className={`rounded-2xl border shadow-sm p-4 flex flex-col gap-2 min-w-0 h-full ${cardClass}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${iconClass}`}>
-          <Icon size={17} />
+    <div aria-busy={loading} className="ws-panel flex h-full min-w-0 flex-col">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="ws-caption">{label}</p>
+          {loading ? (
+            <ShimmerBlock className="mt-2 h-6 w-2/3" />
+          ) : (
+            <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueClass}`}>{value}</p>
+          )}
         </div>
-        {!loading && badge && (
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 whitespace-nowrap flex-shrink-0 ${badge.cls}`}>
-            {badge.up !== null && (badge.up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />)}
-            {badge.text}
-          </span>
-        )}
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+          <Icon size={16} />
+        </div>
       </div>
       {loading ? (
-        <div className="space-y-2 py-0.5">
-          <ShimmerBlock className="h-6 w-2/3" />
+        <div className="mt-3 space-y-2">
           <ShimmerBlock className="h-3 w-1/2" />
           <ShimmerBlock className="h-3 w-5/6" />
         </div>
-      ) : (
-        <div>
-          <p className={`font-black text-xl leading-tight break-words tabular-nums mb-1 ${valueClass}`}>{value}</p>
-          <p className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider leading-snug">{label}</p>
-          {sub && <p className={`text-xs mt-0.5 leading-snug ${subColor || 'text-[#9CA3AF]'}`}>{sub}</p>}
+      ) : (badge || sub) && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {badge && (
+            <span className={`ws-badge tabular-nums ${badge.cls}`}>
+              {badge.up !== null && (badge.up ? <ArrowUpRight /> : <ArrowDownRight />)}
+              {badge.text}
+            </span>
+          )}
+          {sub && <p className={`ws-caption leading-relaxed ${subColor || ''}`}>{sub}</p>}
         </div>
       )}
     </div>
@@ -395,10 +394,10 @@ function ChartShimmer() {
     <div className="animate-pulse" aria-hidden="true">
       <div className="flex h-36 items-end gap-2 mb-4">
         {[28, 44, 35, 62, 48, 78, 56, 88, 68, 96, 74, 84].map((height, index) => (
-          <div key={index} className="flex-1 rounded-t-md bg-gray-100" style={{ height: `${height}%` }} />
+          <div key={index} className="flex-1 rounded-t-md bg-[#efece9]" style={{ height: `${height}%` }} />
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-3 border-t border-[#F3F4F6] pt-3">
+      <div className="grid grid-cols-3 gap-3 border-t border-[#e4e1de] pt-3">
         <ShimmerBlock className="h-9 w-4/5" />
         <ShimmerBlock className="h-9 w-4/5" />
         <ShimmerBlock className="h-9 w-3/5" />
@@ -412,7 +411,7 @@ function ListShimmer({ rows = 5, withAvatar = false }) {
     <div className="animate-pulse space-y-3 py-1" aria-hidden="true">
       {Array.from({ length: rows }, (_, index) => (
         <div key={index} className="flex items-center gap-3">
-          {withAvatar && <div className="h-9 w-9 flex-shrink-0 rounded-xl bg-gray-100" />}
+          {withAvatar && <div className="h-9 w-9 flex-shrink-0 rounded-lg bg-[#efece9]" />}
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <ShimmerBlock className="h-3 w-2/5" />
@@ -427,42 +426,25 @@ function ListShimmer({ rows = 5, withAvatar = false }) {
 }
 
 const PAYMENT_COLORS = {
-  cash:     '#16A34A',
-  card:     '#7C3AED',
-  terminal: '#2563EB',
-  unknown:  '#D1D5DB',
+  cash:     '#1d7a52',
+  card:     '#8b5cf6',
+  terminal: '#2a6fdb',
+  loyalty:  '#9a5a00',
+  unknown:  '#dcd9d6',
 }
 
 const ORDER_TYPE_PERFORMANCE_STYLE = {
-  game_club: { Icon: Package, panel: 'bg-emerald-50 border-emerald-200', icon: 'bg-white text-emerald-700', text: 'text-emerald-700', bar: 'bg-emerald-600' },
-  dine_in: {
-    Icon: Users,
-    panel: 'bg-orange-50 border-orange-200',
-    icon: 'bg-white text-[#ff5a00]',
-    text: 'text-[#c2410c]',
-    bar: 'bg-[#ff5a00]',
-  },
-  take_away: {
-    Icon: ShoppingBag,
-    panel: 'bg-blue-50 border-blue-200',
-    icon: 'bg-white text-blue-700',
-    text: 'text-blue-700',
-    bar: 'bg-blue-600',
-  },
-  delivery: {
-    Icon: Package,
-    panel: 'bg-purple-50 border-purple-200',
-    icon: 'bg-white text-purple-700',
-    text: 'text-purple-700',
-    bar: 'bg-purple-600',
-  },
+  game_club: { Icon: Package, bar: '#1d7a52' },
+  dine_in: { Icon: Users, bar: '#ff5a00' },
+  take_away: { Icon: ShoppingBag, bar: '#2a6fdb' },
+  delivery: { Icon: Package, bar: '#8b5cf6' },
 }
 
 function DonutChart({ slices }) {
   const total = slices.reduce((s, x) => s + x.value, 0)
   if (total === 0) return (
     <svg viewBox="0 0 36 36" className="w-28 h-28">
-      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F3F4F6" strokeWidth="3.8" />
+      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#efece9" strokeWidth="3.8" />
     </svg>
   )
   const circ = 2 * Math.PI * 15.9
@@ -491,20 +473,20 @@ function OrderTypePerformanceCard({ rows, lang, loading = false }) {
   const topKey = rows.find(row => row.revenue > 0)?.key || ''
 
   return (
-    <div aria-busy={loading} className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5 mb-4 min-w-0">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h3 className="font-black text-[#1F2937] text-base">{l.orderTypePerformance}</h3>
+    <div aria-busy={loading} className="ws-panel min-w-0">
+      <div className="ws-panel-title mb-4">
+        <h3 className="ws-heading">{l.orderTypePerformance}</h3>
         {!loading && topKey && (
-          <span className="rounded-full bg-[#0F3B2E] px-3 py-1 text-[11px] font-black text-white">
+          <span className="ws-badge ws-tone-accent">
             {l.topOrderType}: {rows.find(row => row.key === topKey)?.label}
           </span>
         )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {loading ? Array.from({ length: 3 }, (_, index) => (
-          <div key={index} className="animate-pulse rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3" aria-hidden="true">
+          <div key={index} className="animate-pulse rounded-[10px] border border-[#e4e1de] px-4 py-3" aria-hidden="true">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-xl bg-gray-200" />
+              <div className="h-8 w-8 rounded-full bg-[#efece9]" />
               <div className="flex-1 space-y-2">
                 <ShimmerBlock className="h-3 w-2/5" />
                 <ShimmerBlock className="h-3 w-1/4" />
@@ -520,32 +502,32 @@ function OrderTypePerformanceCard({ rows, lang, loading = false }) {
           const isTop = row.key === topKey
 
           return (
-            <div key={row.key} className={`rounded-2xl border px-4 py-3 min-w-0 ${visual.panel}`}>
+            <div key={row.key} className="min-w-0 rounded-[10px] border border-[#e4e1de] bg-white px-4 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${visual.icon}`}>
-                    <Icon size={17} />
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+                    <Icon size={16} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-black text-[#1F2937] truncate">{row.label}</p>
-                    <p className="text-xs font-semibold text-[#8EA0BB] truncate">{row.orders} {l.orders}</p>
+                    <p className="text-sm font-semibold text-[#22201d] truncate">{row.label}</p>
+                    <p className="ws-caption truncate tabular-nums">{row.orders} {l.orders}</p>
                   </div>
                 </div>
                 {isTop && (
-                  <span className={`rounded-full bg-white px-2 py-0.5 text-[10px] font-black ${visual.text}`}>
+                  <span className="ws-badge ws-tone-accent flex-shrink-0">
                     {l.topOrderType}
                   </span>
                 )}
               </div>
               <div className="mt-3">
                 <div className="flex items-end justify-between gap-2 mb-2">
-                  <p className={`text-lg font-black tabular-nums truncate ${visual.text}`}>{formatCurrency(row.revenue)}</p>
-                  <p className="text-xs font-black text-[#718096] flex-shrink-0">{row.pct}%</p>
+                  <p className="text-lg font-semibold tracking-[-.01em] tabular-nums truncate text-[#22201d]">{formatCurrency(row.revenue)}</p>
+                  <p className="ws-caption font-medium tabular-nums flex-shrink-0">{row.pct}%</p>
                 </div>
-                <div className="h-1.5 rounded-full bg-white/80 overflow-hidden">
-                  <div className={`h-full rounded-full ${visual.bar}`} style={{ width: `${width}%` }} />
+                <div className="h-1.5 rounded-full bg-[#efece9] overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${width}%`, backgroundColor: visual.bar }} />
                 </div>
-                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] font-bold text-[#718096]">
+                <div className="ws-caption mt-2 flex items-center justify-between gap-2 tabular-nums">
                   <span>{row.items} {l.items}</span>
                   <span>{l.avgOrderShort}: {formatCurrency(row.avgOrder)}</span>
                 </div>
@@ -857,7 +839,7 @@ export default function AdminDashboard() {
     if (change === null) return null
     return {
       text: `${change > 0 ? '+' : ''}${change}%`,
-      cls:  change >= 0 ? 'bg-green-50 text-[#16A34A]' : 'bg-red-50 text-[#DC2626]',
+      cls:  change >= 0 ? 'ws-tone-positive' : 'ws-tone-negative',
       up:   change >= 0,
     }
   }
@@ -889,38 +871,66 @@ export default function AdminDashboard() {
   if (!state.loaded) {
     return (
       <AppShell title={l.title}>
-        <div className="flex flex-col items-center justify-center h-64 gap-3">
-          <Loader2 size={28} className="animate-spin text-[#ff5a00]" />
-          <p className="text-sm text-gray-400">{l.loading}</p>
-        </div>
+        <PageShimmer layout="dashboard" label={l.loading} />
       </AppShell>
     )
   }
 
-  return (
-    <AppShell title={l.greeting(displayName)}>
-      <div className="w-full max-w-[1440px] mx-auto px-4 py-4 sm:px-5 lg:px-6 lg:py-5 overflow-x-hidden min-w-0">
+  const periodTabs = [
+    { key: 'today',  label: l.today    },
+    { key: '7days',  label: l.days7    },
+    { key: 'rollingMonth', label: l.rollingMonth },
+    { key: 'month',  label: l.thisMonth },
+  ]
 
-        {/* Header */}
-        <div className="mb-5 flex items-start justify-between flex-wrap gap-3 min-w-0">
-          <div className="min-w-0 flex-1">
-            <h2 className="font-black text-[#1F2937] text-2xl leading-tight">{l.greeting(displayName)}</h2>
-            <p className="text-sm text-[#6B7280] mt-1">{l.subtitle}</p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-[#6B7280] bg-white border border-gray-200 px-3 py-2 rounded-xl flex-shrink-0">
-            <Clock size={13} />
-            {lastUpdated}
-          </div>
+  function renderPeriodSwitch(buttonClassName = '') {
+    return (
+      <div className="ws-segmented" role="group" aria-label={l.revenueStats}>
+        {periodTabs.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            aria-pressed={period === tab.key}
+            onClick={() => setPeriod(tab.key)}
+            className={buttonClassName}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  const headerActions = (
+    <div className="flex items-center gap-3">
+      <span className="ws-caption hidden items-center gap-1.5 tabular-nums xl:inline-flex">
+        <Clock size={13} />
+        {lastUpdated}
+      </span>
+      <div className="hidden md:block">
+        {renderPeriodSwitch('!h-[30px] !px-3')}
+      </div>
+    </div>
+  )
+
+  return (
+    <AppShell title={l.title} headerActions={headerActions}>
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page min-w-0 overflow-x-hidden">
+
+        {/* Period switch on phones; wider screens keep it in the top bar. */}
+        <div className="md:hidden">
+          {renderPeriodSwitch()}
         </div>
 
         {historyError && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          <div role="alert" className="ws-notice ws-tone-negative">
             {historyError}
           </div>
         )}
 
         {/* ── KPI cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <KpiCard
             icon={TrendingUp}
             loading={analyticsLoading}
@@ -936,7 +946,7 @@ export default function AdminDashboard() {
             value={formatCurrencyWithPercentage(periodNetProfit, periodProfitMargin, lang)}
             sub={`${previousKpiPeriodLabel}: ${formatCurrency(previousKpiNetProfit)}`}
             badge={pctBadge(netProfitChange)}
-            tone="profit"
+            tone={periodNetProfit < 0 ? 'loss' : 'profit'}
           />
           <KpiCard
             icon={ShoppingBag}
@@ -951,45 +961,23 @@ export default function AdminDashboard() {
             label={l.activeBills}
             value={activeBills}
             sub={activeBills > 0 ? l.needAttention : '—'}
-            subColor={activeBills > 0 ? 'text-[#DC2626] font-semibold' : 'text-[#9CA3AF]'}
+            subColor={activeBills > 0 ? '!text-[#c4262c] font-medium' : ''}
             highlight={activeBills > 0}
           />
         </div>
 
         {/* ── Row 2: Revenue Statistics + Payment Methods ── */}
-        <div className="grid grid-cols-12 gap-4 mb-4 min-w-0">
+        <div className="grid grid-cols-12 gap-4 min-w-0">
 
           {/* Revenue Statistics — left 2 cols */}
-          <div aria-busy={analyticsLoading} className="col-span-12 xl:col-span-8 bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5 min-w-0">
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <div>
-                <h3 className="font-bold text-[#1F2937] text-base">{l.revenueStats}</h3>
-                {period === 'rollingMonth' && (
-                  <p className="mt-0.5 text-[11px] font-semibold text-[#9CA3AF]">
-                    {formatLongDate(rollingMonthRange.dateFrom, lang, rollingMonthRange.dateFrom)} — {formatLongDate(rollingMonthRange.dateToExclusive, lang, rollingMonthRange.dateToExclusive)}
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-1 flex-wrap">
-                {[
-                  { key: 'today',  label: l.today    },
-                  { key: '7days',  label: l.days7    },
-                  { key: 'rollingMonth', label: l.rollingMonth },
-                  { key: 'month',  label: l.thisMonth },
-                ].map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setPeriod(tab.key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                      period === tab.key
-                        ? 'bg-[#ff5a00] text-white'
-                        : 'bg-gray-100 text-[#6B7280] hover:bg-gray-200'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+          <div aria-busy={analyticsLoading} className="ws-panel col-span-12 xl:col-span-8 min-w-0">
+            <div className="mb-4">
+              <h3 className="ws-heading">{l.revenueStats}</h3>
+              {period === 'rollingMonth' && (
+                <p className="ws-caption mt-0.5 tabular-nums">
+                  {formatLongDate(rollingMonthRange.dateFrom, lang, rollingMonthRange.dateFrom)} — {formatLongDate(rollingMonthRange.dateToExclusive, lang, rollingMonthRange.dateToExclusive)}
+                </p>
+              )}
             </div>
 
             {analyticsLoading ? (
@@ -1004,13 +992,13 @@ export default function AdminDashboard() {
                   return (
                     <div key={i} className="flex-1 flex items-end h-full group relative min-w-[6px]">
                       {bar.revenue > 0 && (
-                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-[#1F2937] text-white text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-[#22201d] text-white text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                           {formatCurrency(bar.revenue)}
                         </div>
                       )}
                       <div
                         className={`w-full rounded-t-md transition-all ${
-                          bar.isToday ? 'bg-[#ff5a00]' : bar.revenue > 0 ? 'bg-[#FED7AA] group-hover:bg-[#FDBA74]' : 'bg-[#F3F4F6]'
+                          bar.isToday ? 'bg-[#ff5a00]' : bar.revenue > 0 ? 'bg-[#ff5a00]/35 group-hover:bg-[#ff5a00]/55' : 'bg-[#efece9]'
                         }`}
                         style={{ height: `${Math.max(pct, 3)}%` }}
                       />
@@ -1025,8 +1013,8 @@ export default function AdminDashboard() {
               {chartBars.map((bar, i) => {
                 const show = chartBars.length <= 10 || i === chartBars.length - 1 || i % Math.ceil(chartBars.length / 10) === 0
                 return (
-                  <p key={i} className={`flex-1 text-center text-[10px] font-semibold truncate min-w-[6px] ${
-                    bar.isToday ? 'text-[#ff5a00]' : 'text-[#9CA3AF]'
+                  <p key={i} className={`flex-1 text-center text-[10px] font-medium truncate min-w-[6px] ${
+                    bar.isToday ? 'text-[#ff5a00]' : 'text-[#68655f]'
                   } ${!show ? 'opacity-0 pointer-events-none' : ''}`}>
                     {bar.label}
                   </p>
@@ -1035,24 +1023,24 @@ export default function AdminDashboard() {
             </div>
 
             {/* Period comparison */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#F3F4F6]">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-[#e4e1de]">
               <div className="min-w-0">
-                <p className="text-xs text-[#9CA3AF] mb-1">{l.prevPeriod}</p>
-                <p className="font-bold text-[#1F2937] text-sm truncate">{formatCurrency(previousPeriodTotal)}</p>
+                <p className="ws-caption mb-1">{l.prevPeriod}</p>
+                <p className="font-semibold text-[#22201d] text-sm tabular-nums truncate">{formatCurrency(previousPeriodTotal)}</p>
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-[#9CA3AF] mb-1">{l.thisPeriod}</p>
-                <p className="font-bold text-[#1F2937] text-sm truncate">{formatCurrency(currentPeriodTotal)}</p>
+                <p className="ws-caption mb-1">{l.thisPeriod}</p>
+                <p className="font-semibold text-[#22201d] text-sm tabular-nums truncate">{formatCurrency(currentPeriodTotal)}</p>
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-[#9CA3AF] mb-1">{l.growth}</p>
+                <p className="ws-caption mb-1">{l.growth}</p>
                 {periodGrowth !== null ? (
-                  <p className={`font-bold text-sm flex items-center gap-0.5 ${periodGrowth >= 0 ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                    {periodGrowth >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                  <span className={`ws-badge tabular-nums ${periodGrowth >= 0 ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
+                    {periodGrowth >= 0 ? <ArrowUpRight /> : <ArrowDownRight />}
                     {periodGrowth > 0 ? '+' : ''}{periodGrowth}%
-                  </p>
+                  </span>
                 ) : (
-                  <p className="font-bold text-[#9CA3AF] text-sm">—</p>
+                  <p className="font-semibold text-[#68655f] text-sm">—</p>
                 )}
               </div>
             </div>
@@ -1061,11 +1049,11 @@ export default function AdminDashboard() {
           </div>
 
           {/* Payment Methods */}
-          <div aria-busy={analyticsLoading} className="col-span-12 xl:col-span-4 bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5 min-w-0">
-            <h3 className="font-black text-[#1F2937] text-base mb-4">{l.paymentMethods}</h3>
+          <div aria-busy={analyticsLoading} className="ws-panel col-span-12 xl:col-span-4 min-w-0">
+            <h3 className="ws-heading mb-4">{l.paymentMethods}</h3>
             {analyticsLoading ? (
               <div className="flex animate-pulse items-center gap-4 py-1" aria-hidden="true">
-                <div className="h-28 w-28 flex-shrink-0 rounded-full border-[14px] border-gray-100" />
+                <div className="h-28 w-28 flex-shrink-0 rounded-full border-[14px] border-[#efece9]" />
                 <div className="flex-1 space-y-3">
                   <ShimmerBlock className="h-3 w-full" />
                   <ShimmerBlock className="h-3 w-5/6" />
@@ -1073,21 +1061,21 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ) : paymentMethods.length === 0 ? (
-              <p className="text-sm text-[#9CA3AF] text-center py-4">{l.noData}</p>
+              <p className="ws-empty !py-6">{l.noData}</p>
             ) : (
               <div className="flex items-center gap-4 min-w-0">
                 <div className="relative flex-shrink-0">
                   <DonutChart slices={paymentMethods.map(p => ({ value: p.amount, color: p.color }))} />
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <p className="font-black text-[#1F2937] text-xs leading-none">{formatCurrency(paymentMethods.reduce((s, p) => s + p.amount, 0)).split(' ')[0]}</p>
+                    <p className="font-semibold text-[#22201d] text-xs leading-none tabular-nums">{formatCurrency(paymentMethods.reduce((s, p) => s + p.amount, 0)).split(' ')[0]}</p>
                   </div>
                 </div>
                 <div className="flex-1 space-y-1.5 min-w-0">
                   {paymentMethods.map(p => (
                     <div key={p.key} className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                      <span className="text-xs text-[#6B7280] flex-1 truncate">{p.label}</span>
-                      <span className="text-xs font-bold text-[#1F2937] flex-shrink-0">{p.pct}%</span>
+                      <span className="text-xs text-[#68655f] flex-1 truncate">{p.label}</span>
+                      <span className="text-xs font-semibold text-[#22201d] tabular-nums flex-shrink-0">{p.pct}%</span>
                     </div>
                   ))}
                 </div>
@@ -1099,27 +1087,27 @@ export default function AdminDashboard() {
         <OrderTypePerformanceCard rows={orderTypePerformance} lang={lang} loading={analyticsLoading} />
 
         {/* ── Row 3: Sales by Category + Best-Selling + Busy Hours ── */}
-        <div className="grid grid-cols-12 gap-4 mb-4 min-w-0">
+        <div className="grid grid-cols-12 gap-4 min-w-0">
 
           {/* Sales by Category */}
-          <div aria-busy={analyticsLoading} className="col-span-12 xl:col-span-4 flex min-h-0 min-w-0 flex-col bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4">
-            <h3 className="font-black text-[#1F2937] text-base mb-3">{l.salesByCategory} · {currentKpiPeriodLabel}</h3>
+          <div aria-busy={analyticsLoading} className="ws-panel col-span-12 xl:col-span-4 flex min-h-0 min-w-0 flex-col">
+            <h3 className="ws-heading mb-3">{l.salesByCategory} · {currentKpiPeriodLabel}</h3>
             {analyticsLoading ? (
               <ListShimmer rows={6} />
             ) : salesByCategory.length === 0 ? (
-              <p className="text-sm text-[#9CA3AF] text-center py-6">{l.noSales}</p>
+              <p className="ws-empty !py-6">{l.noSales}</p>
             ) : (
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {salesByCategory.map(cat => (
                   <div key={cat.name}>
                     <div className="flex items-center justify-between mb-1 gap-2">
-                      <p className="text-xs font-bold text-[#1F2937] truncate flex-1">{cat.name}</p>
+                      <p className="text-xs font-medium text-[#22201d] truncate flex-1">{cat.name}</p>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <p className="text-xs font-bold text-[#1F2937]">{formatCurrency(cat.revenue)}</p>
-                        <p className="text-xs text-[#9CA3AF] w-8 text-right">{cat.pct}%</p>
+                        <p className="text-xs font-semibold text-[#22201d] tabular-nums">{formatCurrency(cat.revenue)}</p>
+                        <p className="text-xs text-[#68655f] tabular-nums w-8 text-right">{cat.pct}%</p>
                       </div>
                     </div>
-                    <div className="h-1.5 bg-[#F3F4F6] rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-[#efece9] rounded-full overflow-hidden">
                       <div className="h-full bg-[#ff5a00] rounded-full" style={{ width: `${cat.pct}%` }} />
                     </div>
                   </div>
@@ -1135,18 +1123,18 @@ export default function AdminDashboard() {
 
         <section
           aria-busy={monthlyIncomeLoading}
-          className="mb-4 min-w-0 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm"
+          className="ws-panel min-w-0"
         >
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="text-base font-black text-[#1F2937]">{l.monthlyAvgDailyIncome}</h3>
-              <p className="mt-1 text-xs font-semibold leading-relaxed text-[#9CA3AF]">
+              <h3 className="ws-heading">{l.monthlyAvgDailyIncome}</h3>
+              <p className="ws-caption mt-1 leading-relaxed">
                 {l.monthlyAvgDailyIncomeSub}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold text-[#718096]">
+            <div className="ws-caption flex flex-wrap items-center gap-3">
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-[#0F766E]" />
+                <span className="h-2.5 w-2.5 rounded-sm bg-[#0f766e]" />
                 {l.savedMonth}
               </span>
               <span className="flex items-center gap-1.5">
@@ -1155,7 +1143,7 @@ export default function AdminDashboard() {
               </span>
               {dailyBreakEvenIncome > 0 && (
                 <span className="flex items-center gap-1.5">
-                  <span className="w-4 border-t-2 border-dotted border-red-500" />
+                  <span className="w-4 border-t-2 border-dotted border-[#c4262c]" />
                   {l.breakEvenIncome}
                 </span>
               )}
@@ -1165,33 +1153,33 @@ export default function AdminDashboard() {
           {monthlyIncomeLoading ? (
             <ChartShimmer />
           ) : monthlyIncomeError ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-3">
               <span>{l.monthlyIncomeFailed}: {monthlyIncomeError}</span>
               <button
                 type="button"
                 onClick={() => setMonthlyIncomeRequestKey(key => key + 1)}
-                className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-black text-red-700 transition-colors hover:bg-red-100"
+                className="ws-btn ws-btn-outline ws-btn-sm"
               >
                 {l.retry}
               </button>
             </div>
           ) : monthlyIncomeChartRows.length === 0 ? (
-            <p className="py-8 text-center text-sm text-[#9CA3AF]">{l.noData}</p>
+            <p className="ws-empty">{l.noData}</p>
           ) : (
             <div className="overflow-x-auto pb-1">
               <div className="min-w-[720px] pt-7">
                 <div
-                  className="relative flex h-48 items-end gap-3 border-b border-[#E5E7EB] px-2"
+                  className="relative flex h-48 items-end gap-3 border-b border-[#e4e1de] px-2"
                   role="list"
                   aria-label={l.monthlyAvgDailyIncome}
                 >
                   {dailyBreakEvenIncome > 0 && (
                     <div
-                      className="pointer-events-none absolute inset-x-2 z-20 border-t-2 border-dotted border-red-500"
+                      className="pointer-events-none absolute inset-x-2 z-20 border-t-2 border-dotted border-[#c4262c]"
                       style={{ bottom: `${breakEvenLineHeight}%` }}
                       aria-hidden="true"
                     >
-                      <span className="absolute bottom-1 right-0 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-black text-red-600 shadow-sm">
+                      <span className="absolute bottom-1 right-0 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#c4262c] shadow-sm">
                         {formatCompactIncome(dailyBreakEvenIncome, lang)}
                       </span>
                     </div>
@@ -1206,16 +1194,16 @@ export default function AdminDashboard() {
                         tabIndex={0}
                         aria-label={`${row.label}: ${formatCurrency(row.averageDailyIncome)}`}
                       >
-                        <div className="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#1F2937] px-2 py-1 text-[10px] font-bold text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                        <div className="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#22201d] px-2 py-1 text-[10px] font-medium tabular-nums text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                           {formatCurrency(row.averageDailyIncome)}
                         </div>
                         <div
                           className={`w-full rounded-t-lg transition-colors ${
                             row.averageDailyIncome <= 0
-                              ? 'bg-[#F3F4F6]'
+                              ? 'bg-[#efece9]'
                               : row.isCurrent
                               ? 'bg-[#ff5a00]'
-                              : 'bg-[#0F766E] group-hover:bg-[#0D9488]'
+                              : 'bg-[#0f766e] group-hover:bg-[#0f766e]/85'
                           }`}
                           style={{ height: `${height}%` }}
                           title={`${row.label}: ${formatCurrency(row.averageDailyIncome)}`}
@@ -1230,17 +1218,17 @@ export default function AdminDashboard() {
                       key={row.monthStart}
                       className="min-w-[44px] flex-1 text-center leading-tight"
                     >
-                      <p className={`text-[10px] font-bold ${
-                        row.isCurrent ? 'text-[#ff5a00]' : 'text-[#718096]'
+                      <p className={`text-[10px] font-medium ${
+                        row.isCurrent ? 'text-[#ff5a00]' : 'text-[#68655f]'
                       }`}>
                         {row.label}
                       </p>
-                      <p className={`mt-1 text-[10px] font-black tabular-nums ${
+                      <p className={`mt-1 text-[10px] font-semibold tabular-nums ${
                         row.averageDailyIncome <= 0
-                          ? 'text-[#CBD5E1]'
+                          ? 'text-[#dcd9d6]'
                           : row.isCurrent
                           ? 'text-[#ff5a00]'
-                          : 'text-[#0F766E]'
+                          : 'text-[#0f766e]'
                       }`}>
                         {row.averageDailyIncome > 0 ? formatCompactIncome(row.averageDailyIncome, lang) : ''}
                       </p>
@@ -1255,10 +1243,11 @@ export default function AdminDashboard() {
         <WeeklyIncomeChart lang={lang} target={dailyBreakEvenIncome} />
 
         {/* Footer */}
-        <p className="text-center text-xs text-[#9CA3AF] mt-6">
+        <p className="ws-caption text-center">
           {l.footer} • {lang === 'uz' ? 'Oxirgi yangilanish' : lang === 'ru' ? 'Последнее обновление' : 'Last updated'}: {lastUpdated}
         </p>
 
+        </div>
       </div>
     </AppShell>
   )

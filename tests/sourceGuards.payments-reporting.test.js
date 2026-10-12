@@ -77,11 +77,11 @@ test('completed order payment metadata uses a full-width responsive amount layou
 
   assert.match(meta, /value: <PaymentMethodBadges order=\{order\} lang=\{lang\} showAmounts \/>, fullWidth: true/)
   assert.match(meta, /\.map\(\(\{ label, value, fullWidth = false \}\) =>/)
-  assert.match(meta, /min-w-0 rounded-xl bg-gray-50/)
+  assert.match(meta, /min-w-0 rounded-xl bg-\[#f6f5f3\]/)
   assert.match(meta, /fullWidth \? 'col-span-2 p-4' : 'p-3'/)
   assert.match(badges, /showAmounts \? 'flex w-full flex-wrap items-center gap-2'/)
   assert.match(badges, /min-w-\[170px\] flex-1 justify-between/)
-  assert.match(badges, /hasAmount && <span className="whitespace-nowrap font-black tabular-nums">\{formatCurrency\(amount\)\}<\/span>/)
+  assert.match(badges, /hasAmount && <span className="whitespace-nowrap font-semibold tabular-nums">\{formatCurrency\(amount\)\}<\/span>/)
 })
 
 test('reports use the shared Daily Bazaar range calendar', () => {
@@ -113,9 +113,13 @@ test('reports closeout localizes labels and date while filter controls stay alig
   assert.match(reports, /formatLongDate\(closeout\.dateTo, lang, closeout\.dateTo\)/)
   assert.match(exportCloseout, /closeout\.dateFrom/)
   assert.match(exportCloseout, /closeout\.dateTo/)
-  assert.match(reports, /mt-2 flex flex-wrap items-stretch justify-end gap-2/)
-  assert.match(reports, /className="flex h-11 items-center gap-1\.5 px-4/)
-  assert.equal((reports.match(/className="h-11 bg-white border/g) || []).length, 2)
+  assert.match(reports, /<div className="flex flex-wrap items-stretch gap-2">\s*<DateRangePicker/)
+  assert.match(reports, /headerActions=\{\([\s\S]*?onClick=\{exportCloseout\}[\s\S]*?disabled=\{reportsLoading \|\| Boolean\(ordersError\)\}[\s\S]*?className="ws-btn ws-btn-outline !h-\[38px\]"/)
+  // Date picker and both selects share one control height: 44px in the page, 38px in the top bar.
+  assert.match(reports, /const control = compact \? '!h-\[38px\]' : '!h-11'/)
+  assert.equal((reports.match(/className=\{`ws-input \$\{control\} !w-auto max-w-\[200px\]`\}/g) || []).length, 2)
+  assert.match(reports, /titleAccessory=\{<div className="zk-filters-in-header">\{renderFilters\(true\)\}<\/div>\}/)
+  assert.match(reports, /<div className="zk-filters-in-page">\{renderFilters\(false\)\}<\/div>/)
 })
 
 test('QR is retired from payment, reporting, accounting, dashboard, and receipt surfaces', () => {
@@ -342,7 +346,13 @@ test('loyalty cashback wallet migration and admin route are wired', () => {
 test('AdminLoyalty selected card uses compact profile and detailed transaction layout', () => {
   const admin = readSource('src/pages/AdminLoyalty.jsx')
 
-  assert.match(admin, /CARD_PAGE_SIZE = 20/)
+  assert.match(admin, /CARD_PAGE_SIZE = 8/)
+  assert.match(admin, /TRANSACTION_PAGE_SIZE = 5/)
+  assert.match(admin, /select\(TRANSACTION_SELECT_COLUMNS, \{ count: 'exact' \}\)/)
+  assert.match(admin, /aria-current=\{page === transactionPage \? 'page' : undefined\}/)
+  assert.doesNotMatch(admin, /\.limit\(50\)/)
+  assert.match(admin, /loadingCards && Array\.from\([\s\S]*<CardRowShimmer/)
+  assert.match(admin, /loadingTransactions && Array\.from\([\s\S]*<TransactionShimmer/)
   assert.match(admin, /CARD_SELECT_COLUMNS/)
   assert.match(admin, /TRANSACTION_SELECT_COLUMNS/)
   assert.match(admin, /\.range\(from, to\)/)
@@ -357,7 +367,7 @@ test('AdminLoyalty selected card uses compact profile and detailed transaction l
   assert.match(admin, /Customer Loyalty Profile/)
   assert.match(admin, /No customer name/)
   assert.match(admin, /No phone number/)
-  assert.match(admin, /<AppShell title=\{selected \? l\.detailsTitle : l\.title\}>/)
+  assert.match(admin, /<AppShell\s+title=\{selected \? l\.detailsTitle : l\.title\}/)
   assert.match(admin, /selected \? 'hidden lg:block' : ''/)
   assert.match(admin, /selected \? '' : 'hidden lg:block'/)
   assert.match(admin, /setSelected\(null\)/)
@@ -381,12 +391,12 @@ test('AdminLoyalty selected card uses compact profile and detailed transaction l
   assert.match(admin, /disabled=\{!canAdjust\}/)
   assert.match(admin, /disabled=\{!canRemoveCard\}/)
   assert.match(admin, /l\.removeCardHelp/)
-  const createSection = admin.slice(admin.indexOf('<h2 className="mb-3 text-sm font-black text-[#1F2937]">{l.createTitle}</h2>'), admin.indexOf('<div className="mt-5">'))
+  const createSection = admin.slice(admin.indexOf('{l.createTitle}</h2>'), admin.indexOf('ref={cardListTopRef}'))
   assert.match(createSection, /form\.card_number/)
   assert.match(createSection, /form\.customer_name/)
   assert.match(createSection, /form\.phone_number/)
   assert.match(createSection, /form\.cashback_type/)
-  const cashbackSection = admin.slice(admin.indexOf('<p className="text-xs font-black uppercase tracking-widest text-[#9CA3AF]">{l.cashbackType}</p>'))
+  const cashbackSection = admin.slice(admin.indexOf('<p className="ws-caption font-medium">{l.cashbackType}</p>'))
   assert.doesNotMatch(cashbackSection, /<select value=\{selected\.cashback_type/)
 })
 

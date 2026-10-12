@@ -157,7 +157,7 @@ test('Dashboard monthly chart reads snapshots plus only the live current month a
   assert.match(dashboard, /DASHBOARD_DAILY_BREAK_EVEN_INCOME/)
   assert.match(dashboard, /breakEvenLineHeight/)
   assert.match(dashboard, /state\.settings\?\.averageDailyBreakEvenIncomeUzs/)
-  assert.match(dashboard, /border-dotted border-red-500/)
+  assert.match(dashboard, /border-dotted border-\[#c4262c\]/)
   assert.match(dashboard, /monthlyIncomeChartRows\.map/)
   assert.match(dashboard, /formatCompactIncome\(row\.averageDailyIncome, lang\)/)
   assert.match(dashboard, /Average Daily Income by Month/)

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useApp } from '../store/AppContext'
 import { deleteProfile, getAllProfiles, updateProfile } from '../lib/supabase'
 import AppShell from '../components/AppShell'
+import PageShimmer from '../components/PageShimmer'
 import StatusBadge from '../components/StatusBadge'
 import { groupTeamProfiles } from '../lib/teamProfiles'
 import {
@@ -402,9 +403,7 @@ export default function AdminUsers() {
 
         {/* Table */}
         {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 size={28} className="animate-spin text-gray-300" />
-          </div>
+          <PageShimmer layout="table" className="!p-0" />
         ) : displayedUsers.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <UserCircle2 size={44} className="mx-auto mb-3 opacity-20" />

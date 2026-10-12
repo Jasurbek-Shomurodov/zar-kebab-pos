@@ -135,13 +135,13 @@ function receiptTableLabel(order, table, lang, fallback) {
 
 // ── Shared font styles ────────────────────────────────────────────────────────
 
-const INTER   = "'Inter', sans-serif"
-const POPPINS = "'Poppins', sans-serif"
+const INTER   = "'Onest', sans-serif"
+const POPPINS = "'Onest', sans-serif"
 
 // ── Print + font CSS ──────────────────────────────────────────────────────────
 
 const PRINT_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
 
 @page {
   size: 80mm auto;
@@ -207,7 +207,7 @@ const PRINT_CSS = `
     box-sizing: border-box !important;
     background: #fff !important;
     color: #000 !important;
-    font-family: Arial, sans-serif !important;
+    font-family: 'Onest', Arial, sans-serif !important;
     font-size: 11px !important;
     line-height: 1.25 !important;
   }
@@ -702,7 +702,7 @@ export default function Receipt() {
   useTouristReceiptEnglish(data?.priceMode, orderId, dispatch)
 
   if (!localOrder && lookupState.loading) {
-    return <OperationalLoading title={t(lang, 'loading')} description="" />
+    return <OperationalLoading layout="form" title={t(lang, 'loading')} description="" />
   }
 
   if (!localOrder && lookupState.error) {

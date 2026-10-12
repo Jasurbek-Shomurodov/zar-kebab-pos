@@ -2,7 +2,7 @@ import CalendarPicker from '../components/CalendarPicker'
 import TimePicker24 from '../components/TimePicker24'
 import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
 import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BadgeMinus, CalendarX2, ChevronLeft, ChevronRight, Copy, Loader2, Percent, Plus, Save, Send, Trash2, Users, WalletCards } from 'lucide-react'
+import { BadgeMinus, CalendarX2, ChevronLeft, ChevronRight, Copy, Loader2, Percent, Plus, Save, Send, Trash2, Users, WalletCards } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { OperationalLoading } from '../components/OperationalState'
@@ -56,7 +56,7 @@ import {
   notifyTelegramKpiRuleChange,
 } from '../lib/telegramNotifications'
 
-const FIELD = 'h-11 w-full min-w-0 max-w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#1F2937] outline-none transition-colors focus:border-[#ff5a00] focus:ring-2 focus:ring-orange-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500'
+const FIELD = 'ws-input !h-11 min-w-0 max-w-full font-medium disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 const PAGE_SIZE = 12
 const TELEGRAM_DELIVERY_PAGE_SIZE = 5
 const KPI_PREVIEW_BASE_AMOUNT = 10_000_000
@@ -1041,37 +1041,37 @@ export default function Salaries() {
     kpi_rule: l.kpiChangeLabel,
   }
   const paymentDeliveryStatusClasses = {
-    pending: 'border-amber-200 bg-amber-50 text-amber-700',
-    not_attempted: 'border-gray-300 bg-gray-100 text-gray-700',
-    sent: 'border-blue-200 bg-blue-50 text-blue-700',
-    failed: 'border-red-200 bg-red-50 text-red-700',
-    skipped: 'border-gray-200 bg-gray-50 text-gray-600',
-    confirmed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    pending: 'ws-tone-caution',
+    not_attempted: '',
+    sent: 'ws-tone-info',
+    failed: 'ws-tone-negative',
+    skipped: '',
+    confirmed: 'ws-tone-positive',
   }
   const telegramDeliveryTypeStyles = {
     payment: {
-      card: 'border-l-[#ff5a00] bg-orange-50/40',
-      label: 'bg-orange-100 text-[#d94d00]',
+      card: 'border-l-[#ff5a00]',
+      label: 'ws-tone-accent',
     },
     bonus: {
-      card: 'border-l-blue-500 bg-blue-50/40',
-      label: 'bg-blue-100 text-blue-700',
+      card: 'border-l-[#1d7a52]',
+      label: 'ws-tone-positive',
     },
     fine: {
-      card: 'border-l-red-500 bg-red-50/40',
-      label: 'bg-red-100 text-red-700',
+      card: 'border-l-[#c4262c]',
+      label: 'ws-tone-negative',
     },
     absence: {
-      card: 'border-l-violet-500 bg-violet-50/40',
-      label: 'bg-violet-100 text-violet-700',
+      card: 'border-l-[#9a5a00]',
+      label: 'ws-tone-caution',
     },
     rate: {
-      card: 'border-l-emerald-500 bg-emerald-50/40',
-      label: 'bg-emerald-100 text-emerald-700',
+      card: 'border-l-[#2a6fdb]',
+      label: 'ws-tone-info',
     },
     kpi_rule: {
-      card: 'border-l-violet-500 bg-violet-50/40',
-      label: 'bg-violet-100 text-violet-700',
+      card: 'border-l-[#68655f]',
+      label: '',
     },
   }
   const transactionSalaryProfiles = useMemo(() => (
@@ -1571,10 +1571,12 @@ export default function Salaries() {
     if (!notification?.ok) setError(l.lifecycleTelegramFailed)
   }
 
+  const backToAccounting = { label: l.back, onClick: () => navigate('/admin/accounting') }
+
   if (loading) {
     return (
-      <AppShell title={l.title}>
-        <div className="h-full overflow-y-auto bg-[#FAF7F0]">
+      <AppShell title={l.title} back={backToAccounting}>
+        <div className="min-h-full bg-[#f6f5f3]">
           <OperationalLoading
             title={l.loadingTitle}
             description={l.loadingDescription}
@@ -1585,64 +1587,53 @@ export default function Salaries() {
   }
 
   return (
-    <AppShell title={l.title}>
-      <div className="h-full overflow-x-hidden overflow-y-auto bg-[#FAF7F0]">
-        <div className="mx-auto w-full min-w-0 max-w-[1200px] px-4 py-5 sm:px-5 sm:py-6">
-          <header className="mb-6">
-            <button onClick={() => navigate('/admin/accounting')} className="mb-3 inline-flex items-center gap-2 text-xs font-black text-[#6B7280] transition-colors hover:text-[#ff5a00]">
-              <ArrowLeft size={14} />{l.back}
+    <AppShell title={l.title} back={backToAccounting}>
+      <div className="min-h-full overflow-x-hidden bg-[#f6f5f3]">
+        <div className="ws-page">
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
+            <MetricCard
+              icon={BadgeMinus}
+              label={l.totalDue}
+              description={l.totalDueHelp}
+              value={loading ? '—' : formatCurrency(totalDue)}
+            />
+            <MetricCard
+              icon={WalletCards}
+              label={l.monthlyPayroll}
+              description={l.monthlyPayrollHelp}
+              value={loading ? '—' : formatCurrency(monthlyPayrollTotal)}
+            />
+            <button
+              type="button"
+              onClick={() => navigate('/admin/accounting/employees')}
+              className="ws-panel group flex h-full items-start justify-between gap-3 text-left transition-shadow hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40"
+            >
+              <span className="min-w-0">
+                <span className="ws-caption block">{l.employees}</span>
+                <span className="mt-1 block text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{loading ? '—' : activeSalaryProfiles.length}</span>
+                <span className="mt-2 block text-sm font-medium text-[#ff5a00] group-hover:underline">{l.openEmployees}</span>
+              </span>
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+                <Users size={16} />
+              </span>
             </button>
-            <div className="mb-5">
-              <h1 className="text-2xl font-black text-[#1F2937] sm:text-3xl">{l.title}</h1>
-              <p className="mt-1 text-sm font-medium text-[#6B7280]">{l.sub}</p>
-            </div>
-            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
-              <MetricCard
-                icon={BadgeMinus}
-                label={l.totalDue}
-                description={l.totalDueHelp}
-                value={loading ? '—' : formatCurrency(totalDue)}
-                tone="orange"
-              />
-              <MetricCard
-                icon={WalletCards}
-                label={l.monthlyPayroll}
-                description={l.monthlyPayrollHelp}
-                value={loading ? '—' : formatCurrency(monthlyPayrollTotal)}
-                tone="blue"
-              />
-              <button
-                type="button"
-                onClick={() => navigate('/admin/accounting/employees')}
-                className="group flex min-h-[88px] items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
-              >
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#ff5a00]">
-                  <Users size={19} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[11px] font-black uppercase tracking-wide text-[#6B7280]">{l.employees}</span>
-                  <span className="mt-0.5 block text-lg font-black text-[#1F2937]">{loading ? '—' : activeSalaryProfiles.length}</span>
-                  <span className="block text-[11px] font-bold text-[#ff5a00] group-hover:underline">{l.openEmployees}</span>
-                </span>
-              </button>
-            </div>
-          </header>
+          </div>
 
-          {!canManage && <div className="mb-5 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm font-bold text-[#ff5a00]">{l.readOnly}</div>}
-          {error && <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
-          {message && !error && <div role="status" aria-live="polite" className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{message}</div>}
+          {!canManage && <div className="ws-notice ws-tone-accent">{l.readOnly}</div>}
+          {error && <div role="alert" className="ws-notice ws-tone-negative">{error}</div>}
+          {message && !error && <div role="status" aria-live="polite" className="ws-notice ws-tone-positive">{message}</div>}
 
-          <section className="mb-7" aria-labelledby="salary-operations-heading">
+          <section aria-labelledby="salary-operations-heading">
             <SectionHeading
               id="salary-operations-heading"
               title={l.quickActions}
               description={l.quickActionsHelp}
             />
             <div className="grid min-w-0 grid-cols-1 items-stretch gap-4">
-              <div className="flex h-full min-w-0 flex-col rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-                <CardHeading icon={WalletCards} title={l.paymentBonus} description={l.transactionHelp} tone="orange" />
+              <div className="ws-panel flex h-full min-w-0 flex-col">
+                <CardHeading icon={WalletCards} title={l.paymentBonus} description={l.transactionHelp} />
                 <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-4" role="group" aria-label={l.paymentBonus}>
+                  <div className="ws-segmented !grid w-full grid-cols-4 sm:col-span-2" role="group" aria-label={l.paymentBonus}>
                     {['payment', 'bonus', 'fine', 'absence'].map(entryType => {
                       const active = transactionForm.entry_type === entryType
                       const isFine = entryType === 'fine'
@@ -1668,22 +1659,14 @@ export default function Salaries() {
                           })}
                           disabled={!canManage || loading}
                           aria-pressed={active}
-                          className={`flex h-11 items-center justify-center rounded-xl border text-xs font-black transition-colors sm:text-sm ${
-                            active && (isFine || isAbsence)
-                              ? 'border-red-400 bg-red-50 text-red-700 ring-2 ring-red-100'
-                              : active && isBonus
-                                ? 'border-blue-400 bg-blue-50 text-blue-700 ring-2 ring-blue-100'
-                              : active
-                                ? 'border-[#ff5a00] bg-orange-50 text-[#ff5a00] ring-2 ring-orange-100'
-                                : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100'
-                          }`}
+                          className="min-w-0 !h-auto min-h-10 !whitespace-normal break-words !px-1.5 py-1 text-center !text-xs leading-tight disabled:cursor-not-allowed disabled:opacity-60 sm:!text-sm"
                         >
                           {isAbsence ? l.absence : isFine ? l.fineEntry : isBonus ? l.bonusEntry : l.paymentEntry}
                         </button>
                       )
                     })}
                   </div>
-                  <p className={`rounded-xl px-3 py-2 text-xs font-semibold sm:col-span-2 ${['fine', 'absence'].includes(transactionForm.entry_type) ? 'bg-red-50 text-red-700' : transactionForm.entry_type === 'bonus' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-[#9a4300]'}`}>
+                  <p className={`ws-notice sm:col-span-2 ${transactionForm.entry_type === 'fine' ? 'ws-tone-negative' : transactionForm.entry_type === 'absence' ? 'ws-tone-caution' : transactionForm.entry_type === 'bonus' ? 'ws-tone-positive' : 'ws-tone-accent'}`}>
                     {transactionGuidance}
                   </p>
                   {transactionForm.entry_type === 'absence' && (
@@ -1709,7 +1692,7 @@ export default function Salaries() {
                         </Field>
                       </div>
                       {absenceAlreadyRecorded && (
-                        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 sm:col-span-2">
+                        <p role="alert" className="ws-notice ws-tone-negative sm:col-span-2">
                           {l.absenceDuplicate}
                         </p>
                       )}
@@ -1717,7 +1700,7 @@ export default function Salaries() {
                         type="button"
                         onClick={addAbsence}
                         disabled={!canManage || loading || !absenceForm.salary_profile_id || !absenceForm.absence_date || absenceAlreadyRecorded || saving === 'absence-create'}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none sm:col-span-2"
+                        className="ws-btn ws-btn-primary !h-11 sm:col-span-2"
                       >
                         {saving === 'absence-create' ? <Loader2 size={16} className="animate-spin" /> : <CalendarX2 size={15} />}
                         {l.absence}
@@ -1730,7 +1713,7 @@ export default function Salaries() {
                     <Field
                       label={l.employee}
                       hint={selectedTransactionProfile ? `${l.balance}: ${formatCurrency(selectedTransactionBalance)}` : ''}
-                      hintClassName={selectedTransactionBalance < 0 ? 'text-red-600' : ''}
+                      hintClassName={selectedTransactionBalance < 0 ? 'text-[#c4262c]' : ''}
                     >
                       <select
                         value={transactionForm.salary_profile_id}
@@ -1845,7 +1828,7 @@ export default function Salaries() {
                     type="button"
                     onClick={addTransaction}
                     disabled={!canManage || loading || !transactionForm.salary_profile_id || normalizeExpenseAmount(transactionForm.amount) <= 0 || (transactionForm.entry_type === 'fine' && !transactionForm.note.trim()) || (saving !== '' && ['payment-create', 'bonus-create', 'fine-create'].includes(saving))}
-                    className={`inline-flex h-11 self-end items-center justify-center gap-2 rounded-xl px-4 text-sm font-black text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none ${transactionForm.entry_type === 'fine' ? 'bg-red-600 hover:bg-red-700 sm:col-span-2' : transactionForm.entry_type === 'bonus' ? 'bg-blue-600 hover:bg-blue-700 sm:col-span-2' : 'bg-[#ff5a00] hover:bg-[#e85100]'}`}
+                    className={`ws-btn ws-btn-primary !h-11 self-end items-center ${['fine', 'bonus'].includes(transactionForm.entry_type) ? 'sm:col-span-2' : ''}`}
                   >
                     {['payment-create', 'bonus-create', 'fine-create'].includes(saving)
                       ? <Loader2 size={16} className="animate-spin" />
@@ -1863,21 +1846,20 @@ export default function Salaries() {
             </div>
           </section>
 
-          <section className="mb-5" aria-labelledby="salary-settings-heading">
+          <section aria-labelledby="salary-settings-heading">
             <SectionHeading
               id="salary-settings-heading"
               title={l.salarySettings}
               description={l.salarySettingsHelp}
             />
             <div className="grid w-full min-w-0 grid-cols-1 items-stretch gap-4">
-              <div className={`h-full w-full min-w-0 max-w-full rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5 ${salarySetupMode === 'kpi' ? 'overflow-visible' : 'overflow-hidden'}`}>
+              <div className={`ws-panel h-full w-full min-w-0 max-w-full ${salarySetupMode === 'kpi' ? 'overflow-visible' : 'overflow-hidden'}`}>
                 <CardHeading
                   icon={salarySetupMode === 'kpi' ? Percent : salarySetupMode === 'change' ? Save : Plus}
                   title={salarySetupMode === 'kpi' ? l.kpiRuleTitle : salarySetupMode === 'change' ? l.changeSalary : l.add}
                   description={salarySetupMode === 'kpi' ? l.kpiRuleHelp : salarySetupMode === 'change' ? l.changeHelp : l.addHelp}
-                  tone={salarySetupMode === 'kpi' ? 'violet' : salarySetupMode === 'change' ? 'dark' : 'orange'}
                 />
-                <div className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label={l.salarySettings}>
+                <div className="ws-segmented !grid mb-5 w-full grid-cols-3" role="group" aria-label={l.salarySettings}>
                   {[
                     { key: 'add', label: l.add },
                     { key: 'change', label: l.changeSalary },
@@ -1896,15 +1878,7 @@ export default function Salaries() {
                         }}
                         disabled={loading}
                         aria-pressed={active}
-                        className={`flex min-h-11 min-w-0 items-center justify-center break-words rounded-xl border px-3 py-2 text-center text-xs font-black leading-tight transition-colors sm:text-sm ${
-                          active && item.key === 'kpi'
-                            ? 'border-violet-400 bg-violet-50 text-violet-700 ring-2 ring-violet-100'
-                            : active && item.key === 'change'
-                              ? 'border-gray-500 bg-gray-100 text-[#1F2937] ring-2 ring-gray-200'
-                              : active
-                                ? 'border-[#ff5a00] bg-orange-50 text-[#ff5a00] ring-2 ring-orange-100'
-                                : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100'
-                        }`}
+                        className="min-w-0 !h-auto min-h-10 !whitespace-normal break-words !px-1.5 py-1 text-center !text-xs leading-tight disabled:cursor-not-allowed disabled:opacity-60 sm:!text-sm"
                       >
                         {item.label}
                       </button>
@@ -1952,7 +1926,7 @@ export default function Salaries() {
                   </Field>
                   <button
                     disabled={!canManage || loading || !form.employee_name.trim() || !form.job_function || normalizeExpenseAmount(form.salary_amount) <= 0 || saving === 'create'}
-                    className="flex h-11 self-end items-center justify-center gap-2 rounded-xl bg-[#ff5a00] px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-[#e85100] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none"
+                    className="ws-btn ws-btn-primary !h-11 self-end items-center"
                   >
                     {saving === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{l.save}
                   </button>
@@ -2041,7 +2015,7 @@ export default function Salaries() {
                     type="button"
                     onClick={() => addRate()}
                     disabled={!canManage || loading || !changeForm.salary_profile_id || !isExpenseEntryDateAllowed(changeForm.effective_from, today) || normalizeExpenseAmount(changeForm.salary_amount) <= 0 || saving === 'rate-create'}
-                    className="inline-flex h-11 self-end items-center justify-center gap-2 rounded-xl bg-[#1F2937] px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none"
+                    className="ws-btn ws-btn-primary !h-11 self-end items-center"
                   >
                     {saving === 'rate-create' ? <Loader2 size={16} className="animate-spin" /> : <Save size={15} />}{l.save}
                   </button>
@@ -2049,8 +2023,8 @@ export default function Salaries() {
               )}
               </div>
 
-              <div className="h-full min-w-0 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
-                <CardHeading icon={Send} title={l.telegramTitle} description={l.telegramHelp} tone="blue" />
+              <div className="ws-panel h-full min-w-0">
+                <CardHeading icon={Send} title={l.telegramTitle} description={l.telegramHelp} />
                 <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
                   <Field label={l.selectEmployee}>
                     <select
@@ -2074,39 +2048,39 @@ export default function Salaries() {
                     type="button"
                     onClick={createTelegramInvite}
                     disabled={!canManage || loading || !telegramSalaryProfileId || saving === 'telegram-link'}
-                    className="inline-flex h-11 self-end items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+                    className="ws-btn ws-btn-primary !h-11 self-end items-center"
                   >
                     {saving === 'telegram-link' ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} />}
                     {l.telegramCreateLink}
                   </button>
                   {telegramInviteUrl && (
-                    <div className="flex min-w-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-2 sm:col-span-2">
-                      <input readOnly value={telegramInviteUrl} className={`${FIELD} min-w-0 bg-white font-mono text-xs`} />
+                    <div className="flex min-w-0 items-center gap-2 rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-2 sm:col-span-2">
+                      <input readOnly value={telegramInviteUrl} className={`${FIELD} min-w-0 font-mono !text-xs`} />
                       <button
                         type="button"
                         onClick={copyTelegramInvite}
-                        className="inline-flex h-11 flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1F2937] px-4 text-sm font-black text-white hover:bg-black"
+                        className="ws-btn ws-btn-outline !h-11"
                       >
                         <Copy size={15} />{l.telegramCopy}
                       </button>
                     </div>
                   )}
-                  <div className="mt-2 border-t border-blue-100 pt-4 sm:col-span-2">
+                  <div className="mt-2 border-t border-[#e4e1de] pt-4 sm:col-span-2">
                     <div className="mb-3">
-                      <p className="text-sm font-black text-[#1F2937]">{l.telegramDeliveryTitle}</p>
-                      <p className="mt-0.5 text-xs font-semibold text-gray-500">{l.telegramDeliveryHelp}</p>
+                      <p className="text-sm font-semibold text-[#22201d]">{l.telegramDeliveryTitle}</p>
+                      <p className="ws-caption mt-0.5">{l.telegramDeliveryHelp}</p>
                     </div>
                     {paymentDeliveriesUnavailable || groupEventDeliveriesUnavailable ? (
-                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-bold text-amber-800">
+                      <p className="ws-notice ws-tone-caution">
                         {l.telegramDeliveryMigration}
                       </p>
                     ) : telegramDeliveryRows.length === 0 ? (
-                      <p className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 px-3 py-4 text-center text-xs font-semibold text-gray-500">
+                      <p className="ws-empty rounded-[10px] border border-dashed border-[#e4e1de] !py-6">
                         {l.telegramDeliveryEmpty}
                       </p>
                     ) : (
                       <>
-                        <div className="space-y-2">
+                        <div className="overflow-hidden rounded-[10px] border border-[#e4e1de]">
                           {pagedTelegramDeliveryRows.map(delivery => {
                             const retryKey = `telegram-retry-${delivery.eventType}-${delivery.eventId}`
                             const typeStyle = telegramDeliveryTypeStyles[delivery.eventType] || telegramDeliveryTypeStyles.payment
@@ -2135,18 +2109,18 @@ export default function Salaries() {
                               ...(delivery.showTeamDelivery ? [delivery.teamStatus] : []),
                             ].some(status => ['not_attempted', 'failed', 'skipped'].includes(status))
                             return (
-                              <div key={`${delivery.eventType}-${delivery.id}`} className={`rounded-xl border border-l-4 border-gray-200 px-3 py-3 ${typeStyle.card}`}>
+                              <div key={`${delivery.eventType}-${delivery.id}`} className={`ws-row border-l-4 px-3 py-3 ${typeStyle.card}`}>
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                   <div className="min-w-0">
                                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                      <p className="flex min-w-0 flex-wrap items-baseline gap-1.5 text-sm font-black text-[#1F2937]">
+                                      <p className="flex min-w-0 flex-wrap items-baseline gap-1.5 text-sm font-semibold text-[#22201d]">
                                         <span className="truncate">{delivery.employeeName}</span>
-                                        {(deliveryValue || deliveryDate) && <span className="flex-shrink-0 text-gray-400">—</span>}
-                                        {deliveryValue && <span className="flex-shrink-0 whitespace-nowrap">{deliveryValue}</span>}
-                                        {deliveryValue && deliveryDate && <span className="flex-shrink-0 text-gray-400">·</span>}
-                                        {deliveryDate && <span className="flex-shrink-0 whitespace-nowrap text-gray-600">{deliveryDate}</span>}
+                                        {(deliveryValue || deliveryDate) && <span className="flex-shrink-0 text-[#68655f]">—</span>}
+                                        {deliveryValue && <span className="flex-shrink-0 whitespace-nowrap tabular-nums">{deliveryValue}</span>}
+                                        {deliveryValue && deliveryDate && <span className="flex-shrink-0 text-[#68655f]">·</span>}
+                                        {deliveryDate && <span className="flex-shrink-0 whitespace-nowrap font-medium text-[#68655f]">{deliveryDate}</span>}
                                       </p>
-                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${typeStyle.label}`}>
+                                      <span className={`ws-badge ${typeStyle.label}`}>
                                         {groupEventTypeLabels[delivery.eventType] || l.paymentLabel}
                                       </span>
                                     </div>
@@ -2156,9 +2130,9 @@ export default function Salaries() {
                                       type="button"
                                       onClick={() => retryTelegramDelivery(delivery)}
                                       disabled={!canManage || telegramSendingKeys.includes(retryKey)}
-                                      className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-white px-2.5 text-[10px] font-black text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                      className="ws-btn ws-btn-outline ws-btn-sm"
                                     >
-                                      <Send size={12} />
+                                      <Send size={14} />
                                       {l.telegramRetry}
                                     </button>
                                   )}
@@ -2192,26 +2166,26 @@ export default function Salaries() {
                                       error: delivery.teamError,
                                     }] : []),
                                   ].map(target => (
-                                    <div key={target.key} className="rounded-lg border border-gray-200 bg-white px-2.5 py-2">
+                                    <div key={target.key} className="rounded-lg border border-[#e4e1de] bg-white px-2.5 py-2">
                                       <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <span className="text-[11px] font-black text-gray-700">{target.label}</span>
-                                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${
-                                          paymentDeliveryStatusClasses[target.status] || paymentDeliveryStatusClasses.pending
+                                        <span className="text-xs font-medium text-[#22201d]">{target.label}</span>
+                                        <span className={`ws-status !text-xs ${
+                                          paymentDeliveryStatusClasses[target.status] ?? paymentDeliveryStatusClasses.pending
                                         }`}>
                                           {paymentDeliveryStatusLabels[target.status] || target.status || l.telegramStatusPending}
                                         </span>
                                       </div>
-                                      <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[10px] font-semibold text-gray-500">
+                                      <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs tabular-nums text-[#68655f]">
                                         <span>{formatDateTime(target.timestamp, '—')}</span>
                                         {target.messageId && (
                                           <span>{l.telegramMessageId} #{target.messageId}</span>
                                         )}
                                       </div>
                                       {target.error && (
-                                        <p className={`mt-1.5 break-words rounded-md px-2 py-1.5 text-[10px] font-semibold ${
+                                        <p className={`mt-1.5 break-words rounded-md px-2 py-1.5 text-xs font-medium ${
                                           target.status === 'failed'
-                                            ? 'bg-red-50 text-red-700'
-                                            : 'bg-amber-50 text-amber-800'
+                                            ? 'ws-tone-negative'
+                                            : 'ws-tone-caution'
                                         }`}>
                                           {target.error}
                                         </p>
@@ -2224,18 +2198,18 @@ export default function Salaries() {
                           })}
                         </div>
                         {telegramDeliveryPageCount > 1 && (
-                          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-blue-100 pt-3">
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                             <button
                               type="button"
                               aria-label={l.previous}
                               title={l.previous}
                               disabled={telegramDeliveryPage <= 1}
                               onClick={() => setTelegramDeliveryPage(current => Math.max(1, current - 1))}
-                              className="inline-flex h-9 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                              className="ws-btn ws-btn-outline ws-btn-sm"
                             >
                               <ChevronLeft size={14} /> {l.previous}
                             </button>
-                            <span className="text-xs font-black text-gray-600">
+                            <span className="ws-caption tabular-nums">
                               {l.page} {telegramDeliveryPage} {l.of} {telegramDeliveryPageCount}
                             </span>
                             <button
@@ -2244,7 +2218,7 @@ export default function Salaries() {
                               title={l.next}
                               disabled={telegramDeliveryPage >= telegramDeliveryPageCount}
                               onClick={() => setTelegramDeliveryPage(current => Math.min(telegramDeliveryPageCount, current + 1))}
-                              className="inline-flex h-9 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                              className="ws-btn ws-btn-outline ws-btn-sm"
                             >
                               {l.next} <ChevronRight size={14} />
                             </button>
@@ -2314,31 +2288,31 @@ function DailyKpiSection({
 
   return (
     <>
-      <div className={embedded ? 'min-w-0 max-w-full' : 'h-full min-w-0 max-w-full rounded-2xl border border-violet-100 bg-white p-4 shadow-sm sm:p-5'}>
-          {!embedded && <CardHeading icon={Percent} title={labels.kpiRuleTitle} description={labels.kpiRuleHelp} tone="violet" />}
+      <div className={embedded ? 'min-w-0 max-w-full' : 'ws-panel h-full min-w-0 max-w-full'}>
+          {!embedded && <CardHeading icon={Percent} title={labels.kpiRuleTitle} description={labels.kpiRuleHelp} />}
 
           {rulesError && (
-            <p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+            <p role="alert" className="ws-notice ws-tone-caution mb-4">
               {rulesError}
             </p>
           )}
           <div className="min-w-0 space-y-5">
-            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3">
-              <p className="min-w-0 text-xs leading-relaxed text-gray-500">{labels.kpiHelp}</p>
+            <div className="flex items-center justify-between gap-4 border-b border-[#e4e1de] pb-3">
+              <p className="min-w-0 text-xs leading-relaxed text-[#68655f]">{labels.kpiHelp}</p>
             <button
               type="button"
               role="switch"
               aria-checked={form.is_enabled}
               onClick={() => onFormChange(current => ({ ...current, is_enabled: !current.is_enabled }))}
               disabled={!canManage || loading || rulesLoading}
-              className={`inline-flex h-10 shrink-0 items-center justify-between gap-3 rounded-lg border px-3 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`inline-flex h-10 shrink-0 items-center justify-between gap-3 rounded-lg border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                 form.is_enabled
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : 'border-gray-200 bg-gray-100 text-gray-600'
+                  ? 'ws-tone-positive'
+                  : 'border-[#e4e1de] bg-[#efece9] text-[#68655f]'
               }`}
             >
               <span>{form.is_enabled ? labels.kpiEnabled : labels.kpiDisabled}</span>
-              <span className={`relative h-6 w-11 rounded-full transition-colors ${form.is_enabled ? 'bg-emerald-500' : 'bg-gray-300'}`} aria-hidden="true">
+              <span className={`relative h-6 w-11 rounded-full transition-colors ${form.is_enabled ? 'bg-[#1d7a52]' : 'bg-[#dcd9d6]'}`} aria-hidden="true">
                 <span className={`absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${form.is_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
               </span>
             </button>
@@ -2374,11 +2348,11 @@ function DailyKpiSection({
                   ))}
                 </select>
               </Field>
-              <p className="mt-2 text-xs text-gray-600">{form.sales_basis === 'restaurant' ? labels.kpiAccountNotNeeded : labels.kpiAccountHelp}</p>
+              <p className="mt-2 text-xs text-[#68655f]">{form.sales_basis === 'restaurant' ? labels.kpiAccountNotNeeded : labels.kpiAccountHelp}</p>
               {selectedKpiProfile && form.is_enabled && form.sales_basis === 'employee_opened_orders' && (
-                accountsError ? <p role="alert" className="mt-2 text-xs font-bold text-amber-700">
-                  {labels.kpiAccountsFailed} <button type="button" onClick={onReloadAccounts} disabled={loading} className="underline">{labels.kpiAccountsRetry}</button>
-                </p> : !kpiAccounts.length ? <p className="mt-2 text-xs font-bold text-amber-700">{labels.kpiAccountsEmpty}</p>
+                accountsError ? <p role="alert" className="mt-2 text-xs font-medium text-[#9a5a00]">
+                  {labels.kpiAccountsFailed} <button type="button" onClick={onReloadAccounts} disabled={loading} className="font-medium text-[#ff5a00] underline">{labels.kpiAccountsRetry}</button>
+                </p> : !kpiAccounts.length ? <p className="mt-2 text-xs font-medium text-[#9a5a00]">{labels.kpiAccountsEmpty}</p>
                   : null
               )}
             </div>
@@ -2412,12 +2386,12 @@ function DailyKpiSection({
                     disabled={!canManage || loading || rulesLoading}
                     aria-describedby="daily-kpi-rate-preview"
                   />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-black text-violet-600">%</span>
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-[#68655f]">%</span>
                 </div>
               </Field>
             </div>
             </div>
-            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-3 sm:p-4">
+            <div className="rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-3 sm:p-4">
               <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
             <Field label={labels.effectiveDate}>
               <DateInput
@@ -2435,12 +2409,12 @@ function DailyKpiSection({
                 onChange={value => onFormChange(current => ({ ...current, start_time: value }))} />
             </div>
               </div>
-              <p className="mt-3 text-xs leading-relaxed text-gray-500">{labels.kpiStartHelp}</p>
+              <p className="mt-3 text-xs leading-relaxed text-[#68655f]">{labels.kpiStartHelp}</p>
             </div>
-            <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 border-t border-[#e4e1de] pt-4 sm:flex-row sm:items-center sm:justify-between">
             <div id="daily-kpi-rate-preview" className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-wide text-gray-500">{labels.kpiPreview}</p>
-              <p className="mt-1 break-words text-sm font-black leading-relaxed text-[#1F2937]">
+              <p className="ws-caption font-medium">{labels.kpiPreview}</p>
+              <p className="mt-1 break-words text-sm font-semibold leading-relaxed tabular-nums text-[#22201d]">
                 {formatCurrency(KPI_PREVIEW_BASE_AMOUNT)} × {previewRateBps > 0 ? formatKpiRatePercent(previewRateBps, lang) : '—'} = {previewRateBps > 0 ? formatCurrency(previewBonus) : '—'}
               </p>
             </div>
@@ -2450,7 +2424,7 @@ function DailyKpiSection({
                 type="button"
                 onClick={onSave}
                 disabled={!canManage || loading || rulesLoading || !selectedKpiProfile || !form.effective_from || previewRateBps <= 0 || !normalizeKpiStartTime(form.start_time) || (form.is_enabled && form.sales_basis === 'employee_opened_orders' && !kpiAccounts.some(account => account.id === form.order_opener_profile_id)) || saving}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+                className="ws-btn ws-btn-primary !h-11"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={15} />}
                 {labels.kpiSave}
@@ -2461,48 +2435,43 @@ function DailyKpiSection({
                   type="button"
                   onClick={() => onRequestRemoveRule(selectedKpiProfile, selectedRule, form.effective_from)}
                   disabled={Boolean(removingRuleId) || saving}
-                  className="inline-flex min-h-10 touch-manipulation items-center gap-2 text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-50"
+                  className="ws-btn ws-btn-ghost ws-btn-danger min-h-10 touch-manipulation !px-2"
                 >
                   {removingRuleId === selectedRule.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                   {labels.kpiRemove}
                 </button>
               )}
           </div>
-          <details className="mt-4 min-w-0 break-words text-xs leading-relaxed text-gray-500">
+          <details className="mt-4 min-w-0 break-words text-xs leading-relaxed text-[#68655f]">
             <summary className="cursor-pointer">{labels.kpiCalculationHelp}</summary>
             <p className="mt-2">{labels.kpiBaseStatement}</p>
-            <p className="mt-1.5 font-black">{labels.kpiAccruesToSalary}</p>
+            <p className="mt-1.5 font-semibold text-[#22201d]">{labels.kpiAccruesToSalary}</p>
           </details>
       </div>
 
       {ruleToRemove && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 px-4" role="presentation">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#22201d]/40 px-4 backdrop-blur-[2px]" role="presentation">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="remove-kpi-rule-title"
-            className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-5 shadow-2xl"
+            className="ws-dialog w-full max-w-md p-5 sm:p-6"
           >
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                <Trash2 size={18} />
-              </span>
-              <div className="min-w-0">
-                <h3 id="remove-kpi-rule-title" className="text-base font-black text-[#1F2937]">{labels.kpiRemoveTitle}</h3>
-                <p className="mt-1 truncate text-sm font-black text-[#1F2937]">{employeeLabel(ruleToRemove.salaryProfile)}</p>
-                <p className="mt-0.5 text-xs font-semibold text-[#6B7280]">
-                  {formatKpiRatePercent(ruleToRemove.rule.rate_bps, lang)} · {labels.effectiveDate}: {formatLongDate(ruleToRemove.rule.effective_from, lang, ruleToRemove.rule.effective_from)}
-                </p>
-                <p className="mt-1 text-xs font-black text-red-600">
-                  {labels.kpiRemoveFrom}: {formatLongDate(ruleToRemove.effectiveFrom, lang, ruleToRemove.effectiveFrom)}
-                </p>
-              </div>
+            <div className="min-w-0">
+              <h3 id="remove-kpi-rule-title" className="ws-display">{labels.kpiRemoveTitle}</h3>
+              <p className="mt-3 truncate text-sm font-semibold text-[#22201d]">{employeeLabel(ruleToRemove.salaryProfile)}</p>
+              <p className="ws-caption mt-0.5 tabular-nums">
+                {formatKpiRatePercent(ruleToRemove.rule.rate_bps, lang)} · {labels.effectiveDate}: {formatLongDate(ruleToRemove.rule.effective_from, lang, ruleToRemove.rule.effective_from)}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-[#c4262c]">
+                {labels.kpiRemoveFrom}: {formatLongDate(ruleToRemove.effectiveFrom, lang, ruleToRemove.effectiveFrom)}
+              </p>
             </div>
-            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold leading-relaxed text-amber-800">
+            <p className="ws-notice ws-tone-caution mt-4 leading-relaxed">
               {labels.kpiRemoveWarning}
             </p>
             {ruleRemoveError && (
-              <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-relaxed text-red-700">
+              <p role="alert" className="ws-notice ws-tone-negative mt-3 leading-relaxed">
                 {ruleRemoveError}
               </p>
             )}
@@ -2511,7 +2480,7 @@ function DailyKpiSection({
                 type="button"
                 onClick={onCancelRemoveRule}
                 disabled={removingRuleId === ruleToRemove.rule.id}
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-black text-[#6B7280] transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="ws-btn ws-btn-outline !h-11"
               >
                 {labels.kpiRemoveCancel}
               </button>
@@ -2519,7 +2488,7 @@ function DailyKpiSection({
                 type="button"
                 onClick={onConfirmRemoveRule}
                 disabled={removingRuleId === ruleToRemove.rule.id}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-black text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                className="ws-btn ws-btn-danger-solid !h-11"
               >
                 {removingRuleId === ruleToRemove.rule.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={15} />}
                 {labels.kpiRemoveConfirm}
@@ -2532,29 +2501,16 @@ function DailyKpiSection({
   )
 }
 
-function MetricCard({ icon: Icon, label, value, description, tone = 'orange' }) {
-  const tones = {
-    orange: {
-      card: 'border-orange-200 bg-orange-50/70',
-      icon: 'bg-white text-[#ff5a00]',
-      label: 'text-[#c94b00]',
-    },
-    blue: {
-      card: 'border-blue-200 bg-blue-50/70',
-      icon: 'bg-white text-blue-700',
-      label: 'text-blue-700',
-    },
-  }
-  const colors = tones[tone] || tones.orange
+function MetricCard({ icon: Icon, label, value, description }) {
   return (
-    <div className={`flex min-h-[88px] items-center gap-3 rounded-2xl border px-4 py-3 shadow-sm ${colors.card}`}>
-      <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl shadow-sm ${colors.icon}`}>
-        <Icon size={19} />
-      </span>
-      <span className="min-w-0">
-        <span className={`block text-[11px] font-black uppercase tracking-wide ${colors.label}`}>{label}</span>
-        <span className="mt-1 block text-base font-black leading-tight text-[#1F2937] lg:text-lg">{value}</span>
-        {description && <span className="mt-2 block text-xs font-medium leading-relaxed text-[#6B7280]">{description}</span>}
+    <div className="ws-panel flex h-full items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="ws-caption">{label}</p>
+        <p className="mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{value}</p>
+        {description && <p className="ws-caption mt-2">{description}</p>}
+      </div>
+      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+        <Icon size={16} />
       </span>
     </div>
   )
@@ -2562,31 +2518,22 @@ function MetricCard({ icon: Icon, label, value, description, tone = 'orange' }) 
 
 function SectionHeading({ id, title, description }) {
   return (
-    <div className="mb-3">
-      <h2 id={id} className="text-lg font-black text-[#1F2937]">{title}</h2>
-      <p className="mt-0.5 text-sm font-medium text-[#6B7280]">{description}</p>
+    <div className="mb-4">
+      <h2 id={id} className="ws-display">{title}</h2>
+      <p className="ws-muted mt-1">{description}</p>
     </div>
   )
 }
 
-function CardHeading({ icon: Icon, title, description, tone = 'orange' }) {
-  const iconTone = tone === 'red'
-    ? 'bg-red-50 text-red-600'
-    : tone === 'blue'
-      ? 'bg-blue-50 text-blue-600'
-      : tone === 'violet'
-        ? 'bg-violet-50 text-violet-600'
-    : tone === 'dark'
-      ? 'bg-gray-100 text-[#1F2937]'
-      : 'bg-orange-50 text-[#ff5a00]'
+function CardHeading({ icon: Icon, title, description }) {
   return (
-    <div className="mb-5 flex items-start gap-3 sm:min-h-[56px]">
-      <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${iconTone}`}>
-        <Icon size={17} />
-      </span>
+    <div className="mb-5 flex items-start justify-between gap-3">
       <span className="min-w-0 break-words">
-        <span className="block text-base font-black leading-tight text-[#1F2937]">{title}</span>
-        <span className="mt-1 block text-xs font-medium leading-relaxed text-[#6B7280]">{description}</span>
+        <span className="ws-heading block">{title}</span>
+        <span className="ws-caption mt-1 block">{description}</span>
+      </span>
+      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+        <Icon size={16} />
       </span>
     </div>
   )
@@ -2595,9 +2542,9 @@ function CardHeading({ icon: Icon, title, description, tone = 'orange' }) {
 function Field({ label, hint = '', hintClassName = '', children }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1.5 block text-xs font-bold text-[#596170]">{label}</span>
+      <span className="ws-caption mb-1.5 block font-medium">{label}</span>
       {children}
-      {hint && <span className={`mt-1.5 block text-[11px] font-semibold ${hintClassName || 'text-[#6B7280]'}`}>{hint}</span>}
+      {hint && <span className={`mt-1.5 block text-xs font-medium ${hintClassName || 'text-[#68655f]'}`}>{hint}</span>}
     </label>
   )
 }

@@ -65,7 +65,7 @@ test('salary setup keeps KPI content inside the mobile viewport', () => {
   )
 
   assert.match(settingsSection, /grid w-full min-w-0 grid-cols-1 items-stretch gap-4/)
-  assert.match(settingsSection, /h-full w-full min-w-0 max-w-full rounded-2xl/)
+  assert.match(settingsSection, /ws-panel h-full w-full min-w-0 max-w-full/)
   assert.match(salaries, /embedded \? 'min-w-0 max-w-full'/)
   assert.match(salaries, /grid min-w-0 grid-cols-\[minmax\(0,1fr\)\] gap-4 sm:grid-cols-2/)
   assert.match(salaries, /absolute left-0 top-1 h-4 w-4/)
@@ -80,7 +80,7 @@ test('salary KPI setup contains intrinsic widths on mobile', () => {
   assert.match(salaries, /const FIELD = '[^']*min-w-0 max-w-full/)
   assert.match(kpiSection, /grid min-w-0 grid-cols-\[minmax\(0,1fr\)\]/)
   assert.match(kpiSection, /min-w-0 break-words text-xs leading-relaxed/)
-  assert.match(kpiSection, /mt-1 break-words text-sm font-black/)
+  assert.match(kpiSection, /mt-1 break-words text-sm font-semibold/)
 })
 
 test('automatic KPI bonuses are identified and show their immutable formula in employee history', () => {

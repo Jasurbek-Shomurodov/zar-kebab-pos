@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft, Printer, CheckCircle2, Banknote,
-  Receipt, Users, Clock, Tag, UtensilsCrossed, Menu as MenuIcon,
+  Receipt, Users, Clock, Tag, UtensilsCrossed,
   Monitor, MoreHorizontal, Plus, Minus, Trash2, ClipboardPaste, X,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
@@ -31,10 +31,12 @@ import { getLoyaltyCardCashbackPercent, getLoyaltyCardCashbackType } from '../li
 import SalaryOrderPayment from '../components/SalaryOrderPayment'
 import CashierLoyaltyNameSearch from '../components/CashierLoyaltyNameSearch'
 import UnifiedSidebar from '../components/UnifiedSidebar'
+import MobileDrawer from '../components/MobileDrawer'
+import WorkspaceTopBar from '../components/WorkspaceTopBar'
 import StatusBadge from '../components/StatusBadge'
 import { getQuickItemSortOrder, isActiveMenuItem, isCashierQuickItem } from '../lib/menuItems'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
-import { useAppDataStatus } from '../store/appHooks'
+import { useAppDataStatus, useCashierAttentionCount } from '../store/appHooks'
 import { inferOrderType, isOffPremiseOrderType, orderTypeLabel } from '../lib/orderTypes'
 import { canDeleteOrderToday, canDeletePaidOrders, canEditFeature } from '../lib/permissions'
 import { getOrderItemUnitPrice, getPriceModeLabel, normalizePriceMode } from '../lib/priceModes'
@@ -99,6 +101,7 @@ export default function CashierBill() {
   const navigate     = useNavigate()
   const location     = useLocation()
   const { state, dispatch } = useApp()
+  const cashierAttention = useCashierAttentionCount()
   const { profile } = useAuth()
   const { loaded, loadError } = useAppDataStatus()
   const lang = state.lang
@@ -708,11 +711,11 @@ export default function CashierBill() {
 
   if (!loaded || loadError) {
     return (
-      <div className="flex overflow-hidden bg-[#FAF7F0]" style={{ height: '100dvh' }}>
+      <div className="flex overflow-hidden bg-[#f6f5f3]" style={{ height: '100dvh' }}>
         <div className="hidden lg:block flex-shrink-0 h-full"><UnifiedSidebar /></div>
         <div className="flex-1 overflow-y-auto">
           {!loaded ? (
-            <OperationalLoading
+            <OperationalLoading layout="detail"
               title={lang === 'uz' ? 'Hisob yuklanmoqda' : lang === 'ru' ? 'Загрузка счёта' : 'Loading bill'}
               description={lang === 'uz' ? 'Buyurtma va to‘lov maʼlumotlari olinmoqda.' : lang === 'ru' ? 'Получаем заказ и данные оплаты.' : 'Fetching order and payment details.'}
             />
@@ -732,7 +735,7 @@ export default function CashierBill() {
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (!order) {
     return (
-      <div className="flex overflow-hidden bg-[#FAF7F0]" style={{ height: '100dvh' }}>
+      <div className="flex overflow-hidden bg-[#f6f5f3]" style={{ height: '100dvh' }}>
         <div className="hidden lg:block flex-shrink-0 h-full"><UnifiedSidebar /></div>
         <div className="flex flex-col flex-1 min-w-0 items-center justify-center p-8">
           <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 flex flex-col items-center text-center max-w-sm w-full">
@@ -793,7 +796,7 @@ export default function CashierBill() {
   const totalItems = order.items.reduce((s, i) => s + i.quantity, 0)
 
   return (
-    <div className="flex overflow-hidden bg-[#FAF7F0]" style={{ height: '100dvh' }}>
+    <div className="flex overflow-hidden bg-[#f6f5f3]" style={{ height: '100dvh' }}>
 
       {/* Sidebar – desktop */}
       <div className="hidden lg:block flex-shrink-0 h-full">
@@ -801,60 +804,32 @@ export default function CashierBill() {
       </div>
 
       {/* Sidebar – mobile overlay */}
-      {sidebarOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
-          <div className="relative z-10 h-full">
-            <UnifiedSidebar onClose={() => setSidebarOpen(false)} />
-          </div>
-        </div>
-      )}
+      <MobileDrawer open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
+        <UnifiedSidebar onClose={() => setSidebarOpen(false)} />
+      </MobileDrawer>
 
       {/* Main column */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* Top header */}
-        <header className="flex-shrink-0 bg-white border-b border-[#E5E7EB] px-5 py-3 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
+        <WorkspaceTopBar
+          lang={lang}
+          badge={cashierAttention}
+          badgeLabel={lang === 'uz' ? 'hisob kassirni kutmoqda' : lang === 'ru' ? 'счетов ждут кассира' : 'bills waiting for the cashier'}
+          title={lang === 'uz' ? 'Kassir' : lang === 'ru' ? 'Кассир' : 'Cashier'}
+          onOpenDrawer={() => setSidebarOpen(true)}
+          drawerLabel={lang === 'uz' ? 'Yon panel' : lang === 'ru' ? 'Боковая панель' : 'Toggle Sidebar'}
+          leading={(
             <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-1 rounded-xl hover:bg-gray-100 transition-colors"
-            >
-              <MenuIcon size={20} className="text-[#6B7280]" />
-            </button>
-            {/* Back button */}
-            <button
+              type="button"
               onClick={() => navigate('/cashier/tables')}
-              className="flex items-center justify-center w-9 h-9 rounded-xl border border-[#E5E7EB] text-[#6B7280] hover:text-[#ff5a00] hover:border-orange-300 hover:bg-orange-50 transition-colors flex-shrink-0"
+              aria-label={lang === 'uz' ? 'Orqaga' : lang === 'ru' ? 'Назад' : 'Back'}
+              className="grid h-[38px] w-[38px] flex-shrink-0 place-items-center rounded-[10px] text-[#68655f] transition-colors hover:bg-[#ebe8e5] hover:text-[#22201d]"
             >
-              <ArrowLeft size={17} />
+              <ArrowLeft size={18} />
             </button>
-            <div>
-              <p className="font-black text-[#1F2937] text-[15px] leading-tight">
-                {lang === 'uz' ? 'Kassir' : lang === 'ru' ? 'Кассир' : 'Cashier'}
-              </p>
-              <p className="text-[11px] text-[#6B7280] font-medium">
-                {lang === 'uz' ? "To'lovlarni qayta ishlash va hisoblarni yopish" : lang === 'ru' ? 'Обработка платежей и закрытие счетов' : 'Process payments and close bills'}
-              </p>
-            </div>
-          </div>
-          {/* Lang switcher */}
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-              {['uz', 'ru', 'en'].map(l => (
-                <button
-                  key={l}
-                  onClick={() => dispatch({ type: 'SET_LANG', payload: l })}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase transition-colors ${
-                    lang === l ? 'bg-white text-[#1F2937] shadow-sm' : 'text-[#6B7280] hover:text-[#1F2937]'
-                  }`}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
-        </header>
+          )}
+        />
 
         {/* Scrollable area */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-5">

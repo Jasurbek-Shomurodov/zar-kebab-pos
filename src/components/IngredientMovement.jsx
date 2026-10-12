@@ -16,7 +16,7 @@ const FILTER_LABELS = {
   ru: { search: 'Поиск ингредиентов…', category: 'Категория', allCategories: 'Все категории', uncategorized: 'Без категории', sort: 'Сортировка', default: 'По умолчанию', boughtAsc: 'Куплено: по возрастанию', usedAsc: 'Расход по рецептам: по возрастанию', movementAsc: 'Остаток: по возрастанию', nameAsc: 'Название: А–Я', nameDesc: 'Название: Я–А', boughtDesc: 'Куплено: по убыванию', usedDesc: 'Расход по рецептам: по убыванию', movementDesc: 'Остаток: по убыванию', paidDesc: 'Сумма закупок: по убыванию', paidAsc: 'Сумма закупок: по возрастанию', clear: 'Сбросить фильтры', results: 'Результаты', noMatches: 'Нет ингредиентов по выбранным фильтрам.' },
   uz: { search: 'Masalliqlarni qidirish…', category: 'Kategoriya', allCategories: 'Barcha kategoriyalar', uncategorized: 'Kategoriyasiz', sort: 'Saralash', default: 'Standart tartib', boughtAsc: 'Xarid qilingan: o‘sish', usedAsc: 'Retsept bo‘yicha sarf: o‘sish', movementAsc: 'Qoldiq: o‘sish', nameAsc: 'Nom: A–Z', nameDesc: 'Nom: Z–A', boughtDesc: 'Xarid qilingan: kamayish', usedDesc: 'Retsept bo‘yicha sarf: kamayish', movementDesc: 'Qoldiq: kamayish', paidDesc: 'Xarid summasi: kamayish', paidAsc: 'Xarid summasi: o‘sish', clear: 'Filtrlarni tozalash', results: 'Natijalar', noMatches: 'Bu filtrlarga mos masalliq topilmadi.' },
 }
-const FILTER_INPUT = 'h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#1F2937] outline-none focus:border-[#ff5a00] focus:ring-2 focus:ring-orange-100'
+const FILTER_INPUT = 'ws-input'
 const searchKey = value => String(value || '').toLowerCase().replace(/[’‘ʻʼ`]/g, "'").trim().replace(/\s+/g, ' ')
 
 const DATE_LABELS = {
@@ -87,38 +87,38 @@ export default function IngredientMovement({ lang = 'ru' }) {
   const filtered = Boolean(query || categoryFilter !== 'all' || sort !== 'default')
   function clearFilters() { setQuery(''); setCategoryFilter('all'); setSort('default') }
   return (
-    <section className="mb-5 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
+    <section className="ws-panel">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-lg font-black text-[#1F2937]">{l.title}</h2>
+        <h2 className="ws-display">{l.title}</h2>
 
       </div>
-      <div className="mt-3">
+      <div className="mt-4">
         <DateRangePicker l={{ ...l, ...(DATE_LABELS[lang] || DATE_LABELS.en) }} lang={lang} rangeKey={rangeKey} dateFrom={from} dateTo={to} today={todayBazaarDate()}
           onPreset={key => { const range = getBazaarRange(key); setRangeKey(key); setFrom(range.dateFrom); setTo(range.dateTo) }}
           onApply={(dateFrom, dateTo) => { setRangeKey('custom'); setFrom(dateFrom); setTo(dateTo) }} />
       </div>
-      <p className="my-3 text-sm text-gray-500">{l.note}</p>
-      {data?.uncovered_items > 0 && <p role="status" className="mb-3 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">{l.missing}: {data.uncovered_items}</p>}
+      <p className="ws-muted my-4">{l.note}</p>
+      {data?.uncovered_items > 0 && <p role="status" className="ws-notice ws-tone-caution mb-4">{l.missing}: {data.uncovered_items}</p>}
       <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.7fr)]">
-        <label className="block text-xs font-bold text-gray-500">{f.search}
-          <div className="relative mt-1"><Search size={16} className="pointer-events-none absolute left-3 top-3.5 text-gray-400" />
-            <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={f.search} className={`${FILTER_INPUT} pl-9`} />
+        <label className="ws-caption block font-medium">{f.search}
+          <div className="relative mt-1.5"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
+            <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={f.search} className={`${FILTER_INPUT} !pl-9`} />
           </div>
         </label>
-        <label className="block text-xs font-bold text-gray-500">{f.category}
-          <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} className={`${FILTER_INPUT} mt-1`}>
+        <label className="ws-caption block font-medium">{f.category}
+          <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} className={`${FILTER_INPUT} mt-1.5`}>
             <option value="all">{f.allCategories}</option>
             {[...new Set([...categories, ...(categoryFilter !== 'all' ? [categoryFilter] : [])])].map(category => <option key={category} value={category}>{category === 'uncategorized' ? f.uncategorized : bazaarCategoryLabel(category, lang)}</option>)}
           </select>
         </label>
       </div>
       <div className="mb-2 flex min-h-9 flex-wrap items-center justify-between gap-2">
-        {!loading && !error && <p role="status" className="text-xs font-bold text-gray-500">{f.results}: {visibleRows.length} / {data?.rows?.length || 0}</p>}
-        {filtered && <button type="button" onClick={clearFilters} className="flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-[#ff5a00]"><X size={14} />{f.clear}</button>}
+        {!loading && !error && <p role="status" className="ws-caption">{f.results}: {visibleRows.length} / {data?.rows?.length || 0}</p>}
+        {filtered && <button type="button" onClick={clearFilters} className="ws-btn ws-btn-ghost ws-btn-sm"><X size={14} />{f.clear}</button>}
       </div>
-      {error ? <div role="alert" className="py-4 text-sm text-red-600"><p>{l[error]}</p><button type="button" onClick={() => setRetry(n => n + 1)} className="mt-2 rounded-xl border px-3 py-2 font-bold">{l.retry}</button></div> : loading ? <p role="status" className="py-4 text-sm text-gray-500">{l.loading}</p> : !data?.rows?.length ? <p className="py-4 text-sm text-gray-500">{l.empty}</p> : !visibleRows.length ? <p className="py-4 text-sm text-gray-500">{f.noMatches}</p> : (
-        <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-sm">
-          <thead><tr className="border-b text-left text-xs text-gray-500">
+      {error ? <div role="alert" className="ws-notice ws-tone-negative"><p>{l[error]}</p><button type="button" onClick={() => setRetry(n => n + 1)} className="ws-btn ws-btn-outline ws-btn-sm mt-2">{l.retry}</button></div> : loading ? <p role="status" className="ws-muted py-4">{l.loading}</p> : !data?.rows?.length ? <p className="ws-empty">{l.empty}</p> : !visibleRows.length ? <p className="ws-empty">{f.noMatches}</p> : (
+        <div className="-mx-5 overflow-x-auto border-t border-[#e4e1de] max-sm:-mx-4"><table className="w-full min-w-[680px] text-sm text-[#22201d]">
+          <thead><tr className="ws-table-head text-left">
             {['name', 'bought', 'used', 'paid', 'movement'].map(field => {
               const active = sort === `${field}Asc` || sort === `${field}Desc`
               const ascending = sort === `${field}Asc`
@@ -127,7 +127,7 @@ export default function IngredientMovement({ lang = 'ru' }) {
               const nextSort = sort === firstSort ? secondSort : sort === secondSort ? 'default' : firstSort
               const Icon = active ? (ascending ? ArrowUp : ArrowDown) : ArrowUpDown
               return <th key={field} scope="col" aria-sort={active ? (ascending ? 'ascending' : 'descending') : 'none'}>
-                <button type="button" onClick={() => setSort(nextSort)} title={f[nextSort]} className={`flex w-full items-center gap-2 px-3 py-3 text-left font-bold hover:text-[#ff5a00] focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-500 ${active ? 'text-[#ff5a00]' : ''}`}>
+                <button type="button" onClick={() => setSort(nextSort)} title={f[nextSort]} className={`flex w-full items-center gap-2 px-5 py-3 text-left font-medium hover:text-[#22201d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ff5a00] ${active ? 'text-[#22201d]' : ''}`}>
                   {l[field]}<Icon size={13} aria-hidden="true" className="shrink-0" />
                 </button>
               </th>
@@ -135,12 +135,12 @@ export default function IngredientMovement({ lang = 'ru' }) {
           </tr></thead>
           <tbody>{visibleRows.map(row => {
             const unit = bazaarUnitLabel(row.unit === 'piece' ? 'pcs' : row.unit, lang)
-            return <tr key={`${row.identity}::${row.unit}`} className="border-b last:border-0">
-              <td className="px-3 py-3 font-bold">{row.name}</td>
-              <td className="px-3 py-3 tabular-nums">{formatBazaarQuantity(row.bought)} {unit}</td>
-              <td className="px-3 py-3 tabular-nums">{formatBazaarQuantity(row.used)} {unit}</td>
-              <td className="px-3 py-3 tabular-nums">{formatCurrency(row.paid)}</td>
-              <td className={`px-3 py-3 font-bold tabular-nums ${Number(row.movement) < 0 ? 'text-orange-700' : 'text-gray-800'}`}>{formatBazaarQuantity(row.movement)} {unit}</td>
+            return <tr key={`${row.identity}::${row.unit}`} className="ws-row">
+              <td className="px-5 py-3 font-semibold">{row.name}</td>
+              <td className="px-5 py-3 tabular-nums">{formatBazaarQuantity(row.bought)} {unit}</td>
+              <td className="px-5 py-3 tabular-nums">{formatBazaarQuantity(row.used)} {unit}</td>
+              <td className="px-5 py-3 tabular-nums">{formatCurrency(row.paid)}</td>
+              <td className={`px-5 py-3 font-semibold tabular-nums ${Number(row.movement) < 0 ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>{formatBazaarQuantity(row.movement)} {unit}</td>
             </tr>
           })}</tbody>
         </table></div>

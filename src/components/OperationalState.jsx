@@ -1,18 +1,10 @@
 import React from 'react'
-import { AlertCircle, Loader2, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw } from 'lucide-react'
+import PageShimmer from './PageShimmer'
 
-export function OperationalLoading({ title, description }) {
-  return (
-    <div className="flex min-h-[360px] items-center justify-center p-6">
-      <div className="flex max-w-sm flex-col items-center text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-50">
-          <Loader2 size={28} className="animate-spin text-[#ff5a00]" />
-        </div>
-        <p className="text-base font-black text-[#1F2937]">{title || 'Loading data'}</p>
-        {description && <p className="mt-1 text-sm leading-snug text-[#6B7280]">{description}</p>}
-      </div>
-    </div>
-  )
+/** Page/tab data load: a skeleton shaped like the page (see PageShimmer layouts), never a spinner. */
+export function OperationalLoading({ title, layout = 'table', className = '' }) {
+  return <PageShimmer layout={layout} label={title || 'Loading data'} className={className} />
 }
 
 export function OperationalError({ title, description, actionLabel, onAction }) {

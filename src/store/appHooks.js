@@ -1,4 +1,6 @@
+import { useMemo } from 'react'
 import { useApp } from './AppContext'
+import { countCashierAttentionBills } from '../lib/cashierBills'
 
 export function useAppDataStatus() {
   const { state } = useApp()
@@ -27,4 +29,10 @@ export function useMenuData() {
     categories: state.categories,
     menuItems: state.menuItems,
   }
+}
+
+/** Cashier bills that need attention: shown as the Cashier badge in the drawer and top bar. */
+export function useCashierAttentionCount() {
+  const orders = useApp().state.orders
+  return useMemo(() => countCashierAttentionBills(orders), [orders])
 }

@@ -283,33 +283,35 @@ export default function AdminAudit() {
   const content = useMemo(() => {
     if (loading) {
       return Array.from({ length: 5 }).map((_, idx) => (
-        <div key={idx} className="h-24 animate-pulse rounded-2xl border border-gray-100 bg-white" />
+        <div key={idx} className="ws-row h-[72px] animate-pulse bg-[#f6f5f3]/60" />
       ))
     }
 
     if (error) {
       const tableMissing = /order_payment_audit|schema cache|does not exist|not find the table/i.test(error || '')
       return (
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-6 text-red-700">
-          <div className="flex items-center gap-2 font-black">
-            <AlertTriangle size={18} />
-            {l.error}
+        <div className="p-4">
+          <div className="ws-notice ws-tone-negative" role="alert">
+            <div className="flex items-center gap-2 font-semibold">
+              <AlertTriangle size={16} />
+              {l.error}
+            </div>
+            <p className="mt-1.5 font-normal">{tableMissing ? l.migrationMissing : error}</p>
+            {tableMissing && (
+              <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 font-mono text-xs font-normal text-[#22201d]">
+                migrations/010_order_payment_audit_and_guards.sql
+              </p>
+            )}
           </div>
-          <p className="mt-2 text-sm">{tableMissing ? l.migrationMissing : error}</p>
-          {tableMissing && (
-            <p className="mt-2 rounded-xl bg-white/70 px-3 py-2 font-mono text-xs text-red-800">
-              migrations/010_order_payment_audit_and_guards.sql
-            </p>
-          )}
         </div>
       )
     }
 
     if (groupedRows.length === 0) {
       return (
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-10 text-center shadow-sm">
-          <ShieldCheck size={34} className="mx-auto mb-3 text-[#CBD5E1]" />
-          <p className="font-black text-[#1F2937]">{l.empty}</p>
+        <div className="ws-empty">
+          <ShieldCheck />
+          <h3>{l.empty}</h3>
         </div>
       )
     }
@@ -317,49 +319,49 @@ export default function AdminAudit() {
     return groupedRows.map((group, index) => {
       const latest = group.rows[0]
       return (
-        <details key={group.orderId} open={index === 0} className="group rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
-          <summary className="flex cursor-pointer list-none flex-col gap-4 p-4 outline-none marker:hidden sm:flex-row sm:items-center sm:justify-between [&::-webkit-details-marker]:hidden">
+        <details key={group.orderId} open={index === 0} className="ws-row group">
+          <summary className="flex cursor-pointer list-none flex-col gap-3 px-5 py-4 outline-none marker:hidden focus-visible:bg-[#f6f5f3] sm:flex-row sm:items-center sm:justify-between [&::-webkit-details-marker]:hidden">
             <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#FFF4ED] text-[#FF4D00]">
-                <ReceiptText size={18} />
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#ff5a00]/10 text-[#ff5a00]">
+                <ReceiptText size={16} />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-widest text-[#9CA3AF]">{l.order}</p>
-                <p className="mt-1 truncate text-base font-black text-[#1F2937]">{orderAuditLabel(latest, lang)}</p>
-                <p className="mt-0.5 truncate text-xs font-bold text-[#9CA3AF]">{orderAuditMeta(latest, l)}</p>
+                <p className="ws-caption font-medium">{l.order}</p>
+                <p className="truncate text-[15px] font-semibold text-[#22201d]">{orderAuditLabel(latest, lang)}</p>
+                <p className="ws-caption truncate">{orderAuditMeta(latest, l)}</p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <span className="rounded-full bg-[#FFF4ED] px-3 py-1 text-xs font-black text-[#FF4D00]">
+              <span className={`ws-badge ${actionTone(latest.action)}`}>
                 {actionLabel(latest.action, lang)}
               </span>
-              <span className="rounded-full bg-[#F8FAFC] px-3 py-1 text-xs font-black text-[#64748B]">
-                {group.rows.length} {l.changes}
+              <span className="ws-badge">
+                <span className="tabular-nums">{group.rows.length}</span> {l.changes}
               </span>
-              <span className="text-xs font-bold text-[#9CA3AF]">{fmtDate(latest.changed_at, lang)}</span>
-              <ChevronDown size={18} className="text-[#9CA3AF] transition-transform group-open:rotate-180" />
+              <span className="ws-caption tabular-nums">{fmtDate(latest.changed_at, lang)}</span>
+              <ChevronDown size={16} className="text-[#68655f] transition-transform group-open:rotate-180" />
             </div>
           </summary>
 
-          <div className="border-t border-[#F3F4F6]">
+          <div className="border-t border-[#e4e1de] bg-[#faf9f7]">
             {group.rows.map(row => (
-              <div key={row.id} className="grid gap-4 px-4 py-4 text-sm md:grid-cols-[170px_1fr]">
+              <div key={row.id} className="grid gap-4 border-b border-[#e4e1de] px-5 py-4 text-sm last:border-b-0 md:grid-cols-[180px_1fr]">
                 <div className="space-y-3">
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-[#9CA3AF]">{l.latest}</p>
-                    <p className="mt-1 font-semibold text-[#1F2937]">{fmtDate(row.changed_at, lang)}</p>
+                    <p className="ws-caption font-medium">{l.latest}</p>
+                    <p className="mt-0.5 font-medium tabular-nums text-[#22201d]">{fmtDate(row.changed_at, lang)}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-[#9CA3AF]">{l.action}</p>
-                    <p className="mt-1 font-black text-[#FF4D00]">{actionLabel(row.action, lang)}</p>
+                    <p className="ws-caption font-medium">{l.action}</p>
+                    <span className={`ws-badge mt-1 ${actionTone(row.action)}`}>{actionLabel(row.action, lang)}</span>
                   </div>
                   <div>
-                    <p className="flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-[#9CA3AF]">
+                    <p className="ws-caption flex items-center gap-1 font-medium">
                       <UserRound size={12} />
                       {l.actor}
                     </p>
-                    <p className="mt-1 break-words font-semibold text-[#1F2937]">{actorLabel(row)}</p>
+                    <p className="mt-0.5 break-words font-medium text-[#22201d]">{actorLabel(row)}</p>
                   </div>
                 </div>
 
@@ -379,61 +381,71 @@ export default function AdminAudit() {
   }, [error, groupedRows, l, lang, loading])
 
   return (
-    <AppShell title={l.title}>
-      <div className="mx-auto max-w-6xl px-5 py-6">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-black text-[#1F2937]">{l.title}</h1>
-            <p className="mt-0.5 text-sm text-[#6B7280]">{l.sub}</p>
-          </div>
-          <button
-            onClick={loadAudit}
-            disabled={loading}
-            className="flex h-11 items-center gap-2 rounded-2xl border border-[#E5E7EB] bg-white px-4 text-sm font-black text-[#64748B] shadow-sm transition-all hover:bg-[#F8FAFC] disabled:opacity-60"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            {l.refresh}
-          </button>
+    <AppShell
+      title={l.title}
+      headerActions={(
+        <button type="button" onClick={loadAudit} disabled={loading} aria-label={l.refresh} className="ws-btn ws-btn-outline !h-[38px]">
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /><span className="hidden sm:inline">{l.refresh}</span>
+        </button>
+      )}
+    >
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
+          <section className="ws-panel">
+            <div className="mb-3">
+              <h2 className="ws-heading">{l.filters}</h2>
+              <p className="ws-muted">{l.sub}</p>
+            </div>
+            <div className="grid gap-2 md:grid-cols-[1fr_220px_220px]">
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={l.searchPlaceholder}
+                aria-label={l.searchPlaceholder}
+                className="ws-input"
+              />
+              <select
+                value={actionFilter}
+                onChange={e => setActionFilter(e.target.value)}
+                aria-label={l.action}
+                className="ws-input"
+              >
+                <option value="all">{l.allActions}</option>
+                {actions.map(action => <option key={action} value={action}>{actionLabel(action, lang)}</option>)}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                aria-label={l.status}
+                className="ws-input"
+              >
+                <option value="all">{l.allStatuses}</option>
+                {statuses.map(status => <option key={status} value={status}>{statusLabel(status, lang)}</option>)}
+              </select>
+            </div>
+          </section>
+          <section className="ws-panel ws-panel-flush" aria-busy={loading}>{content}</section>
         </div>
-        <div className="mb-4 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-          <p className="mb-3 text-xs font-black uppercase tracking-widest text-[#9CA3AF]">{l.filters}</p>
-          <div className="grid gap-2 md:grid-cols-[1fr_220px_220px]">
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={l.searchPlaceholder}
-              className="h-10 rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
-            />
-            <select
-              value={actionFilter}
-              onChange={e => setActionFilter(e.target.value)}
-              className="h-10 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-bold text-[#1F2937] outline-none transition-all focus:border-[#ff5a00]"
-            >
-              <option value="all">{l.allActions}</option>
-              {actions.map(action => <option key={action} value={action}>{actionLabel(action, lang)}</option>)}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="h-10 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-bold text-[#1F2937] outline-none transition-all focus:border-[#ff5a00]"
-            >
-              <option value="all">{l.allStatuses}</option>
-              {statuses.map(status => <option key={status} value={status}>{statusLabel(status, lang)}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="space-y-3">{content}</div>
       </div>
     </AppShell>
   )
 }
 
+function actionTone(action) {
+  if (action === 'mark_paid') return 'ws-tone-positive'
+  if (action === 'reopen_paid_order' || action === 'order_item_deleted' || action === 'order_cancelled') return 'ws-tone-negative'
+  if (action === 'payment_fields_changed' || action === 'payment_method_changed') return 'ws-tone-caution'
+  if (action === 'status_changed') return 'ws-tone-info'
+  if (action === 'settle_loyalty_wallet_payment') return 'ws-tone-accent'
+  return ''
+}
+
 function AuditValue({ label, oldValue, newValue, beforeLabel = '', afterLabel = '' }) {
   return (
-    <div>
-      <p className="text-[11px] font-black uppercase tracking-widest text-[#9CA3AF]">{label}</p>
-      <p className="mt-1 truncate text-[#64748B]">{beforeLabel ? `${beforeLabel}: ` : ''}{oldValue}</p>
-      <p className="truncate font-black text-[#1F2937]">{afterLabel ? `${afterLabel}: ` : ''}{newValue}</p>
+    <div className="min-w-0">
+      <p className="ws-caption font-medium">{label}</p>
+      <p className="mt-0.5 truncate tabular-nums text-[#68655f]">{beforeLabel ? `${beforeLabel}: ` : ''}{oldValue}</p>
+      <p className="truncate font-semibold tabular-nums text-[#22201d]">{afterLabel ? `${afterLabel}: ` : ''}{newValue}</p>
     </div>
   )
 }

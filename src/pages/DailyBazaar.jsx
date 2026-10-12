@@ -1,5 +1,6 @@
 import CalendarPicker from '../components/CalendarPicker'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Banknote,
   BarChart2,
@@ -8,12 +9,9 @@ import {
   Edit3,
   FileText,
   Loader2,
-  Package,
   Plus,
-  ReceiptText,
   RefreshCw,
   Save,
-  Scale,
   Search,
   ShoppingBasket,
   Terminal,
@@ -25,6 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
+import { ChoiceGroup, ChoiceTile } from '../components/ChoiceTiles'
 import BazaarIngredientPicker from '../components/BazaarIngredientPicker'
 import DateRangePicker from '../components/DateRangePicker'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
@@ -101,7 +100,7 @@ const PURCHASE_COLUMNS = `
   )
 `
 
-const INPUT = 'h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#1F2937] outline-none transition-all placeholder:text-[#C3C8D0] focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/10 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[#9CA3AF]'
+const INPUT = 'ws-input disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 const SELECT = `${INPUT} pr-8`
 const LOAD_PAGE_SIZE = 500
 const HISTORY_PAGE_SIZE = 10
@@ -125,6 +124,12 @@ const EN = {
   products: 'Products received',
   productsHint: 'Quantity and total paid are the source of truth. Unit cost is calculated automatically.',
   addProduct: 'Add product',
+  editProduct: 'Edit product',
+  addLine: 'Add to bazaar',
+  saveLine: 'Save product',
+  noProducts: 'No products yet. Add what was bought at the bazaar.',
+  missingProduct: 'Product not selected',
+  fixLine: 'Fix this product',
   item: 'Item',
   product: 'Product',
   productPlaceholder: 'e.g. Tomatoes',
@@ -165,7 +170,7 @@ const EN = {
   previousMonth: 'Previous month',
   from: 'From',
   to: 'To',
-  search: 'Search product, buyer or note…',
+  search: 'Search product, buyer or note',
   searchLabel: 'Search bazaar history',
   clearSearch: 'Clear bazaar search',
   closeSearch: 'Close bazaar search',
@@ -247,7 +252,7 @@ const LABELS = {
     purchaseDate: 'Xarid sanasi', buyer: 'Xarid qilgan', selectBuyer: 'Xodimni tanlang',
     payment: 'To‘lov turi', notes: 'Umumiy izoh', notesPlaceholder: 'Bozor xaridi haqida ixtiyoriy izoh',
     products: 'Kelgan mahsulotlar', productsHint: 'Miqdor va to‘langan summa asosiy ma’lumot. Birlik narxi avtomatik hisoblanadi.',
-    addProduct: 'Mahsulot qo‘shish', item: 'Qator', product: 'Mahsulot', productPlaceholder: 'Masalan: Pomidor', selectProduct: 'Masalliqni tanlang', noIngredients: 'Faol masalliq yo‘q. Avval masalliq va odatiy narxlarni qo‘shing.', normalPrice: 'Odatiy narx', normalTotal: 'Odatiy jami', difference: 'Farq', category: 'Kategoriya',
+    addProduct: 'Mahsulot qo‘shish', editProduct: 'Mahsulotni tahrirlash', addLine: 'Bozorga qo‘shish', saveLine: 'Mahsulotni saqlash', noProducts: 'Hali mahsulot yo‘q. Bozordan olingan narsalarni qo‘shing.', missingProduct: 'Mahsulot tanlanmagan', fixLine: 'Mahsulotni tuzating', item: 'Qator', product: 'Mahsulot', productPlaceholder: 'Masalan: Pomidor', selectProduct: 'Masalliqni tanlang', noIngredients: 'Faol masalliq yo‘q. Avval masalliq va odatiy narxlarni qo‘shing.', normalPrice: 'Odatiy narx', normalTotal: 'Odatiy jami', difference: 'Farq', category: 'Kategoriya',
     quantity: 'Miqdor', unit: 'Birlik', totalPaid: 'To‘langan jami', unitCost: 'Birlik narxi', lineNotes: 'Qator izohi',
     lineNotesPlaceholder: 'Navi, sotuvchi, maqsad…', removeLine: 'Qatorni o‘chirish', totalBazaar: 'Bozor jami', itemCount: 'Mahsulot qatorlari',
     exactHint: 'Bu jami Buxgalteriyaga bitta Bozor mahsulotlari xarajati sifatida tushadi.', save: 'Bozorni saqlash', saving: 'Saqlanmoqda…', cancelEdit: 'Tahrirni bekor qilish',
@@ -258,7 +263,7 @@ const LABELS = {
     deleteFailed: 'Bozor yozuvini o‘chirib bo‘lmadi.', loadFailed: 'Bozor ma’lumotlarini yuklab bo‘lmadi',
     migrationMissing: 'Kunlik bozor bazada hali tayyor emas. Oxirgi bozor migratsiyasini ishga tushiring va yangilang.', refresh: 'Yangilash',
     dateRange: 'Sana oralig‘i', today: 'Bugun', week: '7 kun', month: 'Joriy oy', previousMonth: 'O‘tgan oy', from: 'Dan', to: 'Gacha',
-    search: 'Mahsulot, xaridor yoki izoh…', searchLabel: 'Bozor tarixidan qidirish', clearSearch: 'Qidiruvni tozalash', closeSearch: 'Qidiruvni yopish',
+    search: 'Mahsulot, xaridor yoki izoh', searchLabel: 'Bozor tarixidan qidirish', clearSearch: 'Qidiruvni tozalash', closeSearch: 'Qidiruvni yopish',
     allCategories: 'Barcha kategoriyalar', allPayments: 'Barcha to‘lovlar', results: 'yozuv', noHistory: 'Bu davr va filtrlarga mos bozor yozuvi yo‘q.',
     productName: 'Mahsulot nomi', itemPrice: 'Mahsulot summasi', actions: 'Amallar', previous: 'Oldingi', next: 'Keyingi', page: 'Sahifa', of: '/',
     noAnalytics: 'Bu davr uchun bozor xarajati yozilmagan.', details: 'Tafsilotlar', hideDetails: 'Yopish', edit: 'Tahrirlash', delete: 'O‘chirish',
@@ -288,7 +293,7 @@ const LABELS = {
     purchaseDate: 'Дата покупки', buyer: 'Закупщик', selectBuyer: 'Выберите сотрудника',
     payment: 'Способ оплаты', notes: 'Общее примечание', notesPlaceholder: 'Необязательный контекст закупки',
     products: 'Поступившие продукты', productsHint: 'Количество и оплаченная сумма — источник истины. Цена за единицу считается автоматически.',
-    addProduct: 'Добавить продукт', item: 'Строка', product: 'Продукт', productPlaceholder: 'Например: Помидоры', selectProduct: 'Выберите ингредиент', noIngredients: 'Нет активных ингредиентов. Сначала добавьте ингредиенты и обычные цены.', normalPrice: 'Обычная цена', normalTotal: 'Итого по обычной цене', difference: 'Разница', category: 'Категория',
+    addProduct: 'Добавить продукт', editProduct: 'Изменить продукт', addLine: 'Добавить в базар', saveLine: 'Сохранить продукт', noProducts: 'Пока нет продуктов. Добавьте то, что купили на базаре.', missingProduct: 'Продукт не выбран', fixLine: 'Исправьте продукт', item: 'Строка', product: 'Продукт', productPlaceholder: 'Например: Помидоры', selectProduct: 'Выберите ингредиент', noIngredients: 'Нет активных ингредиентов. Сначала добавьте ингредиенты и обычные цены.', normalPrice: 'Обычная цена', normalTotal: 'Итого по обычной цене', difference: 'Разница', category: 'Категория',
     quantity: 'Количество', unit: 'Единица', totalPaid: 'Оплачено всего', unitCost: 'Цена за единицу', lineNotes: 'Примечание',
     lineNotesPlaceholder: 'Сорт, продавец, назначение…', removeLine: 'Удалить строку', totalBazaar: 'Итого базар', itemCount: 'Строк продуктов',
     exactHint: 'Эта сумма попадёт в Бухгалтерию одним расходом «Продукты / базар».', save: 'Сохранить базар', saving: 'Сохраняется…', cancelEdit: 'Отменить изменение',
@@ -299,7 +304,7 @@ const LABELS = {
     deleteFailed: 'Не удалось удалить запись базара.', loadFailed: 'Не удалось загрузить данные базара',
     migrationMissing: 'Ежедневный базар ещё не готов в базе. Примените последнюю миграцию базара и обновите.', refresh: 'Обновить',
     dateRange: 'Период', today: 'Сегодня', week: '7 дней', month: 'Текущий месяц', previousMonth: 'Прошлый месяц', from: 'С', to: 'По',
-    search: 'Продукт, закупщик или примечание…', searchLabel: 'Поиск по истории базара', clearSearch: 'Очистить поиск', closeSearch: 'Закрыть поиск',
+    search: 'Продукт, закупщик или примечание', searchLabel: 'Поиск по истории базара', clearSearch: 'Очистить поиск', closeSearch: 'Закрыть поиск',
     allCategories: 'Все категории', allPayments: 'Все способы оплаты', results: 'записей', noHistory: 'Нет записей базара для этого периода и фильтров.',
     productName: 'Название продукта', itemPrice: 'Сумма товара', actions: 'Действия', previous: 'Назад', next: 'Далее', page: 'Страница', of: 'из',
     noAnalytics: 'За этот период расходов базара нет.', details: 'Детали', hideDetails: 'Скрыть', edit: 'Изменить', delete: 'Удалить',
@@ -358,7 +363,7 @@ function emptyForm(buyerName = '', buyerProfileId = '') {
     buyer_profile_id: buyerProfileId,
     buyer_name: buyerName,
     notes: '',
-    items: [blankItem()],
+    items: [],
   }
 }
 
@@ -429,9 +434,9 @@ function formatBazaarSignedCurrency(value) {
 
 function bazaarDifferenceTone(value) {
   const amount = Number(value) || 0
-  if (amount > 0) return 'border-red-200 bg-red-50 text-red-700'
-  if (amount < 0) return 'border-green-200 bg-green-50 text-green-700'
-  return 'border-[#E5E7EB] bg-white text-[#6B7280]'
+  if (amount > 0) return 'ws-tone-negative'
+  if (amount < 0) return 'ws-tone-positive'
+  return 'border-[#e4e1de] bg-white text-[#68655f]'
 }
 
 export default function DailyBazaar() {
@@ -696,12 +701,15 @@ export default function DailyBazaar() {
     setForm(current => ({ ...current, items: [...current.items, blankItem()] }))
   }
 
+  // Restores a line when its edit dialog is cancelled.
+  function replaceItem(index, item) {
+    setForm(current => ({ ...current, items: current.items.map((line, itemIndex) => itemIndex === index ? item : line) }))
+  }
+
   function removeItem(index) {
     setForm(current => ({
       ...current,
-      items: current.items.length === 1
-        ? [blankItem()]
-        : current.items.filter((_, itemIndex) => itemIndex !== index),
+      items: current.items.filter((_, itemIndex) => itemIndex !== index),
     }))
     setValidationErrors([])
   }
@@ -826,58 +834,26 @@ export default function DailyBazaar() {
   }
 
   return (
-    <AppShell title={l.title}>
-      <div className="min-h-full bg-[#FAF7F0]">
-        <div className="w-full px-4 py-5 sm:px-5 sm:py-6 lg:px-6 2xl:px-8">
-          <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-[#ff5a00]">
-                <ShoppingBasket size={21} />
-              </div>
-              <div className="min-w-0 pt-0.5">
-                <h1 className="text-2xl font-black leading-tight text-[#1F2937]">{l.title}</h1>
-                <p className="mt-1 max-w-3xl text-sm font-medium text-[#6B7280]">{l.sub}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={loadPurchases}
-                disabled={loading}
-                className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl border border-[#E5E7EB] bg-white px-3 text-xs font-black text-[#6B7280] shadow-sm transition-colors hover:border-orange-200 hover:text-[#ff5a00] disabled:opacity-60"
-              >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                {l.refresh}
-              </button>
-            </div>
-          </div>
-
-          <div role="tablist" aria-label={l.title} className="mb-5 flex gap-1 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white p-1.5 shadow-sm">
-            {[
-              { key: 'entry', label: l.entry, icon: Plus, hidden: !canManage },
-              { key: 'history', label: l.history, icon: ReceiptText },
-              { key: 'analytics', label: l.analytics, icon: BarChart2 },
-            ].filter(item => !item.hidden).map(item => {
-              const Icon = item.icon
-              const active = tab === item.key
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  aria-controls={`bazaar-${item.key}-panel`}
-                  onClick={() => setTab(item.key)}
-                  className={`inline-flex min-w-max flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition-all ${
-                    active ? 'bg-[#ff5a00] text-white shadow-sm shadow-orange-200' : 'text-[#6B7280] hover:bg-gray-50 hover:text-[#1F2937]'
-                  }`}
-                >
-                  <Icon size={16} />{item.label}
-                </button>
-              )
-            })}
-          </div>
-
+    <AppShell
+      title={l.title}
+      tabs={{
+        label: l.title,
+        value: tab,
+        onChange: setTab,
+        items: [
+          { key: 'entry', label: l.entry, hidden: !canManage },
+          { key: 'history', label: l.history },
+          { key: 'analytics', label: l.analytics },
+        ].filter(item => !item.hidden),
+      }}
+      headerActions={(
+        <button type="button" onClick={loadPurchases} disabled={loading} aria-label={l.refresh} className="ws-btn ws-btn-outline !h-[38px]">
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /><span className="hidden sm:inline">{l.refresh}</span>
+        </button>
+      )}
+    >
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page">
           {tab !== 'entry' && (
             <RangeAndFilters
               l={l}
@@ -899,12 +875,12 @@ export default function DailyBazaar() {
           )}
 
           {error && (tab === 'entry' || purchases.length > 0) && (
-            <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            <div role="alert" className="ws-notice ws-tone-negative">
               {error}
             </div>
           )}
           {notice && !error && (
-            <div role="status" aria-live="polite" className="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">
+            <div role="status" aria-live="polite" className="ws-notice ws-tone-positive">
               {notice}
             </div>
           )}
@@ -927,6 +903,7 @@ export default function DailyBazaar() {
                 onUpdateItem={updateItem}
                 onUpdateProduct={updateProductName}
                 onAddItem={addItem}
+                onReplaceItem={replaceItem}
                 onRemoveItem={removeItem}
                 onSubmit={savePurchase}
                 onCancelEdit={resetEntry}
@@ -937,16 +914,15 @@ export default function DailyBazaar() {
           )}
 
           {tab === 'entry' && !canManage && (
-            <div className="rounded-2xl border border-[#E5E7EB] bg-white p-8 text-center shadow-sm">
-              <ShoppingBasket size={28} className="mx-auto mb-3 text-orange-200" />
-              <p className="text-sm font-bold text-[#6B7280]">{l.readOnly}</p>
+            <div className="ws-panel ws-panel-flush">
+              <div className="ws-empty"><ShoppingBasket /><p>{l.readOnly}</p></div>
             </div>
           )}
 
           {tab === 'history' && (
             <div id="bazaar-history-panel" role="tabpanel">
               {loading ? (
-                <OperationalLoading title={l.history} description="" />
+                <OperationalLoading layout="table" title={l.history} description="" />
               ) : error && purchases.length === 0 ? (
                 <OperationalError title={l.loadFailed} description={error} actionLabel={l.refresh} onAction={loadPurchases} />
               ) : (
@@ -973,7 +949,7 @@ export default function DailyBazaar() {
           {tab === 'analytics' && (
             <div id="bazaar-analytics-panel" role="tabpanel">
               {loading ? (
-                <OperationalLoading title={l.analytics} description="" />
+                <OperationalLoading layout="dashboard" title={l.analytics} description="" />
               ) : error && purchases.length === 0 ? (
                 <OperationalError title={l.loadFailed} description={error} actionLabel={l.refresh} onAction={loadPurchases} />
               ) : (
@@ -1011,23 +987,10 @@ function RangeAndFilters({
   onPayment,
   showSearch,
 }) {
-  const rangeSummary = dateFrom === dateTo
-    ? formatLongDate(dateFrom, lang, dateFrom)
-    : `${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`
+  // One compact toolbar row: the range button already shows the selected dates.
   return (
-    <section aria-labelledby="bazaar-range-heading" className="relative mb-5 rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-sm sm:p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id="bazaar-range-heading" className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[#9CA3AF]">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-[#ff5a00]">
-            <CalendarDays size={14} />
-          </span>
-          {l.dateRange}
-        </h2>
-        <p className="rounded-lg bg-[#F8F9FB] px-2.5 py-1.5 text-[11px] font-black text-[#7B8494]">
-          {rangeSummary}
-        </p>
-      </div>
-
+    <section aria-labelledby="bazaar-range-heading" className="flex flex-wrap items-center gap-2">
+      <h2 id="bazaar-range-heading" className="sr-only">{l.dateRange}</h2>
       <DateRangePicker
         l={l}
         lang={lang}
@@ -1037,50 +1000,36 @@ function RangeAndFilters({
         today={todayBazaarDate()}
         onPreset={onRange}
         onApply={onCustomRange}
+        className="w-full sm:w-auto sm:min-w-[220px] sm:max-w-[340px] sm:flex-none"
       />
-
-      <div className={`mt-3 grid min-w-0 gap-2 border-t border-[#EEF0F3] pt-3 lg:ml-auto lg:w-full ${
-        showSearch
-          ? 'sm:grid-cols-2 lg:max-w-[1100px] lg:grid-cols-[minmax(200px,260px)_minmax(220px,280px)_minmax(260px,1fr)]'
-          : 'sm:grid-cols-2 lg:max-w-[548px]'
-      }`}>
-          <label className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2 transition-colors focus-within:border-[#ff5a00] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#ff5a00]/10">
-            <span className="block text-[9px] font-black uppercase tracking-wider text-[#9CA3AF]">{l.category}</span>
-            <select value={categoryFilter} onChange={event => onCategory(event.target.value)} className="mt-0.5 h-6 w-full bg-transparent text-xs font-black text-[#4B5563] outline-none">
-              <option value="all">{l.allCategories}</option>
-              {categories.map(category => <option key={category.key} value={category.key}>{bazaarCategoryLabel(category.key, lang)}</option>)}
-            </select>
-          </label>
-          <label className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2 transition-colors focus-within:border-[#ff5a00] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#ff5a00]/10">
-            <span className="block text-[9px] font-black uppercase tracking-wider text-[#9CA3AF]">{l.payment}</span>
-            <select value={paymentFilter} onChange={event => onPayment(event.target.value)} className="mt-0.5 h-6 w-full bg-transparent text-xs font-black text-[#4B5563] outline-none">
-              <option value="all">{l.allPayments}</option>
-              {BAZAAR_PAYMENT_METHODS.map(method => <option key={method.key} value={method.key}>{bazaarPaymentMethodLabel(method.key, lang)}</option>)}
-            </select>
-          </label>
-          {showSearch && (
-            <div className="min-w-0 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2 transition-colors focus-within:border-[#ff5a00] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#ff5a00]/10 sm:col-span-2 lg:col-span-1">
-              <label htmlFor="bazaar-history-search" className="block text-[9px] font-black uppercase tracking-wider text-[#9CA3AF]">{l.searchLabel}</label>
-              <div className="relative mt-0.5">
-                <Search size={15} className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
-                <input
-                  id="bazaar-history-search"
-                  type="text"
-                  autoComplete="off"
-                  value={query}
-                  onChange={event => onQuery(event.target.value)}
-                  placeholder={l.search}
-                  className="h-6 w-full min-w-0 bg-transparent pl-6 pr-7 text-xs font-bold text-[#4B5563] outline-none placeholder:text-[#A8B0BD]"
-                />
-                {query && (
-                  <button type="button" onClick={() => onQuery('')} aria-label={l.clearSearch} className="absolute right-0 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[#9CA3AF] transition-colors hover:bg-white hover:text-[#ff5a00]">
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-            </div>
+      <select value={categoryFilter} onChange={event => onCategory(event.target.value)} aria-label={l.category} className={`${SELECT} !w-auto min-w-[190px] flex-1 sm:flex-none`}>
+        <option value="all">{l.allCategories}</option>
+        {categories.map(category => <option key={category.key} value={category.key}>{bazaarCategoryLabel(category.key, lang)}</option>)}
+      </select>
+      <select value={paymentFilter} onChange={event => onPayment(event.target.value)} aria-label={l.payment} className={`${SELECT} !w-auto min-w-[220px] flex-1 sm:flex-none`}>
+        <option value="all">{l.allPayments}</option>
+        {BAZAAR_PAYMENT_METHODS.map(method => <option key={method.key} value={method.key}>{bazaarPaymentMethodLabel(method.key, lang)}</option>)}
+      </select>
+      {showSearch && (
+        <div className="relative w-full min-w-[220px] sm:w-auto sm:flex-1">
+          <label htmlFor="bazaar-history-search" className="sr-only">{l.searchLabel}</label>
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
+          <input
+            id="bazaar-history-search"
+            type="text"
+            autoComplete="off"
+            value={query}
+            onChange={event => onQuery(event.target.value)}
+            placeholder={l.search}
+            className={`${INPUT} !pl-9 !pr-11`}
+          />
+          {query && (
+            <button type="button" onClick={() => onQuery('')} aria-label={l.clearSearch} className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-[#68655f] transition-colors hover:bg-[#ebe8e5] hover:text-[#22201d]">
+              <X size={14} />
+            </button>
           )}
         </div>
+      )}
     </section>
   )
 }
@@ -1101,33 +1050,54 @@ function BazaarEntryForm({
   onUpdateItem,
   onUpdateProduct,
   onAddItem,
+  onReplaceItem,
   onRemoveItem,
   onSubmit,
   onCancelEdit,
   lineHasError,
   expenseEntryMinDate,
 }) {
+  // { index, isNew, snapshot }: the line open in the product dialog.
+  const [lineDialog, setLineDialog] = useState(null)
+
+  function openNewLine() {
+    const index = form.items.length
+    onAddItem()
+    setLineDialog({ index, isNew: true, snapshot: null })
+  }
+
+  function openLine(index) {
+    setLineDialog({ index, isNew: false, snapshot: form.items[index] })
+  }
+
+  function cancelLine() {
+    if (!lineDialog) return
+    if (lineDialog.isNew) onRemoveItem(lineDialog.index)
+    else if (lineDialog.snapshot) onReplaceItem(lineDialog.index, lineDialog.snapshot)
+    setLineDialog(null)
+  }
+
   return (
     <form onSubmit={onSubmit} className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_clamp(320px,22vw,380px)]">
       <fieldset disabled={saving} className="contents">
         <div className="min-w-0 space-y-5">
-        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <section className="ws-panel">
+          <div className="ws-panel-title mb-5 !items-start">
             <div>
-              <h2 className="text-base font-black text-[#1F2937]">{form.id ? l.editEntry : l.newEntry}</h2>
-              <p className="mt-1 max-w-2xl text-xs font-medium text-[#9CA3AF]">{l.entryHint}</p>
+              <h2 className="ws-display">{form.id ? l.editEntry : l.newEntry}</h2>
+              <p className="ws-muted mt-1.5 max-w-2xl">{l.entryHint}</p>
             </div>
             {form.id && (
-              <button type="button" onClick={onCancelEdit} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] px-3 py-2 text-xs font-black text-[#6B7280] hover:border-red-200 hover:text-red-600">
+              <button type="button" onClick={onCancelEdit} className="ws-btn ws-btn-outline ws-btn-sm">
                 <X size={14} />{l.cancelEdit}
               </button>
             )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label={l.purchaseDate} icon={CalendarDays}>
               <FormattedDateInput value={form.purchase_date} lang={lang} onChange={value => onUpdateForm('purchase_date', value)} min={form.id ? undefined : expenseEntryMinDate} className={`${INPUT}`} />
-              {!form.id && <p className="mt-1 text-[11px] font-semibold text-[#9CA3AF]">{l.expenseDateLimit}</p>}
+              {!form.id && <p className="ws-caption mt-1">{l.expenseDateLimit}</p>}
             </Field>
             <Field label={l.buyer} icon={UserRound} error={validationErrors.some(item => item.field === 'buyer_profile_id')}>
               <select aria-invalid={validationErrors.some(item => item.field === 'buyer_profile_id')} value={form.buyer_profile_id || ''} onChange={event => onUpdateBuyer(event.target.value)} className={SELECT}>
@@ -1137,154 +1107,288 @@ function BazaarEntryForm({
             </Field>
           </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(320px,0.85fr)_minmax(0,1.15fr)] lg:items-end">
-            <fieldset className="min-w-0">
-              <legend className="mb-1.5 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-[#6B7280]">
-                <WalletCards size={12} />{l.payment}
-              </legend>
-              <div className="grid grid-cols-2 gap-2">
-                {BAZAAR_ENTRY_PAYMENT_METHODS.map(method => {
-                  const Icon = methodIcon(method.key)
-                  const active = form.payment_method === method.key
-                  return (
-                    <label
-                      key={method.key}
-                      className={`flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border text-xs font-black transition-colors focus-within:ring-2 focus-within:ring-[#ff5a00]/20 ${
-                        active ? 'border-[#ff5a00] bg-orange-50 text-[#ff5a00]' : 'border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-gray-50'
-                      }`}
-                    >
-                      <input type="radio" name="bazaar-payment-method" value={method.key} checked={active} onChange={() => onUpdateForm('payment_method', method.key)} className="sr-only" />
-                      <Icon size={14} />{bazaarPaymentMethodLabel(method.key, lang)}
-                    </label>
-                  )
-                })}
-              </div>
-            </fieldset>
+          <div className="mt-4 grid gap-4">
+            <ChoiceGroup
+              label={l.payment}
+              icon={WalletCards}
+              legendClassName="ws-caption mb-1.5 flex items-center gap-1.5 font-medium"
+              columns="grid-cols-2"
+            >
+              {BAZAAR_ENTRY_PAYMENT_METHODS.map(method => {
+                const active = form.payment_method === method.key
+                return (
+                  <ChoiceTile
+                    key={method.key}
+                    active={active}
+                    icon={methodIcon(method.key)}
+                    title={bazaarPaymentMethodLabel(method.key, lang)}
+                    compact
+                    onClick={() => onUpdateForm('payment_method', method.key)}
+                  />
+                )
+              })}
+            </ChoiceGroup>
             <Field label={l.notes} icon={FileText}>
-              <textarea value={form.notes} onChange={event => onUpdateForm('notes', event.target.value)} rows={2} placeholder={l.notesPlaceholder} className={`${INPUT} min-h-[72px] resize-y`} />
+              <textarea value={form.notes} onChange={event => onUpdateForm('notes', event.target.value)} rows={2} placeholder={l.notesPlaceholder} className={`${INPUT} !h-auto min-h-[88px] resize-y`} />
             </Field>
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-[#F3F4F6] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <section className="ws-panel ws-panel-flush">
+          <div className="ws-panel-title border-b border-[#e4e1de] px-5 py-4 max-sm:px-4">
             <div>
-              <h2 className="text-base font-black text-[#1F2937]">{l.products}</h2>
-              <p className="mt-1 text-xs font-medium text-[#9CA3AF]">{l.productsHint}</p>
+              <h2 className="ws-heading">{l.products}</h2>
+              <p className="ws-muted mt-1">{l.productsHint}</p>
             </div>
-            <button type="button" onClick={onAddItem} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 text-xs font-black text-[#ff5a00] transition-colors hover:bg-orange-100">
+            <button type="button" onClick={openNewLine} className="ws-btn ws-btn-outline">
               <Plus size={15} />{l.addProduct}
             </button>
           </div>
 
           {suggestions.length === 0 && (
-            <div className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 sm:mx-4">
+            <div className="ws-notice ws-tone-caution mx-4 mt-4 sm:mx-5">
               <span>{l.noIngredients}</span>
             </div>
           )}
 
-          <div className="space-y-3 p-3 sm:p-4">
-            {form.items.map((item, index) => {
-              const quantity = normalizeBazaarQuantity(item.quantity)
-              const base = normalizeBazaarQuantityToBase(quantity, item.unit)
-              const unitCost = getBazaarUnitCost(item)
-              const normalLineTotal = getBazaarNormalLineTotal(item)
-              const priceDifference = getBazaarPriceDifference(item)
-              return (
-                <div key={item._key} className="rounded-2xl border border-[#E5E7EB] bg-gradient-to-br from-white to-[#FBFCFD] p-3 shadow-sm shadow-slate-100/70 sm:p-4">
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-xl bg-orange-50 px-2.5 text-xs font-black text-[#ff5a00] ring-1 ring-orange-100">{index + 1}</span>
-                    <button type="button" onClick={() => onRemoveItem(index)} aria-label={l.removeLine} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#9CA3AF] transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600 hover:shadow-sm">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-
-                  <div data-bazaar-line-fields="true" className="grid items-end gap-3 md:grid-cols-2 2xl:grid-cols-[minmax(240px,1.45fr)_minmax(160px,0.8fr)_120px_110px_minmax(170px,0.85fr)]">
-                    <Field label={l.product} error={lineHasError(index, 'product_name')}>
-                      <BazaarIngredientPicker suggestions={suggestions} value={item.product_key || ''} onChange={value => onUpdateProduct(index, value)} lang={lang} disabled={saving} invalid={lineHasError(index, 'product_name')} />
-                    </Field>
-                    <Field label={l.category} error={lineHasError(index, 'category')}>
-                      <select aria-invalid={lineHasError(index, 'category')} value={item.category} disabled className={SELECT}>
-                        {bazaarCategoriesFor(suggestions).map(category => <option key={category.key} value={category.key}>{bazaarCategoryLabel(category.key, lang)}</option>)}
-                      </select>
-                    </Field>
-                    <Field label={l.quantity} error={lineHasError(index, 'quantity')}>
-                      <input aria-invalid={lineHasError(index, 'quantity')} type="text" inputMode="decimal" value={item.quantity} onChange={event => onUpdateItem(index, 'quantity', event.target.value.replace(/[^0-9.,]/g, ''))} placeholder="0" className={`${INPUT} tabular-nums ${lineHasError(index, 'quantity') ? 'border-red-300 bg-red-50' : ''}`} />
-                    </Field>
-                    <Field label={l.unit} error={lineHasError(index, 'unit')}>
-                      <select aria-invalid={lineHasError(index, 'unit')} value={item.unit} disabled className={SELECT}>
-                        {BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}
-                      </select>
-                    </Field>
-                    <Field label={l.totalPaid} error={lineHasError(index, 'line_total')}>
-                      <input aria-invalid={lineHasError(index, 'line_total')} type="text" inputMode="numeric" value={formatMoneyInput(item.line_total)} onChange={event => onUpdateItem(index, 'line_total', normalizeMoneyInput(event.target.value))} placeholder="0" className={`${INPUT} text-right font-black tabular-nums ${lineHasError(index, 'line_total') ? 'border-red-300 bg-red-50' : ''}`} />
-                    </Field>
-                  </div>
-
-                  <div data-bazaar-line-notes="true" className="mt-4">
-                    <Field label={l.lineNotes}>
-                      <textarea
-                        value={item.notes}
-                        onChange={event => onUpdateItem(index, 'notes', event.target.value)}
-                        rows={3}
-                        placeholder={l.lineNotesPlaceholder}
-                        className={`${INPUT} min-h-[84px] resize-y py-3 leading-5`}
-                      />
-                    </Field>
-                  </div>
-
-                  <div data-bazaar-line-summary="true" className="mt-3 grid gap-3 sm:ml-auto sm:w-full sm:max-w-[430px] sm:grid-cols-2 sm:items-stretch">
-                    <div className="flex h-full min-h-[70px] flex-col justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-right shadow-sm shadow-slate-100/60">
-                      <p className="text-[10px] font-black uppercase tracking-wide text-[#9CA3AF]">{l.unitCost} · {l.normalPrice} {item.normal_unit_price ? formatCurrency(item.normal_unit_price) : '—'}</p>
-                      <p className="mt-1 text-sm font-black text-[#1F2937] tabular-nums">
-                        {unitCost > 0 ? `${formatCurrency(Math.round(unitCost))} / ${bazaarUnitLabel(base.unit, lang)}` : '—'}
-                      </p>
-                    </div>
-                    <div className={`flex h-full min-h-[70px] flex-col justify-center rounded-xl border px-4 py-3 text-right shadow-sm ${bazaarDifferenceTone(priceDifference)}`}>
-                      <p className="text-[10px] font-black uppercase tracking-wide opacity-70">{l.difference}</p>
-                      <p className="mt-1 text-sm font-black tabular-nums">{normalLineTotal > 0 && item.line_total ? formatBazaarSignedCurrency(priceDifference) : '—'}</p>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+          <div className="p-4 sm:p-5">
+            {form.items.length === 0 ? (
+              <button
+                type="button"
+                onClick={openNewLine}
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-[12px] border border-dashed border-[#dcd9d6] px-4 py-8 text-center transition-colors hover:border-[#ff5a00] hover:bg-[#fff4ec]"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]"><ShoppingBasket size={18} /></span>
+                <span className="ws-muted">{l.noProducts}</span>
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#ff5a00]"><Plus size={15} />{l.addProduct}</span>
+              </button>
+            ) : (
+              <ul className="divide-y divide-[#efece9] overflow-hidden rounded-[12px] border border-[#e4e1de]">
+                {form.items.map((item, index) => (
+                  <BazaarLineRow
+                    key={item._key}
+                    l={l}
+                    lang={lang}
+                    item={item}
+                    index={index}
+                    hasError={validationErrors.some(errorItem => errorItem.index === index)}
+                    onOpen={() => openLine(index)}
+                    onRemove={() => onRemoveItem(index)}
+                  />
+                ))}
+              </ul>
+            )}
           </div>
         </section>
         </div>
 
-        <aside className="rounded-2xl border border-orange-100 bg-white p-5 shadow-xl shadow-orange-100/40 xl:sticky xl:top-5">
-        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-[#ff5a00]">
-          <ShoppingBasket size={20} />
-        </div>
-        <p className="text-xs font-black uppercase tracking-wide text-[#9CA3AF]">{l.totalBazaar}</p>
-        <p className="mt-1 break-words text-3xl font-black text-[#1F2937] tabular-nums">{formatCurrency(total)}</p>
+        <aside className="ws-panel xl:sticky xl:top-5">
+        <p className="ws-caption font-medium">{l.totalBazaar}</p>
+        <p className="mt-1 break-words text-3xl font-semibold tracking-tight text-[#22201d] tabular-nums">{formatCurrency(total)}</p>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-xl bg-[#F9FAFB] px-3 py-2.5">
-            <p className="text-[10px] font-black uppercase tracking-wide text-[#9CA3AF]">{l.normalTotal}</p>
-            <p className="mt-1 text-sm font-black text-[#1F2937] tabular-nums">{formatCurrency(normalTotal)}</p>
+          <div className="rounded-[10px] bg-[#f6f5f3] px-3 py-2.5">
+            <p className="ws-caption">{l.normalTotal}</p>
+            <p className="mt-1 text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(normalTotal)}</p>
           </div>
-          <div className={`rounded-xl border px-3 py-2.5 ${bazaarDifferenceTone(difference)}`}>
-            <p className="text-[10px] font-black uppercase tracking-wide opacity-70">{l.difference}</p>
-            <p className="mt-1 text-sm font-black tabular-nums">{formatBazaarSignedCurrency(difference)}</p>
+          <div className={`rounded-[10px] border px-3 py-2.5 ${bazaarDifferenceTone(difference)}`}>
+            <p className="text-[13px] opacity-80">{l.difference}</p>
+            <p className="mt-1 text-sm font-semibold tabular-nums">{formatBazaarSignedCurrency(difference)}</p>
           </div>
         </div>
-        <div className="mt-3 flex items-center justify-between rounded-xl bg-[#F9FAFB] px-3 py-2.5 text-xs font-bold text-[#6B7280]">
+        <div className="mt-3 flex items-center justify-between rounded-[10px] bg-[#f6f5f3] px-3 py-2.5 text-sm text-[#68655f]">
           <span>{l.itemCount}</span>
-          <span className="font-black text-[#1F2937]">{form.items.length}</span>
+          <span className="font-semibold text-[#22201d] tabular-nums">{form.items.length}</span>
         </div>
-        <p className="mt-3 text-xs font-medium leading-relaxed text-[#9CA3AF]">{l.exactHint}</p>
+        <p className="ws-caption mt-3">{l.exactHint}</p>
         {validationErrors.length > 0 && (
-          <p role="alert" className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
+          <p role="alert" className="ws-notice ws-tone-negative mt-3">
             {validationMessage(validationErrors[0], l)}
           </p>
         )}
-        <button type="submit" disabled={saving || total <= 0} className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ff5a00] text-sm font-black text-white shadow-sm shadow-orange-200 transition-colors hover:bg-[#e95100] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:shadow-none">
+        <button type="submit" disabled={saving || total <= 0} className="ws-btn ws-btn-primary mt-4 !h-12 w-full">
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           {saving ? l.saving : l.save}
         </button>
         </aside>
       </fieldset>
+      {lineDialog && form.items[lineDialog.index] && (
+        <BazaarLineDialog
+          l={l}
+          lang={lang}
+          item={form.items[lineDialog.index]}
+          index={lineDialog.index}
+          isNew={lineDialog.isNew}
+          suggestions={suggestions}
+          saving={saving}
+          lineHasError={lineHasError}
+          onUpdateItem={onUpdateItem}
+          onUpdateProduct={onUpdateProduct}
+          onDone={() => setLineDialog(null)}
+          onCancel={cancelLine}
+        />
+      )}
     </form>
+  )
+}
+
+function BazaarLineRow({ l, lang, item, index, hasError, onOpen, onRemove }) {
+  const quantity = normalizeBazaarQuantity(item.quantity)
+  const base = normalizeBazaarQuantityToBase(quantity, item.unit)
+  const unitCost = getBazaarUnitCost(item)
+  const normalLineTotal = getBazaarNormalLineTotal(item)
+  const priceDifference = getBazaarPriceDifference(item)
+  return (
+    <li className={`flex items-center gap-3 px-3 py-3 sm:px-4 ${hasError ? 'bg-[#fdf3f3]' : 'bg-white'}`}>
+      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-xs font-semibold text-[#68655f] tabular-nums">{index + 1}</span>
+        <span className="min-w-0 flex-1">
+          <span className={`block truncate text-sm font-semibold ${item.product_name ? 'text-[#22201d]' : 'text-[#c4262c]'}`}>
+            {item.product_name || l.missingProduct}
+          </span>
+          <span className="ws-caption block truncate">
+            {bazaarCategoryLabel(item.category, lang)} · {item.quantity || 0} {bazaarUnitLabel(item.unit, lang)}
+            {unitCost > 0 ? ` · ${formatCurrency(Math.round(unitCost))} / ${bazaarUnitLabel(base.unit, lang)}` : ''}
+            {item.notes ? ` · ${item.notes}` : ''}
+          </span>
+        </span>
+        <span className="flex-shrink-0 text-right">
+          <span className="block text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(Number(item.line_total) || 0)}</span>
+          {normalLineTotal > 0 && item.line_total ? (
+            <span className={`mt-0.5 inline-block rounded-full border px-1.5 text-[11px] font-semibold tabular-nums ${bazaarDifferenceTone(priceDifference)}`}>
+              {formatBazaarSignedCurrency(priceDifference)}
+            </span>
+          ) : null}
+        </span>
+        <Edit3 size={15} className="flex-shrink-0 text-[#8a867f]" aria-hidden="true" />
+      </button>
+      <button type="button" onClick={onRemove} aria-label={l.removeLine} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon flex-shrink-0">
+        <Trash2 size={14} />
+      </button>
+    </li>
+  )
+}
+
+function BazaarLineDialog({ l, lang, item, index, isNew, suggestions, saving, lineHasError, onUpdateItem, onUpdateProduct, onDone, onCancel }) {
+  const [localErrors, setLocalErrors] = useState([])
+  const quantity = normalizeBazaarQuantity(item.quantity)
+  const base = normalizeBazaarQuantityToBase(quantity, item.unit)
+  const unitCost = getBazaarUnitCost(item)
+  const normalLineTotal = getBazaarNormalLineTotal(item)
+  const priceDifference = getBazaarPriceDifference(item)
+  const hasError = field => lineHasError(index, field) || localErrors.some(errorItem => errorItem.field === field)
+
+  useEffect(() => {
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onCancel])
+
+  function updateItem(field, value) {
+    setLocalErrors(current => current.filter(errorItem => errorItem.field !== field))
+    onUpdateItem(index, field, value)
+  }
+
+  function confirm(event) {
+    event.preventDefault()
+    // A portal still bubbles React events to the entry form; keep this submit local.
+    event.stopPropagation()
+    const lineErrors = validateBazaarPurchase({ items: [item] }).errors.filter(errorItem => errorItem.index === 0)
+    if (lineErrors.length) {
+      setLocalErrors(lineErrors)
+      return
+    }
+    onDone()
+  }
+
+  const firstError = localErrors[0] ? { ...localErrors[0], index } : null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#22201d]/40 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onCancel()}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="bazaar-line-dialog-title"
+        onSubmit={confirm}
+        className="ws-dialog max-h-[92vh] w-full overflow-y-auto !rounded-b-none sm:max-w-[760px] sm:overflow-visible sm:!rounded-2xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-[#e4e1de] px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="ws-caption font-medium">{l.item} {index + 1}</p>
+            <h2 id="bazaar-line-dialog-title" className="ws-heading mt-0.5">{isNew ? l.addProduct : l.editProduct}</h2>
+          </div>
+          <button type="button" onClick={onCancel} aria-label={l.cancel} className="ws-btn ws-btn-ghost !h-10 !w-10 !px-0">
+            <X size={19} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-5 sm:px-6">
+          <div data-bazaar-line-fields="true" className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.4fr)_minmax(140px,0.9fr)]">
+            <Field label={l.product} error={hasError('product_name')}>
+              <BazaarIngredientPicker suggestions={suggestions} value={item.product_key || ''} onChange={value => { setLocalErrors(current => current.filter(errorItem => errorItem.field !== 'product_name')); onUpdateProduct(index, value) }} lang={lang} disabled={saving} invalid={hasError('product_name')} />
+            </Field>
+            <Field label={l.category} error={hasError('category')}>
+              <select aria-invalid={hasError('category')} value={item.category} disabled className={SELECT}>
+                {bazaarCategoriesFor(suggestions).map(category => <option key={category.key} value={category.key}>{bazaarCategoryLabel(category.key, lang)}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <div className="grid items-end gap-3 grid-cols-2 sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1.2fr)]">
+            <Field label={l.quantity} error={hasError('quantity')}>
+              <input aria-invalid={hasError('quantity')} type="text" inputMode="decimal" value={item.quantity} onChange={event => updateItem('quantity', event.target.value.replace(/[^0-9.,]/g, ''))} placeholder="0" className={`${INPUT} tabular-nums ${hasError('quantity') ? '!border-[#c4262c] !bg-[#fdf3f3]' : ''}`} />
+            </Field>
+            <Field label={l.unit} error={hasError('unit')}>
+              <select aria-invalid={hasError('unit')} value={item.unit} disabled className={SELECT}>
+                {BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}
+              </select>
+            </Field>
+            <div className="col-span-2 sm:col-span-1">
+              <Field label={l.totalPaid} error={hasError('line_total')}>
+                <input aria-invalid={hasError('line_total')} type="text" inputMode="numeric" value={formatMoneyInput(item.line_total)} onChange={event => updateItem('line_total', normalizeMoneyInput(event.target.value))} placeholder="0" className={`${INPUT} text-right font-semibold tabular-nums ${hasError('line_total') ? '!border-[#c4262c] !bg-[#fdf3f3]' : ''}`} />
+              </Field>
+            </div>
+          </div>
+
+          <div data-bazaar-line-summary="true" className="grid gap-3 sm:w-full sm:max-w-[430px] sm:grid-cols-2 sm:items-stretch sm:max-w-none">
+            <div className="flex h-full min-h-[70px] flex-col justify-center rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-4 py-3">
+              <p className="ws-caption">{l.unitCost}</p>
+              <p className="mt-0.5 text-sm font-semibold text-[#22201d] tabular-nums">
+                {unitCost > 0 ? `${formatCurrency(Math.round(unitCost))} / ${bazaarUnitLabel(base.unit, lang)}` : '—'}
+              </p>
+              <p className="ws-caption mt-0.5 truncate">{l.normalPrice}: {item.normal_unit_price ? formatCurrency(item.normal_unit_price) : '—'}</p>
+            </div>
+            <div className={`flex h-full min-h-[70px] flex-col justify-center rounded-[10px] border px-4 py-3 ${bazaarDifferenceTone(priceDifference)}`}>
+              <p className="text-[13px] opacity-80">{l.difference}</p>
+              <p className="mt-0.5 text-sm font-semibold tabular-nums">{normalLineTotal > 0 && item.line_total ? formatBazaarSignedCurrency(priceDifference) : '—'}</p>
+            </div>
+          </div>
+
+          <div data-bazaar-line-notes="true">
+            <Field label={l.lineNotes}>
+              <textarea
+                value={item.notes}
+                onChange={event => updateItem('notes', event.target.value)}
+                rows={3}
+                placeholder={l.lineNotesPlaceholder}
+                className={`${INPUT} !h-auto min-h-[88px] resize-y leading-5`}
+              />
+            </Field>
+          </div>
+
+          {firstError && <p role="alert" className="ws-notice ws-tone-negative">{validationMessage(firstError, l)}</p>}
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-[#e4e1de] px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <button type="button" onClick={onCancel} className="ws-btn ws-btn-outline !h-11">{l.cancel}</button>
+          <button type="submit" disabled={saving} className="ws-btn ws-btn-primary !h-11">
+            {isNew ? <Plus size={16} /> : <Save size={16} />}{isNew ? l.addLine : l.saveLine}
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
   )
 }
 
@@ -1311,19 +1415,19 @@ function BazaarHistory({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-        <p className="text-xs font-black uppercase tracking-wide text-[#9CA3AF]">{resultCount} {l.results}</p>
-        {pageCount > 1 && <p className="text-xs font-bold text-[#9CA3AF]">{l.page} {page} {l.of} {pageCount}</p>}
+        <p className="ws-caption font-medium"><span className="ws-count mr-1.5">{resultCount}</span>{l.results}</p>
+        {pageCount > 1 && <p className="ws-caption tabular-nums">{l.page} {page} {l.of} {pageCount}</p>}
       </div>
-      <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
+      <div className="ws-panel ws-panel-flush">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-left">
-            <thead className="bg-[#F8F9FB] text-[10px] font-black uppercase tracking-wide text-[#8B95A5]">
+            <thead className="ws-table-head">
               <tr>
-                <th className="min-w-[240px] px-4 py-3">{l.productName}</th>
-                <th className="w-[140px] px-4 py-3">{l.quantity}</th>
-                <th className="w-[180px] px-4 py-3 text-right">{l.unitCost}</th>
-                <th className="w-[160px] px-4 py-3 text-right">{l.itemPrice}</th>
-                <th className="w-[160px] px-4 py-3">{l.category}</th>
+                <th className="min-w-[240px] px-4 py-3 font-medium">{l.productName}</th>
+                <th className="w-[140px] px-4 py-3 font-medium">{l.quantity}</th>
+                <th className="w-[180px] px-4 py-3 text-right font-medium">{l.unitCost}</th>
+                <th className="w-[160px] px-4 py-3 text-right font-medium">{l.itemPrice}</th>
+                <th className="w-[160px] px-4 py-3 font-medium">{l.category}</th>
               </tr>
             </thead>
             <tbody>
@@ -1336,34 +1440,34 @@ function BazaarHistory({
                   <React.Fragment key={purchase.id}>
                     {purchaseIndex > 0 && (
                       <tr aria-hidden="true">
-                        <td colSpan={columnCount} className="h-3 border-y border-[#E5E7EB] bg-[#FAF7F0] p-0" />
+                        <td colSpan={columnCount} className="h-3 border-y border-[#e4e1de] bg-[#f6f5f3] p-0" />
                       </tr>
                     )}
-                    <tr data-bazaar-purchase-summary="true" className="border-b-2 border-[#DDE2E8] bg-[#F7F9FC] text-xs text-[#4B5563]">
-                      <td colSpan={columnCount} className="px-3 py-3">
+                    <tr data-bazaar-purchase-summary="true" className="border-b border-[#e4e1de] bg-[#faf9f7] text-sm text-[#68655f]">
+                      <td colSpan={columnCount} className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                          <p className="whitespace-nowrap font-black text-[#1F2937]">
+                          <p className="whitespace-nowrap font-semibold text-[#22201d]">
                             {formatLongDate(purchase.purchase_date, lang, purchase.purchase_date)}
                           </p>
-                          <p className="whitespace-nowrap text-[10px] font-black uppercase tracking-wide text-[#9CA3AF]">
+                          <p className="ws-caption whitespace-nowrap">
                             {l.itemCount}: {items.length}
                           </p>
-                          <p className="max-w-[220px] truncate font-black text-[#1F2937]" title={purchase.notes || undefined}>
+                          <p className="max-w-[220px] truncate font-medium text-[#22201d]" title={purchase.notes || undefined}>
                             {purchase.created_by_name || '—'}
                           </p>
-                          <p className="whitespace-nowrap text-sm font-black text-[#1F2937] tabular-nums">{formatCurrency(total)}</p>
-                          <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black text-[#ff5a00]">
-                            <MethodIcon size={10} />{bazaarPaymentMethodLabel(purchase.payment_method, lang)}
+                          <p className="whitespace-nowrap text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(total)}</p>
+                          <span className="ws-badge">
+                            <MethodIcon />{bazaarPaymentMethodLabel(purchase.payment_method, lang)}
                           </span>
                           {canManage && (
                             <div className="flex gap-1.5">
-                              <button type="button" onClick={() => onEdit(purchase)} aria-label={l.edit} title={l.edit} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100">
-                                <Edit3 size={13} />
+                              <button type="button" onClick={() => onEdit(purchase)} aria-label={l.edit} title={l.edit} className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon">
+                                <Edit3 size={14} />
                               </button>
-                              <button type="button" disabled={deletingId === purchase.id} onClick={() => onDelete(purchase)} aria-label={confirmDeleteId === purchase.id ? l.confirmDelete : l.delete} title={confirmDeleteId === purchase.id ? l.confirmDelete : l.delete} className={`inline-flex h-8 items-center justify-center rounded-lg border px-2 text-[10px] font-black transition-colors disabled:opacity-60 ${
-                                confirmDeleteId === purchase.id ? 'border-red-200 bg-red-50 text-red-600' : 'w-8 border-[#E5E7EB] text-[#6B7280] hover:border-red-200 hover:text-red-600'
+                              <button type="button" disabled={deletingId === purchase.id} onClick={() => onDelete(purchase)} aria-label={confirmDeleteId === purchase.id ? l.confirmDelete : l.delete} title={confirmDeleteId === purchase.id ? l.confirmDelete : l.delete} className={`ws-btn ws-btn-sm ${
+                                confirmDeleteId === purchase.id ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger ws-btn-icon'
                               }`}>
-                                {deletingId === purchase.id ? <Loader2 size={13} className="animate-spin" /> : confirmDeleteId === purchase.id ? l.confirmDelete : <Trash2 size={13} />}
+                                {deletingId === purchase.id ? <Loader2 size={14} className="animate-spin" /> : confirmDeleteId === purchase.id ? l.confirmDelete : <Trash2 size={14} />}
                               </button>
                             </div>
                           )}
@@ -1375,21 +1479,21 @@ function BazaarHistory({
                       const baseUnit = normalizeBazaarQuantityToBase(item.quantity, item.unit).unit
                       const displayQuantity = getBazaarDisplayQuantity(item.quantity, item.unit)
                       return (
-                        <tr key={`${purchase.id}-${item.id || index}`} className="border-t border-[#F3F4F6] text-xs text-[#4B5563] first:border-t-0">
-                          <td className="px-3 py-2.5" title={item.notes || undefined}>
-                            <p className="truncate font-black text-[#1F2937]">{item.product_name}</p>
+                        <tr key={`${purchase.id}-${item.id || index}`} className="ws-row text-sm text-[#68655f]">
+                          <td className="px-4 py-2.5" title={item.notes || undefined}>
+                            <p className="truncate font-medium text-[#22201d]">{item.product_name}</p>
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2.5 font-black text-[#1F2937]">
+                          <td className="whitespace-nowrap px-4 py-2.5 text-[#22201d] tabular-nums">
                             {formatBazaarQuantity(displayQuantity.quantity)} {bazaarUnitLabel(displayQuantity.unit, lang)}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2.5 text-right text-sm font-black text-[#1F2937] tabular-nums">
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right text-[#22201d] tabular-nums">
                             {unitCost > 0 ? `${formatCurrency(Math.round(unitCost))} / ${bazaarUnitLabel(baseUnit, lang)}` : '—'}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2.5 text-right text-sm font-black text-[#1F2937] tabular-nums">
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold text-[#22201d] tabular-nums">
                             {formatCurrency(item.line_total)}
                           </td>
-                          <td className="px-3 py-2.5">
-                            <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-[11px] font-black text-[#6B7280]">{bazaarCategoryLabel(item.category, lang)}</span>
+                          <td className="px-4 py-2.5">
+                            <span className="ws-badge">{bazaarCategoryLabel(item.category, lang)}</span>
                           </td>
                         </tr>
                       )
@@ -1404,11 +1508,11 @@ function BazaarHistory({
 
       {pageCount > 1 && (
         <nav aria-label={l.history} className="flex items-center justify-center gap-2 pt-1">
-          <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className="h-9 rounded-xl border border-[#E5E7EB] bg-white px-3 text-xs font-black text-[#6B7280] disabled:cursor-not-allowed disabled:opacity-40">
+          <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} className="ws-btn ws-btn-outline ws-btn-sm">
             {l.previous}
           </button>
-          <span className="min-w-[100px] text-center text-xs font-black text-[#6B7280]">{l.page} {page} {l.of} {pageCount}</span>
-          <button type="button" disabled={page >= pageCount} onClick={() => onPage(page + 1)} className="h-9 rounded-xl border border-[#E5E7EB] bg-white px-3 text-xs font-black text-[#6B7280] disabled:cursor-not-allowed disabled:opacity-40">
+          <span className="ws-caption min-w-[100px] text-center font-medium tabular-nums">{l.page} {page} {l.of} {pageCount}</span>
+          <button type="button" disabled={page >= pageCount} onClick={() => onPage(page + 1)} className="ws-btn ws-btn-outline ws-btn-sm">
             {l.next}
           </button>
         </nav>
@@ -1425,72 +1529,72 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
   return (
     <div className="space-y-5">
       {categoryFilter !== 'all' && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-bold text-blue-700">
-          {l.selectedCategory} <span className="font-black">{bazaarCategoryLabel(categoryFilter, lang)}</span>
+        <div className="ws-notice ws-tone-info">
+          {l.selectedCategory} <span className="font-semibold">{bazaarCategoryLabel(categoryFilter, lang)}</span>
         </div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard icon={WalletCards} tone="orange" label={l.totalSpent} value={formatCurrency(summary.totalSpent)} sub={`${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`} />
-        <MetricCard icon={CalendarDays} tone="blue" label={l.averageDaily} value={formatCurrency(Math.round(summary.averagePerDay))} sub={`${summary.activeDays} ${l.activeDays.toLowerCase()} · ${summary.dayCount} ${l.calendarDays}`} />
-        <MetricCard icon={ReceiptText} tone="purple" label={l.purchases} value={summary.purchaseCount} />
-        <MetricCard icon={Package} tone="green" label={l.uniqueProducts} value={summary.uniqueProducts} sub={`${summary.totalItemLines} ${l.itemCount.toLowerCase()}`} />
-        <MetricCard icon={ShoppingBasket} tone="teal" label={l.activeDays} value={summary.activeDays} />
+        <MetricCard label={l.totalSpent} value={formatCurrency(summary.totalSpent)} sub={`${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`} />
+        <MetricCard label={l.averageDaily} value={formatCurrency(Math.round(summary.averagePerDay))} sub={`${summary.activeDays} ${l.activeDays.toLowerCase()} · ${summary.dayCount} ${l.calendarDays}`} />
+        <MetricCard label={l.purchases} value={summary.purchaseCount} />
+        <MetricCard label={l.uniqueProducts} value={summary.uniqueProducts} sub={`${summary.totalItemLines} ${l.itemCount.toLowerCase()}`} />
+        <MetricCard label={l.activeDays} value={summary.activeDays} />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <AnalyticsSection title={l.dailySpend} icon={CalendarDays}>
+        <AnalyticsSection title={l.dailySpend}>
           <div className="max-h-[390px] space-y-2 overflow-y-auto pr-1">
             {summary.daily.map(row => {
               const width = Math.max(4, (row.total / maxDaily) * 100)
               return (
                 <div key={row.date} className="grid grid-cols-[92px_minmax(0,1fr)_112px] items-center gap-2 sm:grid-cols-[140px_minmax(0,1fr)_140px]">
-                  <span className="truncate text-xs font-bold text-[#6B7280]">{formatLongDate(row.date, lang, row.date, { includeYear: false })}</span>
-                  <div className="h-8 overflow-hidden rounded-lg bg-gray-100">
-                    <div className="flex h-full items-center rounded-lg bg-[#ff5a00] px-2" style={{ width: `${width}%` }}>
-                      {width > 24 && <span className="truncate text-[10px] font-black text-white">{row.purchases} {l.purchasesShort}</span>}
+                  <span className="ws-caption truncate">{formatLongDate(row.date, lang, row.date, { includeYear: false })}</span>
+                  <div className="h-8 overflow-hidden rounded-md bg-[#efece9]">
+                    <div className="flex h-full items-center rounded-md bg-[#ff5a00] px-2" style={{ width: `${width}%` }}>
+                      {width > 24 && <span className="truncate text-xs font-medium text-white">{row.purchases} {l.purchasesShort}</span>}
                     </div>
                   </div>
-                  <span className="text-right text-xs font-black text-[#1F2937] tabular-nums">{formatCurrency(row.total)}</span>
+                  <span className="text-right text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.total)}</span>
                 </div>
               )
             })}
           </div>
         </AnalyticsSection>
 
-        <AnalyticsSection title={l.categorySpend} icon={Package}>
+        <AnalyticsSection title={l.categorySpend}>
           <RankedMoneyBars
             rows={summary.categories.map(row => ({ ...row, label: bazaarCategoryLabel(row.key, lang) }))}
             total={summary.totalSpent}
-            color="#0F766E"
+            color="#ff5a00"
             l={l}
           />
         </AnalyticsSection>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-        <AnalyticsSection title={l.paymentSpend} icon={CreditCard}>
+        <AnalyticsSection title={l.paymentSpend}>
           <div className="space-y-3">
             {summary.payments.map(row => {
               const Icon = methodIcon(row.key)
               return (
-                <div key={row.key} className="rounded-xl border border-[#E5E7EB] bg-[#FBFCFD] p-3">
+                <div key={row.key} className="rounded-[10px] border border-[#e4e1de] p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-[#ff5a00]"><Icon size={15} /></span>
-                      <span className="text-sm font-black text-[#1F2937]">{bazaarPaymentMethodLabel(row.key, lang)}</span>
+                      <Icon size={16} className="text-[#68655f]" />
+                      <span className="text-sm font-medium text-[#22201d]">{bazaarPaymentMethodLabel(row.key, lang)}</span>
                     </div>
-                    <span className="text-sm font-black text-[#1F2937]">{formatCurrency(row.amount)}</span>
+                    <span className="text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.amount)}</span>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-[#ff5a00]" style={{ width: `${Math.max(3, row.percent)}%` }} /></div>
-                  <p className="mt-1 text-right text-[11px] font-bold text-[#9CA3AF]">{Math.round(row.percent)}% {l.ofTotal}</p>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#efece9]"><div className="h-full rounded-full bg-[#ff5a00]" style={{ width: `${Math.max(3, row.percent)}%` }} /></div>
+                  <p className="ws-caption mt-1 text-right tabular-nums">{Math.round(row.percent)}% {l.ofTotal}</p>
                 </div>
               )
             })}
           </div>
         </AnalyticsSection>
 
-        <AnalyticsSection title={l.buyerSpend} icon={UserRound}>
+        <AnalyticsSection title={l.buyerSpend}>
           <RankedMoneyBars
             rows={summary.buyers.slice(0, 10).map(row => ({
               ...row,
@@ -1498,39 +1602,39 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
               sub: `${row.purchases} ${l.purchasesShort}`,
             }))}
             total={summary.totalSpent}
-            color="#7C3AED"
+            color="#ff5a00"
             l={l}
           />
         </AnalyticsSection>
       </div>
 
-      <AnalyticsSection title={l.topProducts} icon={Scale}>
-        <div className="space-y-2">
+      <AnalyticsSection title={l.topProducts} flush>
+        <div>
           {summary.products.slice(0, 12).map((product, index) => {
             const width = Math.max(3, (product.spend / maxProduct) * 100)
             const change = product.unitCostChangePct
             return (
-              <div key={product.key} className="rounded-xl border border-[#E5E7EB] bg-[#FBFCFD] p-3 sm:p-4">
+              <div key={product.key} className="ws-row px-5 py-3.5 max-sm:px-4">
                 <div className="grid gap-3 sm:grid-cols-[38px_minmax(160px,1fr)_140px_170px] sm:items-center">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-black text-[#6B7280] shadow-sm">{index + 1}</span>
+                  <span className="ws-count justify-self-start">{index + 1}</span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-black text-[#1F2937]">{product.product_name}</p>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-[#6B7280]">{bazaarCategoryLabel(product.category, lang)}</span>
+                      <p className="truncate text-sm font-medium text-[#22201d]">{product.product_name}</p>
+                      <span className="ws-badge">{bazaarCategoryLabel(product.category, lang)}</span>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-[#ff5a00]" style={{ width: `${width}%` }} /></div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#efece9]"><div className="h-full rounded-full bg-[#ff5a00]" style={{ width: `${width}%` }} /></div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-[#9CA3AF]">{l.quantity}</p>
-                    <p className="text-sm font-black text-[#1F2937]">{formatBazaarQuantity(product.quantity)} {bazaarUnitLabel(product.unit, lang)}</p>
+                    <p className="ws-caption">{l.quantity}</p>
+                    <p className="text-sm font-medium text-[#22201d] tabular-nums">{formatBazaarQuantity(product.quantity)} {bazaarUnitLabel(product.unit, lang)}</p>
                   </div>
                   <div className="sm:text-right">
-                    <p className="text-base font-black text-[#1F2937]">{formatCurrency(product.spend)}</p>
-                    <p className="text-[11px] font-bold text-[#9CA3AF]">{l.averageUnitCost}: {formatCurrency(Math.round(product.averageUnitCost))} / {bazaarUnitLabel(product.unit, lang)}</p>
-                    <p className="text-[11px] font-bold text-[#9CA3AF]">{l.latestUnitCost}: {formatCurrency(Math.round(product.latestUnitCost))} / {bazaarUnitLabel(product.unit, lang)}</p>
+                    <p className="text-base font-semibold text-[#22201d] tabular-nums">{formatCurrency(product.spend)}</p>
+                    <p className="ws-caption tabular-nums">{l.averageUnitCost}: {formatCurrency(Math.round(product.averageUnitCost))} / {bazaarUnitLabel(product.unit, lang)}</p>
+                    <p className="ws-caption tabular-nums">{l.latestUnitCost}: {formatCurrency(Math.round(product.latestUnitCost))} / {bazaarUnitLabel(product.unit, lang)}</p>
                     {product.previousUnitCost > 0 && Math.abs(change) >= 0.1 && (
-                      <p className={`mt-0.5 inline-flex items-center gap-1 text-[11px] font-black ${change > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {change > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      <p className={`ws-badge mt-1 tabular-nums ${change > 0 ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
+                        {change > 0 ? <TrendingUp /> : <TrendingDown />}
                         {Math.abs(change).toFixed(1)}% {change > 0 ? l.priceUp : l.priceDown}
                       </p>
                     )}
@@ -1546,7 +1650,7 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
 }
 
 function RankedMoneyBars({ rows, total, color, l }) {
-  if (rows.length === 0) return <p className="py-8 text-center text-sm font-bold text-[#9CA3AF]">{l.noAnalytics}</p>
+  if (rows.length === 0) return <p className="ws-muted py-8 text-center">{l.noAnalytics}</p>
   return (
     <div className="space-y-3">
       {rows.map(row => {
@@ -1555,15 +1659,15 @@ function RankedMoneyBars({ rows, total, color, l }) {
           <div key={row.key}>
             <div className="mb-1.5 flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-[#374151]">{row.label}</p>
-                {row.sub && <p className="truncate text-[11px] font-bold text-[#9CA3AF]">{row.sub}</p>}
+                <p className="truncate text-sm font-medium text-[#22201d]">{row.label}</p>
+                {row.sub && <p className="ws-caption truncate">{row.sub}</p>}
               </div>
               <div className="flex-shrink-0 text-right">
-                <p className="text-sm font-black text-[#1F2937]">{formatCurrency(row.amount)}</p>
-                <p className="text-[10px] font-bold text-[#9CA3AF]">{Math.round(percent)}%</p>
+                <p className="text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.amount)}</p>
+                <p className="ws-caption tabular-nums">{Math.round(percent)}%</p>
               </div>
             </div>
-            <div className="h-2.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full" style={{ width: `${Math.max(3, percent)}%`, backgroundColor: color }} /></div>
+            <div className="h-2 overflow-hidden rounded-full bg-[#efece9]"><div className="h-full rounded-full" style={{ width: `${Math.max(3, percent)}%`, backgroundColor: color }} /></div>
           </div>
         )
       })}
@@ -1571,41 +1675,32 @@ function RankedMoneyBars({ rows, total, color, l }) {
   )
 }
 
-function AnalyticsSection({ title, icon: Icon, children }) {
+function AnalyticsSection({ title, flush = false, children }) {
   return (
-    <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:p-5">
-      <div className="mb-4 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-[#ff5a00]"><Icon size={15} /></span>
-        <h2 className="text-base font-black text-[#1F2937]">{title}</h2>
-      </div>
+    <section className={`ws-panel ${flush ? 'ws-panel-flush' : ''}`}>
+      <h2 className={`ws-heading ${flush ? 'border-b border-[#e4e1de] px-5 py-4 max-sm:px-4' : 'mb-4'}`}>{title}</h2>
       {children}
     </section>
   )
 }
 
-function MetricCard({ icon: Icon, label, value, sub = '', tone = 'orange' }) {
-  const tones = {
-    orange: 'bg-orange-50 text-[#ff5a00]',
-    blue: 'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600',
-    green: 'bg-green-50 text-green-600',
-    teal: 'bg-teal-50 text-teal-600',
-  }
+function MetricCard({ label, value, sub = '' }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-      <span className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone] || tones.orange}`}><Icon size={18} /></span>
-      <p className="text-xs font-black uppercase tracking-wide text-[#9CA3AF]">{label}</p>
-      <p className="mt-1 break-words text-2xl font-black text-[#1F2937] tabular-nums">{value}</p>
-      {sub && <p className="mt-1 text-xs font-bold text-[#9CA3AF]">{sub}</p>}
+    <div className="ws-panel">
+      <p className="ws-caption font-medium">{label}</p>
+      <p className="mt-1.5 break-words text-2xl font-semibold tracking-tight text-[#22201d] tabular-nums">{value}</p>
+      {sub && <p className="ws-caption mt-1">{sub}</p>}
     </div>
   )
 }
 
 function EmptyState({ icon: Icon, title }) {
   return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white px-5 py-14 text-center shadow-sm">
-      <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-orange-200"><Icon size={25} /></span>
-      <p className="mx-auto max-w-md text-sm font-bold text-[#9CA3AF]">{title}</p>
+    <div className="ws-panel ws-panel-flush">
+      <div className="ws-empty">
+        <Icon />
+        <p>{title}</p>
+      </div>
     </div>
   )
 }
@@ -1613,8 +1708,8 @@ function EmptyState({ icon: Icon, title }) {
 function Field({ label, icon: Icon, error = false, children }) {
   return (
     <label className="block min-w-0">
-      <span className={`mb-1.5 flex items-center gap-1.5 text-xs font-black uppercase tracking-wide ${error ? 'text-red-600' : 'text-[#6B7280]'}`}>
-        {Icon && <Icon size={12} />}{label}
+      <span className={`ws-caption mb-1.5 flex items-center gap-1.5 font-medium ${error ? '!text-[#c4262c]' : ''}`}>
+        {Icon && <Icon size={13} />}{label}
       </span>
       {children}
     </label>

@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
+import { AppShellShimmer } from './components/PageShimmer'
 
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AppProvider, useApp } from './store/AppContext'
@@ -23,6 +24,36 @@ import PublicVacancies from './pages/PublicVacancies'
 const ADMIN_HOSTNAME = 'admin.zarkebab.uz'
 const PUBLIC_HOSTNAMES = new Set(['zarkebab.uz', 'www.zarkebab.uz'])
 
+// Staff page chunks (the same modules as the lazy routes below). PreloadStaffPages
+// warms them once signed in, so switching pages never waits on page code.
+const STAFF_PAGES = {
+  WaiterTables: () => import('./pages/WaiterTables'),
+  WaiterOrder: () => import('./pages/WaiterOrder'),
+  KitchenCheckReceipt: () => import('./pages/KitchenCheckReceipt'),
+  CashierTables: () => import('./pages/CashierTables'),
+  CashierBill: () => import('./pages/CashierBill'),
+  Receipt: () => import('./pages/Receipt'),
+  AdminDashboard: () => import('./pages/AdminDashboard'),
+  AdminMenu: () => import('./pages/AdminMenu'),
+  TechCards: () => import('./pages/TechCards'),
+  AdminTables: () => import('./pages/AdminTables'),
+  AdminUsers: () => import('./pages/AdminUsers'),
+  AdminLoyalty: () => import('./pages/AdminLoyalty'),
+  Expenses: () => import('./pages/Expenses'),
+  DailyBazaar: () => import('./pages/DailyBazaar'),
+  IngredientUsage: () => import('./pages/IngredientUsage'),
+  BazaarIngredients: () => import('./pages/BazaarIngredients'),
+  AccountingHistory: () => import('./pages/AccountingHistory'),
+  AccountingAnalysis: () => import('./pages/AccountingAnalysis'),
+  Salaries: () => import('./pages/Salaries'),
+  MonthlyEstimate: () => import('./pages/MonthlyEstimate'),
+  Employees: () => import('./pages/Employees'),
+  EmployeeSalaryHistory: () => import('./pages/EmployeeSalaryHistory'),
+  Reports: () => import('./pages/Reports'),
+  AdminAudit: () => import('./pages/AdminAudit'),
+  AdminSettings: () => import('./pages/AdminSettings'),
+}
+
 const WaiterTables = lazy(() => import('./pages/WaiterTables'))
 const WaiterOrder = lazy(() => import('./pages/WaiterOrder'))
 const KitchenCheckReceipt = lazy(() => import('./pages/KitchenCheckReceipt'))
@@ -41,6 +72,7 @@ const DailyBazaar = lazy(() => import('./pages/DailyBazaar'))
 const IngredientUsage = lazy(() => import('./pages/IngredientUsage'))
 const BazaarIngredients = lazy(() => import('./pages/BazaarIngredients'))
 const AccountingHistory = lazy(() => import('./pages/AccountingHistory'))
+const AccountingAnalysis = lazy(() => import('./pages/AccountingAnalysis'))
 const Salaries = lazy(() => import('./pages/Salaries'))
 const MonthlyEstimate = lazy(() => import('./pages/MonthlyEstimate'))
 const Employees = lazy(() => import('./pages/Employees'))
@@ -191,11 +223,11 @@ function ProtectedRoute({ children, page }) {
   const location = useLocation()
   const returnTo = `${location.pathname}${location.search}${location.hash}`
 
-  if (loading) return <Spinner />
+  if (loading) return <AppShellShimmer />
   if (authError) return <ProfileLoadError />
   if (profileError) return <ProfileLoadError />
   if (!session) return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />
-  if (!profile) return <Spinner />
+  if (!profile) return <AppShellShimmer />
 
   if (profile?.status === 'disabled') return null // handled by RoleRedirect
   if (profile?.status === 'pending')  return <Navigate to="/pending-approval" replace />
@@ -223,14 +255,26 @@ function SignedOutRoute({ children }) {
   return <Navigate to={returnTo || defaultPathForHost(profile || 'guest')} replace />
 }
 
+// Page code suspends into the one Suspense boundary around the staff routes.
+// Navigation runs in a transition (BrowserRouter v7_startTransition), so the
+// current page stays on screen until the next one is ready instead of a loader.
 function LazyProtectedRoute({ page, children }) {
-  return (
-    <ProtectedRoute page={page}>
-      <Suspense fallback={<Spinner />}>
-        {children}
-      </Suspense>
-    </ProtectedRoute>
-  )
+  return <ProtectedRoute page={page}>{children}</ProtectedRoute>
+}
+
+function PreloadStaffPages() {
+  const { profile } = useAuth()
+  const signedIn = Boolean(profile?.id)
+  useEffect(() => {
+    if (!signedIn) return undefined
+    const idle = globalThis.requestIdleCallback || (callback => setTimeout(callback, 1200))
+    const cancel = globalThis.cancelIdleCallback || clearTimeout
+    const handle = idle(() => {
+      Object.values(STAFF_PAGES).forEach(load => load().catch(() => { /* retried on navigation */ }))
+    })
+    return () => cancel(handle)
+  }, [signedIn])
+  return null
 }
 
 function GuestModeRouteLock({ children }) {
@@ -338,6 +382,7 @@ function InternalAppRoutes({ adminHost = false }) {
   const signedOutPath = adminHost ? '/admin' : '/menu'
 
   return (
+    <Suspense fallback={<AppShellShimmer />}>
     <Routes>
         {/* Public */}
         <Route path="/"              element={adminHost ? <Navigate to="/admin" replace /> : <RoleRedirect signedOutPath={signedOutPath} />} />
@@ -434,11 +479,16 @@ function InternalAppRoutes({ adminHost = false }) {
         <Route path="/admin/accounting/history" element={
           <LazyProtectedRoute page="expenses"><AccountingHistory /></LazyProtectedRoute>
         } />
+        <Route path="/admin/financial-analysis" element={
+          <LazyProtectedRoute page="financial_analysis"><AccountingAnalysis /></LazyProtectedRoute>
+        } />
+        <Route path="/admin/accounting/analysis" element={<Navigate to="/admin/financial-analysis" replace />} />
+        <Route path="/admin/accounting/estimate" element={<Navigate to="/admin/financial-analysis/estimate" replace />} />
         <Route path="/admin/accounting/salaries" element={
           <LazyProtectedRoute page="expenses"><Salaries /></LazyProtectedRoute>
         } />
-        <Route path="/admin/accounting/estimate" element={
-          <LazyProtectedRoute page="expenses"><MonthlyEstimate /></LazyProtectedRoute>
+        <Route path="/admin/financial-analysis/estimate" element={
+          <LazyProtectedRoute page="financial_analysis"><MonthlyEstimate /></LazyProtectedRoute>
         } />
         <Route path="/admin/accounting/employees" element={
           <LazyProtectedRoute page="expenses"><Employees /></LazyProtectedRoute>
@@ -448,7 +498,7 @@ function InternalAppRoutes({ adminHost = false }) {
         } />
         <Route path="/admin/expenses" element={<Navigate to="/admin/accounting" replace />} />
         <Route path="/admin/expenses/salaries" element={<Navigate to="/admin/accounting/salaries" replace />} />
-        <Route path="/admin/expenses/estimate" element={<Navigate to="/admin/accounting/estimate" replace />} />
+        <Route path="/admin/expenses/estimate" element={<Navigate to="/admin/financial-analysis/estimate" replace />} />
         <Route path="/admin/expenses/employees" element={<Navigate to="/admin/accounting/employees" replace />} />
         <Route path="/admin/discount-cards" element={<Navigate to="/admin/loyalty" replace />} />
         <Route path="/admin/reports" element={
@@ -464,6 +514,7 @@ function InternalAppRoutes({ adminHost = false }) {
         {/* Catch-all: redirect based on role */}
         <Route path="*" element={<RoleRedirect signedOutPath={signedOutPath} />} />
       </Routes>
+    </Suspense>
   )
 }
 
@@ -479,6 +530,7 @@ function AppRoutes() {
         <PublicCustomerRoutes />
       ) : (
         <GuestModeRouteLock>
+          <PreloadStaffPages />
           <InternalAppRoutes adminHost={adminHost} />
         </GuestModeRouteLock>
       )}

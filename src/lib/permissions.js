@@ -54,6 +54,14 @@ export const FEATURE_DEFINITIONS = [
     description: { uz: 'Daromad, xarajat va maoshlar', ru: 'Доходы, расходы и зарплаты', en: 'Income, expenses, and salaries' },
   },
   {
+    // Reads Accounting's protected totals, so it always comes with Accounting.
+    key: 'financial_analysis',
+    kind: 'page',
+    requires: ['expenses'],
+    labels: { uz: 'Moliyaviy tahlil', ru: 'Финансовый анализ', en: 'Financial analysis' },
+    description: { uz: 'O‘sish, pul oqimi va oylik taxmin (Buxgalteriya bilan)', ru: 'Рост, денежный поток и прогноз на месяц (вместе с бухгалтерией)', en: 'Growth, money flow, and monthly estimate (with Accounting)' },
+  },
+  {
     key: 'bazaar',
     kind: 'page',
     labels: { uz: 'Kunlik bozor', ru: 'Ежедневный базар', en: 'Daily Bazaar' },
@@ -144,8 +152,9 @@ export function updateFeatureAccessSelection(featureAccess, featureKey, enabled)
     next.delete(featureKey)
   }
 
+  // Drop anything whose prerequisite was just removed (actions and dependent pages).
   for (const feature of FEATURE_DEFINITIONS) {
-    if (feature.kind !== 'action' || !next.has(feature.key)) continue
+    if (!next.has(feature.key) || (feature.kind !== 'action' && !feature.requires?.length)) continue
     const hasRequired = (feature.requires || []).every(key => next.has(key))
     const hasRequiredAny = !feature.requiresAny?.length || feature.requiresAny.some(key => next.has(key))
     if (!hasRequired || !hasRequiredAny) next.delete(feature.key)
@@ -174,7 +183,9 @@ export function canViewPage(profileOrRole, page) {
   const role = normalizeRole(profileOrRole?.role || profileOrRole)
   if (page === 'publicMenu') return (PAGE_ACCESS.publicMenu || []).includes(role)
   if (page === 'menu') return EDITOR_ROLES.includes(role) || role === 'viewer'
-  return featureAccessForProfile(profileOrRole).includes(page)
+  const access = featureAccessForProfile(profileOrRole)
+  const definition = FEATURE_DEFINITIONS.find(feature => feature.key === page)
+  return access.includes(page) && (definition?.requires || []).every(key => access.includes(key))
 }
 
 export function canManageFeatureAccess(profileOrRole) {

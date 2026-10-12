@@ -33,24 +33,24 @@ export default function BusyHoursCard({ lang }) {
   const max = Math.max(0, ...safeHours.map(row => row.count))
   const peaks = safeHours.filter(row => row.count === max && max > 0)
 
-  return <section aria-busy={hours === null && !failed} className="col-span-12 xl:col-span-4 min-w-0 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
-    <h3 className="mb-2 text-base font-black text-[#1F2937]">{l.title} · {formatMonthYear(monthStart, lang)}</h3>
-    <p className="mb-4 text-xs text-gray-500">{l.sub}</p>
-    {failed ? <p role="alert" className="py-12 text-center text-sm text-red-600">{l.error}<button type="button" className="ml-2 rounded border px-2 py-1" onClick={() => setRetry(value => value + 1)}>{l.retry}</button></p>
-      : hours === null ? <p role="status" className="py-12 text-center text-sm text-gray-500">{l.loading}</p>
-      : max === 0 ? <p className="py-12 text-center text-sm text-gray-500">{l.none}</p>
+  return <section aria-busy={hours === null && !failed} className="ws-panel col-span-12 xl:col-span-4 min-w-0">
+    <h3 className="ws-heading mb-1">{l.title} · {formatMonthYear(monthStart, lang)}</h3>
+    <p className="ws-caption mb-4">{l.sub}</p>
+    {failed ? <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-3">{l.error}<button type="button" className="ws-btn ws-btn-outline ws-btn-sm" onClick={() => setRetry(value => value + 1)}>{l.retry}</button></div>
+      : hours === null ? <p role="status" className="ws-empty">{l.loading}</p>
+      : max === 0 ? <p className="ws-empty">{l.none}</p>
       : <>
-        <div className="mb-4 rounded-xl bg-orange-50 p-3 text-sm text-orange-900">
-          <p className="text-xs font-bold">{l.peak} · {max} {l.orders}</p>
-          <p className="mt-1 font-black">{peaks.map(row => rangeLabel(row.hour)).join(', ')}</p>
+        <div className="mb-4 rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-3">
+          <p className="ws-caption">{l.peak} · <span className="tabular-nums">{max}</span> {l.orders}</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums text-[#22201d]">{peaks.map(row => rangeLabel(row.hour)).join(', ')}</p>
         </div>
         <div role="list" aria-label={l.title} className="grid grid-cols-4 gap-2">
           {safeHours.map(row => <div key={row.hour} role="listitem" tabIndex={0}
             aria-label={`${rangeLabel(row.hour)}: ${row.count} ${l.orders}`}
-            className={`rounded-lg border px-1 py-2 text-center focus:outline-none focus:ring-2 focus:ring-orange-500 ${row.count === max ? 'border-orange-500' : 'border-transparent'}`}
-            style={{ backgroundColor: row.count > 0 ? `hsl(24 95% ${96 - row.count / max * 58}%)` : '#F3F4F6', color: row.count / max > 0.55 ? '#FFFFFF' : '#374151' }}>
-            <p className="text-[10px] font-semibold">{rangeLabel(row.hour)}</p>
-            <p className="mt-1 text-sm font-black tabular-nums">{row.count}</p>
+            className={`rounded-lg border px-1 py-2 text-center focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/40 ${row.count === max ? 'border-[#ff5a00]' : 'border-transparent'}`}
+            style={{ backgroundColor: row.count > 0 ? `color-mix(in srgb, #ff5a00 ${Math.round(10 + row.count / max * 85)}%, #ffffff)` : '#efece9', color: row.count / max > 0.55 ? '#FFFFFF' : '#22201d' }}>
+            <p className="text-[10px] font-medium tabular-nums">{rangeLabel(row.hour)}</p>
+            <p className="mt-1 text-sm font-semibold tabular-nums">{row.count}</p>
           </div>)}
         </div>
       </>}

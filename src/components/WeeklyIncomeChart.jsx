@@ -71,46 +71,46 @@ export default function WeeklyIncomeChart({ lang, target = 0 }) {
   const monthOptions = buildIncomeMonthOptions(firstMonth || today.slice(0, 7), today.slice(0, 7))
   const max = Math.max(target * 1.2, ...(rows || []).map(row => row.averageDailyIncome * 1.2), 1)
   return (
-    <section aria-busy={!rows && !failed} className="mb-4 min-w-0 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm">
+    <section aria-busy={!rows && !failed} className="ws-panel min-w-0">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-black text-[#1F2937]">{l.title}</h3>
-          <p className="mt-1 text-xs text-gray-500">{l.sub}</p>
+        <div className="min-w-0">
+          <h3 className="ws-heading">{l.title}</h3>
+          <p className="ws-caption mt-1">{l.sub}</p>
         </div>
-        <label className="text-xs font-bold text-gray-600">{l.month}
+        <label className="ws-caption flex items-center font-medium">{l.month}
           <CalendarPicker mode="month" lang={lang} label={l.month}
             disabled={firstMonth === null || startFailed} value={month} onChange={setMonth}
             min={monthOptions[monthOptions.length - 1]} max={monthOptions[0]}
-            className="ml-2 rounded-lg border border-gray-200 bg-white p-2" />
+            className="ws-input ml-2 !h-[38px] !w-auto" />
         </label>
       </div>
-      {failed || startFailed ? <div role="alert" className="text-sm text-red-700">{l.error} <button type="button" onClick={() => setRetry(value => value + 1)} className="ml-3 rounded border px-3 py-1">{l.retry}</button></div>
-        : !rows ? <p role="status" className="py-16 text-center text-sm text-gray-500">{l.loading}</p>
-        : rows.length === 0 ? <p className="py-16 text-center text-sm text-gray-500">{l.empty}</p>
+      {failed || startFailed ? <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-3">{l.error} <button type="button" onClick={() => setRetry(value => value + 1)} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button></div>
+        : !rows ? <p role="status" className="ws-empty">{l.loading}</p>
+        : rows.length === 0 ? <p className="ws-empty">{l.empty}</p>
         : <div ref={scrollContainer} className="overflow-x-auto">
           <div style={{ minWidth: rows.length * 90 }}>
-            <p className="mb-3 text-sm font-bold text-gray-600">{rows.length > 0 && formatMonthYear(rows[0].weekStart, lang)} – {formatMonthYear(month + '-01', lang)}</p>
+            <p className="mb-3 text-sm font-medium tabular-nums text-[#22201d]">{rows.length > 0 && formatMonthYear(rows[0].weekStart, lang)} – {formatMonthYear(month + '-01', lang)}</p>
             <div className="flex">{monthGroups.map(group => <div key={group.key}
-              className="min-w-0 rounded-t-lg border-t-4 py-2 text-center text-xs font-bold text-gray-700"
+              className="min-w-0 rounded-t-lg border-t-4 py-2 text-center text-xs font-medium text-[#22201d]"
               style={{ flex: group.count, backgroundColor: group.background, borderColor: group.border }}>
               {formatMonthYear(group.key + '-01', lang)}
             </div>)}</div>
-            <div className="relative flex h-48 items-end border-b border-gray-200" role="list" aria-label={l.title}>
-              {target > 0 && <div className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-dotted border-red-500" style={{ bottom: (target / max * 100) + '%' }}>
-                <span className="absolute bottom-1 right-0 bg-white text-[10px] font-bold text-red-600">{l.target}: {formatCurrency(target)}</span>
+            <div className="relative flex h-48 items-end border-b border-[#e4e1de]" role="list" aria-label={l.title}>
+              {target > 0 && <div className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-dotted border-[#c4262c]" style={{ bottom: (target / max * 100) + '%' }}>
+                <span className="absolute bottom-1 right-0 rounded bg-white/90 px-1.5 text-[10px] font-semibold tabular-nums text-[#c4262c]">{l.target}: {formatCurrency(target)}</span>
               </div>}
               {chartRows.map(row => <div key={row.weekStart} role="listitem" tabIndex={0}
                 aria-label={row.weekStart + ' – ' + row.weekEnd + ': ' + formatCurrency(row.averageDailyIncome)}
                 title={l.total + ': ' + formatCurrency(row.totalIncome) + ' · ' + row.dayCount + ' ' + l.days}
                 className="flex h-full min-w-0 flex-1 items-end px-2" style={row.monthStyle}>
                 <div className="w-full rounded-t-lg"
-                  style={{ backgroundColor: row.dayCount === 0 ? '#E5E7EB' : row.barColor, height: Math.max(1, row.averageDailyIncome / max * 100) + '%' }} />
+                  style={{ backgroundColor: row.dayCount === 0 ? '#e4e1de' : row.barColor, height: Math.max(1, row.averageDailyIncome / max * 100) + '%' }} />
               </div>)}
             </div>
-            <div className="flex">{chartRows.map(row => <div key={row.weekStart} className="min-w-0 flex-1 px-2 pb-3 pt-2 text-center text-xs text-gray-500" style={row.monthStyle}>
-              <p>{Number(row.weekStart.slice(8))}–{Number(row.weekEnd.slice(8))}</p>
-              <p className="mt-1 font-bold" style={{ color: row.barColor }}>{row.averageDailyIncome > 0 ? formatCurrency(row.averageDailyIncome) : '—'}</p>
-              <p className="mt-1 text-[10px]">{row.dayCount} {l.days}</p>
+            <div className="flex">{chartRows.map(row => <div key={row.weekStart} className="min-w-0 flex-1 px-2 pb-3 pt-2 text-center text-xs text-[#68655f]" style={row.monthStyle}>
+              <p className="tabular-nums">{Number(row.weekStart.slice(8))}–{Number(row.weekEnd.slice(8))}</p>
+              <p className="mt-1 font-semibold tabular-nums" style={{ color: row.barColor }}>{row.averageDailyIncome > 0 ? formatCurrency(row.averageDailyIncome) : '—'}</p>
+              <p className="mt-1 text-[10px] tabular-nums">{row.dayCount} {l.days}</p>
             </div>)}</div>
           </div>
         </div>}

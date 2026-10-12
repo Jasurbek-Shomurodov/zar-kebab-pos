@@ -68,8 +68,8 @@
 
 - Authenticate routes.
 - Migration `179_game_club_orders.sql` must precede the Game Club frontend release. Never require the reopening function retired by `090`. Tests: `tests/gameClubOrders.test.js`.
-- Isolated SQL: `scripts/check-game-club-migration.mjs` tests `180`.
-- Migration `184` requires deletion reasons and snapshots them for Investor alerts. Apply before UI.
+- `180` SQL: `scripts/check-game-club-migration.mjs`.
+- `184` requires deletion reasons and snapshots them for Investor alerts. Apply before UI.
 - `185`: independent status-message tracking and minute cleanup retries. Apply before the Telegram sender. Tests: `tests/orderStatusDelivery.test.js`.
 - `186`–`188`: Ingredients access, writes, snapshot keys, and movement totals. Tests: `tests/ingredientsFeature.test.js`; SQL: `scripts/check-ingredient-movement.mjs`.
 - `189`: ingredient Investor queue and minute dispatch. Tests: `tests/ingredientNotifications.test.js`; SQL: `scripts/check-ingredient-notifications.mjs`. Deploy the sender before applying.
@@ -86,5 +86,5 @@
 - `210`: see [salary orders](salary-orders.md).
 - `211`: profile name realtime; history unchanged. Tests: `tests/activeOrderWaiters.test.js`.
 - `212`/`220`: bill edits (payments); `221`: price-mode guard (ordering); `222`: insert image guard (menu); `224`: payments
-- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`: menu.
+- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`: menu; `229`/`230`: payments.
 - `215`–`217`: payroll.md; `218`–`219`: architecture.md.
