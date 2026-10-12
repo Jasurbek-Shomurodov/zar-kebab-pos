@@ -151,7 +151,7 @@ test('PublicMenu enables tappable fixed collapsed categories', () => {
   assert.match(source, /<span aria-hidden="true" className="mt-3 h-px w-14 bg-\[#C9A86A\]/)
   assert.match(source, /<PublicDishCard\s/)
   assert.match(source, /\{showHero && <PublicMenuHero lang=\{lang\}/)
-  assert.match(source, /src=\{dark \? heroImage : heroImageLight\}/)
+  assert.match(source, /src=\{heroImage\}/)
   assert.match(source, /import heroImage from '\.\.\/assets\/brand\/zarkebab-hero-kebab\.webp'/)
   assert.match(source, /<MenuSectionHeader title=\{getCategoryName\(section\.cat, lang\)\} \/>/)
   assert.match(source, /<MenuSectionHeader title=\{dealsTitle\} tone="deal" \/>/)

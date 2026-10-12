@@ -30,7 +30,6 @@ import {
   PublicDishDetailPage,
 } from '../components/MenuProductCards'
 import heroImage from '../assets/brand/zarkebab-hero-kebab.webp'
-import heroImageLight from '../assets/brand/zarkebab-hero-light.webp'
 
 // Stable catalog identity: the Catering category is now Corporate Sets.
 const CORPORATE_SETS_CATEGORY_ID = 'c1789462941735'
@@ -371,14 +370,13 @@ function PublicMenuHero({ lang, onViewMenu, headerOffset = 0, heroRef, theme = '
       className="relative isolate overflow-hidden"
       style={{ marginTop: -headerOffset, paddingTop: headerOffset }}
     >
-      {/* Light mode uses a brighter photo and shades only behind the text, so the bottom can
+      {/* One photo for both themes. Light mode shades only behind the text, so the bottom can
           fade straight into the cream page without a muddy dark band. */}
       <img
-        key={dark ? 'dark' : 'light'}
-        src={dark ? heroImage : heroImageLight}
+        src={heroImage}
         alt=""
         fetchpriority="high"
-        className={`absolute inset-0 -z-10 h-full w-full object-cover ${dark ? 'object-center' : 'object-[center_58%]'}`}
+        className="absolute inset-0 -z-10 h-full w-full object-cover object-center"
       />
       {dark ? (
         <>
