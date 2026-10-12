@@ -188,7 +188,7 @@ h3 { font-size: 1.0625rem; } /* 17px */
 @media (prefers-reduced-motion: reduce) {
   .zk-shimmer::after { animation: none; }
 }
-html[data-theme="dark"] .zk-shimmer { background: #2c2a28; }
+html[data-theme="dark"] .zk-shimmer { background: #222a25; }
 html[data-theme="dark"] .zk-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 255 255 / 6%), transparent); }
 
 /* Native dropdowns: the browser arrow sits flush against the right border.
@@ -209,7 +209,7 @@ select:not([multiple]):not([size]):not(.appearance-none) {
 select:not([multiple]):not([size]):not(.appearance-none):disabled { cursor: not-allowed; }
 @media screen {
   html[data-theme="dark"] select:not([multiple]):not([size]):not(.appearance-none) {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b0aca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1afa5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 @media print {

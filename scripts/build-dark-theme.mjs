@@ -15,19 +15,29 @@ import twColors from 'tailwindcss/colors.js'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const DARK_THEME_CSS = path.join(ROOT, 'src/styles/dark-theme.css')
 
+// The personal-finance (Hoggish) dark palette: green-tinted near-black
+// surfaces and hairlines. Zar Kebab orange stays the accent, as in light mode.
 const DARK = {
-  shell: '#171615',
-  card: '#262523',
-  muted: '#1f1e1c',
-  hover: '#302e2c',
-  strong: '#3b3936',
-  heavy: '#55524e',
-  text: '#f2f0ed',
-  textMuted: '#b0aca6',
-  textSubtle: '#8a867f',
-  textFaint: '#5f5c58',
-  border: '#33312e',
-  borderStrong: '#45423e',
+  shell: '#101412',
+  card: '#181e1b',
+  muted: '#151b17',
+  hover: '#222a25',
+  strong: '#2b352f',
+  heavy: '#48554c',
+  text: '#edf3ef',
+  textMuted: '#a1afa5',
+  textSubtle: '#839087',
+  textFaint: '#5d6a61',
+  border: '#303b33',
+  borderStrong: '#3d4a41',
+}
+
+// The workspace's light semantic inks (--ws-positive/negative/caution) take
+// personal-finance's dark values, so money in/out stays readable on dark.
+const SEMANTIC_TEXT = {
+  '#1d7a52': '#4cc38a',
+  '#c4262c': '#f0a096',
+  '#9a5a00': '#dfb883',
 }
 
 // Tailwind variants we can express as plain pseudo-classes.
@@ -114,6 +124,7 @@ function remap(kind, rgb, interactive = false) {
     return avg >= 0.85 ? darkTint(rgb, DARK.card, 1.4) : null
   }
   if (kind === 'text') {
+    if (SEMANTIC_TEXT[hex(rgb)]) return SEMANTIC_TEXT[hex(rgb)]
     if (neutral) {
       if (avg < 0.3) return DARK.text
       if (avg < 0.55) return DARK.textMuted
@@ -185,7 +196,10 @@ export function buildDarkThemeCss() {
     --ws-border: ${DARK.border};
     --ws-input: ${DARK.borderStrong};
     --ws-hover: ${DARK.hover};
-    --ws-accent: #3a2416;
+    --ws-accent: #33241a;
+    --ws-positive: #4cc38a;
+    --ws-negative: #f0a096;
+    --ws-caution: #dfb883;
     --ws-shadow-card: 0 1px 2px rgb(0 0 0 / 30%);
   }
   html[data-theme="dark"] body { background-color: ${DARK.shell}; color: ${DARK.text}; }

@@ -15,9 +15,10 @@ test('Vite regenerates the gitignored dark theme stylesheet so new colour classe
 test('dark palette is screen-only and remaps neutral surfaces but not brand orange', () => {
   const css = buildDarkThemeCss()
   assert.match(css, /^@media screen \{/m)
-  assert.match(css, /html\[data-theme="dark"\] \.bg-white \{ background-color: #262523; \}/)
-  assert.match(css, /html\[data-theme="dark"\] \.text-\\\[\\#1F2937\\\] \{ color: #f2f0ed; \}/)
+  assert.match(css, /html\[data-theme="dark"\] \.bg-white \{ background-color: #181e1b; \}/)
+  assert.match(css, /html\[data-theme="dark"\] \.text-\\\[\\#1F2937\\\] \{ color: #edf3ef; \}/)
   assert.doesNotMatch(css, /\.bg-\\\[\\#ff5a00\\\] \{/)
+  assert.match(css, /\.text-\\\[\\#1d7a52\\\] \{ color: #4cc38a; \}/)
   assert.match(source('src/main.jsx'), /import '\.\/styles\/dark-theme\.css'/)
 })
 
