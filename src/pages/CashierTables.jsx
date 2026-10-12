@@ -411,8 +411,8 @@ function BillCard({
         </div>
 
         {canEdit && readyForCashier && quickItems.length > 0 && (
-          <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/40 p-3">
-            <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-[#ff5a00]">{l.quickItems}</p>
+          // Quick items sit directly in the card: no frame or heading, just the buttons.
+          <div className="mt-4" role="group" aria-label={l.quickItems}>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {quickItems.map(item => {
                 const busyKey = `${order.id}:${item.id}`
