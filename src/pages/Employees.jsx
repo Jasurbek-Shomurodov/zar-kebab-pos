@@ -553,10 +553,10 @@ export default function Employees() {
                       type="button"
                       onClick={() => setInactiveExpanded(current => !current)}
                       aria-expanded={inactiveExpanded}
-                      className="ws-panel flex min-h-20 items-center justify-between gap-4 !py-3 text-left transition-colors hover:!bg-[#faf9f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40 md:col-span-2 xl:col-span-3"
+                      className="ws-panel ws-inactive-card flex min-h-20 items-center justify-between gap-4 !py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40 md:col-span-2 xl:col-span-3"
                     >
                       <span className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+                        <span className="ws-inactive-avatar flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full">
                           <Users size={16} />
                         </span>
                         <span className="min-w-0">
@@ -566,7 +566,7 @@ export default function Employees() {
                       </span>
                       <span className="flex min-w-0 items-center gap-2 sm:gap-4">
                         <span className="text-right text-[13px] text-[#68655f]">{l.inactiveSalaryDue}: <span className="whitespace-nowrap font-semibold tabular-nums text-[#22201d]">{formatCurrency(inactiveSalaryDue)}</span></span>
-                        <span className="ws-count flex-shrink-0">{inactiveEmployees.length}</span>
+                        <span className="ws-count ws-tone-caution-strong flex-shrink-0">{inactiveEmployees.length}</span>
                         {inactiveExpanded ? <ChevronUp size={18} className="text-[#68655f]" /> : <ChevronDown size={18} className="text-[#68655f]" />}
                       </span>
                     </button>
@@ -590,7 +590,7 @@ export default function Employees() {
                 return (
                   <section key={employee.id} className={`ws-panel group flex flex-col ${
                     inactive
-                      ? '!bg-[#faf9f7]'
+                      ? 'ws-inactive-card'
                       : absentToday
                         ? '!border-[#c4262c]/40 ring-2 ring-[#c4262c]/10'
                         : ''
@@ -599,7 +599,7 @@ export default function Employees() {
                       <div className="flex min-w-0 flex-1 items-center gap-3">
                         <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-[15px] font-semibold ${
                           inactive
-                            ? 'bg-[#efece9] text-[#9b978f]'
+                            ? 'ws-inactive-avatar'
                             : absentToday
                               ? 'bg-[#c4262c]/10 text-[#c4262c]'
                               : 'bg-[#ff5a00]/10 text-[#c24400]'
@@ -645,7 +645,7 @@ export default function Employees() {
                             </div>
                           ) : (
                             <div className="flex min-w-0 items-center gap-1">
-                              <h2 className={`truncate text-[15px] font-semibold ${inactive ? 'text-[#68655f]' : 'text-[#22201d]'}`}>{employeeName(employee)}</h2>
+                              <h2 className={`truncate text-[15px] font-semibold text-[#22201d]`}>{employeeName(employee)}</h2>
                               {canEditName && (
                                 <button
                                   type="button"
@@ -681,13 +681,13 @@ export default function Employees() {
                       </div>
                       {/* Active is the normal state; only call out exceptions. */}
                       {(inactive || absentToday) && (
-                        <span className={`ws-status ${inactive ? '' : 'ws-tone-negative'}`}>
+                        <span className={`ws-status ${inactive ? 'ws-tone-caution-strong' : 'ws-tone-negative'}`}>
                           {inactive ? l.inactive : absentToday ? l.absentToday : l.active}
                         </span>
                       )}
                     </div>
 
-                    <div className={`mt-4 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-3 ${inactive ? 'bg-[#f3f1ee]' : 'bg-[#f8f6f3]'}`}>
+                    <div className={`mt-4 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-3 ${inactive ? 'ws-inactive-stats' : 'bg-[#f8f6f3]'}`}>
                       <Stat
                         label={l.balance}
                         value={formatCurrency(salaryBalance)}

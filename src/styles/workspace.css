@@ -245,6 +245,11 @@ select.ws-input { cursor: pointer; padding-right: 32px; }
 .ws-tone-caution { background: color-mix(in srgb, var(--ws-caution) 12%, transparent); color: color-mix(in srgb, var(--ws-caution) 80%, var(--ws-foreground)); border-color: transparent; }
 .ws-tone-info { background: color-mix(in srgb, var(--ws-info) 10%, transparent); color: color-mix(in srgb, var(--ws-info) 80%, var(--ws-foreground)); border-color: transparent; }
 .ws-tone-accent { background: var(--ws-accent); color: color-mix(in srgb, var(--ws-primary) 75%, var(--ws-foreground)); border-color: transparent; }
+/* Deactivated employees stay vivid so they are easy to find, not greyed out. */
+.ws-inactive-card { border-color: color-mix(in srgb, var(--ws-caution) 55%, transparent) !important; background: color-mix(in srgb, var(--ws-caution) 7%, var(--ws-card)) !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--ws-caution) 14%, transparent), var(--ws-shadow-card); }
+.ws-inactive-avatar { background: color-mix(in srgb, var(--ws-caution) 22%, transparent); color: color-mix(in srgb, var(--ws-caution) 85%, var(--ws-foreground)); }
+.ws-inactive-stats { background: color-mix(in srgb, var(--ws-caution) 11%, var(--ws-card)); }
+.ws-tone-caution-strong { background: var(--ws-caution); color: var(--ws-card); border-color: transparent; font-weight: 600; }
 
 /* Empty state. */
 .ws-empty {
