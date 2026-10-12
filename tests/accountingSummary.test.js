@@ -7,6 +7,7 @@ import {
   loadAccountingAllTimeBalance,
   loadAccountingMonthlyCashflow,
   loadAccountingPaidOrderSummary,
+  loadFinancialAnalysisBundle,
 } from '../src/lib/accountingSummary.js'
 
 const migration = readFileSync(
@@ -140,4 +141,56 @@ test('monthly cash flow aggregates in SQL with Accounting access and the balance
   assert.doesNotMatch(monthlyCashflowMigration, /employee_salary_rates|employee_salary_fines/)
   assert.match(monthlyCashflowMigration, /revoke all on function public\.get_accounting_monthly_cashflow\(integer\)\s+from public, anon, authenticated/)
   assert.match(monthlyCashflowMigration, /grant execute on function public\.get_accounting_monthly_cashflow\(integer\)\s+to authenticated/)
+})
+
+const financialAnalysisBundleMigration = readFileSync(
+  new URL('../migrations/231_financial_analysis_bundle.sql', import.meta.url),
+  'utf8'
+)
+
+test('Financial analysis loads in one round trip and falls back when the function is missing', async () => {
+  const calls = []
+  const dbClient = {
+    rpc(name, args) {
+      calls.push({ name, args })
+      return Promise.resolve({
+        data: {
+          current: { paid_order_summary: { cafe_income: 900 }, expenses: [{ id: 1, amount: 10 }], employee_meals: [{ business_date: '2026-10-01' }] },
+          previous: { paid_order_summary: { cafe_income: 700 }, expenses: [], employee_meals: [] },
+          salary: { profiles: [{ id: 'p1' }], payments: [{ id: 'pay1' }], bonuses: [], team: [{ id: 'u1' }] },
+          all_time_balance: '4512450.4',
+          growth: { monthly_income: null, ten_day_income: [], cashflow: { months: [], totals: { investor_support: 5 } } },
+        },
+        error: null,
+      })
+    },
+  }
+  const bundle = await loadFinancialAnalysisBundle({ dateFrom: '2026-10-01', dateTo: '2026-10-12', previousFrom: '2026-09-19', previousTo: '2026-09-30', includeGrowth: false }, { dbClient })
+  assert.deepEqual(calls, [{ name: 'get_financial_analysis', args: { p_date_from: '2026-10-01', p_date_to: '2026-10-12', p_previous_from: '2026-09-19', p_previous_to: '2026-09-30', p_include_growth: false } }])
+  assert.deepEqual(bundle.current, { expenses: [{ id: 1, amount: 10 }], employeeMealSnapshots: [{ business_date: '2026-10-01' }], paidOrderSummary: { cafe_income: 900 }, error: null })
+  assert.equal(bundle.previous.paidOrderSummary.cafe_income, 700)
+  assert.equal(bundle.salary.payments.length, 1)
+  assert.equal(bundle.allTimeBalance, 4_512_450)
+  assert.equal(bundle.growth.monthlyIncome, null)
+  assert.equal(bundle.growth.cashflow.totals.investorSupport, 5)
+
+  const missing = { rpc: () => Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_financial_analysis' } }) }
+  assert.equal(await loadFinancialAnalysisBundle({ dateFrom: '2026-10-01', dateTo: '2026-10-12', previousFrom: '2026-09-19', previousTo: '2026-09-30' }, { dbClient: missing }), null)
+  const denied = { rpc: () => Promise.resolve({ data: null, error: { code: '42501', message: 'Financial analysis access is required' } }) }
+  await assert.rejects(loadFinancialAnalysisBundle({ dateFrom: '2026-10-01', dateTo: '2026-10-12', previousFrom: '2026-09-19', previousTo: '2026-09-30' }, { dbClient: denied }), error => error.code === '42501')
+})
+
+test('Financial analysis bundle reuses the existing totals and keeps payroll detail out', () => {
+  const sql = financialAnalysisBundleMigration
+  assert.match(sql, /current_staff_can_access\('expenses'\) and public\.current_staff_can_access\('financial_analysis'\)/)
+  assert.match(sql, /public\.get_accounting_paid_order_summary\(p_date_from, p_date_to\)/)
+  assert.match(sql, /public\.get_accounting_paid_order_summary\(p_previous_from, p_previous_to\)/)
+  assert.match(sql, /public\.get_accounting_all_time_balance\(\)/)
+  assert.match(sql, /public\.get_accounting_monthly_cashflow\(13\)/)
+  assert.match(sql, /when public\.current_staff_can_access\('dashboard'\) then/)
+  assert.match(sql, /p\.paid_date between v_salary_from and v_salary_to/)
+  assert.match(sql, /b\.bonus_date between v_salary_from and v_salary_to/)
+  assert.doesNotMatch(sql, /employee_salary_rates|employee_salary_fines|employee_salary_absences/)
+  assert.match(sql, /revoke all on function public\.get_financial_analysis\(date, date, date, date, boolean\)\s+from public, anon, authenticated/)
+  assert.match(sql, /grant execute on function public\.get_financial_analysis\(date, date, date, date, boolean\)\s+to authenticated/)
 })

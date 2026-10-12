@@ -588,17 +588,23 @@ export default function Employees() {
                 const deactivateDate = normalizeSalaryEndDate(employee, deactivateDates[employee.id], today)
                 const effectiveKpiRule = getEffectiveKpiRule(kpiRules, employee.id, today)
                 return (
-                  <section key={employee.id} className={`ws-panel flex flex-col ${
+                  <section key={employee.id} className={`ws-panel group flex flex-col ${
                     inactive
                       ? '!bg-[#faf9f7]'
                       : absentToday
                         ? '!border-[#c4262c]/40 ring-2 ring-[#c4262c]/10'
                         : ''
                   }`}>
-                    <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                      <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[14px] font-semibold text-[#68655f]">
-                          {absentToday ? <CalendarX2 size={16} /> : (employeeName(employee).trim().charAt(0).toUpperCase() || <UserRound size={16} />)}
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-[15px] font-semibold ${
+                          inactive
+                            ? 'bg-[#efece9] text-[#9b978f]'
+                            : absentToday
+                              ? 'bg-[#c4262c]/10 text-[#c4262c]'
+                              : 'bg-[#ff5a00]/10 text-[#c24400]'
+                        }`}>
+                          {absentToday ? <CalendarX2 size={17} /> : (employeeName(employee).trim().charAt(0).toUpperCase() || <UserRound size={17} />)}
                         </div>
                         <div className="min-w-0 flex-1">
                           {editingEmployeeName ? (
@@ -646,7 +652,7 @@ export default function Employees() {
                                   onClick={() => startNameEdit(employee)}
                                   title={l.editName}
                                   aria-label={`${l.editName}: ${employeeName(employee)}`}
-                                  className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"
+                                  className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon text-[#9b978f] transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                                 >
                                   <Pencil size={13} />
                                 </button>
@@ -673,21 +679,28 @@ export default function Employees() {
                           )}
                         </div>
                       </div>
-                      <span className={`ws-status ${
-                        inactive
-                          ? ''
-                          : absentToday
-                            ? 'ws-tone-negative'
-                            : 'ws-tone-positive'
-                      }`}>
-                        {inactive ? l.inactive : absentToday ? l.absentToday : l.active}
-                      </span>
+                      {/* Active is the normal state; only call out exceptions. */}
+                      {(inactive || absentToday) && (
+                        <span className={`ws-status ${inactive ? '' : 'ws-tone-negative'}`}>
+                          {inactive ? l.inactive : absentToday ? l.absentToday : l.active}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="divide-y divide-[#e4e1de]/60">
+                    <div className={`mt-4 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-3 ${inactive ? 'bg-[#f3f1ee]' : 'bg-[#f8f6f3]'}`}>
+                      <Stat
+                        label={l.balance}
+                        value={formatCurrency(salaryBalance)}
+                        hot={salaryBalance > 0}
+                        negative={salaryBalance < 0}
+                        large
+                      />
+                      <Stat label={l.daily} value={formatCurrency(getDailySalaryAmount(employee, activeUntil))} />
+                    </div>
+
+                    <div className="mt-1 divide-y divide-[#e4e1de]/60">
                       <Row label={l.joined} value={formatLongDate(employee.joined_at, lang, employee.joined_at)} />
                       {inactive && employee.ended_at && <Row label={l.ended} value={formatLongDate(employee.ended_at, lang, employee.ended_at)} />}
-                      <Row label={l.daily} value={formatCurrency(getDailySalaryAmount(employee, activeUntil))} />
                       <EmployeeKpiRow
                         label={l.kpi}
                         rule={effectiveKpiRule}
@@ -697,12 +710,6 @@ export default function Employees() {
                         disabledLabel={l.kpiDisabled}
                         notConfiguredLabel={l.kpiNotConfigured}
                         unavailableLabel={l.kpiUnavailable}
-                      />
-                      <Row
-                        label={l.balance}
-                        value={formatCurrency(salaryBalance)}
-                        hot={salaryBalance > 0}
-                        negative={salaryBalance < 0}
                       />
                     </div>
 
@@ -728,7 +735,7 @@ export default function Employees() {
                       </p>
                     )}
 
-                    <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                    <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[#e4e1de]/60 pt-3">
                       <button
                         type="button"
                         onClick={() => navigate(`/admin/accounting/employees/${employee.id}/history`)}
@@ -759,7 +766,7 @@ export default function Employees() {
                             type="button"
                             onClick={() => toggleEmployeeActive(employee)}
                             disabled={saving === `employee-toggle-${employee.id}`}
-                            className={`ws-btn ws-btn-sm ${
+                            className={`ws-btn ws-btn-sm ml-auto ${
                               inactive
                                 ? confirmToggle ? 'ws-btn-primary' : 'ws-btn-outline'
                                 : confirmToggle ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'
@@ -808,6 +815,16 @@ function Row({ label, value, hot = false, negative = false }) {
   )
 }
 
+function Stat({ label, value, hot = false, negative = false, large = false }) {
+  const tone = negative ? 'text-[#c4262c]' : hot ? 'text-[#9a5a00]' : 'text-[#22201d]'
+  return (
+    <div className="min-w-0">
+      <p className="text-[12px] text-[#68655f]">{label}</p>
+      <p className={`mt-0.5 break-words font-semibold leading-tight tabular-nums tracking-[-.01em] ${large ? 'text-[19px]' : 'text-[15px] pt-[3px]'} ${tone}`}>{value}</p>
+    </div>
+  )
+}
+
 function EmployeeKpiRow({
   label,
   rule,
@@ -829,20 +846,25 @@ function EmployeeKpiRow({
         : disabledLabel
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
-      <span className="text-[13px] text-[#68655f]">{label}</span>
-      <span className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 text-right">
-        {configured && available && (
-          <span className={`text-[13px] font-semibold tabular-nums ${enabled ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
-            {formatKpiRatePercent(rule.rate_bps, lang)}
-            <span className="block text-[12px] font-normal text-[#68655f]">{formatKpiSalesBasis(rule.sales_basis, lang)}</span>
-            <span className="block text-[12px] font-normal text-[#68655f]">{formatKpiStartTime(rule.start_time, lang)}</span>
+    <div className="py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[13px] text-[#68655f]">{label}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          {configured && available && (
+            <span className={`text-[13px] font-semibold tabular-nums ${enabled ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
+              {formatKpiRatePercent(rule.rate_bps, lang)}
+            </span>
+          )}
+          <span className={`ws-badge ${enabled ? 'ws-tone-positive' : ''}`}>
+            {statusLabel}
           </span>
-        )}
-        <span className={`ws-badge ${enabled ? 'ws-tone-positive' : ''}`}>
-          {statusLabel}
         </span>
-      </span>
+      </div>
+      {configured && available && (
+        <p className="mt-1 text-right text-[12px] leading-snug text-[#68655f]">
+          {formatKpiSalesBasis(rule.sales_basis, lang)} · {formatKpiStartTime(rule.start_time, lang)}
+        </p>
+      )}
     </div>
   )
 }

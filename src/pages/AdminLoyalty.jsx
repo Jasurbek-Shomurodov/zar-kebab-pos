@@ -876,7 +876,7 @@ export default function AdminLoyalty() {
                     <p className="ws-caption mb-3">{canAdjust ? l.adjustmentHelper : l.ownerAdjustOnly}</p>
                     <div className="grid gap-2">
                       <input type="text" value={formatSignedMoneyInput(adjustment.amount)} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, amount: normalizeSignedMoneyInput(e.target.value) })} placeholder={l.amountPlaceholder} className="ws-input disabled:bg-[#efece9]" />
-                      <input value={adjustment.reason} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, reason: e.target.value })} placeholder={l.reason} className="ws-input disabled:bg-[#efece9]" />
+                      <textarea rows={2} value={adjustment.reason} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, reason: e.target.value })} placeholder={l.reason} className="ws-input !h-auto min-h-[76px] resize-y !py-2.5 leading-relaxed disabled:bg-[#efece9]" />
                       <button onClick={adjustBalance} disabled={!canAdjust} className="ws-btn ws-btn-primary">{l.apply}</button>
                     </div>
                   </div>

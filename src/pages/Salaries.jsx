@@ -57,6 +57,8 @@ import {
 } from '../lib/telegramNotifications'
 
 const FIELD = 'ws-input !h-11 min-w-0 max-w-full font-medium disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
+// Notes and reasons are free text, so they always get a multi-line field.
+const NOTE_FIELD = 'ws-input !h-auto min-h-[76px] min-w-0 max-w-full resize-y !py-2.5 leading-relaxed disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 const PAGE_SIZE = 12
 const TELEGRAM_DELIVERY_PAGE_SIZE = 5
 const KPI_PREVIEW_BASE_AMOUNT = 10_000_000
@@ -1632,8 +1634,8 @@ export default function Salaries() {
             <div className="grid min-w-0 grid-cols-1 items-stretch gap-4">
               <div className="ws-panel flex h-full min-w-0 flex-col">
                 <CardHeading icon={WalletCards} title={l.paymentBonus} description={l.transactionHelp} />
-                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="ws-segmented !grid w-full grid-cols-4 sm:col-span-2" role="group" aria-label={l.paymentBonus}>
+                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12">
+                  <div className="ws-segmented !grid w-full grid-cols-4 sm:col-span-2 lg:col-span-12" role="group" aria-label={l.paymentBonus}>
                     {['payment', 'bonus', 'fine', 'absence'].map(entryType => {
                       const active = transactionForm.entry_type === entryType
                       const isFine = entryType === 'fine'
@@ -1666,12 +1668,12 @@ export default function Salaries() {
                       )
                     })}
                   </div>
-                  <p className={`ws-notice sm:col-span-2 ${transactionForm.entry_type === 'fine' ? 'ws-tone-negative' : transactionForm.entry_type === 'absence' ? 'ws-tone-caution' : transactionForm.entry_type === 'bonus' ? 'ws-tone-positive' : 'ws-tone-accent'}`}>
+                  <p className={`ws-notice sm:col-span-2 lg:col-span-12 ${transactionForm.entry_type === 'fine' ? 'ws-tone-negative' : transactionForm.entry_type === 'absence' ? 'ws-tone-caution' : transactionForm.entry_type === 'bonus' ? 'ws-tone-positive' : 'ws-tone-accent'}`}>
                     {transactionGuidance}
                   </p>
                   {transactionForm.entry_type === 'absence' && (
                     <>
-                      <div className="sm:col-span-2">
+                      <div className="sm:col-span-2 lg:col-span-6">
                         <Field label={l.employee}>
                           <select
                             value={absenceForm.salary_profile_id}
@@ -1686,13 +1688,13 @@ export default function Salaries() {
                           </select>
                         </Field>
                       </div>
-                      <div className="sm:col-span-2">
+                      <div className="sm:col-span-1 lg:col-span-3">
                         <Field label={l.absenceDate}>
                           <DateInput value={absenceForm.absence_date} lang={lang} onChange={value => setAbsenceForm(current => ({ ...current, absence_date: value }))} disabled={!canManage || loading} />
                         </Field>
                       </div>
                       {absenceAlreadyRecorded && (
-                        <p role="alert" className="ws-notice ws-tone-negative sm:col-span-2">
+                        <p role="alert" className="ws-notice ws-tone-negative sm:col-span-2 lg:order-last lg:col-span-12">
                           {l.absenceDuplicate}
                         </p>
                       )}
@@ -1700,7 +1702,7 @@ export default function Salaries() {
                         type="button"
                         onClick={addAbsence}
                         disabled={!canManage || loading || !absenceForm.salary_profile_id || !absenceForm.absence_date || absenceAlreadyRecorded || saving === 'absence-create'}
-                        className="ws-btn ws-btn-primary !h-11 sm:col-span-2"
+                        className="ws-btn ws-btn-primary !h-11 self-end sm:col-span-1 lg:col-span-3"
                       >
                         {saving === 'absence-create' ? <Loader2 size={16} className="animate-spin" /> : <CalendarX2 size={15} />}
                         {l.absence}
@@ -1709,7 +1711,7 @@ export default function Salaries() {
                   )}
                   {transactionForm.entry_type !== 'absence' && (
                     <>
-                  <div className="sm:col-span-2">
+                  <div className={`sm:col-span-2 ${transactionForm.entry_type === 'payment' ? 'lg:col-span-3' : 'lg:col-span-6'}`}>
                     <Field
                       label={l.employee}
                       hint={selectedTransactionProfile ? `${l.balance}: ${formatCurrency(selectedTransactionBalance)}` : ''}
@@ -1746,6 +1748,7 @@ export default function Salaries() {
                       </select>
                     </Field>
                   </div>
+                  <div className="lg:col-span-3">
                   <Field label={transactionForm.entry_type === 'fine' ? l.fineDate : transactionForm.entry_type === 'bonus' ? l.bonusDate : l.paidDate}>
                     <DateInput
                       value={transactionForm.paid_date}
@@ -1767,6 +1770,8 @@ export default function Salaries() {
                       disabled={!canManage || loading}
                     />
                   </Field>
+                  </div>
+                  <div className="lg:col-span-3">
                   <Field label={l.amount}>
                     <input
                       type="text"
@@ -1778,7 +1783,9 @@ export default function Salaries() {
                       disabled={!canManage || loading}
                     />
                   </Field>
+                  </div>
                   {transactionForm.entry_type === 'payment' && (
+                    <div className="lg:col-span-3">
                     <Field label={l.method}>
                       <select
                         value={transactionForm.payment_method}
@@ -1789,12 +1796,13 @@ export default function Salaries() {
                         {EXPENSE_PAYMENT_METHODS.map(method => <option key={method} value={method}>{expensePaymentMethodLabel(method, lang)}</option>)}
                       </select>
                     </Field>
+                    </div>
                   )}
                   {transactionForm.entry_type === 'fine' && (
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-2 lg:col-span-9">
                       <Field label={l.fineReason}>
-                        <input
-                          type="text"
+                        <textarea
+                          rows={2}
                           value={transactionForm.note}
                           onChange={event => setTransactionForm(current => ({ ...current, note: event.target.value }))}
                           autoComplete="off"
@@ -1803,7 +1811,7 @@ export default function Salaries() {
                           spellCheck={false}
                           data-gramm="false"
                           data-gramm_editor="false"
-                          className={FIELD}
+                          className={NOTE_FIELD}
                           disabled={!canManage || loading}
                           required
                         />
@@ -1811,14 +1819,14 @@ export default function Salaries() {
                     </div>
                   )}
                   {transactionForm.entry_type === 'bonus' && (
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-2 lg:col-span-9">
                       <Field label={l.bonusComment}>
-                        <input
-                          type="text"
+                        <textarea
+                          rows={2}
                           value={transactionForm.note}
                           onChange={event => setTransactionForm(current => ({ ...current, note: event.target.value }))}
                           placeholder={l.bonusCommentPlaceholder}
-                          className={FIELD}
+                          className={NOTE_FIELD}
                           disabled={!canManage || loading}
                         />
                       </Field>
@@ -1828,7 +1836,7 @@ export default function Salaries() {
                     type="button"
                     onClick={addTransaction}
                     disabled={!canManage || loading || !transactionForm.salary_profile_id || normalizeExpenseAmount(transactionForm.amount) <= 0 || (transactionForm.entry_type === 'fine' && !transactionForm.note.trim()) || (saving !== '' && ['payment-create', 'bonus-create', 'fine-create'].includes(saving))}
-                    className={`ws-btn ws-btn-primary !h-11 self-end items-center ${['fine', 'bonus'].includes(transactionForm.entry_type) ? 'sm:col-span-2' : ''}`}
+                    className={`ws-btn ws-btn-primary !h-11 self-end items-center lg:col-span-3 ${['fine', 'bonus'].includes(transactionForm.entry_type) ? 'sm:col-span-2' : 'lg:col-start-10'}`}
                   >
                     {['payment-create', 'bonus-create', 'fine-create'].includes(saving)
                       ? <Loader2 size={16} className="animate-spin" />
@@ -1886,7 +1894,7 @@ export default function Salaries() {
                   })}
                 </div>
                 {salarySetupMode === 'add' && (
-                <form onSubmit={createSalaryProfile} className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+                <form onSubmit={createSalaryProfile} className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <Field label={l.employeeName}>
                       <input
@@ -1968,8 +1976,8 @@ export default function Salaries() {
               )}
 
               {salarySetupMode === 'change' && (
-                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
+                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="sm:col-span-2 lg:col-span-1">
                     <Field label={l.selectEmployee}>
                       <select
                         value={changeForm.salary_profile_id}
@@ -2015,7 +2023,7 @@ export default function Salaries() {
                     type="button"
                     onClick={() => addRate()}
                     disabled={!canManage || loading || !changeForm.salary_profile_id || !isExpenseEntryDateAllowed(changeForm.effective_from, today) || normalizeExpenseAmount(changeForm.salary_amount) <= 0 || saving === 'rate-create'}
-                    className="ws-btn ws-btn-primary !h-11 self-end items-center"
+                    className="ws-btn ws-btn-primary !h-11 self-end items-center lg:col-start-3"
                   >
                     {saving === 'rate-create' ? <Loader2 size={16} className="animate-spin" /> : <Save size={15} />}{l.save}
                   </button>

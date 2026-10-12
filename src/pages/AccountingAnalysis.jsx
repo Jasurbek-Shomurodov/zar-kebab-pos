@@ -29,9 +29,10 @@ import {
   loadAccountingAllTimeBalance,
   loadAccountingMonthlyCashflow,
   loadAccountingPaidOrderSummary,
+  loadFinancialAnalysisBundle,
 } from '../lib/accountingSummary'
-import { loadDashboardMonthlyAverageIncome } from '../lib/monthlyIncome'
-import { loadDashboardWeeklyIncome } from '../lib/weeklyIncome'
+import { loadDashboardMonthlyAverageIncome, normalizeDashboardMonthlyIncomeRows } from '../lib/monthlyIncome'
+import { loadDashboardWeeklyIncome, normalizeDashboardWeeklyIncomeRows } from '../lib/weeklyIncome'
 import {
   ANALYSIS_OTHER_COLOR,
   ANALYSIS_SERIES_COLORS,
@@ -373,64 +374,105 @@ export default function AccountingAnalysis() {
   const trendBuckets = useMemo(() => buildTrendBuckets(dateFrom, trendTo, trendInterval), [dateFrom, trendTo, trendInterval])
   const trendKey = `${dateFrom}|${trendTo}|${trendInterval}|${reloadKey}|${trendRetry}`
 
+  // One round trip (migration 231) for both periods, salary rows, the all-time
+  // balance and, when not loaded yet for this refresh, the growth band. Growth
+  // does not depend on the selected period, so date changes skip it.
+  const growthLoadedForRef = useRef(null)
   useEffect(() => {
     const requestId = requestRef.current + 1
     requestRef.current = requestId
+    const includeGrowth = growthLoadedForRef.current !== reloadKey
+    const today = todayExpenseDate()
     setLoading(true)
     setLoadFailed(false)
-    const fallbackMenuItemMap = Object.fromEntries(state.menuItems.map(item => [item.id, item]))
-    // Only salary payments and bonuses become cash rows here, and only inside the
-    // two compared periods; rates, fines and absences are payroll-page data.
-    const salaryFrom = previousPeriod.dateFrom
-    const salaryPromise = Promise.all([
-      pageRows((from, to) => supabase.from('employee_salary_profiles').select('*').order('id').range(from, to)),
-      pageRows((from, to) => supabase.from('employee_salary_payments').select('*').gte('paid_date', salaryFrom).lte('paid_date', dateTo).order('id').range(from, to)),
-      pageRows((from, to) => supabase.from('employee_salary_bonuses').select('*').gte('bonus_date', salaryFrom).lte('bonus_date', dateTo).order('id').range(from, to)),
-      pageRows((from, to) => supabase.from('profiles').select('id, full_name, email, role, status').order('id').range(from, to)),
-    ])
-    Promise.all([
-      loadPeriodRows(dateFrom, dateTo, fallbackMenuItemMap),
-      loadPeriodRows(previousPeriod.dateFrom, previousPeriod.dateTo, fallbackMenuItemMap),
-      salaryPromise,
-      loadAccountingAllTimeBalance().catch(() => null),
-    ]).then(([current, previous, salaryResults, allTimeBalance]) => {
-      if (requestId !== requestRef.current) return
-      const [profiles, payments, bonuses, team] = salaryResults
-      const salaryError = profiles.error || payments.error || bonuses.error
-      const salaryProfiles = salaryError ? [] : composeSalaryProfiles(
-        profiles.data, [], payments.data, bonuses.data, [], [], team.data,
+    if (includeGrowth) setGrowth(current => ({ ...current, status: 'loading', cashflowStatus: 'loading' }))
+
+    function applyPageData({ current, previous, salary, allTimeBalance }) {
+      const salaryProfiles = salary.error ? [] : composeSalaryProfiles(
+        salary.profiles, [], salary.payments, salary.bonuses, [], [], salary.team,
       )
       setData({ current, previous, salaryProfiles, allTimeBalance })
-      setLoadFailed(Boolean(current.error || salaryError))
+      setLoadFailed(Boolean(current.error || salary.error))
       setLoading(false)
+    }
+
+    loadFinancialAnalysisBundle({
+      dateFrom,
+      dateTo,
+      previousFrom: previousPeriod.dateFrom,
+      previousTo: previousPeriod.dateTo,
+      includeGrowth,
+    }).then(bundle => {
+      if (requestId !== requestRef.current) return
+      if (!bundle) {
+        loadSeparately(requestId, includeGrowth, today)
+        return
+      }
+      applyPageData(bundle)
+      if (bundle.growth) {
+        growthLoadedForRef.current = reloadKey
+        setGrowth({
+          status: bundle.growth.monthlyIncome ? 'ready' : 'error',
+          months: normalizeDashboardMonthlyIncomeRows(bundle.growth.monthlyIncome || []),
+          tenDay: normalizeDashboardWeeklyIncomeRows(bundle.growth.tenDayIncome || []),
+          cashflow: bundle.growth.cashflow,
+          cashflowStatus: bundle.growth.cashflow ? 'ready' : 'error',
+          today,
+        })
+      }
+    }).catch(() => {
+      if (requestId !== requestRef.current) return
+      setLoadFailed(true)
+      setLoading(false)
+      if (includeGrowth) setGrowth(current => ({ ...current, status: 'error', cashflowStatus: 'error' }))
     })
+
+    // Before migration 231: the same data as separate requests.
+    function loadSeparately(id, withGrowth, day) {
+      const fallbackMenuItemMap = Object.fromEntries(state.menuItems.map(item => [item.id, item]))
+      // Only salary payments and bonuses become cash rows here, and only inside the
+      // two compared periods; rates, fines and absences are payroll-page data.
+      const salaryFrom = previousPeriod.dateFrom
+      Promise.all([
+        loadPeriodRows(dateFrom, dateTo, fallbackMenuItemMap),
+        loadPeriodRows(previousPeriod.dateFrom, previousPeriod.dateTo, fallbackMenuItemMap),
+        Promise.all([
+          pageRows((from, to) => supabase.from('employee_salary_profiles').select('*').order('id').range(from, to)),
+          pageRows((from, to) => supabase.from('employee_salary_payments').select('*').gte('paid_date', salaryFrom).lte('paid_date', dateTo).order('id').range(from, to)),
+          pageRows((from, to) => supabase.from('employee_salary_bonuses').select('*').gte('bonus_date', salaryFrom).lte('bonus_date', dateTo).order('id').range(from, to)),
+          pageRows((from, to) => supabase.from('profiles').select('id, full_name, email, role, status').order('id').range(from, to)),
+        ]),
+        loadAccountingAllTimeBalance().catch(() => null),
+      ]).then(([current, previous, [profiles, payments, bonuses, team], allTimeBalance]) => {
+        if (id !== requestRef.current) return
+        applyPageData({
+          current,
+          previous,
+          salary: { profiles: profiles.data, payments: payments.data, bonuses: bonuses.data, team: team.data, error: profiles.error || payments.error || bonuses.error },
+          allTimeBalance,
+        })
+      })
+      if (!withGrowth) return
+      Promise.allSettled([
+        loadDashboardMonthlyAverageIncome({ monthCount: 13 }),
+        loadDashboardWeeklyIncome(`${day.slice(0, 8)}01`),
+        loadAccountingMonthlyCashflow(13),
+      ]).then(([months, tenDay, cashflow]) => {
+        if (id !== requestRef.current) return
+        growthLoadedForRef.current = reloadKey
+        setGrowth({
+          status: months.status === 'fulfilled' ? 'ready' : 'error',
+          months: months.status === 'fulfilled' ? months.value : [],
+          tenDay: tenDay.status === 'fulfilled' ? tenDay.value : [],
+          cashflow: cashflow.status === 'fulfilled' ? cashflow.value : null,
+          cashflowStatus: cashflow.status === 'fulfilled' ? 'ready' : isMissingAccountingMonthlyCashflowRpc(cashflow.reason) ? 'missing' : 'error',
+          today: day,
+        })
+      })
+    }
+
     return () => { requestRef.current += 1 }
   }, [dateFrom, dateTo, previousPeriod, reloadKey]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Growth reads whole months, independent of the selected period: immutable
-  // monthly sales snapshots and ten-day periods (Dashboard RPCs) plus monthly
-  // cash flow (migration 229). Each part fails on its own.
-  useEffect(() => {
-    let active = true
-    const today = todayExpenseDate()
-    setGrowth(current => ({ ...current, status: 'loading', cashflowStatus: 'loading' }))
-    Promise.allSettled([
-      loadDashboardMonthlyAverageIncome({ monthCount: 13 }),
-      loadDashboardWeeklyIncome(`${today.slice(0, 8)}01`),
-      loadAccountingMonthlyCashflow(13),
-    ]).then(([months, tenDay, cashflow]) => {
-      if (!active) return
-      setGrowth({
-        status: months.status === 'fulfilled' ? 'ready' : 'error',
-        months: months.status === 'fulfilled' ? months.value : [],
-        tenDay: tenDay.status === 'fulfilled' ? tenDay.value : [],
-        cashflow: cashflow.status === 'fulfilled' ? cashflow.value : null,
-        cashflowStatus: cashflow.status === 'fulfilled' ? 'ready' : isMissingAccountingMonthlyCashflowRpc(cashflow.reason) ? 'missing' : 'error',
-        today,
-      })
-    })
-    return () => { active = false }
-  }, [reloadKey])
 
   const growthOverview = useMemo(() => buildGrowthOverview(growth.months, growth.tenDay), [growth.months, growth.tenDay])
   const profitRows = useMemo(() => buildMonthlyProfitRows(growth.cashflow?.months, growth.today), [growth.cashflow, growth.today])

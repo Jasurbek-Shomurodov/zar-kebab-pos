@@ -140,6 +140,7 @@ const MIGRATION_HINTS = {
   get_accounting_paid_order_summary: 'Run migrations/109_accounting_paid_order_summary.sql',
   get_accounting_all_time_balance: 'Run migrations/177_accounting_all_time_balance.sql',
   get_accounting_monthly_cashflow: 'Run migrations/229_accounting_monthly_cashflow.sql',
+  get_financial_analysis: 'Run migrations/231_financial_analysis_bundle.sql',
 }
 
 function missingColumnMessage(error) {
@@ -225,6 +226,7 @@ export async function runDbHealthChecks(dbClient = supabase) {
   }))
   checks.push(await checkRpc(dbClient, 'get_accounting_all_time_balance', {}))
   checks.push(await checkRpc(dbClient, 'get_accounting_monthly_cashflow', { p_month_count: 1 }))
+  checks.push(await checkRpc(dbClient, 'get_financial_analysis', { p_date_from: '2000-01-01', p_date_to: '2000-01-01', p_previous_from: '1999-12-31', p_previous_to: '1999-12-31', p_include_growth: false }))
   checks.push(await checkRpc(dbClient, 'generate_daily_kpi_bonuses', { p_business_date: null }))
   checks.push(await checkRpc(dbClient, 'generate_employee_daily_meal_expense', { p_business_date: null }))
   checks.push(await checkRpc(dbClient, 'get_pending_daily_kpi_dates', { p_limit: 1 }))

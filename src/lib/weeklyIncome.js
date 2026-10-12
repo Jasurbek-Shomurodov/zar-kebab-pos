@@ -6,7 +6,11 @@ export async function loadDashboardWeeklyIncome(monthStart, { signal, dbClient =
   if (signal && typeof request.abortSignal === 'function') request = request.abortSignal(signal)
   const { data, error } = await request
   if (error) throw error
-  return (data || []).map(row => ({
+  return normalizeDashboardWeeklyIncomeRows(data)
+}
+
+export function normalizeDashboardWeeklyIncomeRows(rows = []) {
+  return (rows || []).map(row => ({
     weekStart: row.week_start,
     weekEnd: row.week_end,
     totalIncome: Number(row.total_income) || 0,

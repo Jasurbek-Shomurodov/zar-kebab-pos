@@ -41,7 +41,7 @@
 - Wait for expenses, paid-order summary/history, and salary data before ending loading.
 - KPIs use permission-checked aggregates, never full history. The all-time cash remainder excludes unpaid salary liability.
 - Detailed order rows belong to reports, receipts, and drilldowns.
-- Accounting: recording, spending/salary KPIs, open method balances. Financial analysis + Estimate: `financial_analysis` (needs `expenses`; `230`). Growth: `229`.
+- Accounting: recording, spending/salary KPIs, open method balances. Analysis + Estimate: `financial_analysis` (needs `expenses`; `230`); `229` growth, `231` one-trip load.
 
 ## Expenses and estimates
 
