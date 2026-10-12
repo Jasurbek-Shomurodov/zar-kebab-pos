@@ -60,6 +60,12 @@ const FIELD = 'ws-input !h-11 min-w-0 max-w-full font-medium disabled:cursor-not
 // Notes and reasons are free text, so they always get a multi-line field.
 const NOTE_FIELD = 'ws-input !h-auto min-h-[76px] min-w-0 max-w-full resize-y !py-2.5 leading-relaxed disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 const PAGE_SIZE = 12
+// Bonus comments and fine reasons must explain the entry, not just name it.
+const MIN_NOTE_WORDS = 5
+
+function countNoteWords(value) {
+  return String(value || '').trim().split(/\s+/).filter(Boolean).length
+}
 const TELEGRAM_DELIVERY_PAGE_SIZE = 5
 const KPI_PREVIEW_BASE_AMOUNT = 10_000_000
 
@@ -185,7 +191,8 @@ export default function Salaries() {
       bonusDate: 'Bonus sanasi',
       fineDate: 'Jarima sanasi',
       bonusComment: 'Bonus izohi',
-      bonusCommentPlaceholder: 'Bonus sababini yoki izohni kiriting (ixtiyoriy)',
+      bonusCommentPlaceholder: 'Bonus sababini kiriting',
+      noteMinWords: 'Kamida 5 ta so‘z bilan yozing.',
       fineReason: 'Jarima sababi',
       absence: 'Kelmagan kun',
       markAbsence: 'Kelmagan kunni belgilash',
@@ -351,7 +358,8 @@ export default function Salaries() {
       bonusDate: 'Дата бонуса',
       fineDate: 'Дата штрафа',
       bonusComment: 'Комментарий к бонусу',
-      bonusCommentPlaceholder: 'Укажите причину или комментарий (необязательно)',
+      bonusCommentPlaceholder: 'Укажите причину бонуса',
+      noteMinWords: 'Напишите не менее 5 слов.',
       fineReason: 'Причина штрафа',
       absence: 'Отсутствие',
       markAbsence: 'Отметить отсутствие',
@@ -517,7 +525,8 @@ export default function Salaries() {
       bonusDate: 'Bonus date',
       fineDate: 'Fine date',
       bonusComment: 'Bonus comment',
-      bonusCommentPlaceholder: 'Add a reason or comment (optional)',
+      bonusCommentPlaceholder: 'Add the reason for the bonus',
+      noteMinWords: 'Write at least 5 words.',
       fineReason: 'Reason for fine',
       absence: 'Absence',
       markAbsence: 'Mark absence',
@@ -1383,7 +1392,8 @@ export default function Salaries() {
     const isBonus = entryType === 'bonus'
     const isFine = entryType === 'fine'
     const reason = String(transactionForm.note || '').trim()
-    if (!canManage || amount <= 0 || (isFine && !reason) || !canRecordSalaryTransaction(salaryProfile, entryType, paidDate)) return
+    const needsNote = isFine || isBonus
+    if (!canManage || amount <= 0 || (needsNote && countNoteWords(reason) < MIN_NOTE_WORDS) || !canRecordSalaryTransaction(salaryProfile, entryType, paidDate)) return
     setError('')
     setMessage('')
     setSaving(`${entryType}-create`)
@@ -1404,7 +1414,7 @@ export default function Salaries() {
         amount,
         payment_method: salaryProfile.payment_method || 'cash',
         accrues_to_salary: true,
-        note: transactionForm.note || '',
+        note: reason,
         created_by: profile?.id || null,
         created_by_name: profile?.full_name || profile?.email || state.user?.name || '',
       }).select('id').single()
@@ -1800,7 +1810,7 @@ export default function Salaries() {
                   )}
                   {transactionForm.entry_type === 'fine' && (
                     <div className="sm:col-span-2 lg:col-span-9">
-                      <Field label={l.fineReason}>
+                      <Field label={l.fineReason} hint={l.noteMinWords}>
                         <textarea
                           rows={2}
                           value={transactionForm.note}
@@ -1820,7 +1830,7 @@ export default function Salaries() {
                   )}
                   {transactionForm.entry_type === 'bonus' && (
                     <div className="sm:col-span-2 lg:col-span-9">
-                      <Field label={l.bonusComment}>
+                      <Field label={l.bonusComment} hint={l.noteMinWords}>
                         <textarea
                           rows={2}
                           value={transactionForm.note}
@@ -1828,6 +1838,7 @@ export default function Salaries() {
                           placeholder={l.bonusCommentPlaceholder}
                           className={NOTE_FIELD}
                           disabled={!canManage || loading}
+                          required
                         />
                       </Field>
                     </div>
@@ -1835,7 +1846,7 @@ export default function Salaries() {
                   <button
                     type="button"
                     onClick={addTransaction}
-                    disabled={!canManage || loading || !transactionForm.salary_profile_id || normalizeExpenseAmount(transactionForm.amount) <= 0 || (transactionForm.entry_type === 'fine' && !transactionForm.note.trim()) || (saving !== '' && ['payment-create', 'bonus-create', 'fine-create'].includes(saving))}
+                    disabled={!canManage || loading || !transactionForm.salary_profile_id || normalizeExpenseAmount(transactionForm.amount) <= 0 || (['fine', 'bonus'].includes(transactionForm.entry_type) && countNoteWords(transactionForm.note) < MIN_NOTE_WORDS) || (saving !== '' && ['payment-create', 'bonus-create', 'fine-create'].includes(saving))}
                     className={`ws-btn ws-btn-primary !h-11 self-end items-center lg:col-span-3 ${['fine', 'bonus'].includes(transactionForm.entry_type) ? 'sm:col-span-2' : 'lg:col-start-10'}`}
                   >
                     {['payment-create', 'bonus-create', 'fine-create'].includes(saving)
