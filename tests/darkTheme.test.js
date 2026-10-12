@@ -26,6 +26,8 @@ test('every staff top bar carries the light/dark toggle at the top right', () =>
   assert.match(source('src/components/AppShell.jsx'), /\{headerActions\}\s*<ThemeToggle lang=\{state\.lang\} \/>/)
   assert.match(source('src/components/WorkspaceTopBar.jsx'), /\{children\}\s*<ThemeToggle lang=\{lang\} \/>/)
   assert.match(source('src/pages/WaiterOrder.jsx'), /<ThemeToggle lang=\{lang\}/)
+  assert.match(source('src/pages/PublicMenu.jsx'), /<ThemeToggle lang=\{lang\}/)
+  assert.match(source('src/pages/PublicVacancies.jsx'), /<ThemeToggle lang=\{lang\}/)
 })
 
 test('theme only applies while a staff screen is mounted so public menus and prints stay light', () => {

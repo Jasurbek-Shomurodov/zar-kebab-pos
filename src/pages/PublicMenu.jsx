@@ -21,6 +21,7 @@ import { findMenuItemByLinkKey, getMenuItemPublicPath } from '../lib/menuLinks'
 import { getMenuItemForPriceMode } from '../lib/priceModes'
 import { loadPublicMenuPriceSettings } from '../lib/db'
 import LanguageSwitcher from '../components/LanguageSwitcher'
+import ThemeToggle from '../components/ThemeToggle'
 import MenuCategoryScroller, { menuCategorySectionId } from '../components/MenuCategoryScroller'
 import {
   ProductCard as MenuProductCard,
@@ -806,6 +807,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
               >
                 <Search size={17} />
               </button>
+              <ThemeToggle lang={lang} className="ml-1.5 mr-auto !h-9 !w-9 !rounded-xl" />
 
               <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-0.5 min-[360px]:gap-1 min-[400px]:gap-2">
                 <img src={getBrandLogo(lang)} alt="Zar Kebab" className="h-7 w-auto object-contain min-[360px]:h-8 min-[400px]:h-9" />
@@ -867,6 +869,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                 >
                   <Search size={17} />
                 </button>
+                <ThemeToggle lang={lang} className="!h-10 !w-10 !rounded-xl" />
                 <div className="hidden lg:block">
                   <HeaderSelect
                     value={menuCurrency}

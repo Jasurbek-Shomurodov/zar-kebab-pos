@@ -1,8 +1,9 @@
 import { useLayoutEffect, useSyncExternalStore } from 'react'
 
-// Staff workspace light/dark theme. The choice is a per-device preference; the
-// dark palette lives in src/styles/dark-theme.css and only applies while a staff
-// screen is mounted, so the public menu, Telegram menu and printed checks stay light.
+// Light/dark theme for staff screens and the public zarkebab.uz pages. The choice
+// is a per-device preference; the dark palette lives in src/styles/dark-theme.css
+// and only applies while a themed screen is mounted, so the Telegram menu and
+// printed checks stay light.
 export const THEME_KEY = 'zar-theme'
 
 const listeners = new Set()

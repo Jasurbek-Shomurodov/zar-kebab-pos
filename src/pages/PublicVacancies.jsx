@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, CheckCircle2, ChefHat, Clock3, MapPin, Phone, Send, UserRound, UsersRound } from 'lucide-react'
 import LanguageSwitcher from '../components/LanguageSwitcher'
+import ThemeToggle from '../components/ThemeToggle'
 import { getBrandLogo } from '../lib/brandLogo'
 import { useApp } from '../store/AppContext'
 
@@ -190,7 +191,10 @@ export default function PublicVacancies() {
             <img src={getBrandLogo(lang)} alt="" className="h-11 w-auto object-contain sm:h-14" />
             <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.15em] text-[#ff5a00] sm:text-xs">Zar Kebab</span>
           </Link>
-          <LanguageSwitcher className="justify-self-end" />
+          <div className="flex items-center gap-2 justify-self-end">
+            <ThemeToggle lang={lang} className="!h-10 !w-10 !rounded-xl" />
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
