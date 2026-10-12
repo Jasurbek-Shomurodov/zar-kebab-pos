@@ -58,7 +58,7 @@
 - Exclude Alcohol, Utensils, Carbonated Drinks. Bazaar prices locked; `227`/`228` sync catalog edits to same-name rows, unit-converted.
 - Each active product has one protected base recipe and one recipe per eligible variant; empty `variant_option_id` means base.
 - Ingredient rows and included-product component rows belong to the exact product-and-variant recipe. Batch ingredient cost divided by `portion_count`, plus per-portion component cost, is the current portion cost.
-- Save the card and complete ingredient list atomically with `save_menu_item_tech_card(payload jsonb)`. Migration `183` batches cost sync, skips unchanged costs, and stops at convergence; base/variant dependencies still propagate.
+- Save the card and complete ingredient list atomically with `save_menu_item_tech_card(payload jsonb)`. `183`/`236`: one sync per save for changed dishes and their includers; unchanged costs skipped, stops at convergence.
 - `tech_cards` permission controls route/read access; Manage Menu separately controls writes.
 - Ingredient prices/recipes never enter public, Telegram-menu, waiter, cashier, order, or receipt payloads.
 - Saving a base recipe synchronizes the protected parent cost; saving a variant recipe synchronizes that option in protected `variant_costs`. Preserve order-item cost snapshots.
