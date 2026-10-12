@@ -8,7 +8,7 @@ import AppShell from '../components/AppShell'
 import {
   Clock, CheckCircle2, Receipt,
   Search, CreditCard, Settings, CalendarClock, Phone,
-  ShoppingBag, Truck, Gamepad2,
+  ShoppingBag, Truck, Gamepad2, Plus, Users,
 } from 'lucide-react'
 import { getOrderTotal } from '../lib/analytics'
 import { getReservationSummary, getWaiterTableStatus, sortWaiterTableInfosByOpenedTime } from '../lib/tableManagement'
@@ -55,7 +55,6 @@ const L = {
     deliveryOrder: 'Delivery Order',
     manageTables: 'Manage tables',
     todaysReservations: 'Today’s Reservations',
-    zones: 'Zones',
     seat: 'Seat',
     cancelReservation: 'Cancel',
     call: 'Call',
@@ -93,7 +92,6 @@ const L = {
     deliveryOrder: 'Доставка',
     manageTables: 'Управление столами',
     todaysReservations: 'Брони сегодня',
-    zones: 'Зоны',
     seat: 'Посадить',
     cancelReservation: 'Отменить',
     call: 'Позвонить',
@@ -131,7 +129,6 @@ const L = {
     deliveryOrder: 'Yetkazib berish',
     manageTables: 'Stollarni boshqarish',
     todaysReservations: 'Bugungi bronlar',
-    zones: 'Zonalar',
     seat: 'Joylashtirish',
     cancelReservation: 'Bekor qilish',
     call: 'Qo‘ng‘iroq',
@@ -268,7 +265,7 @@ function elapsedSince(isoString, lang) {
 
 function FilterChip({ label, count, active, cfg, onClick }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick}>
+    <button type="button" aria-pressed={active} onClick={onClick} className={!active && count === 0 ? 'opacity-45' : ''}>
       {cfg?.dot && <span className={`h-2 w-2 shrink-0 rounded-full ${cfg.dot}`} aria-hidden="true" />}
       {label}
       <span className="ws-count">{count}</span>
@@ -328,6 +325,38 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
   const ActionIcon = action?.Icon
   const reservation = getReservationSummary(table)
   const canManageActiveOrder = ['waiting_kitchen', 'preparing'].includes(status)
+  const capacity = Number(table.capacity) || 0
+
+  // Free tables sit under their zone heading, so a compact tile is enough:
+  // the name, seat count and a start affordance, with the zone on the edge.
+  if (status === 'available') {
+    return (
+      <div
+        onClick={canEdit ? onClick : undefined}
+        role={canEdit ? 'button' : undefined}
+        tabIndex={canEdit ? 0 : undefined}
+        aria-label={canEdit ? `${table.name} — ${tr(lang, 'tapToStart')}` : undefined}
+        onKeyDown={e => canEdit && e.key === 'Enter' && onClick()}
+        className={`ws-panel group relative flex min-h-[64px] w-full items-center gap-2 overflow-hidden !py-2.5 !pl-4 !pr-2.5 text-left transition-[box-shadow,border-color] ${canEdit ? 'cursor-pointer hover:border-[#ff5a00]/40 hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40' : ''}`}
+      >
+        <span className={`absolute inset-y-0 left-0 w-[3px] ${cardEdge}`} aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-semibold leading-tight text-[#22201d]">{table.name}</p>
+          {capacity > 0 && (
+            <p className="ws-caption mt-1 flex items-center gap-1 !text-xs tabular-nums">
+              <Users size={11} className="shrink-0" aria-hidden="true" />
+              {capacity}
+            </p>
+          )}
+        </div>
+        {canEdit && (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1d7a52]/10 text-[#1d7a52] transition-colors group-hover:bg-[#ff5a00] group-hover:text-white" aria-hidden="true">
+            <Plus size={16} />
+          </span>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -363,10 +392,6 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
       </div>
 
       {/* State-specific content */}
-      {status === 'available' && (
-        <p className="ws-caption mt-auto !text-xs">{tr(lang, 'tapToStart')}</p>
-      )}
-
       {status === 'reserved' && reservation && (
         <div className="mt-1 space-y-1">
           <p className="text-sm font-semibold text-[#22201d]">{tr(lang, 'reservedFor')}: {reservation.name || '-'}</p>
@@ -871,22 +896,6 @@ export default function WaiterTables() {
             </div>
           </div>
 
-          {/* Zone color legend */}
-          {visibleZones.length > 0 && (
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-              <span className="ws-caption shrink-0">{tr(lang, 'zones')}</span>
-              {visibleZones.map(zoneItem => {
-                const zone = getTableZoneVisual(zoneItem, visibleZones)
-                return (
-                  <span key={zoneItem.id || zoneItem.name} className="ws-badge shrink-0 !bg-white">
-                    <span className={`h-2 w-2 rounded-full ${zone.dot}`} aria-hidden="true" />
-                    {zoneItem.name}
-                  </span>
-                )
-              })}
-            </div>
-          )}
-
           {/* Status sections */}
           <div className="space-y-8">
             {sections.map(({ status, items }) => {
@@ -902,7 +911,7 @@ export default function WaiterTables() {
                     <span className="ws-count">{tableCountLabel(lang, items.length)}</span>
                   </div>
                   {status === 'available' ? (
-                    <div className="space-y-6">
+                    <div className="space-y-5">
                       {availableZoneGroups.map(({ zone: zoneItem, items: zoneItems }) => {
                         const zone = getTableZoneVisual(zoneItem, visibleZones)
                         return (
@@ -914,7 +923,7 @@ export default function WaiterTables() {
                               </div>
                               <span className="ws-caption shrink-0">{tableCountLabel(lang, zoneItems.length)}</span>
                             </div>
-                            <div className="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-5">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
                               {zoneItems.map(({ table, status: itemStatus, counts }) => (
                                 <TableCard
                                   key={table.id}
