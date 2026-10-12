@@ -271,10 +271,9 @@ test('PublicMenu exposes public contact actions', () => {
   assert.match(languageSwitcher, /className = ''/)
   assert.match(languageSwitcher, /compact = false/)
   assert.match(languageSwitcher, /\$\{className\}/)
-  assert.match(publicMenu, /import \{ ArrowLeft, ChevronDown/)
-  assert.match(publicMenu, /<ChevronDown size=\{13\} strokeWidth=\{3\}/)
-  assert.match(languageSwitcher, /import \{ ChevronDown \} from 'lucide-react'/)
-  assert.match(languageSwitcher, /<ChevronDown size=\{13\} strokeWidth=\{3\}/)
+  // Header selects are plain chips: no dropdown arrow.
+  assert.doesNotMatch(publicMenu, /ChevronDown/)
+  assert.doesNotMatch(languageSwitcher, /ChevronDown/)
   assert.match(publicMenu, /icon=\{Coins\}/)
   assert.match(publicMenu, /"so'm UZS"/)
   assert.match(publicMenu, /'\$ USD'/)

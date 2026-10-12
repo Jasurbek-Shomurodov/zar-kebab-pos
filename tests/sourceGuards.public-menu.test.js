@@ -147,7 +147,9 @@ test('PublicMenu enables tappable fixed collapsed categories', () => {
   assert.match(source, /if \(searchMode\) \{[\s\S]*<MobileSearchPage[\s\S]*open[\s\S]*categories=\{categoryCards\}/)
   assert.match(source, /open=\{mobileSearchOpen\}/)
   assert.match(source, /function MenuSectionHeader\(\{ title, tone = 'default' \}\)/)
-  assert.match(source, /<div className="h-px min-w-0 flex-1 bg-\[#C9C9C9\]"/)
+  assert.match(source, /<span aria-hidden="true" className="mt-3 h-px w-14 bg-\[#C9A86A\]/)
+  assert.match(source, /<PublicDishCard\s/)
+  assert.match(source, /\{showHero && <PublicMenuHero imageUrl=\{heroImageUrl\}/)
   assert.match(source, /<MenuSectionHeader title=\{getCategoryName\(section\.cat, lang\)\} \/>/)
   assert.match(source, /<MenuSectionHeader title=\{dealsTitle\} tone="deal" \/>/)
   assert.doesNotMatch(source, /\{section\.items\.length\} \{lang/)
@@ -193,15 +195,21 @@ test('public search has its own route, filters by one category, and vacancies ha
   assert.doesNotMatch(vacancies, /key: 'cashier'/)
 })
 
-test('the Zar Kebab public website defaults to Russian once and then preserves visitor choice', () => {
+test('the Zar Kebab public website follows the system language until a visitor picks one', async () => {
   const helpers = readSource('src/store/reducerHelpers.js')
   const loader = functionBody(helpers, 'loadInitialLang')
-
   assert.match(loader, /hostname === 'zarkebab\.uz'/)
   assert.match(loader, /hostname === 'www\.zarkebab\.uz'/)
-  assert.match(loader, /zk_public_default_lang_ru_v1/)
-  assert.match(loader, /localStorage\.setItem\('zk_lang', 'ru'\)/)
-  assert.match(loader, /localStorage\.getItem\('zk_lang'\) \|\| 'ru'/)
+  assert.match(loader, /localStorage\.getItem\('zk_lang_chosen'\) === '1'/)
+  assert.match(loader, /return systemLang\(\)/)
+  assert.match(readSource('src/store/settingsReducer.js'), /localStorage\.setItem\('zk_lang_chosen', '1'\)/)
+
+  const { systemLang } = await import('../src/store/reducerHelpers.js')
+  assert.equal(systemLang(['ru-RU', 'en']), 'ru')
+  assert.equal(systemLang(['uz-Latn-UZ']), 'uz')
+  assert.equal(systemLang(['en-GB']), 'en')
+  assert.equal(systemLang(['de-DE', 'ru']), 'en')
+  assert.equal(systemLang([undefined]), 'en')
 })
 
 test('menu item discounts use old_price for display and public deals', () => {

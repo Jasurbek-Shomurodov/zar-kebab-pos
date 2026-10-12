@@ -35,23 +35,27 @@ export function loadSettings() {
   } catch { return {} }
 }
 
+const SUPPORTED_LANGS = ['uz', 'ru', 'en']
+
+/** The device's primary language when it is Uzbek, Russian or English; anything else is English. */
+export function systemLang(languages = globalThis.navigator?.languages?.length ? globalThis.navigator.languages : [globalThis.navigator?.language]) {
+  const primary = String(languages?.[0] || '').toLowerCase().split('-')[0]
+  return SUPPORTED_LANGS.includes(primary) ? primary : 'en'
+}
+
 export function loadInitialLang() {
   try {
+    const saved = localStorage.getItem('zk_lang')
+    const validSaved = SUPPORTED_LANGS.includes(saved)
+    // zk_lang_chosen is written only when someone picks a language (settingsReducer SET_LANG).
+    if (validSaved && localStorage.getItem('zk_lang_chosen') === '1') return saved
     const hostname = String(globalThis.location?.hostname || '').toLowerCase()
     const isPublicWebsite = hostname === 'zarkebab.uz' || hostname === 'www.zarkebab.uz'
-    if (isPublicWebsite && !localStorage.getItem('zk_public_default_lang_ru_v1')) {
-      localStorage.setItem('zk_lang', 'ru')
-      localStorage.setItem('zk_public_default_lang_ru_v1', '1')
-      return 'ru'
-    }
-    if (!localStorage.getItem('zk_default_lang_ru_v2')) {
-      localStorage.setItem('zk_lang', 'ru')
-      localStorage.setItem('zk_default_lang_ru_v2', '1')
-      return 'ru'
-    }
-    return localStorage.getItem('zk_lang') || 'ru'
+    // Staff devices keep the language they already use; website visitors start from their system language.
+    if (!isPublicWebsite && validSaved) return saved
+    return systemLang()
   } catch {
-    return 'ru'
+    return 'en'
   }
 }
 

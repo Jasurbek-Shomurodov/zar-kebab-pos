@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronDown, Clock3, Coins, Instagram, MapPin, Phone, Search, Send, UtensilsCrossed, X } from 'lucide-react'
+import { ArrowLeft, Clock3, Coins, Instagram, MapPin, Phone, Search, Send, UtensilsCrossed, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getCategoryName } from '../lib/i18n'
 import { getBrandLogo } from '../lib/brandLogo'
@@ -22,11 +22,14 @@ import { getMenuItemForPriceMode } from '../lib/priceModes'
 import { loadPublicMenuPriceSettings } from '../lib/db'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import ThemeToggle from '../components/ThemeToggle'
+import { useTheme } from '../lib/theme'
 import MenuCategoryScroller, { menuCategorySectionId } from '../components/MenuCategoryScroller'
 import {
   ProductCard as MenuProductCard,
   ProductDetailPage as MenuProductDetailPage,
+  PublicDishCard,
 } from '../components/MenuProductCards'
+import { isMenuVideoUrl } from '../lib/menuMedia'
 
 // Stable catalog identity: the Catering category is now Corporate Sets.
 const CORPORATE_SETS_CATEGORY_ID = 'c1789462941735'
@@ -135,7 +138,7 @@ function HeaderSelect({ value, onChange, options, ariaLabel, icon: Icon, classNa
         onChange={event => onChange(event.target.value)}
         aria-label={ariaLabel}
         title={ariaLabel}
-        className={`h-full appearance-none rounded-xl bg-transparent py-0 pr-7 text-xs font-black uppercase outline-none ${Icon ? 'pl-8' : 'pl-3'}`}
+        className={`h-full cursor-pointer appearance-none rounded-xl bg-transparent py-0 pr-3 text-xs font-black uppercase outline-none ${Icon ? 'pl-8' : 'pl-3'}`}
       >
         {options.map(option => (
           <option key={option.value} value={option.value}>
@@ -143,7 +146,6 @@ function HeaderSelect({ value, onChange, options, ariaLabel, icon: Icon, classNa
           </option>
         ))}
       </select>
-      <ChevronDown size={13} strokeWidth={3} className="pointer-events-none absolute right-2.5 text-[#64748B]" />
     </label>
   )
 }
@@ -250,16 +252,76 @@ function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenV
 }
 
 function MenuSectionHeader({ title, tone = 'default' }) {
-  const titleClass = tone === 'deal' ? 'text-red-600' : 'text-[#1F2937]'
+  const titleClass = tone === 'deal' ? 'text-[#ff5a00]' : 'text-[#1F1A15]'
 
   return (
-    <div className="mb-3.5 flex items-center gap-3 sm:mb-5 sm:gap-5">
-      <div className="h-px min-w-0 flex-1 bg-[#C9C9C9]" />
-      <h2 className={`max-w-[76%] flex-shrink-0 text-center text-[22px] font-black leading-none tracking-tight sm:max-w-[70%] sm:text-[30px] ${titleClass}`}>
+    <div className="mb-6 flex flex-col items-center text-center sm:mb-9">
+      <h2 className={`zk-serif max-w-[90%] text-[34px] font-semibold leading-none sm:text-[48px] ${titleClass}`}>
         {title}
       </h2>
-      <div className="h-px min-w-0 flex-1 bg-[#C9C9C9]" />
+      <span aria-hidden="true" className="mt-3 h-px w-14 bg-[#C9A86A] sm:mt-4 sm:w-20" />
     </div>
+  )
+}
+
+const HERO_COPY = {
+  uz: {
+    eyebrow: 'O‘zbek · Uyg‘ur · Turk oshxonasi',
+    tagline: 'Ko‘mirda pishirilgan kaboblar va milliy taomlar. Har kuni 08:00 dan 01:00 gacha, Toshkentda.',
+    menu: 'Menyuni ko‘rish',
+    reserve: 'Stol band qilish',
+  },
+  ru: {
+    eyebrow: 'Узбекская · уйгурская · турецкая кухня',
+    tagline: 'Шашлык на углях и национальные блюда. Ежедневно с 08:00 до 01:00, Ташкент.',
+    menu: 'Смотреть меню',
+    reserve: 'Забронировать стол',
+  },
+  en: {
+    eyebrow: 'Uzbek · Uyghur · Turkish kitchen',
+    tagline: 'Charcoal-grilled kebabs and national dishes. Open daily 08:00–01:00 in Tashkent.',
+    menu: 'View menu',
+    reserve: 'Reserve a table',
+  },
+}
+
+/** Full-width welcome section; the photo comes from the live menu so it never goes stale. */
+function PublicMenuHero({ imageUrl, lang, onViewMenu }) {
+  const copy = HERO_COPY[lang] || HERO_COPY.en
+  return (
+    <section aria-label="Zar Kebab" className="relative isolate overflow-hidden bg-[#14110E]">
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt=""
+          fetchPriority="high"
+          className="absolute inset-0 -z-10 h-full w-full scale-105 object-cover object-center opacity-80"
+        />
+      )}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#14110E] via-[#14110E]/55 to-[#14110E]/25" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#14110E]/70 via-transparent to-transparent" />
+      <div className="mx-auto flex min-h-[340px] max-w-[1280px] flex-col justify-end px-5 pb-7 pt-16 sm:min-h-[72vh] sm:px-8 sm:pb-20 sm:pt-24 lg:max-h-[760px]">
+        <p className="text-[10px] font-medium uppercase tracking-[0.26em] text-[#E7C98F] sm:text-xs sm:tracking-[0.32em]">{copy.eyebrow}</p>
+        <h1 className="zk-serif mt-2 text-[52px] font-semibold leading-[0.9] text-white sm:mt-4 sm:text-[104px] lg:text-[128px]">Zar Kebab</h1>
+        <p className="mt-3 max-w-[520px] text-[14px] font-light leading-relaxed text-white/80 sm:mt-5 sm:text-[17px]">{copy.tagline}</p>
+        <div className="mt-5 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
+          <a
+            href="#public-menu-content"
+            onClick={onViewMenu}
+            className="inline-flex h-11 items-center rounded-full bg-[#ff5a00] px-6 text-sm sm:h-12 sm:px-7 font-semibold tracking-wide text-white shadow-lg shadow-black/20 transition-colors hover:bg-[#e64d00]"
+          >
+            {copy.menu}
+          </a>
+          <a
+            href={PUBLIC_CONTACTS.phone.href}
+            className="inline-flex h-11 items-center rounded-full px-6 text-sm sm:h-12 sm:px-7 font-semibold tracking-wide text-white backdrop-blur transition-colors"
+            style={{ border: '1px solid rgb(255 255 255 / 45%)', background: 'rgb(255 255 255 / 8%)' }}
+          >
+            {copy.reserve}
+          </a>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -376,16 +438,14 @@ function MobileSearchPage({
           ) : (
             <section>
               <h2 className="mb-3 text-sm font-black text-[#1F2937]">{labels.dishes}</h2>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-6 sm:gap-y-11 md:grid-cols-3 xl:grid-cols-4">
                 {items.map((item, index) => (
-                  <MenuProductCard
+                  <PublicDishCard
                     key={item.id}
                     item={item}
-                    qty={0}
                     lang={lang}
                     eager={index < 4}
                     onOpenDetail={onOpenDetail}
-                    readOnly
                     formatPrice={formatPrice}
                     linkBasePath={linkBasePath}
                   />
@@ -436,6 +496,8 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   const { itemId } = useParams()
   const navigate = useNavigate()
   const { state } = useApp()
+  // Every public view (search included) follows the visitor's light/dark theme.
+  useTheme()
   const appLang = state.lang || 'ru'
 
   const [categories, setCategories] = useState([])
@@ -660,6 +722,14 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
       (listedIds.has(item.category_id) || !categoryIds.has(item.category_id)) && getMenuPricing(item).discounted
     )
   }, [corporateSets, displayCategories, displayItems, listedCategories])
+  const heroImageUrl = useMemo(() => {
+    // The house "Zarkebab" platter leads; otherwise the first photographed dish of the first section.
+    const hasPhoto = item => item.image_url && !isMenuVideoUrl(item.image_url)
+    const signature = displayItems.find(item => hasPhoto(item) && /zar\s*-?kebab/i.test(`${item.name_en || ''} ${item.name_uz || ''} ${item.name_ru || ''}`))
+    const firstSectionPhoto = groupedSections.find(section => section.cat.id !== CORPORATE_SETS_CATEGORY_ID)?.items.find(hasPhoto)
+    return (signature || firstSectionPhoto || displayItems.find(hasPhoto))?.image_url || ''
+  }, [displayItems, groupedSections])
+  const showHero = !premium && !corporateSets
   const priceFormatter = useMemo(
     () => amount => formatMenuCurrency(amount, menuCurrency, currencyRates),
     [menuCurrency, currencyRates]
@@ -683,16 +753,14 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
         className="scroll-mt-32"
       >
         <MenuSectionHeader title={getCategoryName(section.cat, lang)} />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-6 sm:gap-y-11 md:grid-cols-3 xl:grid-cols-4">
           {section.items.map((item, index) => (
-            <MenuProductCard
+            <PublicDishCard
               key={item.id}
               item={item}
-              qty={0}
               lang={lang}
               eager={(section.cat.id === CORPORATE_SETS_CATEGORY_ID || groupedSections[0]?.cat.id === section.cat.id) && index < 6}
               onOpenDetail={openDetail}
-              readOnly
               formatPrice={priceFormatter}
               linkBasePath={menuBasePath}
             />
@@ -794,9 +862,9 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   }
 
   return (
-    <div className="min-h-screen bg-white text-[#1F2937]" style={{ paddingTop: headerOffset }}>
+    <div className="min-h-screen bg-[#FBF8F3] text-[#1F1A15]" style={{ paddingTop: headerOffset }}>
       <div data-nosnippet="">
-        <header ref={headerRef} className="fixed left-0 right-0 top-0 z-40 border-b border-[#E5E7EB] bg-white/95 backdrop-blur">
+        <header ref={headerRef} className="fixed left-0 right-0 top-0 z-40 border-b border-[#ECE4D8] bg-[#FBF8F3]/90 backdrop-blur">
           <div className="mx-auto max-w-[1280px] px-3 py-2 sm:px-6 sm:py-3">
             <div className="relative flex h-11 items-center justify-between lg:hidden">
               <button
@@ -889,6 +957,8 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
         </header>
       </div>
 
+      {showHero && <PublicMenuHero imageUrl={heroImageUrl} lang={lang} onViewMenu={openMenuHome} />}
+
       <main id="public-menu-content" className="mx-auto max-w-[1280px] scroll-mt-28 px-3 pb-5 pt-3 sm:px-6 sm:pt-5">
         {!corporateSets && <div data-nosnippet="">
           <MenuCategoryScroller
@@ -950,23 +1020,21 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
           </div>
         ) : (
           groupedSections ? (
-            <div className="space-y-7">
+            <div className="space-y-16 pb-12 pt-4 sm:space-y-24 sm:pb-16 sm:pt-6">
               {groupedSections.filter(section => section.cat.id === CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)}
               {groupedSections.filter(section => section.cat.id !== CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)}
               {/* Deals follow the regular categories so the menu itself leads the page. */}
               {dealItems.length > 0 && (
                 <section id="public-menu-deals" className="scroll-mt-32">
                   <MenuSectionHeader title={dealsTitle} tone="deal" />
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-6 sm:gap-y-11 md:grid-cols-3 xl:grid-cols-4">
                     {dealItems.map((item, index) => (
-                      <MenuProductCard
+                      <PublicDishCard
                         key={`deal-${item.id}`}
                         item={item}
-                        qty={0}
                         lang={lang}
                         eager={index < 4}
                         onOpenDetail={openDetail}
-                        readOnly
                         formatPrice={priceFormatter}
                         linkBasePath={menuBasePath}
                       />

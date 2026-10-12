@@ -1,5 +1,4 @@
 import React from 'react'
-import { ChevronDown } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 
 const LANGUAGE_LABELS = {
@@ -32,7 +31,7 @@ export default function LanguageSwitcher({ value, onChange, className = '', comp
         value={activeLang}
         onChange={event => changeLanguage(event.target.value)}
         aria-label={activeLang === 'uz' ? 'Til' : activeLang === 'ru' ? 'Язык' : 'Language'}
-        className={`h-full appearance-none rounded-xl bg-transparent py-0 font-black uppercase outline-none ${compact ? 'w-full pl-1.5 pr-4 text-[10px]' : 'pl-3 pr-7 text-xs'}`}
+        className={`h-full cursor-pointer appearance-none rounded-xl bg-transparent py-0 font-black uppercase outline-none ${compact ? 'w-full px-1.5 text-center text-[10px]' : 'px-3 text-xs'}`}
       >
       {['uz', 'ru', 'en'].map(l => (
         <option
@@ -43,7 +42,6 @@ export default function LanguageSwitcher({ value, onChange, className = '', comp
         </option>
       ))}
       </select>
-      <ChevronDown size={13} strokeWidth={3} className={`pointer-events-none absolute text-[#64748B] ${compact ? 'right-1.5' : 'right-2.5'}`} />
     </label>
   )
 }

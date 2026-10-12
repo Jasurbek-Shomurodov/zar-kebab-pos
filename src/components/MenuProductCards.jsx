@@ -465,6 +465,98 @@ export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpen
   )
 }
 
+function splitCurrency(text) {
+  const match = String(text).match(/^(.*?)(\s*(?:UZS|USD|EUR|so'm|сум))$/i)
+  return match ? [match[1], match[2]] : [String(text), '']
+}
+
+function EditorialPrice({ amount, formatPrice, className = '' }) {
+  const [value, currency] = splitCurrency(formatPrice(amount))
+  return (
+    <span className={`whitespace-nowrap tabular-nums ${className}`}>
+      {value}{currency && <span className="ml-0.5 text-[0.72em] font-normal tracking-wide text-[#8C8277]">{currency}</span>}
+    </span>
+  )
+}
+
+/** Public zarkebab.uz dish card: borderless photo, serif name, quiet price. Staff screens keep ProductCard. */
+export function PublicDishCard({ item, onOpenDetail, lang, eager = false, formatPrice = formatCurrency, linkBasePath = '/menu' }) {
+  const [copied, setCopied] = useState(false)
+  const pricing = getMenuOptionPricing(item, getMenuItemOptionGroups(item, lang, { audience: 'public' }))
+  const priceUnit = menuPriceUnitSuffix(item, lang)
+  const name = getItemName(item, lang)
+  const description = plainMenuText(getItemDesc(item, lang))
+  const discountPct = pricing.discounted && pricing.oldPrice > 0
+    ? Math.round((1 - pricing.price / pricing.oldPrice) * 100)
+    : 0
+  const copyLabel = copied
+    ? (lang === 'uz' ? 'Nusxalandi' : lang === 'ru' ? 'Скопировано' : 'Copied')
+    : (lang === 'uz' ? 'Havolani nusxalash' : lang === 'ru' ? 'Скопировать ссылку' : 'Copy link')
+
+  async function copyProductLink(event) {
+    event.stopPropagation()
+    await copyTextToClipboard(getMenuItemPublicUrl(item, globalThis.location?.origin, linkBasePath))
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1400)
+  }
+
+  return (
+    <article
+      data-menu-product-card
+      onClick={() => onOpenDetail(item)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={event => event.key === 'Enter' && onOpenDetail(item)}
+      className="group flex h-full cursor-pointer select-none flex-col rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40 focus-visible:ring-offset-4"
+    >
+      <div data-menu-product-image className="relative aspect-square w-full overflow-hidden rounded-[18px] bg-[#EFE7DC] sm:rounded-[22px]">
+        <SafeMenuImage
+          src={item.image_url}
+          alt={name}
+          className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+          fallbackIconSize={34}
+          loading={eager ? 'eager' : 'lazy'}
+          fetchPriority={eager ? 'high' : undefined}
+        />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+        {discountPct > 0 && (
+          <span className="pointer-events-none absolute left-2.5 top-2.5 rounded-full bg-[#ff5a00] px-2.5 py-1 text-[11px] font-bold tracking-wide text-white shadow-sm sm:left-3 sm:top-3">
+            −{discountPct}%
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={copyProductLink}
+          title={copyLabel}
+          aria-label={copyLabel}
+          className="absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition-opacity hover:bg-black/55 sm:right-3 sm:top-3 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+        >
+          {copied ? <Check size={15} /> : <Copy size={14} />}
+        </button>
+      </div>
+
+      <div className="flex flex-1 flex-col px-0.5 pt-3 sm:pt-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+          <h3 className="zk-serif line-clamp-2 text-[19px] font-semibold leading-[1.1] text-[#1F1A15] sm:text-[23px]">{name}</h3>
+          <p className="flex flex-shrink-0 items-baseline gap-2 text-[14px] font-medium text-[#1F1A15] sm:text-[15px]">
+            {pricing.discounted && (
+              <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="text-[12px] font-normal text-[#A39A8F] line-through" />
+            )}
+            <span className={pricing.discounted ? 'text-[#ff5a00]' : ''}>
+              <EditorialPrice amount={pricing.price} formatPrice={formatPrice} />
+              {pricing.maxPrice > pricing.price && <> – <EditorialPrice amount={pricing.maxPrice} formatPrice={formatPrice} /></>}
+              {priceUnit && <span className="text-[0.8em] text-[#8C8277]">{priceUnit}</span>}
+            </span>
+          </p>
+        </div>
+        {description && (
+          <p className="mt-1.5 line-clamp-1 text-[13px] font-light leading-snug text-[#857B70]">{description}</p>
+        )}
+      </div>
+    </article>
+  )
+}
+
 export function ProductDetailPage({ item, category, currentQty, currentNotes, lang, onBack, onCancel, onAddToCart, readOnly = false, formatPrice = formatCurrency, linkBasePath = '/menu', languageControl = null, audience = 'public' }) {
   const [qty, setQty] = useState(normalizeMenuQuantity(currentQty, item))
   const [notes, setNotes] = useState(currentNotes || '')

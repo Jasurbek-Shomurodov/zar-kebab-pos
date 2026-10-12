@@ -21,6 +21,12 @@ body {
   font-size: 15px;
 }
 
+/* Editorial serif for the public zarkebab.uz menu (Latin and Cyrillic). */
+.zk-serif {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  letter-spacing: -0.01em;
+}
+
 /* ── Global typography minimums ──────────────────────────────────────────────
    Anything below 12px is unreadable on tablet/iPad.
    Override the smallest Tailwind arbitrary sizes globally.
