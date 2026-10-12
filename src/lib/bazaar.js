@@ -72,6 +72,21 @@ export const BAZAAR_UNITS = [
 
 export const BAZAAR_ENTRY_UNITS = BAZAAR_UNITS
 
+// Container units may record how many pieces one unit holds (a box of 30 eggs).
+// Mirrors public.bazaar_ingredient_pieces_per_unit (239).
+export const BAZAAR_PACKAGE_UNITS = new Set(['pack', 'box', 'bag', 'bottle', 'bunch'])
+
+export function normalizeBazaarPiecesPerUnit(unit, value) {
+  if (!BAZAAR_PACKAGE_UNITS.has(unit)) return null
+  const pieces = Number(String(value ?? '').trim())
+  return Number.isInteger(pieces) && pieces >= 1 && pieces <= 100_000 ? pieces : null
+}
+
+export function bazaarPricePerPiece(price, pieces) {
+  const count = Number(pieces) || 0
+  return count > 0 ? (Number(price) || 0) / count : null
+}
+
 export const BAZAAR_PAYMENT_METHODS = [
   { key: 'cash', labels: { uz: 'Naqd', ru: 'Наличные', en: 'Cash' } },
   { key: 'card', labels: { uz: 'Karta', ru: 'Карта', en: 'Card' } },

@@ -1,3 +1,5 @@
+import { bazaarPricePerPiece, normalizeBazaarPiecesPerUnit } from './bazaar.js'
+
 export const TECH_CARD_UNITS = ['g', 'kg', 'ml', 'l', 'piece']
 
 const BAZAAR_TO_TECH_CARD_UNIT = {
@@ -57,14 +59,22 @@ export function getBazaarIngredientTechCardUnit(ingredient = {}) {
   return BAZAAR_TO_TECH_CARD_UNIT[String(ingredient.unit || '').trim().toLowerCase()] || 'piece'
 }
 
+// A package with a piece count (a box of 30 eggs) is priced per piece in recipes.
+function bazaarIngredientPiecesPerUnit(ingredient = {}) {
+  const unit = String(ingredient.unit || '').trim().toLowerCase()
+  return normalizeBazaarPiecesPerUnit(unit, ingredient.piecesPerUnit ?? ingredient.pieces_per_unit)
+}
+
 export function getBazaarIngredientTechCardPatch(ingredient = {}, unit = '') {
   const catalogUnit = getBazaarIngredientTechCardUnit(ingredient)
   const targetUnit = getCompatibleTechCardUnits(catalogUnit).includes(unit) ? unit : catalogUnit
+  const price = ingredient.normalUnitPrice ?? ingredient.normal_unit_price
+  const pieces = bazaarIngredientPiecesPerUnit(ingredient)
   return {
     name: String(ingredient.name || ingredient.product_name || '').trim(),
     unit: targetUnit,
     unit_price_uzs: String(convertTechCardUnitPrice(
-      ingredient.normalUnitPrice ?? ingredient.normal_unit_price,
+      pieces ? bazaarPricePerPiece(price, pieces) : price,
       catalogUnit,
       targetUnit,
     )),

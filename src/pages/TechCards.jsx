@@ -293,6 +293,7 @@ export default function TechCards() {
     category: ingredient.category,
     unit: ingredient.unit,
     normalUnitPrice: Number(ingredient.normal_unit_price) || 0,
+    piecesPerUnit: ingredient.pieces_per_unit || null,
   })), [bazaarIngredients])
   const categoryCounts = useMemo(() => techCardItems.reduce((counts, item) => {
     if (item.category_id) counts[item.category_id] = (counts[item.category_id] || 0) + 1
@@ -330,7 +331,7 @@ export default function TechCards() {
     setBazaarIngredientsError('')
     supabase
       .from('bazaar_product_catalog')
-      .select('product_key, product_name, category, unit, normal_unit_price')
+      .select('product_key, product_name, category, unit, normal_unit_price, pieces_per_unit')
       .eq('is_catalog_managed', true)
       .eq('is_active', true)
       .order('product_name')

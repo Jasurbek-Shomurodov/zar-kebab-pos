@@ -164,7 +164,7 @@ export default function BazaarIngredientPicker({
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#ff5a00]"><Package size={16} /></div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black">{item.name}</p>
-                      <p className="truncate text-[11px] font-semibold text-[#9CA3AF]">{bazaarCategoryLabel(item.category, lang)} · {l.normalPrice} {formatCurrency(item.normalUnitPrice)} / {bazaarUnitLabel(item.unit, lang)}</p>
+                      <p className="truncate text-[11px] font-semibold text-[#9CA3AF]">{bazaarCategoryLabel(item.category, lang)} · {l.normalPrice} {formatCurrency(item.normalUnitPrice)} / {bazaarUnitLabel(item.unit, lang)}{item.piecesPerUnit > 0 && ` · ${item.piecesPerUnit} ${bazaarUnitLabel('pcs', lang)}`}</p>
                     </div>
                     {isSelected && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#ff5a00]" />}
                   </button>

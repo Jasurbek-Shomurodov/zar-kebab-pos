@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Archive, Download, Edit3, Loader2, PackagePlus, Plus, RotateCcw, Save, Search, Tag, X } from 'lucide-react'
 import { useIngredientTabs } from '../components/IngredientNavigation'
 import BazaarCategoryPicker from '../components/BazaarCategoryPicker'
@@ -11,7 +11,7 @@ import { canEditFeature } from '../lib/permissions'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { withWriteTimeout } from '../lib/writeTimeout'
-import { BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH, BAZAAR_ENTRY_UNITS, bazaarCategoriesFor, bazaarCategoryLabel, bazaarUnitLabel, normalizeBazaarProductKey } from '../lib/bazaar'
+import { BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH, BAZAAR_ENTRY_UNITS, BAZAAR_PACKAGE_UNITS, bazaarPricePerPiece, normalizeBazaarPiecesPerUnit, bazaarCategoriesFor, bazaarCategoryLabel, bazaarUnitLabel, normalizeBazaarProductKey } from '../lib/bazaar'
 import { bazaarIngredientMatches, isBazaarIngredientNetworkError, runBazaarIngredientWriteWithRecovery } from '../lib/bazaarIngredientWrites'
 
 const INPUT = 'ws-input disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
@@ -32,18 +32,29 @@ const COPY = {
 }
 
 const CATEGORY_COPY = {
-  en: { addCategory: 'Add category', newCategory: 'New category name', categoryHint: 'The category becomes available in the ingredient form.', addCategoryButton: 'Add', categoryAdded: 'Category added.', categoryExists: 'This category already exists.', categoryFailed: 'Could not add the category.', categoryRequired: 'Enter a category name.', allCategories: 'Categories' },
-  ru: { addCategory: 'Добавить категорию', newCategory: 'Название новой категории', categoryHint: 'Категория появится в форме ингредиента.', addCategoryButton: 'Добавить', categoryAdded: 'Категория добавлена.', categoryExists: 'Такая категория уже есть.', categoryFailed: 'Не удалось добавить категорию.', categoryRequired: 'Введите название категории.', allCategories: 'Категории' },
-  uz: { addCategory: 'Kategoriya qo‘shish', newCategory: 'Yangi kategoriya nomi', categoryHint: 'Kategoriya masalliq formasida paydo bo‘ladi.', addCategoryButton: 'Qo‘shish', categoryAdded: 'Kategoriya qo‘shildi.', categoryExists: 'Bu kategoriya allaqachon mavjud.', categoryFailed: 'Kategoriyani qo‘shib bo‘lmadi.', categoryRequired: 'Kategoriya nomini kiriting.', allCategories: 'Kategoriyalar' },
+  en: { piecesPerUnit: 'Pieces inside', piecesHint: 'Optional: 30 for a box of 30 eggs.', piecesInvalid: 'Pieces inside must be a whole number from 1 to 100 000.', perPiece: 'per piece', addCategory: 'Add category', newCategory: 'New category name', categoryHint: 'The category becomes available in the ingredient form.', addCategoryButton: 'Add', categoryAdded: 'Category added.', categoryExists: 'This category already exists.', categoryFailed: 'Could not add the category.', categoryRequired: 'Enter a category name.', allCategories: 'Categories' },
+  ru: { piecesPerUnit: 'Штук внутри', piecesHint: 'Необязательно: 30 для короба из 30 яиц.', piecesInvalid: 'Количество штук должно быть целым числом от 1 до 100 000.', perPiece: 'за штуку', addCategory: 'Добавить категорию', newCategory: 'Название новой категории', categoryHint: 'Категория появится в форме ингредиента.', addCategoryButton: 'Добавить', categoryAdded: 'Категория добавлена.', categoryExists: 'Такая категория уже есть.', categoryFailed: 'Не удалось добавить категорию.', categoryRequired: 'Введите название категории.', allCategories: 'Категории' },
+  uz: { piecesPerUnit: 'Ichida necha dona', piecesHint: 'Ixtiyoriy: 30 ta tuxumli quti uchun 30.', piecesInvalid: 'Dona soni 1 dan 100 000 gacha butun son bo‘lishi kerak.', perPiece: 'donasi', addCategory: 'Kategoriya qo‘shish', newCategory: 'Yangi kategoriya nomi', categoryHint: 'Kategoriya masalliq formasida paydo bo‘ladi.', addCategoryButton: 'Qo‘shish', categoryAdded: 'Kategoriya qo‘shildi.', categoryExists: 'Bu kategoriya allaqachon mavjud.', categoryFailed: 'Kategoriyani qo‘shib bo‘lmadi.', categoryRequired: 'Kategoriya nomini kiriting.', allCategories: 'Kategoriyalar' },
 }
 
+const LIST_COPY = {
+  en: { ingredient: 'Ingredient', allCategoriesFilter: 'All categories', normalPriceShort: 'Normal price', shown: count => `${count} shown` },
+  ru: { ingredient: 'Ингредиент', allCategoriesFilter: 'Все категории', normalPriceShort: 'Обычная цена', shown: count => `Показано: ${count}` },
+  uz: { ingredient: 'Masalliq', allCategoriesFilter: 'Barcha kategoriyalar', normalPriceShort: 'Odatiy narx', shown: count => `${count} ta ko‘rsatilgan` },
+}
+
+// One grid for the header and rows keeps the columns aligned.
+const INGREDIENT_ROW_GRID = 'sm:grid-cols-[minmax(200px,1.4fr)_minmax(140px,0.8fr)_minmax(170px,0.8fr)_auto]'
+
+const INGREDIENT_COLUMNS = 'product_key, product_name, category, unit, normal_unit_price, pieces_per_unit, is_active, is_catalog_managed, last_purchase_date, updated_at'
+
 function emptyIngredient() {
-  return { product_key: '', product_name: '', category: 'vegetables', unit: 'kg', normal_unit_price: '' }
+  return { product_key: '', product_name: '', category: 'vegetables', unit: 'kg', normal_unit_price: '', pieces_per_unit: '' }
 }
 
 function isMissingMigration(error) {
   const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return text.includes('normal_unit_price') || text.includes('is_catalog_managed') || text.includes('save_bazaar_ingredient') || text.includes('set_bazaar_ingredient_active') || text.includes('add_bazaar_ingredient_category') || text.includes('pgrst202') || text.includes('pgrst204')
+  return text.includes('normal_unit_price') || text.includes('pieces_per_unit') || text.includes('is_catalog_managed') || text.includes('save_bazaar_ingredient') || text.includes('set_bazaar_ingredient_active') || text.includes('add_bazaar_ingredient_category') || text.includes('pgrst202') || text.includes('pgrst204')
 }
 
 function savedIngredientRow(data) {
@@ -54,12 +65,16 @@ export default function BazaarIngredients() {
   const { state } = useApp()
   const { profile } = useAuth()
   const lang = state.lang || 'ru'
-  const l = { ...(COPY[lang] || COPY.en), ...(CATEGORY_COPY[lang] || CATEGORY_COPY.en) }
+  const l = { ...(COPY[lang] || COPY.en), ...(CATEGORY_COPY[lang] || CATEGORY_COPY.en), ...(LIST_COPY[lang] || LIST_COPY.en) }
   const canManage = canEditFeature(profile || state.user, 'ingredients')
   const [ingredients, setIngredients] = useState([])
   const [form, setForm] = useState(emptyIngredient)
+  // The ingredient open in the edit popup; null while the popup is closed.
+  const [editForm, setEditForm] = useState(null)
+  const editDialogRef = useRef(null)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('active')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [updatingKey, setUpdatingKey] = useState('')
@@ -93,7 +108,7 @@ export default function BazaarIngredients() {
     try {
       const { data, error: loadError } = await supabase
         .from('bazaar_product_catalog')
-        .select('product_key, product_name, category, unit, normal_unit_price, is_active, is_catalog_managed, last_purchase_date, updated_at')
+        .select(INGREDIENT_COLUMNS)
         .eq('is_catalog_managed', true)
         .order('product_name')
       if (loadError) throw loadError
@@ -119,11 +134,16 @@ export default function BazaarIngredients() {
     return ingredients.filter(item => {
       if (status === 'active' && !item.is_active) return false
       if (status === 'archived' && item.is_active) return false
+      if (categoryFilter !== 'all' && item.category !== categoryFilter) return false
       return !normalizedQuery || normalizeBazaarProductKey(item.product_name).includes(normalizedQuery)
     })
-  }, [ingredients, query, status])
+  }, [categoryFilter, ingredients, query, status])
 
   const allCategories = useMemo(() => bazaarCategoriesFor([...ingredients, ...customCategories]), [customCategories, ingredients])
+  const statusCounts = useMemo(() => {
+    const active = ingredients.filter(item => item.is_active).length
+    return { active, archived: ingredients.length - active, all: ingredients.length }
+  }, [ingredients])
 
   async function addCategory(event) {
     event.preventDefault()
@@ -171,17 +191,29 @@ export default function BazaarIngredients() {
   }
 
   function editIngredient(ingredient) {
-    setForm({ ...ingredient, normal_unit_price: String(ingredient.normal_unit_price || '') })
+    if (!canManage) return
+    setEditForm({ ...ingredient, normal_unit_price: String(ingredient.normal_unit_price || ''), pieces_per_unit: String(ingredient.pieces_per_unit || '') })
     setError('')
     setNotice('')
-    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' })
   }
 
-  async function saveIngredient(event) {
+  function closeEditDialog() {
+    if (saving) return
+    setEditForm(null)
+    setError('')
+  }
+
+  // `form` is the add form or the popup draft; `setDraft` resets whichever one was saved.
+  async function saveIngredient(event, form, setDraft) {
     event.preventDefault()
     if (!canManage || saving) return
     if (!form.product_name.trim() || Number(form.normal_unit_price) <= 0) {
       setError(l.required)
+      return
+    }
+    const piecesPerUnit = normalizeBazaarPiecesPerUnit(form.unit, form.pieces_per_unit)
+    if (BAZAAR_PACKAGE_UNITS.has(form.unit) && String(form.pieces_per_unit || '').trim() && !piecesPerUnit) {
+      setError(l.piecesInvalid)
       return
     }
     setSaving(true)
@@ -194,6 +226,7 @@ export default function BazaarIngredients() {
         category: form.category,
         unit: form.unit,
         normal_unit_price: normalizeMoneyInput(form.normal_unit_price),
+        pieces_per_unit: piecesPerUnit ? String(piecesPerUnit) : '',
       }
       const expectedKey = form.product_key || normalizeBazaarProductKey(payload.product_name)
       const { data: savedData, error: saveError } = await runBazaarIngredientWriteWithRecovery({
@@ -204,7 +237,7 @@ export default function BazaarIngredients() {
         reconcile: async () => {
           const { data, error: reconcileError } = await supabase
             .from('bazaar_product_catalog')
-            .select('product_key, product_name, category, unit, normal_unit_price, is_active, is_catalog_managed, last_purchase_date, updated_at')
+            .select(INGREDIENT_COLUMNS)
             .eq('product_key', expectedKey)
             .maybeSingle()
           if (reconcileError) throw reconcileError
@@ -213,7 +246,7 @@ export default function BazaarIngredients() {
       })
       if (saveError) throw saveError
       upsertIngredient(savedIngredientRow(savedData))
-      setForm(emptyIngredient())
+      setDraft(form.product_key ? null : emptyIngredient())
       setNotice(l.saved)
     } catch (saveError) {
       setError(errorMessage(saveError, l.saveFailed))
@@ -240,7 +273,7 @@ export default function BazaarIngredients() {
         reconcile: async () => {
           const { data, error: reconcileError } = await supabase
             .from('bazaar_product_catalog')
-            .select('product_key, product_name, category, unit, normal_unit_price, is_active, is_catalog_managed, last_purchase_date, updated_at')
+            .select(INGREDIENT_COLUMNS)
             .eq('product_key', ingredient.product_key)
             .maybeSingle()
           if (reconcileError) throw reconcileError
@@ -257,6 +290,31 @@ export default function BazaarIngredients() {
     }
   }
 
+  const editDialogOpen = !!editForm
+  useEffect(() => {
+    if (editDialogOpen) editDialogRef.current?.querySelector('input')?.focus()
+  }, [editDialogOpen])
+
+  const piecePriceHint = draft => {
+    if (!BAZAAR_PACKAGE_UNITS.has(draft.unit)) return null
+    const piecePrice = bazaarPricePerPiece(normalizeMoneyInput(draft.normal_unit_price), normalizeBazaarPiecesPerUnit(draft.unit, draft.pieces_per_unit))
+    return piecePrice ? `${formatCurrency(Math.round(piecePrice))} ${l.perPiece}.` : l.piecesHint
+  }
+
+  // Shared fields for the add form and the edit popup.
+  const renderIngredientFields = (form, setDraft) => {
+    const isPackage = BAZAAR_PACKAGE_UNITS.has(form.unit)
+    return (
+      <>
+        <label className="ws-caption font-medium">{l.name}<input value={form.product_name} onChange={event => setDraft(current => ({ ...current, product_name: event.target.value }))} maxLength={160} className={`${INPUT} mt-1.5`} /></label>
+        <div className="ws-caption font-medium">{l.category}<div className="mt-1.5"><BazaarCategoryPicker value={form.category} ingredients={ingredients} extraCategories={customCategories} onChange={category => setDraft(current => ({ ...current, category }))} lang={lang} disabled={saving} /></div></div>
+        <label className="ws-caption font-medium">{l.unit}<select value={form.unit} onChange={event => setDraft(current => ({ ...current, unit: event.target.value }))} className={`${INPUT} mt-1.5`}>{BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}</select></label>
+        {isPackage && <label className="ws-caption font-medium" title={l.piecesHint}>{l.piecesPerUnit}<input inputMode="numeric" value={form.pieces_per_unit || ''} placeholder="30" onChange={event => setDraft(current => ({ ...current, pieces_per_unit: event.target.value.replace(/\D/g, '').slice(0, 6) }))} className={`${INPUT} mt-1.5 text-right tabular-nums`} /></label>}
+        <label className="ws-caption font-medium">{l.normalPrice}<input inputMode="numeric" value={formatMoneyInput(form.normal_unit_price)} onChange={event => setDraft(current => ({ ...current, normal_unit_price: normalizeMoneyInput(event.target.value) }))} className={`${INPUT} mt-1.5 text-right tabular-nums`} /></label>
+      </>
+    )
+  }
+  const addFormIsPackage = BAZAAR_PACKAGE_UNITS.has(form.unit)
   const ingredientTabs = useIngredientTabs(lang)
 
   return (
@@ -301,44 +359,104 @@ export default function BazaarIngredients() {
           )}
 
           {pdfFailed && <div role="alert" className="ws-notice ws-tone-negative">{l.pdfFailed}</div>}
-          {displayedError && <div role="alert" className="ws-notice ws-tone-negative">{displayedError}</div>}
+          {displayedError && !editDialogOpen && <div role="alert" className="ws-notice ws-tone-negative">{displayedError}</div>}
           {notice && !error && <div role="status" className="ws-notice ws-tone-positive">{notice}</div>}
 
           {canManage ? (
-            <form onSubmit={saveIngredient} className="ws-panel">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div><h2 className="ws-display">{form.product_key ? l.edit : l.add}</h2><p className="ws-muted mt-1.5">{l.nameHint}</p></div>
-                {form.product_key && <button type="button" onClick={() => setForm(emptyIngredient())} className="ws-btn ws-btn-ghost ws-btn-sm"><X size={14} />{l.cancel}</button>}
+            <form onSubmit={event => saveIngredient(event, form, setForm)} className="ws-panel">
+              <div className="mb-4">
+                <h2 className="ws-display">{l.add}</h2><p className="ws-muted mt-1.5">{l.nameHint}{piecePriceHint(form) && <> {piecePriceHint(form)}</>}</p>
               </div>
-              <fieldset disabled={saving} className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.5fr)_minmax(170px,1fr)_140px_minmax(190px,1fr)_auto] xl:items-end">
-                <label className="ws-caption font-medium">{l.name}<input value={form.product_name} onChange={event => setForm(current => ({ ...current, product_name: event.target.value }))} maxLength={160} className={`${INPUT} mt-1.5`} /></label>
-                <div className="ws-caption font-medium">{l.category}<div className="mt-1.5"><BazaarCategoryPicker value={form.category} ingredients={ingredients} extraCategories={customCategories} onChange={category => setForm(current => ({ ...current, category }))} lang={lang} disabled={saving} /></div></div>
-                <label className="ws-caption font-medium">{l.unit}<select value={form.unit} onChange={event => setForm(current => ({ ...current, unit: event.target.value }))} className={`${INPUT} mt-1.5`}>{BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}</select></label>
-                <label className="ws-caption font-medium">{l.normalPrice}<input inputMode="numeric" value={formatMoneyInput(form.normal_unit_price)} onChange={event => setForm(current => ({ ...current, normal_unit_price: normalizeMoneyInput(event.target.value) }))} className={`${INPUT} mt-1.5 text-right tabular-nums`} /></label>
-                <button type="submit" className="ws-btn ws-btn-primary !h-11">{saving ? <Loader2 size={16} className="animate-spin" /> : form.product_key ? <Save size={16} /> : <Plus size={16} />}{saving ? l.saving : l.save}</button>
+              <fieldset disabled={saving || editDialogOpen} className={`grid gap-3 md:grid-cols-2 xl:items-end ${addFormIsPackage ? 'xl:grid-cols-[minmax(200px,1.5fr)_minmax(160px,1fr)_130px_130px_minmax(170px,1fr)_auto]' : 'xl:grid-cols-[minmax(220px,1.5fr)_minmax(170px,1fr)_140px_minmax(190px,1fr)_auto]'}`}>
+                {renderIngredientFields(form, setForm)}
+                <button type="submit" className="ws-btn ws-btn-primary !h-11">{saving && !editDialogOpen ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{saving && !editDialogOpen ? l.saving : l.save}</button>
               </fieldset>
             </form>
           ) : <div className="ws-notice ws-tone-caution">{l.readOnly}</div>}
 
           <section className="ws-panel ws-panel-flush">
-            <div className="flex flex-col gap-3 border-b border-[#e4e1de] p-5 sm:flex-row sm:items-center sm:justify-between max-sm:p-4">
-              <div className="relative w-full sm:max-w-sm"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={l.search} className={`${INPUT} !pl-9`} /></div>
-              <div className="ws-segmented" role="group" aria-label={l.status}>{['active', 'archived', 'all'].map(key => <button key={key} type="button" aria-pressed={status === key} onClick={() => setStatus(key)}>{l[key]}</button>)}</div>
+            {/* Toolbar: search, category filter and status with counts. */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-[#e4e1de] p-5 max-sm:p-4">
+              <div className="relative min-w-[220px] flex-1 sm:max-w-sm"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={l.search} className={`${INPUT} !pl-9`} /></div>
+              <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} aria-label={l.category} className={`${INPUT} !w-auto`}>
+                <option value="all">{l.allCategoriesFilter}</option>
+                {allCategories.map(category => <option key={category.key} value={category.key}>{bazaarCategoryLabel(category.key, lang)}</option>)}
+              </select>
+              {!loading && <span className="ws-caption tabular-nums">{l.shown(filtered.length)}</span>}
+              <div className="ws-segmented sm:ml-auto" role="group" aria-label={l.status}>{['active', 'archived', 'all'].map(key => <button key={key} type="button" aria-pressed={status === key} onClick={() => setStatus(key)}>{l[key]}<span className="ml-1.5 tabular-nums text-[#68655f]">{statusCounts[key]}</span></button>)}</div>
             </div>
             {loading ? <OperationalLoading title={l.title} description="" /> : displayedError && ingredients.length === 0 ? <OperationalError title={l.loadFailed} description={displayedError} actionLabel={l.retry} onAction={loadIngredients} /> : filtered.length === 0 ? <div className="ws-empty"><PackagePlus /><p>{l.empty}</p></div> : (
-              <div>{filtered.map(ingredient => (
-                <div key={ingredient.product_key} className="ws-row grid gap-3 px-5 py-3.5 max-sm:px-4 sm:grid-cols-[minmax(180px,1fr)_minmax(150px,0.7fr)_110px_minmax(180px,0.7fr)_auto] sm:items-center">
-                  <div><p className="text-sm font-semibold text-[#22201d]">{ingredient.product_name}</p><span className={`ws-status mt-1 ${ingredient.is_active ? 'ws-tone-positive' : ''}`}>{ingredient.is_active ? l.active : l.archived}</span></div>
-                  <p className="ws-muted">{bazaarCategoryLabel(ingredient.category, lang)}</p>
-                  <p className="ws-muted">{bazaarUnitLabel(ingredient.unit, lang)}</p>
-                  <p className="text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(ingredient.normal_unit_price)} / {bazaarUnitLabel(ingredient.unit, lang)}</p>
-                  {canManage && <div className="flex justify-end gap-2"><button type="button" onClick={() => editIngredient(ingredient)} aria-label={l.edit} className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"><Edit3 size={14} /></button><button type="button" disabled={updatingKey === ingredient.product_key} onClick={() => setIngredientActive(ingredient)} className={`ws-btn ws-btn-sm ${ingredient.is_active ? 'ws-btn-ghost ws-btn-danger' : 'ws-btn-outline'}`}>{updatingKey === ingredient.product_key ? <Loader2 size={14} className="animate-spin" /> : ingredient.is_active ? <Archive size={14} /> : <RotateCcw size={14} />}{ingredient.is_active ? l.archive : l.restore}</button></div>}
+              <div>
+                <div className={`ws-table-head hidden gap-3 px-5 py-3 sm:grid ${INGREDIENT_ROW_GRID}`}>
+                  <span>{l.ingredient}</span>
+                  <span>{l.category}</span>
+                  <span>{l.normalPriceShort}</span>
+                  {canManage && <span />}
+                </div>
+                {filtered.map(ingredient => (
+                <div
+                  key={ingredient.product_key}
+                  {...(canManage ? {
+                    role: 'button',
+                    tabIndex: 0,
+                    'aria-label': `${l.edit}: ${ingredient.product_name}`,
+                    onClick: () => editIngredient(ingredient),
+                    onKeyDown: event => {
+                      if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+                      event.preventDefault()
+                      editIngredient(ingredient)
+                    },
+                  } : {})}
+                  className={`ws-row grid gap-2 px-5 py-3 max-sm:px-4 sm:items-center sm:gap-3 ${INGREDIENT_ROW_GRID} ${canManage ? 'cursor-pointer' : ''} ${ingredient.is_active ? '' : 'opacity-70'}`}
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2"><p className="truncate text-sm font-semibold text-[#22201d]">{ingredient.product_name}</p>{!ingredient.is_active && <span className="ws-status">{l.archived}</span>}</div>
+                  <div><span className="ws-badge">{bazaarCategoryLabel(ingredient.category, lang)}</span></div>
+                  <div><p className="text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(ingredient.normal_unit_price)} <span className="font-normal text-[#68655f]">/ {bazaarUnitLabel(ingredient.unit, lang)}</span></p>{ingredient.pieces_per_unit > 0 && <p className="ws-muted mt-0.5 tabular-nums">{ingredient.pieces_per_unit} {bazaarUnitLabel('pcs', lang)} · {formatCurrency(Math.round(bazaarPricePerPiece(ingredient.normal_unit_price, ingredient.pieces_per_unit)))} {l.perPiece}</p>}</div>
+                  {canManage && <div className="flex justify-end gap-2"><button type="button" onClick={event => { event.stopPropagation(); editIngredient(ingredient) }} aria-label={l.edit} title={l.edit} className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"><Edit3 size={14} /></button><button type="button" disabled={updatingKey === ingredient.product_key} onClick={event => { event.stopPropagation(); setIngredientActive(ingredient) }} className={`ws-btn ws-btn-sm ${ingredient.is_active ? 'ws-btn-ghost ws-btn-danger' : 'ws-btn-outline'}`}>{updatingKey === ingredient.product_key ? <Loader2 size={14} className="animate-spin" /> : ingredient.is_active ? <Archive size={14} /> : <RotateCcw size={14} />}{ingredient.is_active ? l.archive : l.restore}</button></div>}
                 </div>
               ))}</div>
             )}
           </section>
         </div>
       </div>
+
+      {canManage && editForm && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+          <button
+            type="button"
+            aria-label={l.cancel}
+            onClick={closeEditDialog}
+            disabled={saving}
+            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm disabled:cursor-wait"
+          />
+          <form
+            ref={editDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-ingredient-title"
+            aria-busy={saving}
+            onSubmit={event => saveIngredient(event, editForm, setEditForm)}
+            onKeyDown={event => { if (event.key === 'Escape') closeEditDialog() }}
+            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 id="edit-ingredient-title" className="ws-display !text-[24px]">{l.edit}</h2>
+                <p className="ws-muted mt-1.5">{l.nameHint}{piecePriceHint(editForm) && <> {piecePriceHint(editForm)}</>}</p>
+              </div>
+              <button type="button" onClick={closeEditDialog} disabled={saving} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
+            </div>
+            <fieldset disabled={saving} className="grid gap-3 sm:grid-cols-2 sm:[&>*:first-child]:col-span-2">
+              {renderIngredientFields(editForm, setEditForm)}
+            </fieldset>
+            {displayedError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{displayedError}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={closeEditDialog} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
+              <button type="submit" disabled={saving} className="ws-btn ws-btn-primary">{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{saving ? l.saving : l.save}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </AppShell>
   )
 }

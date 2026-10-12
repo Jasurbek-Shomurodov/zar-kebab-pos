@@ -855,6 +855,7 @@ function archiveLabels(lang) {
     items: 'Блюда',
     empty: 'В архиве пусто.',
     search: 'Поиск в архиве…',
+    all: 'Все',
     restore: 'Восстановить',
     archivedAt: 'В архиве с',
     categoryArchived: 'Сначала восстановите категорию',
@@ -869,6 +870,7 @@ function archiveLabels(lang) {
     items: 'Taomlar',
     empty: 'Arxiv bo‘sh.',
     search: 'Arxivdan qidirish…',
+    all: 'Hammasi',
     restore: 'Tiklash',
     archivedAt: 'Arxivlangan',
     categoryArchived: 'Avval kategoriyani tiklang',
@@ -883,6 +885,7 @@ function archiveLabels(lang) {
     items: 'Items',
     empty: 'The archive is empty.',
     search: 'Search archive…',
+    all: 'All',
     restore: 'Restore',
     archivedAt: 'Archived',
     categoryArchived: 'Restore its category first',
@@ -1139,8 +1142,8 @@ function SortableItemRow({ item, lang, onEdit, onDelete, onToggleVisibility, cat
 // ── Sortable category row ─────────────────────────────────────────────────────
 
 // The read-only layout removes drag/actions columns instead of leaving empty cells.
-const CAT_EDIT_GRID = 'grid grid-cols-[20px_52px_minmax(0,1fr)_200px_90px_160px] items-center gap-4 px-5'
-const CAT_READ_ONLY_GRID = 'grid grid-cols-[52px_minmax(260px,1fr)_minmax(220px,280px)_100px] items-center gap-4 px-5'
+const CAT_EDIT_GRID = 'grid grid-cols-[20px_48px_minmax(180px,1fr)_minmax(0,1.4fr)_44px_auto] items-center gap-4 px-5'
+const CAT_READ_ONLY_GRID = 'grid grid-cols-[48px_minmax(180px,1fr)_minmax(0,1.4fr)_44px] items-center gap-4 px-5'
 
 function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibility, visibilityPending, sortIndex, canDelete = false, readOnly = false }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id })
@@ -1171,52 +1174,58 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
         </div>
       )}
 
-      {/* col 3 – name + count */}
+      {/* col 3 – name + count; opens the editor when editable */}
       <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-[#22201d]">{getCategoryName(cat, lang)}</p>
+        {readOnly ? (
+          <p className="truncate text-sm font-semibold text-[#22201d]">{getCategoryName(cat, lang)}</p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onEdit(cat)}
+            disabled={visibilityPending}
+            className="block max-w-full truncate text-left text-sm font-semibold text-[#22201d] hover:text-[#ff5a00] hover:underline"
+          >
+            {getCategoryName(cat, lang)}
+          </button>
+        )}
         <p className="ws-caption mt-0.5">
           {lang === 'uz' ? `${itemCount} ta element` :
            lang === 'ru' ? `${itemCount} позиций` :
            `${itemCount} item${itemCount !== 1 ? 's' : ''}`}
         </p>
-        {(cat.waiter_hidden || cat.tourist_hidden || scheduleLabel) && (
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {cat.waiter_hidden && (
-              <span className="ws-badge">
-                {hiddenFromWaiterMenuLabel(lang)}
-              </span>
-            )}
-            {cat.tourist_hidden && (
-              <span className="ws-badge">
-                {hiddenFromTouristMenuLabel(lang)}
-              </span>
-            )}
-            {scheduleLabel && (
-              <span className="ws-badge ws-tone-positive">
-                {scheduleLabel}
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* col 4 – status */}
-      <div>
-        <div className="flex items-center gap-1.5">
-          <span className={`ws-status ${cat.hidden ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
-            {categoryVisibilityStatusLabel(lang, !cat.hidden)}
+      {/* col 4 – where the category shows: public status, other menus, schedule */}
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <span className={`ws-status ${cat.hidden ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
+          {categoryVisibilityStatusLabel(lang, !cat.hidden)}
+        </span>
+        {!readOnly && (
+          <VisibilityToggleButton
+            visible={!cat.hidden}
+            pending={visibilityPending}
+            onClick={() => onToggleVisibility(cat)}
+            lang={lang}
+            kind="category"
+            compact
+          />
+        )}
+        {cat.waiter_hidden && (
+          <span className="ws-badge">
+            {hiddenFromWaiterMenuLabel(lang)}
           </span>
-          {!readOnly && (
-            <VisibilityToggleButton
-              visible={!cat.hidden}
-              pending={visibilityPending}
-              onClick={() => onToggleVisibility(cat)}
-              lang={lang}
-              kind="category"
-              compact
-            />
-          )}
-        </div>
+        )}
+        {cat.tourist_hidden && (
+          <span className="ws-badge">
+            {hiddenFromTouristMenuLabel(lang)}
+          </span>
+        )}
+        {scheduleLabel && (
+          <span className="ws-badge ws-tone-positive">
+            <Clock3 />
+            {scheduleLabel}
+          </span>
+        )}
       </div>
 
       {/* col 5 – sort order (centred) */}
@@ -1726,6 +1735,7 @@ export default function AdminMenu() {
   const [savingCatId, setSavingCatId] = useState('')
   const [restoringId, setRestoringId] = useState('')
   const [archiveSearch, setArchiveSearch] = useState('')
+  const [archiveFilter, setArchiveFilter] = useState('all')
   const [savingItemForm, setSavingItemForm] = useState(false)
   const [savingCatForm, setSavingCatForm] = useState(false)
   const [originalItemFormFingerprint, setOriginalItemFormFingerprint] = useState('')
@@ -1849,6 +1859,8 @@ export default function AdminMenu() {
     sortedCategories.filter(c => c.id !== 'all' && isActiveMenuCategory(c)),
     [sortedCategories]
   )
+  const categoryHiddenCount = realSortedCats.filter(c => c.hidden).length
+  const categoryScheduledCount = realSortedCats.filter(c => scheduleBadgeLabel(c)).length
 
   const sortedItems = useMemo(() =>
     state.menuItems
@@ -2491,7 +2503,9 @@ export default function AdminMenu() {
               />
             ) : (
               <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-                <section className="ws-panel min-w-0 space-y-5 self-start overflow-hidden">
+                {/* Main column: details, where the category shows, and its schedule. */}
+                <div className="min-w-0 space-y-5">
+                  <section className="ws-panel min-w-0 space-y-5 self-start overflow-hidden">
                   <div>
                     <h2 className="ws-display">
                       {lang === 'uz' ? 'Kategoriya ma’lumotlari' : lang === 'ru' ? 'Данные категории' : 'Category details'}
@@ -2553,28 +2567,95 @@ export default function AdminMenu() {
                     </div>
                   </div>
                 </section>
-
-                <aside className="min-w-0 space-y-4">
-                  <section className="ws-panel space-y-4">
-                    <div>
-                      <p className="ws-caption mb-1.5 font-medium">
-                        {lang === 'uz' ? 'Kategoriya ID' : lang === 'ru' ? 'ID категории' : 'Category ID'}
+                  <section className="ws-panel">
+                    <div className="mb-3">
+                      <h2 className="ws-heading">
+                        {lang === 'uz' ? 'Ko‘rinish' : lang === 'ru' ? 'Видимость' : 'Visibility'}
+                      </h2>
+                      <p className="ws-caption mt-1">
+                        {lang === 'uz' ? 'Kategoriya qayerda ko‘rinishini tanlang.' :
+                         lang === 'ru' ? 'Выберите, где показывать категорию.' :
+                         'Choose where this category appears.'}
                       </p>
-                      <p className="truncate rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-3 py-2.5 font-mono text-sm text-[#22201d]">{catForm.id || '—'}</p>
                     </div>
 
-                    <ImageUploadField
-                      label={t(lang, 'imageUrl')}
-                      value={catForm.image_url}
-                      onChange={setCF('image_url')}
-                      onUploadComplete={upload => handleTrackedUpload(uploadedCatImageUrlsRef, upload)}
-                      lang={lang}
-                      type="category"
-                      entityId={catForm.id}
-                    />
+                    <div className="grid gap-2 md:grid-cols-3">
+                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
+                      <input
+                        type="checkbox"
+                        checked={publicVisible}
+                        onChange={event => setCatForm(current => ({ ...current, hidden: !event.target.checked }))}
+                        disabled={savingCatForm}
+                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[#22201d]">
+                          {lang === 'uz' ? 'Ommaviy menyu' : lang === 'ru' ? 'Публичное меню' : 'Public menu'}
+                        </span>
+                        <span className="ws-caption block">
+                          {publicVisible
+                            ? (lang === 'uz' ? 'Mijozlarga ko‘rinadi' : lang === 'ru' ? 'Видно гостям' : 'Visible to guests')
+                            : (lang === 'uz' ? 'Mijozlardan yashirin' : lang === 'ru' ? 'Скрыто от гостей' : 'Hidden from guests')}
+                        </span>
+                      </span>
+                      {publicVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
+                    </label>
 
-                    <Field label={t(lang, 'sortOrder')} type="number" min="0" value={catForm.sort_order} onChange={setCF('sort_order')} placeholder="1" />
+                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
+                      <input
+                        type="checkbox"
+                        checked={waiterVisible}
+                        onChange={event => setCatForm(current => ({ ...current, waiter_hidden: !event.target.checked }))}
+                        disabled={savingCatForm}
+                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[#22201d]">
+                          {lang === 'uz' ? 'Ofitsiant menyusi' : lang === 'ru' ? 'Меню официанта' : 'Waiter menu'}
+                        </span>
+                        <span className="ws-caption block">
+                          {waiterVisible
+                            ? (lang === 'uz' ? 'Ofitsiantlarga ko‘rinadi' : lang === 'ru' ? 'Видно официантам' : 'Visible to waiters')
+                            : (lang === 'uz' ? 'Ofitsiantlardan yashirin' : lang === 'ru' ? 'Скрыто от официантов' : 'Hidden from waiters')}
+                        </span>
+                      </span>
+                      {waiterVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
+                    </label>
 
+                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
+                      <input
+                        type="checkbox"
+                        checked={touristVisible}
+                        onChange={event => setCatForm(current => ({ ...current, tourist_hidden: !event.target.checked }))}
+                        disabled={savingCatForm}
+                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[#22201d]">
+                          {lang === 'uz' ? 'Turist menyusi' : lang === 'ru' ? 'Туристическое меню' : 'Tourist menu'}
+                        </span>
+                        <span className="ws-caption block">
+                          {touristVisible
+                            ? (lang === 'uz' ? 'Turist narxida ko‘rinadi' : lang === 'ru' ? 'Видно при туристических ценах' : 'Visible with Tourist pricing')
+                            : (lang === 'uz' ? 'Turist narxidan yashirin' : lang === 'ru' ? 'Скрыто при туристических ценах' : 'Hidden with Tourist pricing')}
+                        </span>
+                      </span>
+                      {touristVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
+                    </label>
+                    </div>
+                  </section>
+                  <section className="ws-panel">
+                    <div className="mb-4">
+                      <h2 className="ws-heading">
+                        {lang === 'uz' ? 'Jadval' : lang === 'ru' ? 'Расписание' : 'Schedule'}
+                      </h2>
+                      <p className="ws-caption mt-1">
+                        {lang === 'uz' ? 'Kategoriya menyuda qachon ko‘rinishini sozlang.' :
+                         lang === 'ru' ? 'Настройте, когда категория видна в меню.' :
+                         'Set when this category shows on the menus.'}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="rounded-xl border border-[#e4e1de] p-4">
                       <p className="mb-3 text-sm font-semibold text-[#22201d]">{scheduleLabels.section}</p>
                       <div className="grid grid-cols-2 gap-3">
@@ -2666,83 +2747,33 @@ export default function AdminMenu() {
                         })}
                       </div>
                     </div>}
+                    </div>
                   </section>
+                </div>
 
-                  <section className="ws-panel space-y-2">
-                    <div className="mb-3">
-                      <h2 className="ws-heading">
-                        {lang === 'uz' ? 'Ko‘rinish' : lang === 'ru' ? 'Видимость' : 'Visibility'}
-                      </h2>
-                      <p className="ws-caption mt-1">
-                        {lang === 'uz' ? 'Kategoriya qayerda ko‘rinishini tanlang.' :
-                         lang === 'ru' ? 'Выберите, где показывать категорию.' :
-                         'Choose where this category appears.'}
+                <aside className="min-w-0 space-y-4">
+                  <section className="ws-panel space-y-4">
+                    <div>
+                      <p className="ws-caption mb-1.5 font-medium">
+                        {lang === 'uz' ? 'Kategoriya ID' : lang === 'ru' ? 'ID категории' : 'Category ID'}
                       </p>
+                      <p className="truncate rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-3 py-2.5 font-mono text-sm text-[#22201d]">{catForm.id || '—'}</p>
                     </div>
 
-                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
-                      <input
-                        type="checkbox"
-                        checked={publicVisible}
-                        onChange={event => setCatForm(current => ({ ...current, hidden: !event.target.checked }))}
-                        disabled={savingCatForm}
-                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-[#22201d]">
-                          {lang === 'uz' ? 'Ommaviy menyu' : lang === 'ru' ? 'Публичное меню' : 'Public menu'}
-                        </span>
-                        <span className="ws-caption block">
-                          {publicVisible
-                            ? (lang === 'uz' ? 'Mijozlarga ko‘rinadi' : lang === 'ru' ? 'Видно гостям' : 'Visible to guests')
-                            : (lang === 'uz' ? 'Mijozlardan yashirin' : lang === 'ru' ? 'Скрыто от гостей' : 'Hidden from guests')}
-                        </span>
-                      </span>
-                      {publicVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
-                    </label>
+                    <ImageUploadField
+                      label={t(lang, 'imageUrl')}
+                      value={catForm.image_url}
+                      onChange={setCF('image_url')}
+                      onUploadComplete={upload => handleTrackedUpload(uploadedCatImageUrlsRef, upload)}
+                      lang={lang}
+                      type="category"
+                      entityId={catForm.id}
+                    />
 
-                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
-                      <input
-                        type="checkbox"
-                        checked={waiterVisible}
-                        onChange={event => setCatForm(current => ({ ...current, waiter_hidden: !event.target.checked }))}
-                        disabled={savingCatForm}
-                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-[#22201d]">
-                          {lang === 'uz' ? 'Ofitsiant menyusi' : lang === 'ru' ? 'Меню официанта' : 'Waiter menu'}
-                        </span>
-                        <span className="ws-caption block">
-                          {waiterVisible
-                            ? (lang === 'uz' ? 'Ofitsiantlarga ko‘rinadi' : lang === 'ru' ? 'Видно официантам' : 'Visible to waiters')
-                            : (lang === 'uz' ? 'Ofitsiantlardan yashirin' : lang === 'ru' ? 'Скрыто от официантов' : 'Hidden from waiters')}
-                        </span>
-                      </span>
-                      {waiterVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
-                    </label>
+                    <Field label={t(lang, 'sortOrder')} type="number" min="0" value={catForm.sort_order} onChange={setCF('sort_order')} placeholder="1" />
 
-                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
-                      <input
-                        type="checkbox"
-                        checked={touristVisible}
-                        onChange={event => setCatForm(current => ({ ...current, tourist_hidden: !event.target.checked }))}
-                        disabled={savingCatForm}
-                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-[#22201d]">
-                          {lang === 'uz' ? 'Turist menyusi' : lang === 'ru' ? 'Туристическое меню' : 'Tourist menu'}
-                        </span>
-                        <span className="ws-caption block">
-                          {touristVisible
-                            ? (lang === 'uz' ? 'Turist narxida ko‘rinadi' : lang === 'ru' ? 'Видно при туристических ценах' : 'Visible with Tourist pricing')
-                            : (lang === 'uz' ? 'Turist narxidan yashirin' : lang === 'ru' ? 'Скрыто при туристических ценах' : 'Hidden with Tourist pricing')}
-                        </span>
-                      </span>
-                      {touristVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
-                    </label>
                   </section>
+
 
                   <div className="ws-panel flex gap-2 !p-3">
                     <button
@@ -3351,11 +3382,49 @@ export default function AdminMenu() {
           {/* ══ Categories tab ═══════════════════════════════════════════════ */}
           {tab === 'categories' && (
             <>
-              {canEditMenu && (
-                <div className="flex justify-end">
-                  <OrangeBtn onClick={openNewCat} icon={Plus}>{t(lang, 'addCategory')}</OrangeBtn>
+              {/* Toolbar: summary of the catalogue and the add action, like Menu Items. */}
+              <div className="ws-panel flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="ws-heading">
+                    {lang === 'uz' ? 'Kategoriyalar' : lang === 'ru' ? 'Категории' : 'Categories'}
+                  </h2>
+                  <p className="ws-caption mt-1">
+                    {canEditMenu && realSortedCats.length > 1
+                      ? (lang === 'uz' ? 'Menyudagi tartibni o‘zgartirish uchun qatorlarni sudrang.' :
+                         lang === 'ru' ? 'Перетаскивайте строки, чтобы изменить порядок в меню.' :
+                         'Drag rows to change their order on the menu.')
+                      : (lang === 'uz' ? 'Menyu bo‘limlari va ular qayerda ko‘rinishi.' :
+                         lang === 'ru' ? 'Разделы меню и где они показываются.' :
+                         'Menu sections and where they show.')}
+                  </p>
                 </div>
-              )}
+                {realSortedCats.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="ws-badge">
+                      {lang === 'uz' ? `${realSortedCats.length} ta kategoriya` :
+                       lang === 'ru' ? `Категорий: ${realSortedCats.length}` :
+                       `${realSortedCats.length} categor${realSortedCats.length !== 1 ? 'ies' : 'y'}`}
+                    </span>
+                    {categoryHiddenCount > 0 && (
+                      <span className="ws-badge ws-tone-negative">
+                        <EyeOff />
+                        {lang === 'uz' ? `${categoryHiddenCount} ta yashirin` :
+                         lang === 'ru' ? `Скрыто: ${categoryHiddenCount}` :
+                         `${categoryHiddenCount} hidden`}
+                      </span>
+                    )}
+                    {categoryScheduledCount > 0 && (
+                      <span className="ws-badge ws-tone-positive">
+                        <Clock3 />
+                        {lang === 'uz' ? `${categoryScheduledCount} ta jadvalli` :
+                         lang === 'ru' ? `По расписанию: ${categoryScheduledCount}` :
+                         `${categoryScheduledCount} scheduled`}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {canEditMenu && <OrangeBtn onClick={openNewCat} icon={Plus}>{t(lang, 'addCategory')}</OrangeBtn>}
+              </div>
 
               {realSortedCats.length === 0 ? (
                 <div className="ws-panel ws-empty">
@@ -3371,10 +3440,6 @@ export default function AdminMenu() {
                 </div>
               ) : (
                 <>
-                  {canEditMenu && <p className="ws-caption flex items-center gap-1.5">
-                    <GripVertical size={13} />
-                    {lang === 'uz' ? 'Tartiblash uchun sudrang' : lang === 'ru' ? 'Перетащите для сортировки' : 'Drag to reorder'}
-                  </p>}
                   <DndContext
                     sensors={sensors}
                     collisionDetection={pointerWithinOrClosestCenter}
@@ -3392,8 +3457,8 @@ export default function AdminMenu() {
                           {canEditMenu && <span />}
                           <span />
                           <span>{lang === 'uz' ? 'Nomi' : lang === 'ru' ? 'Название' : 'Name'}</span>
-                          <span>{lang === 'uz' ? 'Ommaviy menyu' : lang === 'ru' ? 'Публичное меню' : 'Public menu'}</span>
-                          <span className="text-center">{lang === 'uz' ? 'Tartib' : lang === 'ru' ? 'Порядок' : 'Sort Order'}</span>
+                          <span>{lang === 'uz' ? 'Ko‘rinish' : lang === 'ru' ? 'Видимость' : 'Visibility'}</span>
+                          <span className="text-center">#</span>
                           {canEditMenu && <span className="text-right">{lang === 'uz' ? 'Amallar' : lang === 'ru' ? 'Действия' : 'Actions'}</span>}
                         </div>
 
@@ -3413,12 +3478,6 @@ export default function AdminMenu() {
                           />
                         ))}
 
-                        {/* Footer */}
-                        <div className="ws-caption border-t border-[#e4e1de] bg-[#f6f5f3] px-5 py-3 text-center">
-                          {lang === 'uz' ? `Jami ${realSortedCats.length} ta kategoriya` :
-                           lang === 'ru' ? `Всего категорий: ${realSortedCats.length}` :
-                           `Total ${realSortedCats.length} categor${realSortedCats.length !== 1 ? 'ies' : 'y'}`}
-                        </div>
                       </div>
                     </SortableContext>
 
@@ -3566,68 +3625,108 @@ export default function AdminMenu() {
                   </button>
                 )
             )
+            const showCats = archiveFilter !== 'items' && cats.length > 0
+            const showItems = archiveFilter !== 'categories' && items.length > 0
+            const filters = [
+              { key: 'all', label: labels.all, count: cats.length + items.length },
+              { key: 'items', label: labels.items, count: items.length },
+              { key: 'categories', label: labels.categories, count: cats.length },
+            ]
+            // Archived entries render as compact cards so wide screens show several per row.
+            const archiveCard = (key, media, title, meta, action) => (
+              <div key={key} className="flex min-w-0 items-center gap-3 rounded-xl border border-[#e4e1de] bg-white p-3 transition-colors hover:bg-[#f6f5f3]">
+                {media}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#22201d]">{title}</p>
+                  <p className="ws-caption truncate">{meta}</p>
+                </div>
+                {action && <div className="flex-shrink-0">{action}</div>}
+              </div>
+            )
             return (
               <>
-                <div className="ws-panel">
-                  <h2 className="ws-display">{labels.title}</h2>
-                  <p className="ws-muted mt-1.5">{labels.sub}</p>
-                  <div className="relative mt-4">
-                    <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
-                    <input
-                      value={archiveSearch}
-                      onChange={e => setArchiveSearch(e.target.value)}
-                      placeholder={labels.search}
-                      className="ws-input !pl-9"
-                    />
+                {/* Toolbar: title, search and type filter on one compact panel. */}
+                <div className="ws-panel flex flex-col gap-4 xl:flex-row xl:items-center">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="ws-heading flex items-center gap-2">
+                      <Archive size={18} className="text-[#68655f]" />
+                      {labels.title}
+                    </h2>
+                    <p className="ws-caption mt-1">{labels.sub}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative min-w-[220px] flex-1 xl:w-72 xl:flex-none">
+                      <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
+                      <input
+                        value={archiveSearch}
+                        onChange={e => setArchiveSearch(e.target.value)}
+                        placeholder={labels.search}
+                        className="ws-input !pl-9"
+                      />
+                    </div>
+                    <div className="ws-segmented" role="group" aria-label={labels.title}>
+                      {filters.map(filter => (
+                        <button
+                          key={filter.key}
+                          type="button"
+                          aria-pressed={archiveFilter === filter.key}
+                          onClick={() => setArchiveFilter(filter.key)}
+                        >
+                          {filter.label}
+                          <span className="ml-1.5 tabular-nums text-[#68655f]">{filter.count}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                {!cats.length && !items.length ? (
+                {!showCats && !showItems ? (
                   <div className="ws-panel ws-empty">
                     <Archive />
                     <p>{labels.empty}</p>
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    {cats.length > 0 && (
-                      <section className="ws-panel ws-panel-flush">
-                        <h3 className="ws-heading flex items-center gap-2 border-b border-[#e4e1de] px-5 py-4">{labels.categories} <span className="ws-count">{cats.length}</span></h3>
-                        {cats.map(cat => (
-                          <div key={cat.id} className="ws-row flex flex-wrap items-center gap-3 px-5 py-3">
-                            <FolderOpen size={20} className="flex-shrink-0 text-[#68655f]" />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold text-[#22201d]">{getCategoryName(cat, lang)}</p>
-                              <p className="ws-caption">{labels.archivedAt} {formatLongDateTime(cat.deleted_at, lang)}</p>
-                            </div>
-                            {restoreButton('RESTORE_CATEGORY', cat.id)}
-                          </div>
-                        ))}
+                    {showCats && (
+                      <section className="ws-panel">
+                        <h3 className="ws-heading mb-3 flex items-center gap-2">{labels.categories} <span className="ws-count">{cats.length}</span></h3>
+                        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                          {cats.map(cat => archiveCard(
+                            cat.id,
+                            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[#efece9]">
+                              <FolderOpen size={20} className="text-[#68655f]" />
+                            </div>,
+                            getCategoryName(cat, lang),
+                            `${labels.archivedAt} ${formatLongDateTime(cat.deleted_at, lang)}`,
+                            restoreButton('RESTORE_CATEGORY', cat.id),
+                          ))}
+                        </div>
                       </section>
                     )}
-                    {items.length > 0 && (
-                      <section className="ws-panel ws-panel-flush">
-                        <h3 className="ws-heading flex items-center gap-2 border-b border-[#e4e1de] px-5 py-4">{labels.items} <span className="ws-count">{items.length}</span></h3>
-                        {items.map(item => {
-                          const cat = state.categories.find(c => c.id === item.category_id)
-                          const categoryArchived = !!cat && isDeletedMenuCategory(cat)
-                          return (
-                            <div key={item.id} className="ws-row flex flex-wrap items-center gap-3 px-5 py-3">
+                    {showItems && (
+                      <section className="ws-panel">
+                        <h3 className="ws-heading mb-3 flex items-center gap-2">{labels.items} <span className="ws-count">{items.length}</span></h3>
+                        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                          {items.map(item => {
+                            const cat = state.categories.find(c => c.id === item.category_id)
+                            const categoryArchived = !!cat && isDeletedMenuCategory(cat)
+                            return archiveCard(
+                              item.id,
                               <SafeMenuImage
                                 src={item.image_url}
                                 alt={getItemName(item, lang)}
                                 className="h-12 w-12 flex-shrink-0 rounded-lg object-cover object-center opacity-70 grayscale"
                                 fallbackClassName="h-12 w-12 flex-shrink-0 rounded-lg"
                                 iconSize={18}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-[#22201d]">{getItemName(item, lang)}</p>
-                                <p className="ws-caption">
-                                  {[cat && getCategoryName(cat, lang), formatCurrency(item.price), `${labels.archivedAt} ${formatLongDateTime(item.deleted_at, lang)}`].filter(Boolean).join(' · ')}
-                                </p>
-                              </div>
-                              {restoreButton('RESTORE_MENU_ITEM', item.id, categoryArchived ? labels.categoryArchived : '')}
-                            </div>
-                          )
-                        })}
+                              />,
+                              getItemName(item, lang),
+                              <>
+                                {[cat && getCategoryName(cat, lang), formatCurrency(item.price)].filter(Boolean).join(' · ')}
+                                <span className="block truncate">{labels.archivedAt} {formatLongDateTime(item.deleted_at, lang)}</span>
+                              </>,
+                              restoreButton('RESTORE_MENU_ITEM', item.id, categoryArchived ? labels.categoryArchived : ''),
+                            )
+                          })}
+                        </div>
                       </section>
                     )}
                   </div>

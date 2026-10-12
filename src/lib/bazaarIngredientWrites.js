@@ -50,6 +50,7 @@ export function bazaarIngredientMatches(ingredient, expected) {
   if (expected.category != null && ingredient.category !== expected.category) return false
   if (expected.unit != null && ingredient.unit !== expected.unit) return false
   if (expected.normal_unit_price != null && Number(ingredient.normal_unit_price) !== Number(expected.normal_unit_price)) return false
+  if (expected.pieces_per_unit !== undefined && (Number(ingredient.pieces_per_unit) || null) !== (Number(expected.pieces_per_unit) || null)) return false
   if (expected.is_active != null && ingredient.is_active !== expected.is_active) return false
   return true
 }
