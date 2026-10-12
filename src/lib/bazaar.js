@@ -126,6 +126,12 @@ export function normalizeBazaarText(value) {
   return String(value ?? '').trim().replace(/\s+/g, ' ')
 }
 
+// Ingredient names are stored with a capital first letter; migration 240 enforces the same rule.
+export function capitalizeBazaarIngredientName(value) {
+  const name = String(value ?? '').trim()
+  return name ? name.charAt(0).toLocaleUpperCase() + name.slice(1) : ''
+}
+
 export function normalizeBazaarProductKey(value) {
   return normalizeBazaarText(value)
     .normalize('NFKC')

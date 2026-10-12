@@ -67,7 +67,7 @@ Migrations `097`, `160`–`163`, `182`.
 - Product rows share one height; notes are multiline.
 - Snapshot buyer ID/name. New entries use cash/card; preserve historical terminal.
 - New lines require active `bazaar_product_catalog` ingredients; no arbitrary names.
-- `/admin/ingredients` manages canonical names, categories, purchase units, normal unit prices, and active/archive state. Migration `182` allows owner renames; saves keep catalog keys and historical snapshots.
+- `/admin/ingredients` manages canonical names, categories, purchase units, normal unit prices, and active/archive state. `182`: owner renames keep catalog keys and snapshots; `240`: names start capitalized.
 - `186`: active owners/admins with `ingredients` may write; viewers read. Bazaar/Tech Card access grants catalog reads only.
 - Migration `161` starts the managed list empty without changing history.
 - Suggested totals stay editable; exact paid totals drive Accounting.

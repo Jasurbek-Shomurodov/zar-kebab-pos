@@ -11,7 +11,7 @@ import { canEditFeature } from '../lib/permissions'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { withWriteTimeout } from '../lib/writeTimeout'
-import { BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH, BAZAAR_ENTRY_UNITS, BAZAAR_PACKAGE_UNITS, bazaarPricePerPiece, normalizeBazaarPiecesPerUnit, bazaarCategoriesFor, bazaarCategoryLabel, bazaarUnitLabel, normalizeBazaarProductKey } from '../lib/bazaar'
+import { BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH, BAZAAR_ENTRY_UNITS, BAZAAR_PACKAGE_UNITS, bazaarPricePerPiece, normalizeBazaarPiecesPerUnit, bazaarCategoriesFor, bazaarCategoryLabel, bazaarUnitLabel, capitalizeBazaarIngredientName, normalizeBazaarProductKey } from '../lib/bazaar'
 import { bazaarIngredientMatches, isBazaarIngredientNetworkError, runBazaarIngredientWriteWithRecovery } from '../lib/bazaarIngredientWrites'
 
 const INPUT = 'ws-input disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
@@ -222,7 +222,7 @@ export default function BazaarIngredients() {
     try {
       const payload = {
         ...(form.product_key ? { product_key: form.product_key } : {}),
-        product_name: form.product_name.trim(),
+        product_name: capitalizeBazaarIngredientName(form.product_name),
         category: form.category,
         unit: form.unit,
         normal_unit_price: normalizeMoneyInput(form.normal_unit_price),
