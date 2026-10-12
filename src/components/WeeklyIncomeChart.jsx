@@ -1,6 +1,6 @@
 import CalendarPicker from './CalendarPicker'
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { buildIncomeMonthOptions, incomeMonthColors, hideZeroIncomeMonths, loadDashboardWeeklyIncome } from '../lib/weeklyIncome'
+import { buildIncomeMonthOptions, incomeMonthColors, hideZeroIncomeMonths, loadDashboardWeeklyIncome, loadFirstOrderMonth } from '../lib/weeklyIncome'
 import { loadEarliestOrderDate } from '../lib/db'
 import { restaurantTodayStr, toRestaurantDateStr } from '../lib/analytics'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -26,8 +26,11 @@ export default function WeeklyIncomeChart({ lang, target = 0 }) {
   useEffect(() => {
     let cancelled = false
     setStartFailed(false)
-    loadEarliestOrderDate().then(date => {
-      if (!cancelled) setFirstMonth(date ? toRestaurantDateStr(date).slice(0, 7) : '')
+    loadFirstOrderMonth({
+      loadEarliestDate: loadEarliestOrderDate,
+      toMonth: date => toRestaurantDateStr(date).slice(0, 7),
+    }).then(firstOrderMonth => {
+      if (!cancelled) setFirstMonth(firstOrderMonth)
     }).catch(() => { if (!cancelled) setStartFailed(true) })
     return () => { cancelled = true }
   }, [retry])

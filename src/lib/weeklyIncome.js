@@ -40,3 +40,28 @@ export function incomeMonthColors(month) {
   const hue = Math.round(((year * 12 + number - 1) * 137.508) % 360)
   return { background: 'hsl(' + hue + ' 65% 96%)', border: 'hsl(' + hue + ' 65% 32%)' }
 }
+
+export const FIRST_ORDER_MONTH_STORAGE_KEY = 'zar-first-order-month'
+
+function readStoredMonth(storage) {
+  try {
+    const value = storage?.getItem(FIRST_ORDER_MONTH_STORAGE_KEY)
+    return /^\d{4}-(0[1-9]|1[0-2])$/.test(value || '') ? value : null
+  } catch {
+    return null
+  }
+}
+
+// The first order's month only starts the month picker, and it does not move
+// forward, so it is remembered per browser after the first lookup. A deleted
+// first order can leave one extra empty month at the start, which is harmless.
+export async function loadFirstOrderMonth({ loadEarliestDate, toMonth, storage = globalThis.localStorage } = {}) {
+  const stored = readStoredMonth(storage)
+  if (stored) return stored
+  const date = await loadEarliestDate()
+  const month = date ? toMonth(date) : ''
+  if (month) {
+    try { storage?.setItem(FIRST_ORDER_MONTH_STORAGE_KEY, month) } catch { /* private mode or blocked storage */ }
+  }
+  return month
+}
