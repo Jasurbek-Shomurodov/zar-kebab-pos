@@ -8,7 +8,7 @@
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
 
-- `194`/`206`/`237`: nullable display-only employee roles; apply 237 for newest roles. Tests: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237`: display-only employee roles; `238` Tourist menu switch. Tests: `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 

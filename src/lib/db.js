@@ -138,6 +138,27 @@ function isCategoryScheduleOverridesPermissionError(error) {
   return message.includes('42501') || message.includes('permission denied')
 }
 
+function isMissingTouristPricingColumn(error) {
+  const message = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
+  return (message.includes('tourist_menu_enabled') || message.includes('public_tourist_prices')) && (
+    message.includes('schema cache') ||
+    message.includes('column') ||
+    message.includes('42703') ||
+    message.includes('pgrst204')
+  )
+}
+
+// Public pages cannot read business_settings; an absent RPC means the switches were never changed.
+export async function loadPublicMenuPriceSettings(dbClient = supabase) {
+  const { data, error } = await dbClient.rpc('public_menu_price_settings')
+  if (error) {
+    console.warn('[db] public menu price settings unavailable, using defaults:', error.message)
+    return { touristMenuEnabled: true, publicTouristPrices: false }
+  }
+  const touristMenuEnabled = data?.tourist_menu_enabled !== false
+  return { touristMenuEnabled, publicTouristPrices: touristMenuEnabled && data?.public_tourist_prices === true }
+}
+
 function isMissingTouristServiceRateColumn(error) {
   const message = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
   return message.includes('tourist_service_rate_pct') && (
@@ -238,6 +259,8 @@ function normalizeBusinessSettings(row) {
     receiptMarketing: normalizeReceiptMarketing(row.receipt_marketing),
     autoPrint: !!row.auto_print,
     autoPrintKitchenCheck: !!row.auto_print_kitchen_check,
+    touristMenuEnabled: row.tourist_menu_enabled !== false,
+    publicTouristPrices: row.public_tourist_prices === true,
   }
 }
 
@@ -1425,12 +1448,24 @@ export async function writeToSupabase(action, state, options = {}) {
         receipt_marketing: normalizeReceiptMarketing(settings.receiptMarketing),
         auto_print: !!settings.autoPrint,
         auto_print_kitchen_check: !!settings.autoPrintKitchenCheck,
+        tourist_menu_enabled: settings.touristMenuEnabled !== false,
+        public_tourist_prices: settings.publicTouristPrices === true,
         updated_at: new Date().toISOString(),
       }
       let { error } = await supabase
         .from('business_settings')
         .upsert(settingsRow)
       let compatibleSettingsRow = settingsRow
+      if (error && isMissingTouristPricingColumn(error)) {
+        if (settings.touristMenuEnabled === false || settings.publicTouristPrices === true) {
+          throw new Error('Run migrations/238_tourist_menu_toggle.sql to change Tourist menu settings')
+        }
+        const { tourist_menu_enabled, public_tourist_prices, ...legacySettingsRow } = compatibleSettingsRow
+        compatibleSettingsRow = legacySettingsRow
+        ;({ error } = await supabase
+          .from('business_settings')
+          .upsert(compatibleSettingsRow))
+      }
       if (error && isMissingDailyBreakEvenIncomeColumn(error)) {
         const { average_daily_break_even_income_uzs, ...legacySettingsRow } = compatibleSettingsRow
         compatibleSettingsRow = legacySettingsRow

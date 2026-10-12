@@ -19,6 +19,7 @@ import { isCustomerMenuCategory, isCustomerMenuItem, isTouristHiddenMenuCategory
 import { useApp } from '../store/AppContext'
 import { findMenuItemByLinkKey, getMenuItemPublicPath } from '../lib/menuLinks'
 import { getMenuItemForPriceMode } from '../lib/priceModes'
+import { loadPublicMenuPriceSettings } from '../lib/db'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import MenuCategoryScroller, { menuCategorySectionId } from '../components/MenuCategoryScroller'
 import {
@@ -450,6 +451,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   const [menuCurrency, setMenuCurrency] = useState(() => premium ? 'USD' : getDefaultMenuCurrency())
   const [currencyRates, setCurrencyRates] = useState({ UZS: 1 })
   const [visibilityNow, setVisibilityNow] = useState(() => new Date())
+  const [priceSettings, setPriceSettings] = useState({ touristMenuEnabled: true, publicTouristPrices: false })
   const menuBasePath = premium ? '/premium-menu' : corporateSets ? '/corporate-sets' : '/menu'
   const lang = premium ? premiumLang : appLang
   const seo = PUBLIC_MENU_SEO[lang] || PUBLIC_MENU_SEO.ru
@@ -458,6 +460,12 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   const headerRef = useRef(null)
   const savedScrollRef = useRef(0)
   const menuLoadSeqRef = useRef(0)
+
+  // The owner can switch the Tourist menu off; guests then see the regular menu.
+  useEffect(() => {
+    if (!premium || priceSettings.touristMenuEnabled) return
+    navigate(itemId ? `/menu/item/${encodeURIComponent(itemId)}` : '/menu', { replace: true })
+  }, [premium, priceSettings.touristMenuEnabled, itemId, navigate])
 
   useEffect(() => {
     if (premium) return
@@ -493,9 +501,11 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
     setError('')
     try {
       const now = new Date()
-      const data = await loadPublicMenuData(now)
+      // Price switches load with the menu so guests never see one price flip to another.
+      const [data, nextPriceSettings] = await Promise.all([loadPublicMenuData(now), loadPublicMenuPriceSettings()])
       if (menuLoadSeqRef.current !== seq) return
       setVisibilityNow(now)
+      setPriceSettings(nextPriceSettings)
       if (data.source === 'direct' && data.categories.length === 0 && data.items.length === 0 && data.rpcError) {
         throw new Error('Public menu SQL has not been applied yet. Run migrations/009_guest_public_menu.sql.')
       }
@@ -583,10 +593,10 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   const displayItems = useMemo(() => {
     const categoryIds = new Set(displayCategories.map(category => category.id))
     const visibleItems = items.filter(item => !item.category_id || categoryIds.has(item.category_id))
-    return premium
+    return premium || priceSettings.publicTouristPrices
       ? visibleItems.map(item => getMenuItemForPriceMode(item, 'tourist'))
       : visibleItems
-  }, [displayCategories, items, premium])
+  }, [displayCategories, items, premium, priceSettings.publicTouristPrices])
 
   useEffect(() => {
     if (loading) return

@@ -112,6 +112,8 @@ export default function AdminSettings() {
   const [averageDailyBreakEvenIncomeUzs, setAverageDailyBreakEvenIncomeUzs] = useState(String(settings.averageDailyBreakEvenIncomeUzs || ''))
   const [autoPrint,      setAutoPrint]      = useState(settings.autoPrint)
   const [autoPrintKitchenCheck, setAutoPrintKitchenCheck] = useState(!!settings.autoPrintKitchenCheck)
+  const [touristMenuEnabled, setTouristMenuEnabled] = useState(settings.touristMenuEnabled !== false)
+  const [publicTouristPrices, setPublicTouristPrices] = useState(settings.publicTouristPrices === true)
   const [receiptMarketing, setReceiptMarketing] = useState(settings.receiptMarketing || 'compactFooter')
   const [notifications,  setNotifications]  = useState(true)
   const [saved,          setSaved]          = useState(false)
@@ -131,8 +133,10 @@ export default function AdminSettings() {
     setAverageDailyBreakEvenIncomeUzs(String(settings.averageDailyBreakEvenIncomeUzs || ''))
     setAutoPrint(settings.autoPrint)
     setAutoPrintKitchenCheck(!!settings.autoPrintKitchenCheck)
+    setTouristMenuEnabled(settings.touristMenuEnabled !== false)
+    setPublicTouristPrices(settings.publicTouristPrices === true)
     setReceiptMarketing(settings.receiptMarketing || 'compactFooter')
-  }, [settings.restaurantName, settings.serviceRate, settings.touristServiceRate, settings.monthlyRentUzs, settings.monthlyUtilitiesUzs, settings.averageDailyEmployeeMealUzs, settings.averageDailyBreakEvenIncomeUzs, settings.autoPrint, settings.autoPrintKitchenCheck, settings.receiptMarketing])
+  }, [settings.restaurantName, settings.serviceRate, settings.touristServiceRate, settings.monthlyRentUzs, settings.monthlyUtilitiesUzs, settings.averageDailyEmployeeMealUzs, settings.averageDailyBreakEvenIncomeUzs, settings.autoPrint, settings.autoPrintKitchenCheck, settings.touristMenuEnabled, settings.publicTouristPrices, settings.receiptMarketing])
 
 
   async function saveSettings(overrides = {}) {
@@ -149,6 +153,8 @@ export default function AdminSettings() {
       averageDailyBreakEvenIncomeUzs: Number(normalizeMoneyInput(averageDailyBreakEvenIncomeUzs) || 0),
       autoPrint,
       autoPrintKitchenCheck,
+      touristMenuEnabled,
+      publicTouristPrices,
       receiptMarketing,
       ...overrides,
     }
@@ -175,6 +181,20 @@ export default function AdminSettings() {
     setAutoPrint(nextValue)
     const result = await saveSettings({ autoPrint: nextValue })
     if (result?.error) setAutoPrint(!!settings.autoPrint)
+  }
+
+  async function handleTouristMenuChange(nextValue) {
+    if (!canManageSettings || saving) return
+    setTouristMenuEnabled(nextValue)
+    const result = await saveSettings({ touristMenuEnabled: nextValue })
+    if (result?.error) setTouristMenuEnabled(settings.touristMenuEnabled !== false)
+  }
+
+  async function handlePublicTouristPricesChange(nextValue) {
+    if (!canManageSettings || saving) return
+    setPublicTouristPrices(nextValue)
+    const result = await saveSettings({ publicTouristPrices: nextValue })
+    if (result?.error) setPublicTouristPrices(settings.publicTouristPrices === true)
   }
 
   async function handleServiceRateChange(nextRate) {
@@ -211,6 +231,10 @@ export default function AdminSettings() {
       billing:         'Hisob-kitob',
       serviceCharge:   'Oddiy xizmat to\'lovi',
       serviceChargeSub: 'Oddiy narxdagi zal buyurtmalariga qo\'shiladi',
+      touristMenu: 'Turist menyusi',
+      touristMenuSub: 'O‘chirilganda stollar darhol oddiy narxlarda ochiladi va premium menyu oddiy menyuga yo‘naltiriladi',
+      publicTouristPrices: 'zarkebab.uz saytida turist narxlari',
+      publicTouristPricesSub: 'Yoqilganda ochiq menyu turist narxlarini ko‘rsatadi. Turist menyusi o‘chiq bo‘lsa, oddiy narxlar ko‘rinadi',
       touristServiceCharge: 'Turist xizmat to\'lovi',
       touristServiceChargeSub: 'Turist narxidagi zal buyurtmalariga qo\'shiladi',
       monthlyRent:     'Oylik ijara',
@@ -282,6 +306,10 @@ export default function AdminSettings() {
       billing:         'Выставление счётов',
       serviceCharge:   'Обычный сервисный сбор',
       serviceChargeSub: 'Добавляется к заказам в зале с обычной ценой',
+      touristMenu: 'Туристическое меню',
+      touristMenuSub: 'Если выключено, столы сразу открываются по обычным ценам, а премиум-меню ведёт на обычное меню',
+      publicTouristPrices: 'Туристические цены на zarkebab.uz',
+      publicTouristPricesSub: 'Если включено, публичное меню показывает туристические цены. При выключенном туристическом меню показываются обычные цены',
       touristServiceCharge: 'Сервисный сбор для туристов',
       touristServiceChargeSub: 'Добавляется к заказам в зале с туристической ценой',
       monthlyRent:     'Ежемесячная аренда',
@@ -353,6 +381,10 @@ export default function AdminSettings() {
       billing:         'Billing',
       serviceCharge:   'Regular Service Charge',
       serviceChargeSub: 'Added to Regular dine-in orders',
+      touristMenu: 'Tourist menu',
+      touristMenuSub: 'When off, tables open straight to Regular prices and the premium menu shows the regular menu',
+      publicTouristPrices: 'Tourist prices on zarkebab.uz',
+      publicTouristPricesSub: 'When on, the public menu shows Tourist prices. With the Tourist menu off it always shows Regular prices',
       touristServiceCharge: 'Tourist Service Charge',
       touristServiceChargeSub: 'Added to Tourist dine-in orders',
       monthlyRent:     'Monthly rent',
@@ -458,6 +490,12 @@ export default function AdminSettings() {
                     </button>
                   ))}
                 </div>
+              </SettingRow>
+              <SettingRow icon={Globe} label={l.touristMenu} sub={l.touristMenuSub} compact>
+                <Toggle value={touristMenuEnabled} onChange={handleTouristMenuChange} disabled={!canManageSettings || saving} />
+              </SettingRow>
+              <SettingRow icon={Globe} label={l.publicTouristPrices} sub={l.publicTouristPricesSub} compact>
+                <Toggle value={touristMenuEnabled && publicTouristPrices} onChange={handlePublicTouristPricesChange} disabled={!canManageSettings || saving || !touristMenuEnabled} />
               </SettingRow>
               <SettingRow icon={Percent} label={l.touristServiceCharge} sub={l.touristServiceChargeSub}>
                 <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={l.touristServiceCharge}>

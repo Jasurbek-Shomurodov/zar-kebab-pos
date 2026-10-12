@@ -9,8 +9,9 @@
 
 ## Table entry and price mode
 
-- Opening a table is a direct compact Regular/Tourist (`R`/`T`) choice followed by Enter table. Do not ask for a PIN or create a Guest session.
-- Opening a table creates no order; sending the cart does.
+- Opening a table is a direct Regular/Tourist (`R`/`T`) choice, then Enter table; no PIN or Guest session.
+- Tourist switches (`238`): off → tables open Regular, `/premium-menu` → `/menu`, public Regular. `tests/touristMenuToggle.test.js`.
+- Opening a table creates no order; sending does.
 - The chosen price mode is passed in router history state, never in the URL: guests can read the tablet's address bar (`tests/guestAutoSubmit.test.js`).
 - Reserved-table seating clears reservation fields before entering ordering.
 - Active non-empty orders keep their saved price mode locked; `221` rejects conflicting rounds (`tests/kitchenPriceModeGuard.test.js`).
@@ -27,7 +28,7 @@
 - Configured-option additions start at quantity one and increment only the matching `cart_item_key`.
 - Reject unavailable or archived products at add, increment, detail submit, kitchen submit, and the database boundary.
 - `stock_count` is inventory, not an availability flag.
-- The header counts submitted items even when the unsent cart is empty.
+- The header counts submitted items even with an empty unsent cart.
 - Submitted kitchen rounds remain visible while a new cart batch is built. Derive stable `Order 1`, `Order 2`, etc. numbering from the complete chronological round list before filtering controls.
 
 ## Kitchen submission
@@ -37,8 +38,8 @@
 - Capture an immutable submission snapshot and remove only those sent cart items after confirmed success. Never replace the cart with `[]`.
 - Every retry reuses the same table, order, item, kitchen-round, price-mode, and service-rate identities.
 - A timeout is an unknown outcome. Query the durable `order_kitchen_rounds` receipt first, then use exact live item/cancellation matching only as a rolling-deployment fallback.
-- Treat a fully committed exact round as success even if the browser lost the response. Keep missing or partial outcomes retryable with the same identity.
-- Durable round receipts survive later payment, cancellation, or row deletion and are the idempotency boundary. A retry must never resurrect an old round.
+- A fully committed exact round is success even if the response was lost; missing or partial outcomes stay retryable with the same identity (print retries too).
+- Durable round receipts survive payment, cancellation, or row deletion and are the idempotency boundary. A retry must never resurrect an old round.
 - The database must reject late inserts into paid orders and stale archived/unavailable products.
 
 - Fresh waiter submissions to an order already marked `needs_bill` require cashier recall first; retain the cart and explain the required action. Cashier-authorized users remain allowed. Never let this preflight block reconciling an uncertain round. Coverage: `tests/billHandoff.test.js`.
@@ -50,7 +51,6 @@
 
 - Never substitute an older round while the requested round loads.
 - Refresh a missing round directly before printing and auto-print each round only once.
-- Failed print/submission retries retain the same round and item ids.
 - See `PRINTING.md` for receipt-printer setup.
 
 ## Tables
@@ -60,7 +60,7 @@
 - Active orders show their creators; available-table drafts show the signed-in user. Empty shells supply neither names nor new submission IDs. Explicit retry IDs persist. Tests: `tests/activeOrderWaiters.test.js`, `tests/operationalFlows.test.js`.
 
 - Disabled tables remain available to reports/history but are hidden from waiter ordering.
-- Table edit/delete controls belong to `/admin/tables`, not the waiter grid.
+- Table edit/delete lives in `/admin/tables`, not the waiter grid.
 - Never hard-delete a table with active orders or historical references; verify history on demand before archival/deletion decisions.
 
 - Game Club uses `/waiter/take-away?orderType=game_club`, a distinct off-premise channel with `GC` order numbers, no table, zero service, and the existing off-premise permission. Regression coverage: `tests/gameClubOrders.test.js`.

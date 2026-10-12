@@ -19,6 +19,7 @@ import { canEditFeature, canUseOffPremiseOrders } from '../lib/permissions'
 import { getActiveTableOrders, getTableGuestEntryContext } from '../lib/tableGuestEntry'
 import { getTableZoneName, getTableZoneVisual, groupTableInfosByZone } from '../lib/tableZoneColors'
 import { TableGuestEntryDialog } from '../components/GuestModeUI'
+import { PRICE_MODE_REGULAR } from '../lib/priceModes'
 import { completeBillHandoff } from '../lib/billHandoff'
 
 // ── Localization ──────────────────────────────────────────────────────────────
@@ -518,6 +519,7 @@ const SECTION_ORDER = ['ready', 'preparing', 'waiting_kitchen', 'needs_bill', 'r
 
 export default function WaiterTables() {
   const { state, dispatch, refreshPOSData } = useApp()
+  const touristMenuEnabled = state.settings?.touristMenuEnabled !== false
   const { profile } = useAuth()
   const navigate = useNavigate()
   const lang = state.lang || 'en'
@@ -627,6 +629,11 @@ export default function WaiterTables() {
       setPendingGuestPriceMode('')
       return
     }
+    if (!touristMenuEnabled && !entryContext.priceModeLocked) {
+      // With the Tourist menu off there is nothing to choose: open with Regular prices.
+      openTable({ table, entryContext }, PRICE_MODE_REGULAR)
+      return
+    }
     setPendingGuestTable({ table, entryContext })
     setPendingGuestPriceMode(entryContext.priceModeLocked ? entryContext.priceMode : '')
     setGuestEntryError('')
@@ -639,9 +646,11 @@ export default function WaiterTables() {
     setGuestEntryError('')
   }
 
-  async function openTable() {
-    if (!canEditTables || !pendingGuestTable || guestEntryBusy || guestEntryRequestRef.current) return
-    const { table } = pendingGuestTable
+  async function openTable(directEntry = null, directPriceMode = '') {
+    const entry = directEntry || pendingGuestTable
+    if (!canEditTables || !entry || guestEntryBusy || guestEntryRequestRef.current) return
+    const { table } = entry
+    const chosenPriceMode = directEntry ? directPriceMode : pendingGuestPriceMode
     const latestContext = getTableGuestEntryContext(table.id, state.orders)
     if (latestContext.hasConflictingPriceModes) {
       setGuestEntryError(lang === 'uz'
@@ -651,12 +660,12 @@ export default function WaiterTables() {
           : 'The table order changed. Review it as staff.')
       return
     }
-    const entryChanged = latestContext.activeOrderIds.join('|') !== pendingGuestTable.entryContext.activeOrderIds.join('|') ||
-      latestContext.priceModeLocked !== pendingGuestTable.entryContext.priceModeLocked ||
-      latestContext.priceMode !== pendingGuestTable.entryContext.priceMode
+    const entryChanged = latestContext.activeOrderIds.join('|') !== entry.entryContext.activeOrderIds.join('|') ||
+      latestContext.priceModeLocked !== entry.entryContext.priceModeLocked ||
+      latestContext.priceMode !== entry.entryContext.priceMode
     if (entryChanged) {
       setPendingGuestTable({ table, entryContext: latestContext })
-      setPendingGuestPriceMode(latestContext.priceModeLocked ? latestContext.priceMode : pendingGuestPriceMode)
+      setPendingGuestPriceMode(latestContext.priceModeLocked ? latestContext.priceMode : chosenPriceMode)
       setGuestEntryError(lang === 'uz'
         ? 'Bu stol boshqa qurilmada o‘zgardi. Yangilangan narx turini tekshirib, yana tasdiqlang.'
         : lang === 'ru'
@@ -664,7 +673,7 @@ export default function WaiterTables() {
           : 'This table changed on another device. Review the updated pricing type and confirm again.')
       return
     }
-    const selectedPriceMode = latestContext.priceModeLocked ? latestContext.priceMode : pendingGuestPriceMode
+    const selectedPriceMode = latestContext.priceModeLocked ? latestContext.priceMode : chosenPriceMode
     if (!selectedPriceMode) return
 
     guestEntryRequestRef.current = true
@@ -680,6 +689,10 @@ export default function WaiterTables() {
       // Price mode travels in history state, not the URL, so guests never see it in the address bar.
       navigate(`/waiter/order/${encodeURIComponent(table.id)}`, { state: { priceMode: selectedPriceMode } })
     } catch {
+      if (directEntry) {
+        setPendingGuestTable(directEntry)
+        setPendingGuestPriceMode(directPriceMode)
+      }
       setGuestEntryError(lang === 'uz'
         ? 'Stolni ochib bo‘lmadi. Qayta urinib ko‘ring.'
         : lang === 'ru'
@@ -962,6 +975,7 @@ export default function WaiterTables() {
               priceMode={pendingGuestPriceMode}
               onPriceModeChange={setPendingGuestPriceMode}
               priceModeLocked={pendingGuestTable.entryContext.priceModeLocked}
+              touristMenuEnabled={touristMenuEnabled}
               busy={guestEntryBusy}
               error={guestEntryError}
               onCancel={closeGuestEntry}

@@ -23,6 +23,8 @@ export const DEFAULT_SETTINGS = {
   receiptFooter:  '',
   receiptMarketing: 'compactFooter',
   autoPrint:      false,
+  touristMenuEnabled: true,
+  publicTouristPrices: false,
   autoPrintKitchenCheck: false,
 }
 

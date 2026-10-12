@@ -409,6 +409,7 @@ export function TableGuestEntryDialog({
   priceMode = '',
   onPriceModeChange,
   priceModeLocked = false,
+  touristMenuEnabled = true,
   busy = false,
   error = '',
   onCancel,
@@ -466,7 +467,7 @@ export function TableGuestEntryDialog({
   const modeChoices = [
     { value: PRICE_MODE_REGULAR, label: l.regularPrice, shortLabel: 'R' },
     { value: PRICE_MODE_TOURIST, label: l.touristPrice, shortLabel: 'T' },
-  ]
+  ].filter(choice => touristMenuEnabled || priceModeLocked || choice.value !== PRICE_MODE_TOURIST)
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-4 backdrop-blur-sm sm:items-center">

@@ -56,7 +56,7 @@ test('table entry requires only R or T and carries the selected mode into waiter
   const dialogStart = dialogSource.indexOf('export function TableGuestEntryDialog')
   const dialogEnd = dialogSource.indexOf('\nexport function GuestSelectionReady', dialogStart)
   const tableEntryDialog = dialogSource.slice(dialogStart, dialogEnd)
-  const openStart = tablesSource.indexOf('async function openTable()')
+  const openStart = tablesSource.indexOf('async function openTable(')
   const openEnd = tablesSource.indexOf('\n  function handleManageOrder', openStart)
   const openTable = tablesSource.slice(openStart, openEnd)
 
@@ -67,7 +67,7 @@ test('table entry requires only R or T and carries the selected mode into waiter
   assert.match(openTable, /\{ state: \{ priceMode: selectedPriceMode \} \}/)
   assert.doesNotMatch(openTable, /\?priceMode=/)
   assert.doesNotMatch(orderSource, /searchParams\.get\('priceMode'\)/)
-  assert.match(orderSource, /const requestedPriceMode\s*= normalizePriceMode\(location\.state\?\.priceMode\)/)
+  assert.match(orderSource, /const requestedPriceMode\s*= state\.settings\?\.touristMenuEnabled === false\s*\? DEFAULT_PRICE_MODE\s*: normalizePriceMode\(location\.state\?\.priceMode\)/)
   assert.match(orderSource, /activeOrder \|\| state\.cart\.length > 0[\s\S]*requestedPriceMode/)
   assert.match(appSource, /if \(guestModeSession\) clearGuestModeSession\(\)/)
 })

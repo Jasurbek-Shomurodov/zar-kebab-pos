@@ -607,8 +607,11 @@ export default function WaiterOrder() {
   const navigate            = useNavigate()
   const location            = useLocation()
   const [searchParams]      = useSearchParams()
-  const requestedPriceMode  = normalizePriceMode(location.state?.priceMode)
   const { state, dispatch, pendingKitchenSubmission } = useApp()
+  // A switched-off Tourist menu ignores a stale Tourist request; saved Tourist orders keep their mode.
+  const requestedPriceMode  = state.settings?.touristMenuEnabled === false
+    ? DEFAULT_PRICE_MODE
+    : normalizePriceMode(location.state?.priceMode)
   const { loaded, loadError } = useAppDataStatus()
   const { profile, signOut } = useAuth()
   const role                = (profile?.role || state.user?.role || '').toLowerCase()
