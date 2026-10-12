@@ -7,6 +7,7 @@ import {
   Banknote,
   CalendarDays,
   Clock3,
+  Contact,
   CreditCard,
   Loader2,
   Plus,
@@ -232,6 +233,7 @@ export default function Expenses() {
       saving: 'Saqlanmoqda...',
       refresh: 'Yangilash',
       salaries: 'Maoshlar',
+      employees: 'Xodimlar',
       salaryDue: 'Hozirgi maosh qarzi',
       salaryDueAsOf: 'Hisoblangan sana',
       salaryDueMonthEnd: 'Oy oxirigacha maosh qarzi',
@@ -330,6 +332,7 @@ export default function Expenses() {
       saving: 'Сохраняется...',
       refresh: 'Обновить',
       salaries: 'Зарплаты',
+      employees: 'Сотрудники',
       salaryDue: 'Долг по зарплате сейчас',
       salaryDueAsOf: 'На дату',
       salaryDueMonthEnd: 'Долг по зарплате к концу месяца',
@@ -428,6 +431,7 @@ export default function Expenses() {
       saving: 'Saving...',
       refresh: 'Refresh',
       salaries: 'Salaries',
+      employees: 'Employees',
       salaryDue: 'Salary due now',
       salaryDueAsOf: 'As of',
       salaryDueMonthEnd: 'Salary due by month end',
@@ -682,6 +686,9 @@ export default function Expenses() {
     () => salaryProfiles.filter(salaryProfile => !salaryProfile.deleted_at),
     [salaryProfiles]
   )
+  const activeSalaryProfileCount = loading
+    ? null
+    : payableSalaryProfiles.filter(salaryProfile => salaryProfile.is_active !== false).length
   const totalSalaryDue = useMemo(
     () => getTotalSalaryDue(payableSalaryProfiles, salaryDueDate),
     [payableSalaryProfiles, salaryDueDate]
@@ -847,8 +854,14 @@ export default function Expenses() {
           <AccountingShortcut
             icon={Users}
             label={l.salaries}
-            count={loading ? null : payableSalaryProfiles.filter(salaryProfile => salaryProfile.is_active !== false).length}
+            count={activeSalaryProfileCount}
             onClick={() => navigate('/admin/accounting/salaries')}
+          />
+          <AccountingShortcut
+            icon={Contact}
+            label={l.employees}
+            count={activeSalaryProfileCount}
+            onClick={() => navigate('/admin/accounting/employees')}
           />
           <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-[#e4e1de] sm:block" />
           <button
