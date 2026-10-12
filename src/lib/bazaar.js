@@ -127,6 +127,13 @@ export function normalizeBazaarText(value) {
 }
 
 // Ingredient names are stored with a capital first letter; migration 240 enforces the same rule.
+// While typing: uppercase the first letter without trimming, so spaces and the caret are kept.
+export function capitalizeBazaarNameInput(value) {
+  const text = String(value ?? '')
+  const index = text.search(/\S/)
+  return index < 0 ? text : text.slice(0, index) + text.charAt(index).toLocaleUpperCase() + text.slice(index + 1)
+}
+
 export function capitalizeBazaarIngredientName(value) {
   const name = String(value ?? '').trim()
   return name ? name.charAt(0).toLocaleUpperCase() + name.slice(1) : ''

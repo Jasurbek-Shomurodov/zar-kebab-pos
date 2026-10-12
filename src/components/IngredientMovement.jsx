@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, Search, X } from 'lucide-react'
+import { ArrowUpDown, Check, Search, X } from 'lucide-react'
 import DateRangePicker from './DateRangePicker'
+import BazaarCategoryPicker from './BazaarCategoryPicker'
 import { supabase } from '../lib/supabase'
 import { todayBazaarDate, bazaarCategoryLabel, bazaarUnitLabel, formatBazaarQuantity, getBazaarRange } from '../lib/bazaar'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -66,7 +67,7 @@ export default function IngredientMovement({ lang = 'ru' }) {
     load()
     return () => { active = false; clearTimeout(timeout); controller.abort() }
   }, [from, to, retry])
-  const categories = useMemo(() => [...new Set((data?.rows || []).map(row => row.category || 'uncategorized'))].sort(), [data])
+  const categoryRows = useMemo(() => (data?.rows || []).map(row => ({ category: row.category || 'uncategorized' })), [data])
   const visibleRows = useMemo(() => {
     const words = searchKey(query).split(' ').filter(Boolean)
     return (data?.rows || []).filter(row => {
@@ -105,46 +106,93 @@ export default function IngredientMovement({ lang = 'ru' }) {
             <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={f.search} className={`${FILTER_INPUT} !pl-9`} />
           </div>
         </label>
-        <label className="ws-caption block font-medium">{f.category}
-          <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} className={`${FILTER_INPUT} mt-1.5`}>
-            <option value="all">{f.allCategories}</option>
-            {[...new Set([...categories, ...(categoryFilter !== 'all' ? [categoryFilter] : [])])].map(category => <option key={category} value={category}>{category === 'uncategorized' ? f.uncategorized : bazaarCategoryLabel(category, lang)}</option>)}
-          </select>
-        </label>
+        <div className="ws-caption block font-medium">{f.category}
+          <div className="mt-1.5">
+            <BazaarCategoryPicker
+              value={categoryFilter}
+              ingredients={categoryRows}
+              onChange={setCategoryFilter}
+              lang={lang}
+              allLabel={f.allCategories}
+              uncategorizedLabel={f.uncategorized}
+            />
+          </div>
+        </div>
       </div>
-      <div className="mb-2 flex min-h-9 flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 flex min-h-9 flex-wrap items-center justify-between gap-2">
         {!loading && !error && <p role="status" className="ws-caption">{f.results}: {visibleRows.length} / {data?.rows?.length || 0}</p>}
-        {filtered && <button type="button" onClick={clearFilters} className="ws-btn ws-btn-ghost ws-btn-sm"><X size={14} />{f.clear}</button>}
+        <div className="flex items-center gap-2">
+          {filtered && <button type="button" onClick={clearFilters} className="ws-btn ws-btn-ghost ws-btn-sm"><X size={14} />{f.clear}</button>}
+          <SortMenu value={sort} onChange={setSort} labels={f} />
+        </div>
       </div>
       {error ? <div role="alert" className="ws-notice ws-tone-negative"><p>{l[error]}</p><button type="button" onClick={() => setRetry(n => n + 1)} className="ws-btn ws-btn-outline ws-btn-sm mt-2">{l.retry}</button></div> : loading ? <p role="status" className="ws-muted py-4">{l.loading}</p> : !data?.rows?.length ? <p className="ws-empty">{l.empty}</p> : !visibleRows.length ? <p className="ws-empty">{f.noMatches}</p> : (
-        <div className="-mx-5 overflow-x-auto border-t border-[#e4e1de] max-sm:-mx-4"><table className="w-full min-w-[680px] text-sm text-[#22201d]">
-          <thead><tr className="ws-table-head text-left">
-            {['name', 'bought', 'used', 'paid', 'movement'].map(field => {
-              const active = sort === `${field}Asc` || sort === `${field}Desc`
-              const ascending = sort === `${field}Asc`
-              const firstSort = `${field}${field === 'name' ? 'Asc' : 'Desc'}`
-              const secondSort = `${field}${field === 'name' ? 'Desc' : 'Asc'}`
-              const nextSort = sort === firstSort ? secondSort : sort === secondSort ? 'default' : firstSort
-              const Icon = active ? (ascending ? ArrowUp : ArrowDown) : ArrowUpDown
-              return <th key={field} scope="col" aria-sort={active ? (ascending ? 'ascending' : 'descending') : 'none'}>
-                <button type="button" onClick={() => setSort(nextSort)} title={f[nextSort]} className={`flex w-full items-center gap-2 px-5 py-3 text-left font-medium hover:text-[#22201d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ff5a00] ${active ? 'text-[#22201d]' : ''}`}>
-                  {l[field]}<Icon size={13} aria-hidden="true" className="shrink-0" />
-                </button>
-              </th>
-            })}
-          </tr></thead>
-          <tbody>{visibleRows.map(row => {
-            const unit = bazaarUnitLabel(row.unit === 'piece' ? 'pcs' : row.unit, lang)
-            return <tr key={`${row.identity}::${row.unit}`} className="ws-row">
-              <td className="px-5 py-3 font-semibold">{row.name}</td>
-              <td className="px-5 py-3 tabular-nums">{formatBazaarQuantity(row.bought)} {unit}</td>
-              <td className="px-5 py-3 tabular-nums">{formatBazaarQuantity(row.used)} {unit}</td>
-              <td className="px-5 py-3 tabular-nums">{formatCurrency(row.paid)}</td>
-              <td className={`px-5 py-3 font-semibold tabular-nums ${Number(row.movement) < 0 ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>{formatBazaarQuantity(row.movement)} {unit}</td>
-            </tr>
-          })}</tbody>
-        </table></div>
+        // One card per ingredient: bought, recipe usage, amount paid and what is left for the period.
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{visibleRows.map(row => {
+          const unit = bazaarUnitLabel(row.unit === 'piece' ? 'pcs' : row.unit, lang)
+          const short = Number(row.movement) < 0
+          return (
+            <article key={`${row.identity}::${row.unit}`} className="flex min-w-0 flex-col rounded-xl border border-[#e4e1de] bg-white p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 line-clamp-2 text-[15px] font-semibold leading-snug text-[#22201d]">{row.name}</p>
+                <span className="ws-badge flex-shrink-0">{(row.category || 'uncategorized') === 'uncategorized' ? f.uncategorized : bazaarCategoryLabel(row.category, lang)}</span>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
+                <div><dt className="ws-caption">{l.bought}</dt><dd className="mt-0.5 font-medium tabular-nums text-[#22201d]">{formatBazaarQuantity(row.bought)} {unit}</dd></div>
+                <div><dt className="ws-caption">{l.used}</dt><dd className="mt-0.5 font-medium tabular-nums text-[#22201d]">{formatBazaarQuantity(row.used)} {unit}</dd></div>
+                <div><dt className="ws-caption">{l.paid}</dt><dd className="mt-0.5 font-medium tabular-nums text-[#22201d]">{formatCurrency(row.paid)}</dd></div>
+                <div><dt className="ws-caption">{l.movement}</dt><dd className={`mt-0.5 font-semibold tabular-nums ${short ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>{formatBazaarQuantity(row.movement)} {unit}</dd></div>
+              </dl>
+            </article>
+          )
+        })}</div>
       )}
     </section>
+  )
+}
+
+const SORT_OPTIONS = ['default', 'nameAsc', 'nameDesc', 'boughtDesc', 'boughtAsc', 'usedDesc', 'usedAsc', 'paidDesc', 'paidAsc', 'movementAsc', 'movementDesc']
+
+// Small popover in the same style as the category picker (no native select menu).
+function SortMenu({ value, onChange, labels }) {
+  const rootRef = React.useRef(null)
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return undefined
+    const closeOutside = event => { if (!rootRef.current?.contains(event.target)) setOpen(false) }
+    const closeOnEscape = event => { if (event.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+  return (
+    <div ref={rootRef} className="relative">
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(current => !current)} className="ws-btn ws-btn-outline ws-btn-sm">
+        <ArrowUpDown size={14} />{value === 'default' ? labels.sort : labels[value]}
+      </button>
+      {open && (
+        <div role="listbox" aria-label={labels.sort} className="absolute right-0 top-[calc(100%+8px)] z-50 w-[min(280px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-2xl shadow-slate-900/20">
+          {SORT_OPTIONS.map(option => {
+            const selected = option === value
+            return (
+              <button
+                key={option}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => { onChange(option); setOpen(false) }}
+                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${selected ? 'bg-orange-50 text-[#ff5a00]' : 'text-[#1F2937] hover:bg-gray-50'}`}
+              >
+                <span className="min-w-0 flex-1 truncate">{labels[option]}</span>
+                {selected && <Check size={15} className="shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }

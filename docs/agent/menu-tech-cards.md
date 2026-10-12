@@ -5,7 +5,8 @@
 - Pages: `src/pages/AdminMenu.jsx`, `src/pages/TechCards.jsx`, `src/pages/PublicMenu.jsx`, `src/pages/TelegramMiniApp.jsx`
 - Helpers: `src/lib/menuItems.js`, `src/lib/menuPricing.js`, `src/lib/menuMedia.js`, `src/lib/menuItemCosts.js`, `src/lib/techCards.js`
 - Database: `src/lib/db.js`, migrations `139`, `149`–`151`, `154`–`156`, and `223`
-- Focused tests: `tests/menuItems.test.js`, `tests/menuArchiveSafety.test.js`, `tests/menuStock.test.js`, `tests/menuMedia.test.js`, `tests/techCards.test.js`, `tests/techCardsFeature.test.js`, `tests/sourceGuards.menu.test.js`, `tests/sourceGuards.public-menu.test.js`
+- Focused tests: `tests/menuItems.test.js`, `tests/menuArchiveSafety.test.js`, `tests/menuStock.test.js`, `tests/menuMedia.test.js`, `tests/techCards.test.js`, `tests/techCardsFeature.test.js`, `tests/sourceGuards.menu.test.js`, `tests/sourceGuards.public-menu.test.js`, `tests/menuNameValidation.test.js`
+- Product and category names (uz/ru/en) must start with a capital letter or digit; Admin Menu blocks saving otherwise (`src/lib/menuItemText.js`). Admin Menu product cards use the shared lux card frame `LuxMenuCard` from `MenuProductCards.jsx`.
 
 ## Visibility
 

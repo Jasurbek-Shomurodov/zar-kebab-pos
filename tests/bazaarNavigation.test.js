@@ -23,7 +23,8 @@ test('ingredient editors receive management controls through the delegated featu
 
   assert.match(page, /canEditFeature\(profile \|\| state.user, 'ingredients'\)/)
   assert.match(page, /\{canManage \? \(/)
-  assert.match(page, /\{canManage && <div className="flex justify-end gap-2">/)
+  // Cards open the editor on tap; the only card button is archive / restore.
+  assert.match(page, /onClick=\{event => \{ event\.stopPropagation\(\); setIngredientActive\(ingredient\) \}\}/)
   assert.match(page, /runBazaarIngredientWriteWithRecovery/)
   assert.match(page, /upsertIngredient\(savedIngredientRow\(savedData\)\)/)
   assert.match(page, /isBazaarIngredientNetworkError\(requestError\)/)

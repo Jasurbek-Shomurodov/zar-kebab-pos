@@ -603,6 +603,27 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
 }
 
 /** Staff ordering card in the lux style: same photo and price row, plus add / quantity controls. */
+/** Lux product card frame (photo, facts and price) with caller-supplied overlays and footer, for staff catalogue screens.
+    Carries its own zk-lux scope so it also renders on workspace pages. */
+export function LuxMenuCard({ item, lang, eager = false, formatPrice = formatCurrency, audience = 'waiter', dimmed = false, photoChildren = null, children = null, cardRef, style, className = '' }) {
+  const pricing = getMenuOptionPricing(item, getMenuItemOptionGroups(item, lang, { audience }))
+  return (
+    <div
+      ref={cardRef}
+      style={style}
+      data-menu-product-card
+      data-item-id={item.id}
+      className={`zk-lux lux-glass group flex h-full flex-col rounded-[24px] p-1.5 sm:rounded-[28px] sm:p-2 ${className}`}
+    >
+      <LuxDishPhoto item={item} name={getItemName(item, lang)} description={plainMenuText(getItemDesc(item, lang))} eager={eager} discountPct={discountPercent(pricing)} dimmed={dimmed}>
+        {photoChildren}
+      </LuxDishPhoto>
+      <LuxPriceRow item={item} lang={lang} pricing={pricing} formatPrice={formatPrice} />
+      {children}
+    </div>
+  )
+}
+
 function LuxOrderCard({ item, qty, onAdd, onIncrement, onDecrement, onOpenDetail, lang, eager, formatPrice, audience, cartAnimationPayload, className = '' }) {
   const inCart = qty > 0
   const unavailable = item?.available === false

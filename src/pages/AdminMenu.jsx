@@ -23,6 +23,7 @@ import { getMenuPricing } from '../lib/menuPricing'
 import { generateMenuExternalId } from '../lib/menuExternalId'
 import AppShell from '../components/AppShell'
 import MenuCategoryScroller, { menuCategorySectionId } from '../components/MenuCategoryScroller'
+import { LuxMenuCard } from '../components/MenuProductCards'
 import {
   getQuickItemSortOrder,
   isActiveMenuCategory,
@@ -62,7 +63,7 @@ import {
   MENU_VIDEO_MIME_TYPES,
   normalizeMenuMediaUrls,
 } from '../lib/menuMedia'
-import { trimMenuItemTextFields, trimMenuItemTextValue } from '../lib/menuItemText'
+import { invalidMenuNameFields, menuNameHasValidStart, trimMenuItemTextFields, trimMenuItemTextValue } from '../lib/menuItemText'
 import {
   MENU_SALE_UNIT_KG,
   MENU_SALE_UNIT_PIECE,
@@ -189,7 +190,7 @@ function Modal({ title, onClose, children, closeDisabled = false }) {
   )
 }
 
-function Field({ label, type = 'text', value, onChange, placeholder, ...inputProps }) {
+function Field({ label, type = 'text', value, onChange, placeholder, error = '', ...inputProps }) {
   return (
     <div>
       <label className="ws-caption mb-1.5 block font-medium">{label}</label>
@@ -198,11 +199,22 @@ function Field({ label, type = 'text', value, onChange, placeholder, ...inputPro
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        aria-invalid={error ? true : undefined}
         {...inputProps}
-        className="ws-input"
+        className={`ws-input ${error ? '!border-red-400' : ''}`}
       />
+      {error ? <p className="mt-1 text-[12px] font-medium text-red-500">{error}</p> : null}
     </div>
   )
+}
+
+function menuNameStartError(lang, value) {
+  if (menuNameHasValidStart(value)) return ''
+  return lang === 'uz'
+    ? 'Nom bosh harf yoki raqam bilan boshlanishi kerak'
+    : lang === 'ru'
+      ? 'Название должно начинаться с заглавной буквы или цифры'
+      : 'Name must start with a capital letter or a number'
 }
 
 function MoneyField({ label, value, onChange, placeholder, className = '', labelClassName = '', ...inputProps }) {
@@ -894,7 +906,7 @@ function archiveLabels(lang) {
   }
 }
 
-function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, categories, visibilityPending, canChangeAvailability = false, canDelete = false, isDragging: _isDragging, readOnly = false }) {
+function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, visibilityPending, canChangeAvailability = false, canDelete = false, readOnly = false }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
 
   const style = {
@@ -904,73 +916,40 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, ca
     zIndex:  isDragging ? 10 : undefined,
   }
 
-  const cat = categories.find(c => c.id === item.category_id)
   const scheduleLabel = scheduleBadgeLabel(item)
+  const shelfCount = Number(item.stock_count ?? item.stockCount ?? 0)
 
   return (
-    <div
-      ref={setNodeRef}
+    <LuxMenuCard
+      item={item}
+      lang={lang}
+      cardRef={setNodeRef}
       style={style}
-      className="ws-panel ws-panel-flush group flex flex-col transition-shadow hover:shadow-[0_4px_14px_rgb(34_32_29/8%)]"
+      dimmed={!item.available}
+      photoChildren={!readOnly && (
+        <button
+          {...listeners}
+          {...attributes}
+          className="lux-on-photo absolute left-2 top-2 rounded-full p-1.5 cursor-grab active:cursor-grabbing touch-none sm:left-2.5 sm:top-2.5"
+          tabIndex={-1}
+        >
+          <GripVertical size={15} />
+        </button>
+      )}
     >
-      {/* Drag handle strip at top of image */}
-      <div className="relative">
-        <SafeMenuImage
-          src={item.image_url}
-          alt={getItemName(item, lang)}
-          className="aspect-square w-full object-cover object-center"
-          fallbackClassName="aspect-square w-full"
-        />
-        {/* Drag handle overlay */}
-        {!readOnly && (
-          <button
-            {...listeners}
-            {...attributes}
-            className="absolute top-2 left-2 p-1.5 rounded-lg bg-white/90 backdrop-blur-sm text-[#68655f] hover:text-[#22201d] hover:bg-white transition-colors cursor-grab active:cursor-grabbing touch-none shadow-[0_1px_2px_rgb(34_32_29/10%)]"
-            tabIndex={-1}
-          >
-            <GripVertical size={15} />
-          </button>
-        )}
-      </div>
-
-      {/* Body */}
-      <div className="flex flex-1 flex-col p-4">
-        <p className="mb-0.5 line-clamp-2 text-[15px] font-semibold leading-snug text-[#22201d]">
-          {getItemName(item, lang)}
-        </p>
-        {cat && (
-          <p className="ws-caption mb-2">
-            {getCategoryName(cat, lang)}
-          </p>
-        )}
-        <div className="mb-3">
-          <MenuPrice item={item} />
-        </div>
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-1 flex-col gap-2 px-1 pb-1 pt-1.5 sm:px-1.5 sm:pb-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`ws-status ${item.available ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
+            {itemVisibilityStatusLabel(lang, item.available)}
+          </span>
           <ExternalIdBadge item={item} />
           <span className="ws-badge">
             <Clock3 size={12} />
             {menuPrepTimeLabel(item, lang)}
           </span>
-          {gramsLabel(item, lang) && (
-            <span className="ws-badge">
-              {gramsLabel(item, lang)}
-            </span>
-          )}
-          {millilitresLabel(item, lang) && (
-            <span className="ws-badge">
-              {millilitresLabel(item, lang)}
-            </span>
-          )}
-          {kcalLabel(item, lang) && (
-            <span className="ws-badge">
-              {kcalLabel(item, lang)}
-            </span>
-          )}
-          {Number(item.stock_count ?? item.stockCount ?? 0) > 0 && (
+          {shelfCount > 0 && (
             <span className="ws-badge ws-tone-caution">
-              {lang === 'uz' ? 'Tokcha' : lang === 'ru' ? 'Полка' : 'Shelf'}: {Number(item.stock_count ?? item.stockCount ?? 0)}
+              {lang === 'uz' ? 'Tokcha' : lang === 'ru' ? 'Полка' : 'Shelf'}: {shelfCount}
             </span>
           )}
           {item.public_hidden && (
@@ -985,57 +964,52 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, ca
             </span>
           )}
         </div>
-        <div className="mb-3 mt-auto flex items-center justify-between gap-2">
-          <span className={`ws-status ${item.available ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
-            {itemVisibilityStatusLabel(lang, item.available)}
-          </span>
-          {!readOnly && (canChangeAvailability ? (
-            <VisibilityToggleButton
-              visible={!!item.available}
-              pending={visibilityPending}
-              onClick={() => onToggleVisibility(item)}
-              lang={lang}
-              compact
-            />
-          ) : (
-            <span
-              title={t(lang, 'available_item')}
-              aria-label={t(lang, 'available_item')}
-              className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-[#e4e1de] bg-[#efece9] text-[#68655f]"
-            >
-              <Lock size={14} />
-            </span>
-          ))}
-        </div>
 
-        {/* Actions */}
+        {/* Actions: edit, availability, archive in one row */}
         {!readOnly && (
-          <div className="flex items-center gap-1.5 border-t border-[#e4e1de]/60 pt-3">
+          <div className="mt-auto flex items-center gap-1.5">
             <button
               onClick={() => onEdit(item)}
               disabled={visibilityPending}
-              className="ws-btn ws-btn-outline ws-btn-sm flex-1"
+              className="lux-cta flex h-[34px] flex-1 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
             >
               <Edit2 size={14} />
               {lang === 'uz' ? 'Tahrirl' : lang === 'ru' ? 'Ред.' : 'Edit'}
             </button>
+            {canChangeAvailability ? (
+              <VisibilityToggleButton
+                visible={!!item.available}
+                pending={visibilityPending}
+                onClick={() => onToggleVisibility(item)}
+                lang={lang}
+                compact
+              />
+            ) : (
+              <span
+                title={t(lang, 'available_item')}
+                aria-label={t(lang, 'available_item')}
+                className="lux-soft lux-muted inline-flex h-[34px] w-[34px] items-center justify-center rounded-full"
+              >
+                <Lock size={14} />
+              </span>
+            )}
             {canDelete && (
               <button
                 type="button"
                 onPointerDown={event => event.stopPropagation()}
                 onClick={() => onDelete(item)}
                 disabled={visibilityPending}
+                title={lang === 'uz' ? 'Arxiv' : lang === 'ru' ? 'В архив' : 'Archive'}
                 aria-label={lang === 'uz' ? 'Mahsulotni arxivlash' : lang === 'ru' ? 'Архивировать товар' : 'Archive item'}
-                className="touch-manipulation ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm"
+                className="touch-manipulation lux-soft lux-muted flex h-[34px] w-[34px] items-center justify-center rounded-full transition-colors hover:text-red-500 disabled:opacity-50"
               >
                 <Archive size={14} />
-                {lang === 'uz' ? 'Arxiv' : lang === 'ru' ? 'В архив' : 'Archive'}
               </button>
             )}
           </div>
         )}
       </div>
-    </div>
+    </LuxMenuCard>
   )
 }
 
@@ -1764,6 +1738,7 @@ export default function AdminMenu() {
     && !!form.category_id
     && hasValidNewItemCost
     && hasRequiredNewItemImage
+    && invalidMenuNameFields(form).length === 0
     && isItemFormDirty
   const currentCatFormFingerprint = useMemo(() => getCategoryFormFingerprint(catForm), [catForm])
   const isCatFormDirty = catModal === 'new'
@@ -1771,6 +1746,7 @@ export default function AdminMenu() {
   const canSaveCatForm = !savingCatForm
     && canEditMenu
     && !!trimMenuItemTextValue(catForm.name_uz)
+    && invalidMenuNameFields(catForm).length === 0
     && isCatFormDirty
 
   // One archive dialog serves both products and categories.
@@ -2095,6 +2071,7 @@ export default function AdminMenu() {
   async function saveItem() {
     if (savingItemForm || !canEditMenu || !isItemFormDirty) return
     if (!trimMenuItemTextValue(form.name_uz) || !form.price || !form.category_id) return
+    if (invalidMenuNameFields(form).length) return
     const requiredCost = itemModal === 'new' ? getRequiredMenuItemCost(form.cost_price) : null
     if (itemModal === 'new' && requiredCost === null) {
       setMenuNotice({
@@ -2281,6 +2258,7 @@ export default function AdminMenu() {
   async function saveCat() {
     if (savingCatForm || !canEditMenu || !isCatFormDirty) return
     if (!trimMenuItemTextValue(catForm.name_uz)) return
+    if (invalidMenuNameFields(catForm).length) return
     if (isOwner && !categoryOverrideProfilesReady) {
       setMenuNotice({ tone: 'error', error: { code: 'POS_CATEGORY_STAFF_NOT_LOADED' }, actionType: 'UPDATE_CATEGORY' })
       return
@@ -2518,9 +2496,9 @@ export default function AdminMenu() {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-3">
-                    <Field label={t(lang, 'nameUz')} value={catForm.name_uz} onChange={setCF('name_uz')} onBlur={trimCF('name_uz')} autoFocus />
-                    <Field label={t(lang, 'nameRu')} value={catForm.name_ru} onChange={setCF('name_ru')} onBlur={trimCF('name_ru')} />
-                    <Field label={t(lang, 'nameEn')} value={catForm.name_en} onChange={setCF('name_en')} onBlur={trimCF('name_en')} />
+                    <Field label={t(lang, 'nameUz')} value={catForm.name_uz} onChange={setCF('name_uz')} onBlur={trimCF('name_uz')} error={menuNameStartError(lang, catForm.name_uz)} autoFocus />
+                    <Field label={t(lang, 'nameRu')} value={catForm.name_ru} onChange={setCF('name_ru')} onBlur={trimCF('name_ru')} error={menuNameStartError(lang, catForm.name_ru)} />
+                    <Field label={t(lang, 'nameEn')} value={catForm.name_en} onChange={setCF('name_en')} onBlur={trimCF('name_en')} error={menuNameStartError(lang, catForm.name_en)} />
                   </div>
 
                   <div className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-4">
@@ -2885,9 +2863,9 @@ export default function AdminMenu() {
                   <PricingFields form={form} setF={setF} lang={lang} costRequired={itemModal === 'new'} />
 
                   <div className="grid gap-4 sm:grid-cols-3">
-                    <Field label={t(lang, 'nameUz')} value={form.name_uz} onChange={setF('name_uz')} onBlur={trimF('name_uz')} />
-                    <Field label={t(lang, 'nameRu')} value={form.name_ru} onChange={setF('name_ru')} onBlur={trimF('name_ru')} />
-                    <Field label={t(lang, 'nameEn')} value={form.name_en} onChange={setF('name_en')} onBlur={trimF('name_en')} />
+                    <Field label={t(lang, 'nameUz')} value={form.name_uz} onChange={setF('name_uz')} onBlur={trimF('name_uz')} error={menuNameStartError(lang, form.name_uz)} />
+                    <Field label={t(lang, 'nameRu')} value={form.name_ru} onChange={setF('name_ru')} onBlur={trimF('name_ru')} error={menuNameStartError(lang, form.name_ru)} />
+                    <Field label={t(lang, 'nameEn')} value={form.name_en} onChange={setF('name_en')} onBlur={trimF('name_en')} error={menuNameStartError(lang, form.name_en)} />
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-3">
@@ -3081,7 +3059,8 @@ export default function AdminMenu() {
                 {canEditMenu && <OrangeBtn onClick={openNewItem} icon={Plus}>{t(lang, 'addItem')}</OrangeBtn>}
               </div>
 
-              {/* Toolbar row 2: category cards */}
+              {/* Toolbar row 2: category pills, same lux style as the waiter menu */}
+              <div className="zk-lux !bg-transparent">
               <MenuCategoryScroller
                 categories={[
                   { id: 'all', label: lang === 'uz' ? 'Hammasi' : lang === 'ru' ? 'Все' : 'All', image_url: null },
@@ -3095,12 +3074,14 @@ export default function AdminMenu() {
                 sectionPrefix="admin-menu-category"
                 scrollContainerRef={shellScrollRef}
                 topOffset={0}
-                variant="workspace"
+                rowClassName="lux-fade-edges py-1.5"
+                variant="lux"
                 collapsedPosition="fixed"
-                collapsedSurfaceClass="bg-[#f6f5f3]/90"
-                collapsedClassName="!px-0 !py-2"
-                collapsedContentClassName="!px-4 sm:!px-6 xl:!px-9"
+                collapsedSurfaceClass="lux-header lux-bar"
+                collapsedClassName="!border-0 !px-0 !py-1"
+                collapsedContentClassName="lux-fade-edges py-1.5 !px-4 sm:!px-6 xl:!px-9"
               />
+              </div>
               </div>
 
               {/* Hint */}
@@ -3230,7 +3211,7 @@ export default function AdminMenu() {
                               </div>
 
                               {gridView ? (
-                                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                                <div className="grid grid-cols-2 gap-3 sm:gap-4 min-[700px]:grid-cols-3 xl:grid-cols-4">
                                   {catItems.map(item => (
                                     <SortableItemCard
                                       key={item.id}
@@ -3281,7 +3262,7 @@ export default function AdminMenu() {
                                 </span>
                               </div>
                               {gridView ? (
-                                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                                <div className="grid grid-cols-2 gap-3 sm:gap-4 min-[700px]:grid-cols-3 xl:grid-cols-4">
                                   {uncategorised.map(item => (
                                     <SortableItemCard
                                       key={item.id}
@@ -3323,7 +3304,7 @@ export default function AdminMenu() {
                       ) : (
                         // ── Flat grid (specific category or active filter) ────
                         gridView ? (
-                          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                          <div className="grid grid-cols-2 gap-3 sm:gap-4 min-[700px]:grid-cols-3 xl:grid-cols-4">
                             {filteredItems.map(item => (
                               <SortableItemCard
                                 key={item.id}
@@ -3564,7 +3545,7 @@ export default function AdminMenu() {
                       items={quickItems.map(i => i.id)}
                       strategy={rectSortingStrategy}
                     >
-                      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4 min-[700px]:grid-cols-3 xl:grid-cols-4">
                         {quickItems.map(item => (
                           <SortableItemCard
                             key={item.id}
@@ -3837,9 +3818,9 @@ export default function AdminMenu() {
                 ))}
               </select>
             </div>
-            <Field label={t(lang, 'nameUz')} value={form.name_uz} onChange={setF('name_uz')} onBlur={trimF('name_uz')} />
-            <Field label={t(lang, 'nameRu')} value={form.name_ru} onChange={setF('name_ru')} onBlur={trimF('name_ru')} />
-            <Field label={t(lang, 'nameEn')} value={form.name_en} onChange={setF('name_en')} onBlur={trimF('name_en')} />
+            <Field label={t(lang, 'nameUz')} value={form.name_uz} onChange={setF('name_uz')} onBlur={trimF('name_uz')} error={menuNameStartError(lang, form.name_uz)} />
+            <Field label={t(lang, 'nameRu')} value={form.name_ru} onChange={setF('name_ru')} onBlur={trimF('name_ru')} error={menuNameStartError(lang, form.name_ru)} />
+            <Field label={t(lang, 'nameEn')} value={form.name_en} onChange={setF('name_en')} onBlur={trimF('name_en')} error={menuNameStartError(lang, form.name_en)} />
             <div>
               <p className="ws-caption mb-1.5 font-medium">
                 {lang === 'uz' ? 'Tashqi ID' : lang === 'ru' ? 'Внешний ID' : 'External ID'}

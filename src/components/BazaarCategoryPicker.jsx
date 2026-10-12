@@ -22,6 +22,9 @@ export default function BazaarCategoryPicker({
   lang = 'en',
   disabled = false,
   extraCategories = [],
+  // Filters: an "All categories" entry (value 'all') and a label for rows without a category.
+  allLabel = '',
+  uncategorizedLabel = '',
 }) {
   const l = pickerLabels(lang)
   const rootRef = useRef(null)
@@ -31,13 +34,19 @@ export default function BazaarCategoryPicker({
   const categories = useMemo(() => {
     const counts = new Map()
     for (const ingredient of ingredients) counts.set(ingredient.category, (counts.get(ingredient.category) || 0) + 1)
-    return bazaarCategoriesFor([...ingredients, ...extraCategories, value]).map(category => ({
+    const labelFor = key => (key === 'uncategorized' && uncategorizedLabel ? uncategorizedLabel : bazaarCategoryLabel(key, lang))
+    const list = bazaarCategoriesFor([...ingredients, ...extraCategories, ...(value && value !== 'all' ? [value] : [])]).map(category => ({
       key: category.key,
       custom: Boolean(category.custom),
-      label: bazaarCategoryLabel(category.key, lang),
+      label: labelFor(category.key),
       count: counts.get(category.key) || 0,
     }))
-  }, [extraCategories, ingredients, lang, value])
+    if (uncategorizedLabel && counts.has('uncategorized')) {
+      list.push({ key: 'uncategorized', custom: false, label: uncategorizedLabel, count: counts.get('uncategorized') })
+    }
+    return allLabel ? [{ key: 'all', custom: false, label: allLabel, count: ingredients.length }, ...list] : list
+  }, [allLabel, extraCategories, ingredients, lang, uncategorizedLabel, value])
+  const selectedLabel = categories.find(category => category.key === value)?.label || (value ? bazaarCategoryLabel(value, lang) : '')
 
   const normalizedSearch = search.trim().toLocaleLowerCase()
   const visible = categories.filter(category => !normalizedSearch || category.label.toLocaleLowerCase().includes(normalizedSearch))
@@ -83,7 +92,7 @@ export default function BazaarCategoryPicker({
       >
         <Tag size={15} className="shrink-0 text-[#68655f]" />
         <span className={`min-w-0 flex-1 truncate text-sm ${value ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
-          {value ? bazaarCategoryLabel(value, lang) : l.select}
+          {selectedLabel || l.select}
         </span>
         <ChevronDown size={16} className={`shrink-0 text-[#6B7280] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>

@@ -1,3 +1,5 @@
+import { startsWithCapitalOrDigit } from './nameStart.js'
+
 export const MENU_ITEM_TEXT_FIELDS = [
   'name_uz',
   'name_ru',
@@ -27,4 +29,13 @@ export function firstMenuItemText(...values) {
     if (normalized) return normalized
   }
   return ''
+}
+
+export const MENU_NAME_FIELDS = ['name_uz', 'name_ru', 'name_en']
+
+// A product or category name must begin with a capital letter or a digit; blank optional names pass.
+export const menuNameHasValidStart = startsWithCapitalOrDigit
+
+export function invalidMenuNameFields(fields = {}) {
+  return MENU_NAME_FIELDS.filter(field => !menuNameHasValidStart(fields[field]))
 }

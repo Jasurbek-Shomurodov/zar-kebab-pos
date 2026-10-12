@@ -843,7 +843,7 @@ test('menu item deletion is soft-delete only so history analytics keep lookup co
   assert.match(adminMenu, /onKeyDown=\{handleDeleteDialogKeyDown\}/)
   assert.match(itemCard, /onPointerDown=\{event => event\.stopPropagation\(\)\}/)
   assert.match(itemCard, /onClick=\{\(\) => onDelete\(item\)\}/)
-  assert.match(itemCard, /touch-manipulation ws-btn /)
+  assert.match(itemCard, /touch-manipulation /)
   assert.match(itemCard, /Archive item/)
   assert.match(itemCard, /<Archive size=/)
   assert.match(itemRow, /sm:flex-nowrap/)
