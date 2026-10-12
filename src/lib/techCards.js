@@ -27,12 +27,56 @@ export function isTechCardEligibleMenuItem(item, categories = []) {
     .some(value => TECH_CARD_EXCLUDED_CATEGORY_NAMES.has(normalizeTechCardCategoryName(value)))
 }
 
-export function getBazaarIngredientTechCardPatch(ingredient = {}) {
+// Units sharing a dimension convert by their size in the smallest unit.
+const TECH_CARD_UNIT_SCALE = {
+  g: ['mass', 1],
+  kg: ['mass', 1000],
+  ml: ['volume', 1],
+  l: ['volume', 1000],
+  piece: ['piece', 1],
+}
+
+function roundTechCardPrice(value) {
+  return Math.round(value * 10_000) / 10_000
+}
+
+// Mirrors public.tech_card_unit_price_from_bazaar (228); null when units are incompatible.
+export function convertTechCardUnitPrice(price, fromUnit, toUnit) {
+  const from = TECH_CARD_UNIT_SCALE[fromUnit]
+  const to = TECH_CARD_UNIT_SCALE[toUnit]
+  if (!from || !to || from[0] !== to[0]) return null
+  return roundTechCardPrice(Math.max(0, Number(price) || 0) * to[1] / from[1])
+}
+
+export function getCompatibleTechCardUnits(unit) {
+  const dimension = TECH_CARD_UNIT_SCALE[unit]?.[0]
+  return dimension ? TECH_CARD_UNITS.filter(candidate => TECH_CARD_UNIT_SCALE[candidate][0] === dimension) : TECH_CARD_UNITS
+}
+
+export function getBazaarIngredientTechCardUnit(ingredient = {}) {
+  return BAZAAR_TO_TECH_CARD_UNIT[String(ingredient.unit || '').trim().toLowerCase()] || 'piece'
+}
+
+export function getBazaarIngredientTechCardPatch(ingredient = {}, unit = '') {
+  const catalogUnit = getBazaarIngredientTechCardUnit(ingredient)
+  const targetUnit = getCompatibleTechCardUnits(catalogUnit).includes(unit) ? unit : catalogUnit
   return {
     name: String(ingredient.name || ingredient.product_name || '').trim(),
-    unit: BAZAAR_TO_TECH_CARD_UNIT[String(ingredient.unit || '').trim().toLowerCase()] || 'piece',
-    unit_price_uzs: String(Math.max(0, Math.round(Number(ingredient.normalUnitPrice ?? ingredient.normal_unit_price) || 0))),
+    unit: targetUnit,
+    unit_price_uzs: String(convertTechCardUnitPrice(
+      ingredient.normalUnitPrice ?? ingredient.normal_unit_price,
+      catalogUnit,
+      targetUnit,
+    )),
   }
+}
+
+export function formatTechCardUnitPrice(value) {
+  if (value === null || value === undefined || value === '') return ''
+  const number = Number(value)
+  if (!Number.isFinite(number)) return ''
+  const [whole, fraction] = String(roundTechCardPrice(number)).split('.')
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + (fraction ? `.${fraction}` : '')
 }
 
 export function normalizeTechCardNumber(value, fallback = 0) {
@@ -218,7 +262,7 @@ export function buildTechCardPayload(card = {}) {
       name: ingredient.name.trim(),
       quantity: normalizeTechCardNumber(ingredient.quantity),
       unit: ingredient.unit,
-      unit_price_uzs: Math.round(normalizeTechCardNumber(ingredient.unit_price_uzs)),
+      unit_price_uzs: roundTechCardPrice(normalizeTechCardNumber(ingredient.unit_price_uzs)),
       sort_order: index + 1,
     })),
     components: normalized.components.map((component, index) => ({

@@ -27,7 +27,6 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAppDataStatus } from '../store/appHooks'
 import { canEditMenu } from '../lib/permissions'
 import { formatCurrency, formatCurrencyWithPercentage } from '../lib/formatCurrency'
-import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { getCategoryName, getItemName } from '../lib/i18n'
 import { isActiveMenuItem } from '../lib/menuItems'
 import { getSaleProfitSummary } from '../lib/profit'
@@ -42,6 +41,9 @@ import {
   createBlankTechCardComponent,
   createBlankTechCardIngredient,
   getBazaarIngredientTechCardPatch,
+  getBazaarIngredientTechCardUnit,
+  getCompatibleTechCardUnits,
+  formatTechCardUnitPrice,
   isTechCardEligibleMenuItem,
   normalizeTechCard,
   techCardFingerprint,
@@ -190,6 +192,14 @@ async function loadTechCards() {
       components: componentsByItemId.get(techCardStorageKey(card.menu_item_id, card.variant_option_id)) || [],
     }),
   ]))
+}
+
+// Catalog ingredients offer only units their price converts to; keep a legacy unit visible.
+function ingredientUnitOptions(bazaarIngredient, currentUnit) {
+  const units = bazaarIngredient
+    ? getCompatibleTechCardUnits(getBazaarIngredientTechCardUnit(bazaarIngredient))
+    : TECH_CARD_UNITS
+  return units.includes(currentUnit) ? units : [...units, currentUnit]
 }
 
 function SummaryTile({ label, value, icon: Icon, tone = 'orange' }) {
@@ -672,13 +682,20 @@ export default function TechCards() {
                             </label>
                             <label>
                               <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.unit}</span>
-                              <select value={ingredient.unit} onChange={event => updateIngredient(index, { unit: event.target.value })} disabled={!mayEdit || saving} className="h-10 w-full rounded-xl border border-gray-200 bg-white px-2 text-sm outline-none focus:border-[#ff5a00] disabled:bg-gray-100">
-                                {TECH_CARD_UNITS.map(unit => <option key={unit} value={unit}>{unitLabel(unit, lang)}</option>)}
+                              <select
+                                value={ingredient.unit}
+                                onChange={event => updateIngredient(index, selectedBazaarIngredient
+                                  ? getBazaarIngredientTechCardPatch(selectedBazaarIngredient, event.target.value)
+                                  : { unit: event.target.value })}
+                                disabled={!mayEdit || saving}
+                                className="h-10 w-full rounded-xl border border-gray-200 bg-white px-2 text-sm outline-none focus:border-[#ff5a00] disabled:bg-gray-100"
+                              >
+                                {ingredientUnitOptions(selectedBazaarIngredient, ingredient.unit).map(unit => <option key={unit} value={unit}>{unitLabel(unit, lang)}</option>)}
                               </select>
                             </label>
                             <label className="min-w-0">
                               <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.unitPrice}</span>
-                              <input inputMode="numeric" value={formatMoneyInput(ingredient.unit_price_uzs)} disabled className="h-10 w-full min-w-0 cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 px-3 text-sm tabular-nums text-gray-600" />
+                              <input inputMode="numeric" value={formatTechCardUnitPrice(ingredient.unit_price_uzs)} disabled className="h-10 w-full min-w-0 cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 px-3 text-sm tabular-nums text-gray-600" />
                             </label>
                             <div>
                               <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-gray-400">{l.lineCost}</span>

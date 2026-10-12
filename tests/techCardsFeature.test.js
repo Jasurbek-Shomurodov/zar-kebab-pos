@@ -179,7 +179,7 @@ test('Tech Card ingredients come from the active Bazaar catalog and lock the nor
   assert.match(page, /from\('bazaar_product_catalog'\)[\s\S]{0,260}eq\('is_catalog_managed', true\)[\s\S]{0,120}eq\('is_active', true\)/)
   assert.match(page, /<BazaarIngredientPicker[\s\S]{0,500}getBazaarIngredientTechCardPatch\(selected\)/)
   assert.match(page, /fallbackLabel=\{ingredient\.name\}/)
-  assert.match(page, /value=\{formatMoneyInput\(ingredient\.unit_price_uzs\)\} disabled className="[^"]*cursor-not-allowed/)
+  assert.match(page, /value=\{formatTechCardUnitPrice\(ingredient\.unit_price_uzs\)\} disabled className="[^"]*cursor-not-allowed/)
   assert.doesNotMatch(page, /updateIngredient\(index, \{ unit_price_uzs:/)
   assert.match(migration, /current_staff_can_access\('bazaar'\)[\s\S]{0,100}current_staff_can_access\('tech_cards'\)/)
   assert.doesNotMatch(migration, /bazaar_purchases|bazaar_purchase_items/)

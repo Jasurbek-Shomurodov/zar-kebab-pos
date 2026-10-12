@@ -55,25 +55,21 @@
 
 ## Tech Cards
 
-- Exclude Alcohol, Utensils, Carbonated Drinks. Lock Bazaar prices; keep legacy names until replaced.
+- Exclude Alcohol, Utensils, Carbonated Drinks. Bazaar prices locked; `227`/`228` sync catalog edits to same-name rows, unit-converted.
 - Each active product has one protected base recipe and one recipe per eligible variant; empty `variant_option_id` means base.
 - Ingredient rows and included-product component rows belong to the exact product-and-variant recipe. Batch ingredient cost divided by `portion_count`, plus per-portion component cost, is the current portion cost.
 - Save the card and complete ingredient list atomically with `save_menu_item_tech_card(payload jsonb)`. Migration `183` batches cost sync, skips unchanged costs, and stops at convergence; base/variant dependencies still propagate.
 - `tech_cards` permission controls route/read access; Manage Menu separately controls writes.
-- Ingredient prices and protected recipes never enter public, Telegram-menu, waiter, cashier, order, or receipt payloads.
+- Ingredient prices/recipes never enter public, Telegram-menu, waiter, cashier, order, or receipt payloads.
 - Saving a base recipe synchronizes the protected parent cost; saving a variant recipe synchronizes that option in protected `variant_costs`. Preserve order-item cost snapshots.
-- Variant recipes may be copied/scaled; keep destination identity and portion count explicit.
+- Variant recipes may be copied/scaled; keep destination and portion count explicit.
 - Components use `selected_options` for variants; empty means base.
 - Included-product quantities are positive recipe amounts and may be fractional for every sale unit; accept decimal points and commas: `0.3` and `0,5`.
 - Variant calculation uses protected variant cost with protected parent-cost fallback. Changing parent selection clears stale options.
 - `order_items.tech_card_component_snapshot` freezes chosen options. Payment deducts whole piece components once. Fractional components contribute proportional cost, never rounded integer stock movements.
 - New orders freeze direct and nested ingredient quantities, units, and prices in service-only `order_item_tech_card_ingredient_snapshots`. Daily consumption uses paid, non-cancelled quantities; never expose or backfill these snapshots.
 - Allow repeated parents only for distinct variants.
-
 - Migration `186`: `/admin/ingredients` has Team access and movement totals; see the reporting guide. New ingredient snapshots use unambiguous canonical keys.
-
 - PDF export: `src/components/TechCardPdfDownload.jsx`; `tests/techCardPdfData.test.js`.
-
-- `205`: Take Away/Delivery/Game Club schedule overrides (`always_visible_*`); seeds Game Club lunch. Other visibility rules remain. Tests: `tests/gameClubCategorySchedule.test.js`.
-
+- `205`: Take Away/Delivery/Game Club schedule overrides (`always_visible_*`); seeds Game Club lunch. Other visibility rules remain. Test: `tests/gameClubCategorySchedule.test.js`.
 - Prune stale selections after staff loads; translate errors at render. Test: `tests/categoryScheduleAccess.test.js`.

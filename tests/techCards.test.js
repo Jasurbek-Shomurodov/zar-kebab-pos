@@ -3,9 +3,12 @@ import assert from 'node:assert/strict'
 import {
   buildTechCardPayload,
   calculateTechCardSummary,
+  convertTechCardUnitPrice,
   copyAndScaleTechCard,
   createBlankTechCard,
+  formatTechCardUnitPrice,
   getBazaarIngredientTechCardPatch,
+  getCompatibleTechCardUnits,
   isTechCardEligibleMenuItem,
   techCardStorageKey,
   validateTechCard,
@@ -22,6 +25,26 @@ test('Bazaar ingredient selection prefills the Tech Card name, compatible unit, 
     unit_price_uzs: '85000',
   })
   assert.equal(getBazaarIngredientTechCardPatch({ product_name: 'Eggs', unit: 'pcs', normal_unit_price: 2_000 }).unit, 'piece')
+})
+
+test('catalog prices convert to the row unit without whole-UZS rounding', () => {
+  assert.equal(convertTechCardUnitPrice(7_500, 'kg', 'g'), 7.5)
+  assert.equal(convertTechCardUnitPrice(15, 'ml', 'l'), 15_000)
+  assert.equal(convertTechCardUnitPrice(2_000, 'piece', 'piece'), 2_000)
+  assert.equal(convertTechCardUnitPrice(10_000, 'kg', 'piece'), null)
+  assert.deepEqual(getCompatibleTechCardUnits('kg'), ['g', 'kg'])
+  assert.deepEqual(getCompatibleTechCardUnits('piece'), ['piece'])
+  assert.deepEqual(getBazaarIngredientTechCardPatch({ name: 'pomidor', unit: 'kg', normalUnitPrice: 7_500 }, 'g'), {
+    name: 'pomidor', unit: 'g', unit_price_uzs: '7.5',
+  })
+  // An incompatible requested unit falls back to the catalog unit.
+  assert.equal(getBazaarIngredientTechCardPatch({ name: 'Egg', unit: 'pcs', normalUnitPrice: 1_500 }, 'kg').unit, 'piece')
+  assert.equal(formatTechCardUnitPrice('12500.25'), '12 500.25')
+  assert.equal(buildTechCardPayload({
+    menu_item_id: 'm', ingredients: [{ name: 'pomidor', quantity: '250', unit: 'g', unit_price_uzs: '7.5' }],
+  }).ingredients[0].unit_price_uzs, 7.5)
+  const summary = calculateTechCardSummary({ portion_count: '1', ingredients: [{ name: 'pomidor', quantity: '250', unit: 'g', unit_price_uzs: '7.5' }] })
+  assert.equal(summary.ingredientBatchCost, 1_875)
 })
 
 test('tech cards exclude alcohol, utensils, and carbonated drink categories', () => {
