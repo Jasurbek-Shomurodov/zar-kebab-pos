@@ -58,6 +58,7 @@ import { formatLongDate, formatLongDateTime } from '../lib/dateFormat'
 import { getConfiguredServiceRatePct } from '../lib/serviceRates'
 import { canChangeCompletedOrderPaymentMethod, canDeleteOrderToday, canViewPage } from '../lib/permissions'
 import { collectPagedRows, loadOrdersForRange, mergeOrderHistory } from '../lib/orderHistory'
+import { loadReportsAccountingBundle } from '../lib/accountingSummary'
 import { getAccountingQuickRange } from '../lib/accounting'
 
 /** Payment method with fallback */
@@ -2053,23 +2054,27 @@ export default function Reports() {
         setExpensesError('')
         return
       }
-      const [expenseResult, salaryProfileResult, salaryRateResult, salaryPaymentResult, salaryBonusResult, salaryAbsenceResult, teamResult, employeeMealResult] = await Promise.all([
-        loadPagedResult((from, to) => supabase
-          .from('expenses')
-          .select('id, entry_type, expense_date, category, payment_method, amount, vendor, description, created_at')
-          .gte('expense_date', dateFrom)
-          .lte('expense_date', dateTo)
-          .order('expense_date')
-          .order('id')
-          .range(from, to)),
-        loadPagedResult((from, to) => supabase.from('employee_salary_profiles').select('*').order('id').range(from, to)),
-        loadPagedResult((from, to) => supabase.from('employee_salary_rates').select('*').order('id').range(from, to)),
-        loadPagedResult((from, to) => supabase.from('employee_salary_payments').select('*').order('id').range(from, to)),
-        loadPagedResult((from, to) => supabase.from('employee_salary_bonuses').select('*').order('id').range(from, to)),
-        loadPagedResult((from, to) => supabase.from('employee_salary_absences').select('*').order('id').range(from, to)),
-        loadPagedResult((from, to) => supabase.from('profiles').select('id, full_name, email, role, status').order('id').range(from, to)),
-        loadPagedResult((from, to) => supabase.from('employee_daily_meal_expenses').select('business_date, average_daily_amount, present_employee_count, total_amount, source_type, finalized_at, created_at').gte('business_date', dateFrom).lte('business_date', dateTo).order('business_date').range(from, to)),
-      ])
+      // Reports only turns salary payments and bonuses inside the range into
+      // cash rows; one round trip (migration 235), else the same rows separately.
+      const ok = data => ({ data, error: null })
+      const bundle = await loadReportsAccountingBundle({ dateFrom, dateTo })
+      const [expenseResult, salaryProfileResult, salaryPaymentResult, salaryBonusResult, teamResult, employeeMealResult] = bundle
+        ? [ok(bundle.expenses), ok(bundle.salary.profiles), ok(bundle.salary.payments), ok(bundle.salary.bonuses), ok(bundle.salary.team), ok(bundle.employeeMealSnapshots)]
+        : await Promise.all([
+          loadPagedResult((from, to) => supabase
+            .from('expenses')
+            .select('id, entry_type, expense_date, category, payment_method, amount, vendor, description, created_at')
+            .gte('expense_date', dateFrom)
+            .lte('expense_date', dateTo)
+            .order('expense_date')
+            .order('id')
+            .range(from, to)),
+          loadPagedResult((from, to) => supabase.from('employee_salary_profiles').select('*').order('id').range(from, to)),
+          loadPagedResult((from, to) => supabase.from('employee_salary_payments').select('*').gte('paid_date', dateFrom).lte('paid_date', dateTo).order('id').range(from, to)),
+          loadPagedResult((from, to) => supabase.from('employee_salary_bonuses').select('*').gte('bonus_date', dateFrom).lte('bonus_date', dateTo).order('id').range(from, to)),
+          loadPagedResult((from, to) => supabase.from('profiles').select('id, full_name, email, role, status').order('id').range(from, to)),
+          loadPagedResult((from, to) => supabase.from('employee_daily_meal_expenses').select('business_date, average_daily_amount, present_employee_count, total_amount, source_type, finalized_at, created_at').gte('business_date', dateFrom).lte('business_date', dateTo).order('business_date').range(from, to)),
+        ])
       if (cancelled) return
       const { data, error } = expenseResult
       const message = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
@@ -2083,17 +2088,17 @@ export default function Reports() {
         setExpenses(data || [])
         setExpensesError('')
       }
-      if (salaryProfileResult.error || salaryRateResult.error || salaryPaymentResult.error || salaryBonusResult.error || salaryAbsenceResult.error) {
+      if (salaryProfileResult.error || salaryPaymentResult.error || salaryBonusResult.error) {
         setSalaryProfiles([])
-        const salaryError = salaryProfileResult.error || salaryRateResult.error || salaryPaymentResult.error || salaryBonusResult.error || salaryAbsenceResult.error
+        const salaryError = salaryProfileResult.error || salaryPaymentResult.error || salaryBonusResult.error
         setExpensesError(current => current || salaryError?.message || 'Could not load salary accounting data')
       } else {
         setSalaryProfiles(composeSalaryProfiles(
           salaryProfileResult.data || [],
-          salaryRateResult.data || [],
+          [],
           salaryPaymentResult.data || [],
           salaryBonusResult.data || [],
-          salaryAbsenceResult.data || [],
+          [],
           teamResult.data || [],
         ))
       }

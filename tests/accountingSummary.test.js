@@ -9,6 +9,7 @@ import {
   loadAccountingPaidOrderSummary,
   loadFinancialAnalysisBundle,
   loadMonthlyEstimateBundle,
+  loadReportsAccountingBundle,
 } from '../src/lib/accountingSummary.js'
 
 const migration = readFileSync(
@@ -240,4 +241,42 @@ test('Monthly estimate bundle keeps selected-month sales and the salary history 
   }
   assert.doesNotMatch(sql, /ACCOUNTING_HISTORY_START_DATE|get_accounting_all_time_balance/)
   assert.match(sql, /grant execute on function public\.get_monthly_estimate\(date, date, date, date, date\)\s+to authenticated/)
+})
+
+const reportsAccountingMigration = readFileSync(
+  new URL('../migrations/235_reports_accounting_bundle.sql', import.meta.url),
+  'utf8'
+)
+
+test('Reports accounting loads in one round trip and falls back when the function is missing', async () => {
+  const calls = []
+  const dbClient = {
+    rpc(name, args) {
+      calls.push({ name, args })
+      return Promise.resolve({
+        data: { expenses: [{ id: 1 }], employee_meals: [{ business_date: '2026-10-12' }], salary: { profiles: [{ id: 'p1' }], payments: [{ id: 'pay1' }], bonuses: [], team: [] } },
+        error: null,
+      })
+    },
+  }
+  const bundle = await loadReportsAccountingBundle({ dateFrom: '2026-10-12', dateTo: '2026-10-12' }, { dbClient })
+  assert.deepEqual(calls, [{ name: 'get_reports_accounting', args: { p_date_from: '2026-10-12', p_date_to: '2026-10-12' } }])
+  assert.deepEqual(bundle, {
+    expenses: [{ id: 1 }],
+    employeeMealSnapshots: [{ business_date: '2026-10-12' }],
+    salary: { profiles: [{ id: 'p1' }], payments: [{ id: 'pay1' }], bonuses: [], team: [] },
+  })
+  const missing = { rpc: () => Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_reports_accounting' } }) }
+  assert.equal(await loadReportsAccountingBundle({ dateFrom: '2026-10-12', dateTo: '2026-10-12' }, { dbClient: missing }), null)
+})
+
+test('Reports accounting bundle returns only in-range salary cash rows behind Accounting access', () => {
+  const sql = reportsAccountingMigration
+  assert.match(sql, /if not public\.current_staff_can_access\('expenses'\) then/)
+  assert.match(sql, /p\.paid_date between p_date_from and p_date_to/)
+  assert.match(sql, /b\.bonus_date between p_date_from and p_date_to/)
+  assert.match(sql, /e\.expense_date between p_date_from and p_date_to/)
+  assert.match(sql, /m\.business_date between p_date_from and p_date_to/)
+  assert.doesNotMatch(sql, /employee_salary_rates|employee_salary_absences|employee_salary_fines/)
+  assert.match(sql, /grant execute on function public\.get_reports_accounting\(date, date\)\s+to authenticated/)
 })

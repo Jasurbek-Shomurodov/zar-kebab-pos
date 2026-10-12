@@ -178,3 +178,25 @@ export async function loadMonthlyEstimateBundle({ monthStart, monthEnd, complete
     },
   }
 }
+
+// Reports' accounting rows in one round trip (migration 235): the range's
+// expenses and staff meals plus salary payments/bonuses inside the range.
+// Returns null when the function is not deployed yet.
+export async function loadReportsAccountingBundle({ dateFrom, dateTo }, options = {}) {
+  const dbClient = options.dbClient || supabase
+  const { data, error } = await dbClient.rpc('get_reports_accounting', { p_date_from: dateFrom, p_date_to: dateTo })
+  if (error) {
+    if (isMissingRpc(error, 'get_reports_accounting')) return null
+    throw error
+  }
+  return {
+    expenses: data?.expenses || [],
+    employeeMealSnapshots: data?.employee_meals || [],
+    salary: {
+      profiles: data?.salary?.profiles || [],
+      payments: data?.salary?.payments || [],
+      bonuses: data?.salary?.bonuses || [],
+      team: data?.salary?.team || [],
+    },
+  }
+}

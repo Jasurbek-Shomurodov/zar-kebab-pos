@@ -371,6 +371,7 @@ test('database health reports missing tables and missing RPC', async () => {
     'get_monthly_estimate',
     'get_pending_daily_kpi_dates',
     'get_pending_employee_meal_dates',
+    'get_reports_accounting',
     'kitchen_round_receipts_version',
     'order_payments',
     'recall_table_from_cashier',
