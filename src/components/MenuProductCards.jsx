@@ -521,7 +521,22 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
           loading={eager ? 'eager' : 'lazy'}
           fetchPriority={eager ? 'high' : undefined}
         />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+        {/* Title and subtitle sit on the photo over a frosted strip whose blur fades in from above. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 px-2.5 pb-2.5 pt-9 sm:px-3.5 sm:pb-3 sm:pt-11"
+          style={{
+            background: 'linear-gradient(180deg, rgb(20 15 11 / 0%) 0%, rgb(20 15 11 / 48%) 42%, rgb(20 15 11 / 74%) 100%)',
+            backdropFilter: 'blur(10px) saturate(130%)',
+            WebkitBackdropFilter: 'blur(10px) saturate(130%)',
+            maskImage: 'linear-gradient(180deg, transparent 0, #000 26px)',
+            WebkitMaskImage: 'linear-gradient(180deg, transparent 0, #000 26px)',
+          }}
+        >
+          <h3 className="zk-serif line-clamp-2 text-[18px] font-semibold leading-[1.1] text-white sm:text-[22px]" style={{ textShadow: '0 1px 8px rgb(0 0 0 / 35%)' }}>{name}</h3>
+          {description && (
+            <p className="lux-fade-text mt-1 text-[12px] font-light sm:text-[13px]" style={{ color: 'rgb(255 248 238 / 78%)' }}>{description}</p>
+          )}
+        </div>
         {discountPct > 0 && (
           <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide sm:left-2.5 sm:top-2.5">
             −{discountPct}%
@@ -538,13 +553,9 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-2.5 sm:px-2 sm:pb-2 sm:pt-3">
-        {/* Always: title, then subtitle, then price (right-aligned). */}
-        <h3 className="zk-serif lux-title line-clamp-2 text-[18px] font-semibold leading-[1.1] sm:text-[22px]">{name}</h3>
-        {description && (
-          <p className="lux-muted mt-1 line-clamp-1 text-[12.5px] font-light leading-snug sm:text-[13px]">{description}</p>
-        )}
-        <p className="lux-title mt-auto flex flex-wrap items-baseline justify-end gap-x-2 pt-2 text-right text-[14px] font-semibold sm:text-[15px]">
+      {/* Always: title, then subtitle (both on the photo), then price (right-aligned). */}
+      <div className="flex flex-1 flex-col px-1.5 pb-1 pt-2.5 sm:px-2 sm:pb-1.5 sm:pt-3">
+        <p className="lux-title mt-auto flex flex-wrap items-baseline justify-end gap-x-2 text-right text-[14px] font-semibold sm:text-[15px]">
           {pricing.discounted && (
             <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="lux-muted text-[12px] font-normal line-through" />
           )}

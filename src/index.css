@@ -176,6 +176,21 @@ html[data-theme="dark"] .lux-header { box-shadow: 0 8px 26px rgb(0 0 0 / 30%); }
 .zk-sheet-in { animation: zk-sheet-in .28s cubic-bezier(.2, .8, .2, 1) both; }
 @keyframes zk-sheet-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 
+/* Up to two lines of text; instead of an ellipsis the end of the second line fades out. */
+.lux-fade-text {
+  line-height: 1.35;
+  max-height: 2.7em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(90deg, #000 55%, transparent 96%);
+  -webkit-mask-size: 100% 1.35em, 100% 1.35em;
+  -webkit-mask-position: top, 0 1.35em;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(90deg, #000 55%, transparent 96%);
+  mask-size: 100% 1.35em, 100% 1.35em;
+  mask-position: top, 0 1.35em;
+  mask-repeat: no-repeat;
+}
+
 /* Text inputs on glass. */
 .lux-input {
   background: var(--lux-soft) !important;
@@ -363,8 +378,8 @@ h3 { font-size: 1.0625rem; } /* 17px */
 }
 html[data-theme="dark"] .zk-shimmer { background: #222a25; }
 /* Public pages: warm placeholders that match the lux glass cards. */
-.zk-lux .zk-shimmer { background: rgb(120 90 60 / 10%); }
-html[data-theme="dark"] .zk-lux .zk-shimmer { background: rgb(255 236 210 / 7%); }
+.zk-lux .zk-shimmer { background: #ECE3D7; }
+html[data-theme="dark"] .zk-lux .zk-shimmer { background: #2A211A; }
 html[data-theme="dark"] .zk-lux .zk-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 236 210 / 8%), transparent); }
 html[data-theme="dark"] .zk-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 255 255 / 6%), transparent); }
 
