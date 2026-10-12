@@ -1,6 +1,6 @@
 # Employees, Payroll, KPI, Absence, and Employee Meals
 
-- `194`/`206`: display-only job_function; required on creation, owner-editable. EN/RU/UZ labels; no permissions/payroll effects. Test: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237`: display-only job_function; required on creation, owner-editable. EN/RU/UZ labels; no permissions/payroll effects. Test: `tests/employeeJobFunctions.test.js`.
 
 ## Entry points
 
