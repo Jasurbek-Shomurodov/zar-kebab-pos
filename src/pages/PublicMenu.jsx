@@ -949,6 +949,8 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
           groupedSections ? (
             <div className="space-y-7">
               {groupedSections.filter(section => section.cat.id === CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)}
+              {groupedSections.filter(section => section.cat.id !== CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)}
+              {/* Deals follow the regular categories so the menu itself leads the page. */}
               {dealItems.length > 0 && (
                 <section id="public-menu-deals" className="scroll-mt-32">
                   <MenuSectionHeader title={dealsTitle} tone="deal" />
@@ -969,7 +971,6 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                   </div>
                 </section>
               )}
-              {groupedSections.filter(section => section.cat.id !== CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">

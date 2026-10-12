@@ -595,3 +595,10 @@ test('corporate sets have their own public page and stay out of the main menu', 
   assert.match(publicMenu, /return displayCategories\.filter\(category => category\.id !== CORPORATE_SETS_CATEGORY_ID\)/)
   assert.match(publicMenu, /\{siteCopy\.corporateSets\}<\/a>\s*<a href="\/menu#public-menu-deals"[^\n]*\{siteCopy\.promotions\}/)
 })
+
+test('public menu lists deals after the regular categories, not on top', () => {
+  const publicMenu = readSource('src/pages/PublicMenu.jsx')
+  const categories = publicMenu.indexOf('section.cat.id !== CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)')
+  const deals = publicMenu.indexOf('<section id="public-menu-deals"')
+  assert.ok(categories > 0 && deals > categories)
+})
