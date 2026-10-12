@@ -40,8 +40,6 @@
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  max-width: 1440px;
-  margin-inline: auto;
   padding: 28px 36px 60px;
   color: var(--ws-foreground);
 }

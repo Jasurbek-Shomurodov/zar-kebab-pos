@@ -341,7 +341,7 @@ export default function AdminUsers() {
 
   return (
     <AppShell title={l.title}>
-      <div className="w-full max-w-[1280px] mx-auto px-4 py-5 sm:px-5 lg:px-6">
+      <div className="w-full px-4 py-5 sm:px-5 lg:px-6">
 
         {/* Read-only notice for non-editors */}
         {!['owner', 'admin'].includes(myRole) && (

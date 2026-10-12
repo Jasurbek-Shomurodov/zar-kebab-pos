@@ -266,7 +266,7 @@ test('AdminUsers lets owners rename employees without changing historical order 
 test('AdminUsers team table keeps action controls inside the page layout', () => {
   const adminUsers = readSource('src/pages/AdminUsers.jsx')
 
-  assert.match(adminUsers, /max-w-\[1280px\]/)
+  assert.match(adminUsers, /className="w-full px-4 py-5 sm:px-5 lg:px-6"/)
   assert.match(adminUsers, /xl:grid-cols-\[48px_minmax\(240px,1fr\)_100px_minmax\(540px,580px\)\]/)
   assert.match(adminUsers, /className="flex min-w-0 flex-wrap items-center justify-start gap-2 xl:flex-nowrap"/)
   assert.match(adminUsers, /className="h-10 w-\[124px\] flex-shrink-0/)

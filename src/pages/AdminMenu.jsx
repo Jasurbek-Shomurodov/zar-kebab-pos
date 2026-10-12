@@ -3068,7 +3068,7 @@ export default function AdminMenu() {
                 collapsedPosition="fixed"
                 collapsedSurfaceClass="bg-[#f6f5f3]/90"
                 collapsedClassName="!px-0 !py-2"
-                collapsedContentClassName="mx-auto max-w-[1440px] !px-4 sm:!px-6 xl:!px-9"
+                collapsedContentClassName="!px-4 sm:!px-6 xl:!px-9"
               />
               </div>
 

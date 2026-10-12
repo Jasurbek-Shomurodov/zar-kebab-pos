@@ -833,7 +833,7 @@ export default function CashierBill() {
 
         {/* Scrollable area */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-5">
-          <div className="flex flex-col lg:flex-row gap-4 items-start max-w-[1280px] mx-auto">
+          <div className="flex flex-col lg:flex-row gap-4 items-start">
 
             {/* ══ CENTER: order details ══════════════════════════════════════ */}
             <div className="w-full lg:flex-[60] min-w-0 flex flex-col gap-3">
