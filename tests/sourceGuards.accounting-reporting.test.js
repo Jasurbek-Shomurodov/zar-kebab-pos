@@ -582,6 +582,7 @@ test('Accounting overview uses a summary while historical pages retain complete 
   assert.match(accounting, /if \(requestId !== loadRequestRef\.current\) return/)
   // Selected-month paid orders are aggregated server-side (no row cap, no
   // megabytes of order items); today's live orders still come from POS state.
+  assert.match(estimate, /loadMonthlyEstimateBundle\(\{ monthStart, monthEnd, completedSalesTo, previousStart, previousEnd \}\)/)
   assert.match(estimate, /loadSalesSummary\(monthStart, completedSalesTo\)/)
   assert.match(estimate, /const completedSalesTo = dayBefore < monthEnd \? dayBefore : monthEnd/)
   assert.match(estimate, /loadSalesSummary\(previousStart, previousEnd\)/)

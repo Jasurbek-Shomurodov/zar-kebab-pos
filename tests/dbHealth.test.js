@@ -368,6 +368,7 @@ test('database health reports missing tables and missing RPC', async () => {
     'get_dashboard_monthly_average_income',
     'get_financial_analysis',
     'get_ingredient_movement',
+    'get_monthly_estimate',
     'get_pending_daily_kpi_dates',
     'get_pending_employee_meal_dates',
     'kitchen_round_receipts_version',

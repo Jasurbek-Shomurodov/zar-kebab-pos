@@ -196,10 +196,18 @@ export function canDeletePaidOrders(profileOrRole) {
   return canEditFeature(profileOrRole, 'delete_paid_orders')
 }
 
-// Match the database's Tashkent business-date boundary; no owner exception.
+// Match the database's Tashkent business-date boundary (202, 232): today's orders,
+// plus older unpaid open bills for owners. Paid history stays locked for everyone.
 export function canDeleteOrderToday(profileOrRole, order, now = new Date()) {
   const date = formatDateOnly(order?.paid_at ?? order?.created_at)
-  return Boolean(order?.id && date && date === formatDateOnly(now) && canDeletePaidOrders(profileOrRole))
+  if (!order?.id || !date) return false
+  if (date === formatDateOnly(now) && canDeletePaidOrders(profileOrRole)) return true
+  return date < formatDateOnly(now)
+    && canDeletePaidOrders(profileOrRole)
+    && !order.paid_at
+    && !['paid', 'cancelled'].includes(order.payment_status)
+    && !['paid', 'completed', 'cancelled'].includes(order.status)
+    && normalizeRole(profileOrRole?.role || profileOrRole) === 'owner'
 }
 
 export function canChangeCompletedOrderPaymentMethod(profileOrRole) {

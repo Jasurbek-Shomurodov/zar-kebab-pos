@@ -87,9 +87,9 @@ export function isMissingAccountingMonthlyCashflowRpc(error) {
   )
 }
 
-function isMissingFinancialAnalysisRpc(error) {
+function isMissingRpc(error, name) {
   const message = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return error?.code === 'PGRST202' || (message.includes('get_financial_analysis') && (
+  return error?.code === 'PGRST202' || (message.includes(name) && (
     message.includes('could not find the function') || message.includes('schema cache') || message.includes('not found')
   ))
 }
@@ -117,7 +117,7 @@ export async function loadFinancialAnalysisBundle({ dateFrom, dateTo, previousFr
     p_include_growth: includeGrowth,
   })
   if (error) {
-    if (isMissingFinancialAnalysisRpc(error)) return null
+    if (isMissingRpc(error, 'get_financial_analysis')) return null
     throw error
   }
   const growth = data?.growth || null
@@ -135,6 +135,46 @@ export async function loadFinancialAnalysisBundle({ dateFrom, dateTo, previousFr
       monthlyIncome: growth.monthly_income ?? null,
       tenDayIncome: growth.ten_day_income ?? null,
       cashflow: growth.cashflow ? normalizeAccountingMonthlyCashflow(growth.cashflow) : null,
+    },
+  }
+}
+
+// Monthly estimate in one round trip (migration 233). Returns null when the
+// function is not deployed yet so the page can fall back to separate requests.
+// `paidOrderSummary` is null when no completed day of the month has passed.
+export async function loadMonthlyEstimateBundle({ monthStart, monthEnd, completedSalesTo, previousStart, previousEnd }, options = {}) {
+  const dbClient = options.dbClient || supabase
+  const { data, error } = await dbClient.rpc('get_monthly_estimate', {
+    p_month_start: monthStart,
+    p_month_end: monthEnd,
+    p_completed_sales_to: completedSalesTo,
+    p_previous_start: previousStart,
+    p_previous_end: previousEnd,
+  })
+  if (error) {
+    if (isMissingRpc(error, 'get_monthly_estimate')) return null
+    throw error
+  }
+  const salary = data?.salary || {}
+  return {
+    current: {
+      expenses: data?.current?.expenses || [],
+      employeeMealSnapshots: data?.current?.employee_meals || [],
+      paidOrderSummary: data?.current?.paid_order_summary ?? null,
+    },
+    previous: {
+      expenses: data?.previous?.expenses || [],
+      employeeMealSnapshots: data?.previous?.employee_meals || [],
+      paidOrderSummary: data?.previous?.paid_order_summary || {},
+    },
+    salary: {
+      profiles: salary.profiles || [],
+      rates: salary.rates || [],
+      payments: salary.payments || [],
+      bonuses: salary.bonuses || [],
+      fines: salary.fines || [],
+      absences: salary.absences || [],
+      team: salary.team || [],
     },
   }
 }

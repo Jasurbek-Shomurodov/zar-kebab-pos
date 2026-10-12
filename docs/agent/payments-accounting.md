@@ -26,7 +26,7 @@
 - Delete completed orders access permits atomic non-loyalty tender corrections.
 - Loyalty rows are visible but immutable without a separate wallet reversal workflow.
 - Method corrections keep amounts fixed. Splits preserve the original sum, other payments, items, totals, paid state/time, loyalty, service and stock. Receipts audit/reconcile splits. Tests: `tests/paidPaymentSplit.test.js`.
-- Deletes require a reason (`184`) and today's Tashkent date (`202`), including owners. Empty cashier bills expose the same guarded deletion after refresh; paid/older orders remain protected. Corrections notify Investor.
+- Deletes need a reason (`184`) and today's Tashkent date (`202`); owners also delete old unpaid bills (`232`). Empty bills get it after refresh; paid history stays protected. Corrections notify Investor.
 
 ## Receipt printing
 
@@ -41,7 +41,7 @@
 - Wait for expenses, paid-order summary/history, and salary data before ending loading.
 - KPIs use permission-checked aggregates, never full history. The all-time cash remainder excludes unpaid salary liability.
 - Detailed order rows belong to reports, receipts, and drilldowns.
-- Accounting: recording, spending/salary KPIs, open method balances. Analysis + Estimate: `financial_analysis` (needs `expenses`; `230`); `229` growth, `231` one-trip load.
+- Accounting: recording, spending/salary KPIs, open method balances. Analysis/Estimate: `financial_analysis` (needs `expenses`; `230`); `229` growth; `231`/`233` bundles.
 
 ## Expenses and estimates
 

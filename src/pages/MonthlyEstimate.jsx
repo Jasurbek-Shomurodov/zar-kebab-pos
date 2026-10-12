@@ -50,7 +50,7 @@ import { supabase } from '../lib/supabase'
 import { useApp } from '../store/AppContext'
 import { collectPagedRows } from '../lib/orderHistory'
 import { normalizeAccountingPaidOrderSummary } from '../lib/accounting'
-import { loadAccountingPaidOrderSummary } from '../lib/accountingSummary'
+import { loadAccountingPaidOrderSummary, loadMonthlyEstimateBundle } from '../lib/accountingSummary'
 
 const SELECT_COLUMNS = 'id, entry_type, expense_date, category, payment_method, amount, vendor, description, created_by, created_by_name, created_at, updated_at'
 
@@ -410,40 +410,9 @@ export default function MonthlyEstimate() {
     const loadDay = todayExpenseDate()
     const dayBefore = addLocalDateDays(loadDay, -1)
     const completedSalesTo = dayBefore < monthEnd ? dayBefore : monthEnd
-    const previousPromise = Promise.all([
-      loadPagedResult((from, to) => supabase
-        .from('expenses')
-        .select(SELECT_COLUMNS)
-        .gte('expense_date', previousStart)
-        .lte('expense_date', previousEnd)
-        .order('expense_date')
-        .order('id')
-        .range(from, to)),
-      loadPagedResult((from, to) => supabase.from('employee_daily_meal_expenses').select('business_date, average_daily_amount, present_employee_count, total_amount, source_type, finalized_at, created_at').gte('business_date', previousStart).lte('business_date', previousEnd).order('business_date').range(from, to)),
-      loadSalesSummary(previousStart, previousEnd),
-    ])
-    const [expenseResult, salaryProfileResult, salaryRateResult, salaryPaymentResult, salaryBonusResult, salaryFineResult, salaryAbsenceResult, teamResult, employeeMealResult, orderHistoryResult] = await Promise.all([
-      loadPagedResult((from, to) => supabase
-        .from('expenses')
-        .select(SELECT_COLUMNS)
-        .gte('expense_date', monthStart)
-        .lte('expense_date', monthEnd)
-        .order('expense_date')
-        .order('id')
-        .range(from, to)),
-      loadPagedResult((from, to) => supabase.from('employee_salary_profiles').select('*').order('id').range(from, to)),
-      loadPagedResult((from, to) => supabase.from('employee_salary_rates').select('*').order('id').range(from, to)),
-      loadPagedResult((from, to) => supabase.from('employee_salary_payments').select('*').order('id').range(from, to)),
-      loadPagedResult((from, to) => supabase.from('employee_salary_bonuses').select('*').order('id').range(from, to)),
-      loadPagedResult((from, to) => supabase.from('employee_salary_fines').select('*').order('id').range(from, to)),
-      loadPagedResult((from, to) => supabase.from('employee_salary_absences').select('*').order('id').range(from, to)),
-      loadPagedResult((from, to) => supabase.from('profiles').select('id, full_name, email, role, status').order('id').range(from, to)),
-      loadPagedResult((from, to) => supabase.from('employee_daily_meal_expenses').select('business_date, average_daily_amount, present_employee_count, total_amount, source_type, finalized_at, created_at').gte('business_date', monthStart).lte('business_date', monthEnd).order('business_date').range(from, to)),
-      completedSalesTo >= monthStart
-        ? loadSalesSummary(monthStart, completedSalesTo)
-        : Promise.resolve({ data: normalizeAccountingPaidOrderSummary({}, monthStart, monthStart), error: null }),
-    ])
+    const sources = await loadEstimateSources({ previousStart, previousEnd, completedSalesTo })
     if (requestId !== loadRequestRef.current) return
+    const [expenseResult, salaryProfileResult, salaryRateResult, salaryPaymentResult, salaryBonusResult, salaryFineResult, salaryAbsenceResult, teamResult, employeeMealResult, orderHistoryResult] = sources.current
 
     if (expenseResult.error) {
       setExpenses([])
@@ -485,12 +454,85 @@ export default function MonthlyEstimate() {
         teamResult.data || [],
       ))
     }
-    const [previousExpenses, previousMeals, previousOrders] = await previousPromise
+    const [previousExpenses, previousMeals, previousOrders] = await sources.previous
     if (requestId !== loadRequestRef.current) return
     setPreviousMonthRows(previousExpenses.error || previousMeals.error || previousOrders.error
       ? { error: true }
       : { start: previousStart, end: previousEnd, expenses: previousExpenses.data || [], meals: previousMeals.data || [], salesRevenue: previousOrders.data.cafeIncome })
     setLoading(false)
+  }
+
+  // One round trip (migration 233) when available, otherwise the same data as
+  // separate requests. Both return { data, error } results in the same order.
+  async function loadEstimateSources({ previousStart, previousEnd, completedSalesTo }) {
+    const ok = data => ({ data, error: null })
+    const emptySales = () => normalizeAccountingPaidOrderSummary({}, monthStart, monthStart)
+    let bundle = null
+    let bundleError = null
+    try {
+      bundle = await loadMonthlyEstimateBundle({ monthStart, monthEnd, completedSalesTo, previousStart, previousEnd })
+    } catch (error) {
+      bundleError = error
+    }
+    if (bundleError) {
+      const failed = { data: [], error: bundleError }
+      return {
+        current: [failed, failed, failed, failed, failed, failed, failed, failed, failed, { data: null, error: bundleError }],
+        previous: Promise.resolve([failed, failed, { data: null, error: bundleError }]),
+      }
+    }
+    if (bundle) {
+      const { current, previous, salary } = bundle
+      return {
+        current: [
+          ok(current.expenses), ok(salary.profiles), ok(salary.rates), ok(salary.payments), ok(salary.bonuses),
+          ok(salary.fines), ok(salary.absences), ok(salary.team), ok(current.employeeMealSnapshots),
+          ok(current.paidOrderSummary
+            ? normalizeAccountingPaidOrderSummary(current.paidOrderSummary, monthStart, completedSalesTo)
+            : emptySales()),
+        ],
+        previous: Promise.resolve([
+          ok(previous.expenses),
+          ok(previous.employeeMealSnapshots),
+          ok(normalizeAccountingPaidOrderSummary(previous.paidOrderSummary, previousStart, previousEnd)),
+        ]),
+      }
+    }
+
+    const previousPromise = Promise.all([
+      loadPagedResult((from, to) => supabase
+        .from('expenses')
+        .select(SELECT_COLUMNS)
+        .gte('expense_date', previousStart)
+        .lte('expense_date', previousEnd)
+        .order('expense_date')
+        .order('id')
+        .range(from, to)),
+      loadPagedResult((from, to) => supabase.from('employee_daily_meal_expenses').select('business_date, average_daily_amount, present_employee_count, total_amount, source_type, finalized_at, created_at').gte('business_date', previousStart).lte('business_date', previousEnd).order('business_date').range(from, to)),
+      loadSalesSummary(previousStart, previousEnd),
+    ])
+    const current = await Promise.all([
+      loadPagedResult((from, to) => supabase
+        .from('expenses')
+        .select(SELECT_COLUMNS)
+        .gte('expense_date', monthStart)
+        .lte('expense_date', monthEnd)
+        .order('expense_date')
+        .order('id')
+        .range(from, to)),
+      loadPagedResult((from, to) => supabase.from('employee_salary_profiles').select('*').order('id').range(from, to)),
+      loadPagedResult((from, to) => supabase.from('employee_salary_rates').select('*').order('id').range(from, to)),
+      loadPagedResult((from, to) => supabase.from('employee_salary_payments').select('*').order('id').range(from, to)),
+      loadPagedResult((from, to) => supabase.from('employee_salary_bonuses').select('*').order('id').range(from, to)),
+      loadPagedResult((from, to) => supabase.from('employee_salary_fines').select('*').order('id').range(from, to)),
+      loadPagedResult((from, to) => supabase.from('employee_salary_absences').select('*').order('id').range(from, to)),
+      loadPagedResult((from, to) => supabase.from('profiles').select('id, full_name, email, role, status').order('id').range(from, to)),
+      loadPagedResult((from, to) => supabase.from('employee_daily_meal_expenses').select('business_date, average_daily_amount, present_employee_count, total_amount, source_type, finalized_at, created_at').gte('business_date', monthStart).lte('business_date', monthEnd).order('business_date').range(from, to)),
+      completedSalesTo >= monthStart
+        ? loadSalesSummary(monthStart, completedSalesTo)
+        : Promise.resolve({ data: normalizeAccountingPaidOrderSummary({}, monthStart, monthStart), error: null }),
+    ])
+    return { current, previous: previousPromise }
   }
 
   useEffect(() => {

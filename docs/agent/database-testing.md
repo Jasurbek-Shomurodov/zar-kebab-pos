@@ -77,7 +77,7 @@
 - `195`/`196`: own/all dine-in KPI from `2026-09-16`; apply before UI. History preserved. SQL: `tests/employeeOpenedOrderKpi.test.js`.
 - `200`: repair KPI creator-label drift; preserve actor checks/history. Tests: `tests/employeeOpenedOrderKpi.test.js`.
 - `201`: audited paid-payment splitting; apply before UI. Tests: `tests/paidPaymentSplit.test.js`.
-- `202`: current-day-only order deletion and private KPI cleanup; apply before sender/UI. Tests: `tests/orderDeletion.test.js`.
+- `202`/`232`: today-only deletion (owner: old unpaid too), KPI cleanup; apply before UI. `tests/orderDeletion.test.js`.
 - `203`/`213`: KPI start/opening cutoff; apply before UI. Tests: `tests/timeBasedKpi.test.js`.
 - `226`: closed-day KPI, no absence skip. Tests: `tests/closedOrderKpiDay.test.js`.
 - `204`: preserve audit actors on account deletion. Tests: `tests/accountDeletionAudit.test.js`.
@@ -86,5 +86,5 @@
 - `210`: see [salary orders](salary-orders.md).
 - `211`: profile name realtime; history unchanged. Tests: `tests/activeOrderWaiters.test.js`.
 - `212`/`220`: bill edits (payments); `221`: price-mode guard (ordering); `222`: insert image guard (menu); `224`: payments
-- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`: menu; `229`–`231`: payments.
+- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228` menu; `229`–`231`/`233` payments.
 - `215`–`217`: payroll.md; `218`–`219`: architecture.md.

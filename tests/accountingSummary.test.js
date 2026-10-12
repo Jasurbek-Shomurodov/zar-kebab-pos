@@ -8,6 +8,7 @@ import {
   loadAccountingMonthlyCashflow,
   loadAccountingPaidOrderSummary,
   loadFinancialAnalysisBundle,
+  loadMonthlyEstimateBundle,
 } from '../src/lib/accountingSummary.js'
 
 const migration = readFileSync(
@@ -193,4 +194,50 @@ test('Financial analysis bundle reuses the existing totals and keeps payroll det
   assert.doesNotMatch(sql, /employee_salary_rates|employee_salary_fines|employee_salary_absences/)
   assert.match(sql, /revoke all on function public\.get_financial_analysis\(date, date, date, date, boolean\)\s+from public, anon, authenticated/)
   assert.match(sql, /grant execute on function public\.get_financial_analysis\(date, date, date, date, boolean\)\s+to authenticated/)
+})
+
+const monthlyEstimateBundleMigration = readFileSync(
+  new URL('../migrations/233_monthly_estimate_bundle.sql', import.meta.url),
+  'utf8'
+)
+
+test('Monthly estimate loads in one round trip and falls back when the function is missing', async () => {
+  const calls = []
+  const dbClient = {
+    rpc(name, args) {
+      calls.push({ name, args })
+      return Promise.resolve({
+        data: {
+          current: { expenses: [{ id: 1 }], employee_meals: [], paid_order_summary: null },
+          previous: { expenses: [], employee_meals: [{ business_date: '2026-09-01' }], paid_order_summary: { cafe_income: 700 } },
+          salary: { profiles: [{ id: 'p1' }], rates: [{ id: 'r1' }], payments: [], bonuses: [], fines: [], absences: [{ id: 'a1' }], team: [] },
+        },
+        error: null,
+      })
+    },
+  }
+  const range = { monthStart: '2026-10-01', monthEnd: '2026-10-31', completedSalesTo: '2026-10-11', previousStart: '2026-09-01', previousEnd: '2026-09-30' }
+  const bundle = await loadMonthlyEstimateBundle(range, { dbClient })
+  assert.deepEqual(calls, [{ name: 'get_monthly_estimate', args: { p_month_start: '2026-10-01', p_month_end: '2026-10-31', p_completed_sales_to: '2026-10-11', p_previous_start: '2026-09-01', p_previous_end: '2026-09-30' } }])
+  assert.deepEqual(bundle.current, { expenses: [{ id: 1 }], employeeMealSnapshots: [], paidOrderSummary: null })
+  assert.equal(bundle.previous.paidOrderSummary.cafe_income, 700)
+  assert.equal(bundle.salary.rates.length, 1)
+  assert.equal(bundle.salary.absences.length, 1)
+
+  const missing = { rpc: () => Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_monthly_estimate' } }) }
+  assert.equal(await loadMonthlyEstimateBundle(range, { dbClient: missing }), null)
+  const denied = { rpc: () => Promise.resolve({ data: null, error: { code: '42501', message: 'Financial analysis access is required' } }) }
+  await assert.rejects(loadMonthlyEstimateBundle(range, { dbClient: denied }), error => error.code === '42501')
+})
+
+test('Monthly estimate bundle keeps selected-month sales and the salary history the forecast needs', () => {
+  const sql = monthlyEstimateBundleMigration
+  assert.match(sql, /current_staff_can_access\('expenses'\) and public\.current_staff_can_access\('financial_analysis'\)/)
+  assert.match(sql, /public\.get_accounting_paid_order_summary\(p_month_start, least\(p_completed_sales_to, p_month_end\)\)/)
+  assert.match(sql, /public\.get_accounting_paid_order_summary\(p_previous_start, p_previous_end\)/)
+  for (const table of ['employee_salary_profiles', 'employee_salary_rates', 'employee_salary_payments', 'employee_salary_bonuses', 'employee_salary_fines', 'employee_salary_absences']) {
+    assert.match(sql, new RegExp(`from public\\.${table} r\\)`))
+  }
+  assert.doesNotMatch(sql, /ACCOUNTING_HISTORY_START_DATE|get_accounting_all_time_balance/)
+  assert.match(sql, /grant execute on function public\.get_monthly_estimate\(date, date, date, date, date\)\s+to authenticated/)
 })

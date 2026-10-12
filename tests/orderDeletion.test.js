@@ -18,7 +18,13 @@ test('delete permission requires today for every role, including owners, using t
     assert.equal(canDeleteOrderToday(profile, {id:'missing'}, now), false)
   }
   assert.equal(canDeleteOrderToday('owner', {id:'unpaid',created_at:'2026-09-19T00:00:00+05:00'}, now), true)
-  assert.equal(canDeleteOrderToday('owner', {id:'old-unpaid',created_at:'2026-09-18T18:59:59Z'}, now), false)
+  // Owners may also delete older unpaid open bills (232); other roles and paid history stay locked.
+  const oldUnpaid = {id:'old-unpaid',created_at:'2026-09-18T18:59:59Z',payment_status:'unpaid',status:'needs_bill'}
+  assert.equal(canDeleteOrderToday('owner', oldUnpaid, now), true)
+  assert.equal(canDeleteOrderToday({role:'admin',feature_access:['reports','cashier','delete_paid_orders']}, oldUnpaid, now), false)
+  assert.equal(canDeleteOrderToday('owner', {...oldUnpaid,status:'cancelled'}, now), false)
+  assert.equal(canDeleteOrderToday('owner', {...oldUnpaid,payment_status:'paid'}, now), false)
+  assert.equal(canDeleteOrderToday('owner', {...oldUnpaid,created_at:'2026-09-20T00:00:00Z'}, now), false)
   assert.equal(canDeleteOrderToday('owner', {id:'invalid',paid_at:'bad-date',created_at:now}, now), false)
   assert.equal(canDeleteOrderToday({role:'admin',feature_access:['reports']}, today, now), false)
   assert.equal(canChangeCompletedOrderPaymentMethod('owner'), true)
@@ -167,4 +173,42 @@ test('cashier empty-state deletion refreshes the candidate and retains normal pe
   assert.match(emptyState, /canDeleteOrder\(candidate\)/)
   assert.match(emptyState, /onClick=\{\(\) => handleDeleteOrder\(candidate\)\}/)
   assert.match(emptyState, /formatWriteError\(deleteOrderError, lang, 'DELETE_ORDER'\)/)
+})
+
+test('owners can delete older unpaid open orders, but paid and cancelled history stays locked', async t => {
+  const db = new PGlite(); t.after(() => db.close())
+  await db.exec(`
+    create role anon; create role authenticated;
+    create or replace function pg_catalog.clock_timestamp() returns timestamptz language sql as
+      $$ select '2026-10-12T07:00:00Z'::timestamptz $$;
+    create function current_staff_role() returns text language sql as
+      $$ select coalesce(current_setting('test.staff_role',true),'') $$;
+    create table employee_daily_kpi_runs(business_date date primary key);
+    insert into employee_daily_kpi_runs values('2026-10-04');
+    create schema vault; create schema net;
+    create table vault.decrypted_secrets(name text, decrypted_secret text, created_at timestamptz);
+    create table employee_order_kpi_notifications(order_id text, telegram_message_id bigint,
+      status text constraint employee_order_kpi_notifications_status_check check (status in ('queued','processing','sent')));
+    create table orders(id text primary key, paid_at timestamptz, created_at timestamptz, payment_status text, status text);
+    insert into orders values
+      ('stale-open', null, '2026-10-04T10:49:00Z', 'unpaid', 'needs_bill'),
+      ('stale-paid', '2026-10-04T11:00:00Z', '2026-10-04T10:00:00Z', 'paid', 'completed'),
+      ('stale-cancelled', null, '2026-10-04T10:00:00Z', 'cancelled', 'cancelled'),
+      ('future-open', null, '2026-10-13T10:00:00Z', 'unpaid', 'needs_bill');
+  `)
+  await db.exec(sql('202_current_day_order_deletion.sql'))
+  await db.exec(sql('232_owner_old_unpaid_order_deletion.sql'))
+  const asRole = async (role, id) => {
+    await db.query("select set_config('test.staff_role',$1,false)", [role])
+    return db.query('delete from orders where id=$1', [id])
+  }
+  for (const role of ['admin', 'viewer', '']) {
+    await assert.rejects(asRole(role, 'stale-open'), /Only orders from today/, role)
+  }
+  for (const id of ['stale-paid', 'stale-cancelled', 'future-open']) {
+    await assert.rejects(asRole('owner', id), /Only orders from today/, id)
+  }
+  await asRole('owner', 'stale-open')
+  assert.deepEqual((await db.query('select id from orders order by id')).rows.map(row => row.id),
+    ['future-open', 'stale-cancelled', 'stale-paid'])
 })

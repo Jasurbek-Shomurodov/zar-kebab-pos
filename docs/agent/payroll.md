@@ -42,7 +42,7 @@
 - `203`/`226`: `start_time` gates `paid_at` on the Tashkent payment date; `226` drops the `213` opening cutoff, so a closed order counts on its paid day. Shared `employee_kpi_sales_base`; snapshots immutable. Tests: `tests/timeBasedKpi.test.js`, `tests/closedOrderKpiDay.test.js`.
 - `215`/`217`: same-day table rows inherit the opener for own KPI.
 - `226`: absences no longer skip KPI. Employment boundaries still do.
-- Runs/results are immutable; only service-role finalization creates `daily_kpi` bonuses (`200`: creator repair). `202` forbids deleting previous-day orders for everyone; today's deletions reduce own/restaurant bases before finalization.
+- Runs/results are immutable; only service-role finalization creates `daily_kpi` bonuses (`200`: creator repair). `202` forbids deleting previous-day orders (`232`: owners may delete unpaid ones); today's deletions reduce own/restaurant bases before finalization.
 - Bonuses accrue into salary. Formula/settlement are immutable; payments record cash expense.
 - Deleting a generated bonus marks its result voided; retries never recreate it.
 - Only owners remove KPI rules. Preserve rules/data before the effective date; insert a disabled successor. Delete only unused rules effective at that boundary. Never offer disabled successors for removal: that would reactivate the older rule.
