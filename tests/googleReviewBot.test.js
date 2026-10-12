@@ -113,6 +113,7 @@ test('replies use the guest original text, not the Google translation', async ()
         assert.match(input, /Juda mazali/)
         assert.doesNotMatch(input, /Very tasty/)
         assert.match(input, /exactly the same language and script/)
+        assert.match(input, /Always mention Zar Kebab by name, and never name individual staff/)
         return response(geminiReply('Rahmat!'))
       },
     },
