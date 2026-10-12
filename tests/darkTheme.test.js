@@ -30,8 +30,9 @@ test('every staff top bar carries the light/dark toggle at the top right', () =>
   assert.match(source('src/pages/PublicVacancies.jsx'), /<ThemeToggle lang=\{lang\}/)
 })
 
-test('theme only applies while a staff screen is mounted so public menus and prints stay light', () => {
+test('theme follows the system until chosen and only applies while a themed screen is mounted', () => {
   const theme = source('src/lib/theme.js')
   assert.match(theme, /if \(scopes > 0 && current === 'dark'\) root\.setAttribute\('data-theme', 'dark'\)/)
   assert.match(theme, /useLayoutEffect/)
+  assert.match(theme, /readSavedTheme\(\) \|\| \(systemDark\?\.matches \? 'dark' : 'light'\)/)
 })
