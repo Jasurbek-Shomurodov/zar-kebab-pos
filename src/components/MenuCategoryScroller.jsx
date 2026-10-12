@@ -242,13 +242,17 @@ export default function MenuCategoryScroller({
   const cards = useMemo(() => categories || [], [categories])
 
   // Swap rows in place: the bar that takes over starts at the same horizontal position.
+  // Only where both rows are actually shown (the public fixed bar): a hidden row reports
+  // scrollLeft 0 and would yank the visible chips back to the start.
   useEffect(() => {
+    if (!lux || collapsedPosition !== 'fixed') return
     const from = collapsed ? rowRef.current : collapsedRowRef.current
     const to = collapsed ? collapsedRowRef.current : rowRef.current
-    if (from && to) to.scrollLeft = from.scrollLeft
-  }, [collapsed])
+    if (from && to && from.clientWidth > 0) to.scrollLeft = from.scrollLeft
+  }, [collapsed, collapsedPosition, lux])
 
   // Keep the active category visible: centre its chip horizontally (never scrolls the page).
+  // Animated by hand: native smooth scrollBy is ignored on the fixed lux bar in Chrome.
   useEffect(() => {
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     for (const row of [rowRef.current, collapsedRowRef.current]) {
@@ -258,7 +262,22 @@ export default function MenuCategoryScroller({
       const rowRect = row.getBoundingClientRect()
       const chipRect = chip.getBoundingClientRect()
       const delta = chipRect.left - rowRect.left - (rowRect.width - chipRect.width) / 2
-      if (Math.abs(delta) > 4) row.scrollBy({ left: delta, behavior: reduceMotion ? 'auto' : 'smooth' })
+      if (Math.abs(delta) <= 4) continue
+      const from = row.scrollLeft
+      const to = Math.max(0, Math.min(row.scrollWidth - row.clientWidth, from + delta))
+      window.cancelAnimationFrame(row.__chipScrollFrame)
+      if (reduceMotion) {
+        row.scrollLeft = to
+        continue
+      }
+      const start = performance.now()
+      const step = now => {
+        const progress = Math.min(1, (now - start) / 280)
+        const eased = 1 - (1 - progress) ** 3
+        row.scrollLeft = from + (to - from) * eased
+        if (progress < 1) row.__chipScrollFrame = window.requestAnimationFrame(step)
+      }
+      row.__chipScrollFrame = window.requestAnimationFrame(step)
     }
   }, [activeCategoryId, collapsed])
 
@@ -296,7 +315,7 @@ export default function MenuCategoryScroller({
     const scroller = getScrollElement()
     const compactViewport = compactMobile && window.innerWidth < 640
     const stickyBarOffset = !compactViewport && collapsed && collapsedPosition === 'sticky'
-      ? COLLAPSED_BAR_HEIGHT
+      ? (lux ? LUX_BAR_HEIGHT : COLLAPSED_BAR_HEIGHT)
       : 0
     if (categoryId === 'all') {
       if (root === window) {
@@ -377,7 +396,7 @@ export default function MenuCategoryScroller({
       if (sentinel) {
         const rect = sentinel.getBoundingClientRect()
         const rootTop = root === window ? topOffset : scroller.getBoundingClientRect().top
-        setCollapsed(isCollapsed => lux
+        setCollapsed(isCollapsed => lux && collapsedPosition === 'fixed'
           // Lux: hand over exactly when the chips reach the bar's chip line, with a small hysteresis.
           ? (isCollapsed ? rect.top <= rootTop + LUX_HIDE_OFFSET : rect.top <= rootTop + LUX_SHOW_OFFSET)
           : isCollapsed
@@ -433,7 +452,12 @@ export default function MenuCategoryScroller({
 
   return (
     <>
-      <div ref={sentinelRef} className={`${className} ${compactMobile ? 'max-sm:sticky max-sm:top-0 max-sm:z-30 max-sm:bg-[#FAF6EE]' : ''}`} style={lux && collapsed ? { visibility: 'hidden' } : undefined}>
+      <div
+        ref={sentinelRef}
+        className={`${className} ${compactMobile ? 'max-sm:sticky max-sm:top-0 max-sm:z-30 ' + (lux ? 'lux-sticky-row' : 'max-sm:bg-[#FAF6EE]') : ''}`}
+        // Only the public fixed bar replaces the row; on phones the sticky row itself must stay visible.
+        style={lux && collapsed && collapsedPosition === 'fixed' ? { visibility: 'hidden' } : undefined}
+      >
         <div ref={rowRef} className={`flex gap-2 overflow-x-auto pb-1 sm:gap-3 ${rowClassName}`} style={{ scrollbarWidth: 'none' }}>
           {cards.map(category => {
             const title = titleFor(category)

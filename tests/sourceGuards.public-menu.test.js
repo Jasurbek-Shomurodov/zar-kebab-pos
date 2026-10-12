@@ -151,6 +151,7 @@ test('PublicMenu enables tappable fixed collapsed categories', () => {
   assert.match(source, /<span aria-hidden="true" className="mt-3 h-px w-14 bg-\[#C9A86A\]/)
   assert.match(source, /<PublicDishCard\s/)
   assert.match(source, /\{showHero && <PublicMenuHero lang=\{lang\}/)
+  assert.match(source, /src=\{dark \? heroImage : heroImageLight\}/)
   assert.match(source, /import heroImage from '\.\.\/assets\/brand\/zarkebab-hero-kebab\.webp'/)
   assert.match(source, /<MenuSectionHeader title=\{getCategoryName\(section\.cat, lang\)\} \/>/)
   assert.match(source, /<MenuSectionHeader title=\{dealsTitle\} tone="deal" \/>/)
@@ -623,7 +624,8 @@ test('public product page morphs from the tapped photo, closes with X, and the c
   assert.match(productCards, /<X size=\{20\} \/>/)
   // closeDetail once called an undefined setter, which left the product page stuck open.
   assert.doesNotMatch(publicMenu, /setMissingItemLink/)
-  assert.match(scroller, /row\.scrollBy\(\{ left: delta/)
+  // Native smooth scrollBy is ignored on the fixed bar, so the chip row is animated frame by frame.
+  assert.match(scroller, /row\.scrollLeft = from \+ \(to - from\) \* eased/)
 })
 
 test('location links ask which map app to use and default to Google Maps', () => {
@@ -645,4 +647,17 @@ test('closing a product hides its details card instantly while the photo morphs 
   assert.match(css, /::view-transition-new\(zk-dish-card\) \{ animation: zk-card-rise/)
   const publicMenu = readSource('src/pages/PublicMenu.jsx')
   assert.match(publicMenu, /details\.style\.viewTransitionName = 'none'\s*details\.style\.visibility = 'hidden'/)
+})
+
+test('lux category row is only hidden behind the fixed public bar, never on sticky phone rows', () => {
+  const source = readSource('src/components/MenuCategoryScroller.jsx')
+  assert.match(source, /lux && collapsed && collapsedPosition === 'fixed' \? \{ visibility: 'hidden' \}/)
+  assert.match(source, /lux \? 'lux-sticky-row' : 'max-sm:bg-\[#FAF6EE\]'/)
+})
+
+test('category rows only sync sideways scroll where both rows are visible', () => {
+  const source = readSource('src/components/MenuCategoryScroller.jsx')
+  // On phones the collapsed bar is hidden (scrollLeft 0); syncing from it reset the sticky row.
+  assert.match(source, /if \(!lux \|\| collapsedPosition !== 'fixed'\) return/)
+  assert.match(source, /from\.clientWidth > 0/)
 })

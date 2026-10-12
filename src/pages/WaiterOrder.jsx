@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom'
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import {
@@ -509,12 +510,11 @@ function BottomTableChips({ currentTableId, onNewOrder, disabled = false }) {
 function ProductSection({ cat, items, cartQtyMap, lang, onAdd, onIncrement, onDecrement, onOpenDetail, eagerCount = 0, audience = 'waiter', compactMobileGrid = false }) {
   return (
     <div>
-      <div className="mb-2 flex items-center gap-4 sm:mb-5 sm:gap-5">
-        <div className="hidden h-px min-w-0 flex-1 bg-[#C9C9C9] sm:block" />
-        <h2 className="max-w-[70%] flex-shrink-0 text-left text-[15px] font-black leading-none tracking-tight text-[#1F2937] sm:text-[30px]">
+      <div className="mb-3 flex flex-col items-center text-center sm:mb-6">
+        <h2 className="zk-serif lux-title text-[24px] font-semibold leading-none sm:text-[38px]">
           {getCategoryName(cat, lang)}
         </h2>
-        <div className="hidden h-px min-w-0 flex-1 bg-[#C9C9C9] sm:block" />
+        <span aria-hidden="true" className="mt-2 h-px w-12 bg-[#C9A86A] sm:mt-3 sm:w-16" />
       </div>
       <div className={`grid ${compactMobileGrid ? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-3'} sm:grid-cols-2 min-[700px]:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 sm:gap-4`}>
         {items.map((item, index) => (
@@ -527,6 +527,7 @@ function ProductSection({ cat, items, cartQtyMap, lang, onAdd, onIncrement, onDe
             audience={audience}
             compactMobileGrid={compactMobileGrid}
             density="compact"
+            variant="lux"
             onAdd={onAdd}
             onIncrement={onIncrement}
             onDecrement={onDecrement}
@@ -1037,10 +1038,74 @@ export default function WaiterOrder() {
 
   // ── Modal handlers ─────────────────────────────────────────────────────────
 
-  function openDetail(item) {
+  // The tapped dish photo morphs into the product page and back (View Transitions; instant where unsupported).
+  function runDishTransition(update) {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion || typeof document.startViewTransition !== 'function') {
+      update()
+      return null
+    }
+    return document.startViewTransition(update)
+  }
+
+  function openDetail(item, sourceElement = null) {
     if (orderLocked || !canEditTables) return
     savedMenuScrollRef.current = productScrollRef.current?.scrollTop ?? 0
-    setDetailItem(item)
+    if (sourceElement) sourceElement.style.viewTransitionName = 'zk-dish'
+    runDishTransition(() => {
+      if (sourceElement) sourceElement.style.viewTransitionName = ''
+      flushSync(() => setDetailItem(item))
+    })
+  }
+
+  // The cart panel grows out of the cart button and shrinks back into it.
+  function openCart() {
+    const button = cartButtonRef.current
+    if (button) button.style.viewTransitionName = 'zk-cart'
+    const transition = runDishTransition(() => {
+      if (button) button.style.viewTransitionName = ''
+      flushSync(() => setCartOpen(true))
+    })
+    if (!transition && button) button.style.viewTransitionName = ''
+  }
+
+  // force: the cart panel closes itself after a successful send, while the order is still locked.
+  function closeCart({ force = false } = {}) {
+    if (orderLocked && !force) return
+    const button = cartButtonRef.current
+    const transition = runDishTransition(() => {
+      flushSync(() => setCartOpen(false))
+      if (button) button.style.viewTransitionName = 'zk-cart'
+    })
+    if (button) {
+      if (transition) transition.finished.finally(() => { button.style.viewTransitionName = '' })
+      else button.style.viewTransitionName = ''
+    }
+  }
+
+  function closeDetail() {
+    const itemId = detailItem?.id
+    // Hide the details card first so only the photo animates back into its menu card.
+    const details = document.querySelector('[data-dish-details]')
+    if (details) {
+      details.style.viewTransitionName = 'none'
+      details.style.visibility = 'hidden'
+    }
+    let target = null
+    const transition = runDishTransition(() => {
+      // Commit first: the menu grid remounts on close, so its cards only exist after this flush.
+      flushSync(() => setDetailItem(null))
+      // Restore the grid's scroll, then tag the dish's card photo as the morph target.
+      if (productScrollRef.current) productScrollRef.current.scrollTop = savedMenuScrollRef.current
+      if (!itemId) return
+      target = [...document.querySelectorAll('[data-item-id]')]
+        .find(card => card.getAttribute('data-item-id') === String(itemId) && card.offsetParent)
+        ?.querySelector('[data-menu-product-image]') || null
+      if (target) target.style.viewTransitionName = 'zk-dish'
+    })
+    transition?.finished.finally(() => {
+      if (target) target.style.viewTransitionName = ''
+    })
   }
 
   function handlePrintKitchenCheck(group) {
@@ -1080,7 +1145,7 @@ export default function WaiterOrder() {
           notes: notes || '',
         },
       })
-      setDetailItem(null)
+      closeDetail()
       return
     }
     const cartItemKey = payload.cart_item_key || payload.menu_item_id
@@ -1103,7 +1168,7 @@ export default function WaiterOrder() {
     }
     dispatch({ type: 'UPDATE_CART_QTY', payload: { cart_item_key: cartItemKey, qty: normalizeMenuQuantity(qty, item) } })
     dispatch({ type: 'UPDATE_CART_NOTES', payload: { cart_item_key: cartItemKey, notes: notes || '' } })
-    setDetailItem(null)
+    closeDetail()
   }
 
   function selectedOptionsCartKey(selectedOptions = {}) {
@@ -1375,7 +1440,7 @@ export default function WaiterOrder() {
         searchLabel={lang === 'uz' ? 'Qidirish' : lang === 'ru' ? 'Поиск' : 'Search'}
         clearLabel={lang === 'uz' ? 'Qidiruvni tozalash' : lang === 'ru' ? 'Очистить поиск' : 'Clear search'}
         alwaysOpen
-        panelClassName="!h-11"
+        panelClassName="!h-11 lux-input !rounded-full !ring-0"
         className={className}
       />
     )
@@ -1401,22 +1466,20 @@ export default function WaiterOrder() {
     return (
       <button
         ref={cartButtonRef}
-        onClick={() => setCartOpen(true)}
-        className={`relative min-w-0 max-w-[min(260px,38vw)] flex-shrink rounded-xl border font-black transition-all active:scale-[0.98] ${
-          cartCount > 0 || hasSubmittedItems
-            ? 'bg-[#ff5a00] border-[#ff5a00] text-white shadow-md shadow-orange-100 hover:bg-[#e64d00]'
-            : 'bg-white border-[#E5E7EB] text-[#6B7280] hover:border-orange-200 hover:bg-orange-50'
-        } ${cartPulse ? 'scale-[1.03] ring-4 ring-orange-200 ring-offset-2 ring-offset-white' : ''} ${className}`}
+        onClick={openCart}
+        className={`relative min-w-0 max-w-[min(260px,38vw)] flex-shrink rounded-full font-semibold transition-all active:scale-[0.98] ${
+          cartCount > 0 || hasSubmittedItems ? 'lux-primary' : 'lux-chip lux-chip-static'
+        } ${cartPulse ? 'scale-[1.04] ring-4 ring-[#E2AB64]/40' : ''} ${className}`}
         title={cartButtonLabel}
       >
-        <span className="flex h-10 min-w-0 items-center gap-2 px-3 sm:px-4">
+        <span className="flex h-10 min-w-0 items-center gap-2 px-3 sm:h-11 sm:px-4">
           <ShoppingCart size={17} className="flex-shrink-0" />
           <span className="hidden min-w-0 truncate whitespace-nowrap text-[13px] sm:inline">
             {cartButtonLabel}
           </span>
         </span>
         {(cartCount > 0 || hasSubmittedItems) && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#1F2937] px-1 text-[9px] font-black text-white sm:hidden">
+          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#1F1A15] px-1 text-[10px] font-semibold text-[#FFF8EE] ring-2 ring-[#E2AB64] sm:hidden">
             {cartCount || submittedItemCount}
           </span>
         )}
@@ -1460,16 +1523,17 @@ export default function WaiterOrder() {
                 compact
               />
             ) : null}
-            onBack={() => setDetailItem(null)}
-            onCancel={() => setDetailItem(null)}
+            onBack={closeDetail}
+            onCancel={closeDetail}
             onAddToCart={handleProductDetailAdd}
+            variant="lux"
           />
         ) : (
           <>
 
         {/* Public-menu style search */}
-        <div className="flex-shrink-0 px-3 pt-2 pb-0 sm:px-4 sm:pt-4">
-          <div className="relative rounded-2xl sm:rounded-[28px] border border-[#E5E7EB] bg-white p-2 sm:p-4 shadow-sm">
+        <div className="zk-lux flex-shrink-0 px-3 pt-2 pb-0 sm:px-4 sm:pt-4">
+          <div className="lux-glass relative rounded-[24px] p-2.5 sm:rounded-[28px] sm:p-3.5">
             {isGuestTabletMode ? (
               <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-center">
                 <div className="flex min-w-0 items-center gap-3 xl:contents">
@@ -1507,37 +1571,38 @@ export default function WaiterOrder() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-wrap items-center gap-x-1 gap-y-2 sm:gap-3">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5 sm:gap-x-2.5">
                 {shouldShowSidebar && (
                   <button
                     onClick={() => { if (!orderLocked) setSidebarOpen(true) }}
                     disabled={orderLocked}
-                    className="-ml-1 flex-shrink-0 rounded-xl p-2 transition-colors hover:bg-gray-100 disabled:cursor-wait disabled:opacity-50 lg:hidden"
+                    aria-label={lang === 'uz' ? 'Menyu' : lang === 'ru' ? 'Меню' : 'Menu'}
+                    className="lux-chip lux-chip-static flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-full disabled:cursor-wait disabled:opacity-50 lg:hidden"
                   >
-                    <MenuIcon size={20} className="text-[#6B7280]" />
+                    <MenuIcon size={19} />
                   </button>
                 )}
                 <button
                   onClick={() => { if (!orderLocked) navigate('/waiter/tables') }}
                   disabled={orderLocked}
-                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] text-[#6B7280] transition-colors hover:border-orange-300 hover:bg-orange-50 hover:text-[#ff5a00]"
+                  className="lux-chip lux-chip-static flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-full"
                   title={lang === 'uz' ? 'Stollar' : lang === 'ru' ? 'Столы' : 'Tables'}
+                  aria-label={lang === 'uz' ? 'Stollar' : lang === 'ru' ? 'Столы' : 'Tables'}
                 >
                   <ArrowLeft size={17} />
                 </button>
-                <div className="min-w-0 max-w-full flex-[1_0_max-content]">
-                  <p className="hidden sm:block truncate text-[10px] font-black uppercase tracking-wide text-[#9CA3AF]">{orderContextLabel}</p>
-                  <h1 className="min-w-0 whitespace-normal break-words text-sm font-black leading-tight text-[#1F2937] sm:text-base">
-                    <span className="shrink-0">{orderTitle}</span>
-                    {waiterName && (
-                      <span className="ml-2 text-xs font-semibold text-[#374151]" title={`${waiterLabel}: ${waiterName}`} aria-label={`${waiterLabel}: ${waiterName}`}>
-                        <span aria-hidden="true">· </span><span className="font-normal text-[#6B7280]">{waiterLabel}: </span>{waiterName}
-                      </span>
-                    )}
-                  </h1>
+                {/* Table name in the serif display face, waiter underneath; truncates instead of wrapping. */}
+                <div className="min-w-0 flex-1 pl-0.5">
+                  <p className="lux-gold truncate text-[10px] font-medium uppercase tracking-[0.24em]">{orderContextLabel}</p>
+                  <h1 className="zk-serif lux-title mt-0.5 truncate text-[20px] font-semibold leading-none sm:text-[26px]">{orderTitle}</h1>
+                  {waiterName && (
+                    <p className="lux-muted mt-1 truncate text-[12px]" title={`${waiterLabel}: ${waiterName}`}>
+                      {waiterLabel}: <span className="lux-title font-medium">{waiterName}</span>
+                    </p>
+                  )}
                 </div>
-                {renderSearchControl('!order-last !basis-full xl:!order-none xl:!basis-48 xl:!min-w-48')}
-                {renderCartButton('ml-auto')}
+                {renderSearchControl('!order-last !basis-full xl:!order-none xl:!basis-56 xl:!min-w-56')}
+                {renderCartButton('')}
                 <button type="button"
                   aria-label={mobileMenuView === 'compact' ? (lang === 'ru' ? 'Крупные карточки' : lang === 'uz' ? 'Katta kartochkalar' : 'Large cards') : (lang === 'ru' ? 'Компактные карточки' : lang === 'uz' ? 'Ixcham kartochkalar' : 'Compact cards')}
                   onClick={() => {
@@ -1545,10 +1610,10 @@ export default function WaiterOrder() {
                     setMobileMenuView(view)
                     try { localStorage.setItem('waiter-mobile-grid-view', view) } catch {}
                   }}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] text-gray-500 sm:hidden">
+                  className="lux-chip lux-chip-static flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full sm:hidden">
                   {mobileMenuView === 'compact' ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
                 </button>
-                <ThemeToggle lang={lang} className="!h-11 !w-11 rounded-xl" />
+                <ThemeToggle lang={lang} variant="lux" className="!h-10 !w-10 sm:!h-11 sm:!w-11" />
                 {!shouldShowSidebar && (
                   <div className="flex items-center gap-1.5">
                     {['uz', 'ru', 'en'].map(l => (
@@ -1578,7 +1643,7 @@ export default function WaiterOrder() {
         </div>
 
         {/* Product area */}
-        <div ref={productScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-0">
+        <div ref={productScrollRef} className="zk-lux flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-0">
           <MenuCategoryScroller
             compactMobile={!isGuestTabletMode}
             categories={allCategoryCards}
@@ -1590,7 +1655,11 @@ export default function WaiterOrder() {
             sectionPrefix="waiter-menu-category"
             scrollContainerRef={productScrollRef}
             className="pt-1 mb-2 sm:pt-4 sm:mb-4"
-            collapsedClassName="-mx-4 px-4"
+            rowClassName="lux-fade-edges -mx-4 px-4 py-1.5"
+            variant="lux"
+            collapsedSurfaceClass="lux-header lux-bar"
+            collapsedContentClassName="lux-fade-edges py-1.5"
+            collapsedClassName="-mx-4 px-4 !border-0"
           />
           {pricedFilteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-[#9CA3AF]">
@@ -1606,7 +1675,7 @@ export default function WaiterOrder() {
             </div>
           ) : sections ? (
             // Grouped by category when "All" selected, no search
-            <div className="space-y-4 sm:space-y-8">
+            <div className="space-y-8 sm:space-y-14">
               {sections.map(({ cat, items }) => (
                 <div
                   key={cat.id}
@@ -1637,6 +1706,7 @@ export default function WaiterOrder() {
                   audience={menuAudience}
                   compactMobileGrid={!isGuestTabletMode && mobileMenuView === 'compact'}
                   density="compact"
+                  variant="lux"
                   onAdd={handleAdd}
                   onIncrement={handleIncrement}
                   onDecrement={handleDecrement}
@@ -1665,13 +1735,17 @@ export default function WaiterOrder() {
 
       {/* ── Cart drawer ─────────────────────────────────────────────────── */}
       {!detailItem && cartOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-slate-900/30" onClick={() => { if (!orderLocked) setCartOpen(false) }} />
-          <div className="relative flex h-full w-full max-w-full flex-col overflow-hidden bg-white shadow-[-12px_0_32px_rgba(15,23,42,0.16)] sm:max-w-[420px] lg:max-w-[460px]">
+        // Centred glass panel; tapping the blurred backdrop closes it.
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+          <div className="absolute inset-0 backdrop-blur-[6px]" style={{ background: 'rgb(20 15 11 / 38%)' }} onClick={() => closeCart()} />
+          <div
+            className="zk-lux relative flex h-[min(860px,calc(100dvh-24px))] w-full max-w-[540px] flex-col overflow-hidden rounded-[30px] shadow-[0_30px_80px_rgb(20_15_11/35%)]"
+            style={{ viewTransitionName: 'zk-cart', border: '1px solid var(--lux-glass-border)' }}
+          >
             {isManageOrderOnly && (
               <button
                 type="button"
-                onClick={() => { if (!orderLocked) setCartOpen(false) }}
+                onClick={() => closeCart()}
                 disabled={orderLocked}
                 className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-white/90 text-[#9CA3AF] shadow-sm ring-1 ring-gray-100 transition-colors hover:bg-gray-100 hover:text-[#6B7280] disabled:cursor-wait disabled:opacity-50"
                 title={lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'}
@@ -1716,7 +1790,7 @@ export default function WaiterOrder() {
                 reviewWarning={guestReviewWarning}
                 reviewKey={guestExpectedOrderIds ? `${guestExpectedOrderIds.join('|')}=>${activeTableOrderIds.join('|')}` : ''}
                 hasSubmittedItems={hasSubmittedItems}
-                onClose={() => setCartOpen(false)}
+                onClose={() => closeCart({ force: true })}
               />
             </div>
             )}

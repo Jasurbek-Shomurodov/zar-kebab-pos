@@ -262,7 +262,7 @@ export function CategoryCard({ cat, active, onClick, lang, eager = false }) {
   )
 }
 
-export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpenDetail, lang, readOnly = false, eager = false, formatPrice = formatCurrency, linkBasePath = '/menu', density = 'comfortable', compactMobileGrid = false, audience = readOnly ? 'public' : 'waiter' }) {
+export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpenDetail, lang, readOnly = false, eager = false, formatPrice = formatCurrency, linkBasePath = '/menu', density = 'comfortable', compactMobileGrid = false, audience = readOnly ? 'public' : 'waiter', variant = 'default' }) {
   const inCart = !readOnly && qty > 0
   const unavailable = !readOnly && item?.available === false
   const [copied, setCopied] = useState(false)
@@ -334,6 +334,22 @@ export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpen
         </div>
       </div>
     )}
+    {variant === 'lux' && !readOnly ? (
+      <LuxOrderCard
+        item={item}
+        qty={qty}
+        onAdd={onAdd}
+        onIncrement={onIncrement}
+        onDecrement={onDecrement}
+        onOpenDetail={onOpenDetail}
+        lang={lang}
+        eager={eager}
+        formatPrice={formatPrice}
+        audience={audience}
+        cartAnimationPayload={cartAnimationPayload}
+        className={compactMobileGrid ? 'max-sm:hidden' : ''}
+      />
+    ) : (
     <div
       data-menu-product-card
       onClick={() => onOpenDetail(item)}
@@ -464,6 +480,7 @@ export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpen
         )}
       </div>
     </div>
+    )}
     </>
   )
 }
@@ -482,16 +499,73 @@ function EditorialPrice({ amount, formatPrice, className = '' }) {
   )
 }
 
-/** Public zarkebab.uz dish card: borderless photo, serif name, quiet price. Staff screens keep ProductCard. */
+/** Dish photo with the name and subtitle on a frosted strip whose blur fades in from above. */
+function LuxDishPhoto({ item, name, description, eager = false, discountPct = 0, dimmed = false, children = null }) {
+  return (
+    <div data-menu-product-image className="relative aspect-square w-full overflow-hidden rounded-[19px] sm:rounded-[22px]" style={{ background: 'rgb(120 90 60 / 10%)' }}>
+      <SafeMenuImage
+        src={item.image_url}
+        alt={name}
+        className={`h-full w-full object-cover object-center transition-transform duration-700 ease-out ${dimmed ? 'grayscale opacity-55' : 'group-hover:scale-[1.05]'}`}
+        fallbackIconSize={34}
+        loading={eager ? 'eager' : 'lazy'}
+        fetchPriority={eager ? 'high' : undefined}
+      />
+      {/* The strip overhangs the photo by 12px on three sides: blur smears at its own edges,
+          and the overhang keeps that smear outside the rounded photo frame. */}
+      <div className="lux-photo-strip pointer-events-none absolute -inset-x-3 -bottom-3 px-[22px] pb-5 pt-5 sm:px-[26px] sm:pb-[22px] sm:pt-6">
+        <h3 className="zk-serif line-clamp-2 text-[18px] font-semibold leading-[1.1] sm:text-[22px]">{name}</h3>
+        {description && (
+          <p className="lux-fade-text mt-1 text-[12px] font-light sm:text-[13px]">{description}</p>
+        )}
+      </div>
+      {discountPct > 0 && (
+        <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide sm:left-2.5 sm:top-2.5">
+          −{discountPct}%
+        </span>
+      )}
+      {children}
+    </div>
+  )
+}
+
+/** Weight or volume and calories on the left, price (old price stacked above) on the right. */
+function LuxPriceRow({ item, lang, pricing, formatPrice }) {
+  const priceUnit = menuPriceUnitSuffix(item, lang)
+  const facts = [gramsLabel(item, lang) || millilitresLabel(item, lang), kcalLabel(item, lang)].filter(Boolean)
+  return (
+    <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-0.5 px-1.5 pb-1 pt-2.5 sm:px-2 sm:pb-1.5 sm:pt-3">
+      <p className="lux-muted flex min-w-0 items-center gap-1.5 whitespace-nowrap pb-px text-[11.5px] sm:text-[12.5px]">
+        {facts.map((fact, index) => (
+          <React.Fragment key={fact}>
+            {index > 0 && <span aria-hidden="true" className="h-[3px] w-[3px] rounded-full bg-current opacity-60" />}
+            <span>{fact}</span>
+          </React.Fragment>
+        ))}
+      </p>
+      <p className="lux-title ml-auto flex flex-shrink-0 flex-col items-end text-right text-[14px] font-semibold leading-tight sm:text-[15px]">
+        {pricing.discounted && (
+          <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="lux-muted text-[11px] font-normal line-through" />
+        )}
+        <span className={pricing.discounted ? 'lux-gold' : ''}>
+          <EditorialPrice amount={pricing.price} formatPrice={formatPrice} />
+          {pricing.maxPrice > pricing.price && <> – <EditorialPrice amount={pricing.maxPrice} formatPrice={formatPrice} /></>}
+          {priceUnit && <span className="lux-muted text-[0.8em]">{priceUnit}</span>}
+        </span>
+      </p>
+    </div>
+  )
+}
+
+function discountPercent(pricing) {
+  return pricing.discounted && pricing.oldPrice > 0 ? Math.round((1 - pricing.price / pricing.oldPrice) * 100) : 0
+}
+
+/** Public zarkebab.uz dish card: title, then subtitle (both on the photo), then price. Staff screens use ProductCard. */
 export function PublicDishCard({ item, onOpenDetail, lang, eager = false, formatPrice = formatCurrency, linkBasePath = '/menu' }) {
   const [copied, setCopied] = useState(false)
   const pricing = getMenuOptionPricing(item, getMenuItemOptionGroups(item, lang, { audience: 'public' }))
-  const priceUnit = menuPriceUnitSuffix(item, lang)
   const name = getItemName(item, lang)
-  const description = plainMenuText(getItemDesc(item, lang))
-  const discountPct = pricing.discounted && pricing.oldPrice > 0
-    ? Math.round((1 - pricing.price / pricing.oldPrice) * 100)
-    : 0
   const copyLabel = copied
     ? (lang === 'uz' ? 'Nusxalandi' : lang === 'ru' ? 'Скопировано' : 'Copied')
     : (lang === 'uz' ? 'Havolani nusxalash' : lang === 'ru' ? 'Скопировать ссылку' : 'Copy link')
@@ -512,36 +586,7 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
       onKeyDown={event => event.key === 'Enter' && onOpenDetail(item, event.currentTarget.querySelector('[data-menu-product-image]'))}
       className="lux-glass group flex h-full cursor-pointer select-none flex-col rounded-[24px] p-1.5 outline-none transition-transform duration-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-[#E2AB64]/60 sm:rounded-[28px] sm:p-2"
     >
-      <div data-menu-product-image className="relative aspect-square w-full overflow-hidden rounded-[19px] sm:rounded-[22px]" style={{ background: 'rgb(120 90 60 / 10%)' }}>
-        <SafeMenuImage
-          src={item.image_url}
-          alt={name}
-          className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.05]"
-          fallbackIconSize={34}
-          loading={eager ? 'eager' : 'lazy'}
-          fetchPriority={eager ? 'high' : undefined}
-        />
-        {/* Title and subtitle sit on the photo over a frosted strip whose blur fades in from above. */}
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 px-2.5 pb-2.5 pt-9 sm:px-3.5 sm:pb-3 sm:pt-11"
-          style={{
-            background: 'linear-gradient(180deg, rgb(20 15 11 / 0%) 0%, rgb(20 15 11 / 48%) 42%, rgb(20 15 11 / 74%) 100%)',
-            backdropFilter: 'blur(10px) saturate(130%)',
-            WebkitBackdropFilter: 'blur(10px) saturate(130%)',
-            maskImage: 'linear-gradient(180deg, transparent 0, #000 26px)',
-            WebkitMaskImage: 'linear-gradient(180deg, transparent 0, #000 26px)',
-          }}
-        >
-          <h3 className="zk-serif line-clamp-2 text-[18px] font-semibold leading-[1.1] text-white sm:text-[22px]" style={{ textShadow: '0 1px 8px rgb(0 0 0 / 35%)' }}>{name}</h3>
-          {description && (
-            <p className="lux-fade-text mt-1 text-[12px] font-light sm:text-[13px]" style={{ color: 'rgb(255 248 238 / 78%)' }}>{description}</p>
-          )}
-        </div>
-        {discountPct > 0 && (
-          <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide sm:left-2.5 sm:top-2.5">
-            −{discountPct}%
-          </span>
-        )}
+      <LuxDishPhoto item={item} name={name} description={plainMenuText(getItemDesc(item, lang))} eager={eager} discountPct={discountPercent(pricing)}>
         <button
           type="button"
           onClick={copyProductLink}
@@ -551,22 +596,82 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
         >
           {copied ? <Check size={15} /> : <Copy size={14} />}
         </button>
-      </div>
-
-      {/* Always: title, then subtitle (both on the photo), then price (right-aligned). */}
-      <div className="flex flex-1 flex-col px-1.5 pb-1 pt-2.5 sm:px-2 sm:pb-1.5 sm:pt-3">
-        <p className="lux-title mt-auto flex flex-wrap items-baseline justify-end gap-x-2 text-right text-[14px] font-semibold sm:text-[15px]">
-          {pricing.discounted && (
-            <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="lux-muted text-[12px] font-normal line-through" />
-          )}
-          <span className={pricing.discounted ? 'lux-gold' : ''}>
-            <EditorialPrice amount={pricing.price} formatPrice={formatPrice} />
-            {pricing.maxPrice > pricing.price && <> – <EditorialPrice amount={pricing.maxPrice} formatPrice={formatPrice} /></>}
-            {priceUnit && <span className="lux-muted text-[0.8em]">{priceUnit}</span>}
-          </span>
-        </p>
-      </div>
+      </LuxDishPhoto>
+      <LuxPriceRow item={item} lang={lang} pricing={pricing} formatPrice={formatPrice} />
     </article>
+  )
+}
+
+/** Staff ordering card in the lux style: same photo and price row, plus add / quantity controls. */
+function LuxOrderCard({ item, qty, onAdd, onIncrement, onDecrement, onOpenDetail, lang, eager, formatPrice, audience, cartAnimationPayload, className = '' }) {
+  const inCart = qty > 0
+  const unavailable = item?.available === false
+  const pricing = getMenuOptionPricing(item, getMenuItemOptionGroups(item, lang, { audience }))
+  const name = getItemName(item, lang)
+  const labels = {
+    add: lang === 'uz' ? "Qo'shish" : lang === 'ru' ? 'Добавить' : 'Add',
+    decrease: lang === 'ru' ? 'Уменьшить' : lang === 'uz' ? 'Kamaytirish' : 'Decrease',
+    unavailable: lang === 'uz' ? 'Mavjud emas' : lang === 'ru' ? 'Недоступно' : 'Unavailable',
+  }
+
+  return (
+    <div
+      data-menu-product-card
+      data-item-id={item.id}
+      onClick={event => onOpenDetail(item, event.currentTarget.querySelector('[data-menu-product-image]'))}
+      role="button"
+      tabIndex={0}
+      onKeyDown={event => event.key === 'Enter' && onOpenDetail(item, event.currentTarget.querySelector('[data-menu-product-image]'))}
+      className={`lux-glass group flex h-full cursor-pointer select-none flex-col rounded-[24px] p-1.5 outline-none transition-transform duration-300 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-[#E2AB64]/60 sm:rounded-[28px] sm:p-2 ${inCart ? 'ring-2 ring-[#E2AB64]/70' : ''} ${className}`}
+    >
+      <LuxDishPhoto item={item} name={name} description={plainMenuText(getItemDesc(item, lang))} eager={eager} discountPct={discountPercent(pricing)} dimmed={unavailable}>
+        {inCart && (
+          <span className="lux-primary pointer-events-none absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[12px] font-semibold sm:right-2.5 sm:top-2.5">
+            {formatMenuQuantity(qty, item)}
+          </span>
+        )}
+        {unavailable && (
+          <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide">
+            {labels.unavailable}
+          </span>
+        )}
+      </LuxDishPhoto>
+      <LuxPriceRow item={item} lang={lang} pricing={pricing} formatPrice={formatPrice} />
+      <div className="px-1 pb-1 pt-2 sm:px-1.5 sm:pb-1.5" onClick={event => event.stopPropagation()}>
+        {inCart ? (
+          <div className="lux-soft flex h-12 items-center justify-between rounded-full p-1">
+            <button
+              type="button"
+              aria-label={`${labels.decrease}: ${name}`}
+              onClick={() => onDecrement(item)}
+              className="lux-chip lux-chip-static flex h-10 w-14 items-center justify-center rounded-full transition-transform active:scale-95 sm:w-16"
+            >
+              <Minus size={18} />
+            </button>
+            <span className="lux-title min-w-6 text-center text-[17px] font-semibold tabular-nums">{formatMenuQuantity(qty, item)}</span>
+            <button
+              type="button"
+              disabled={unavailable}
+              aria-label={`${labels.add}: ${name}`}
+              onClick={event => onIncrement(item, cartAnimationPayload(event))}
+              className="lux-primary flex h-10 w-14 items-center justify-center rounded-full transition-transform active:scale-95 disabled:opacity-40 sm:w-16"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={unavailable}
+            onClick={event => onAdd(item, cartAnimationPayload(event))}
+            className="lux-cta flex h-12 w-full items-center justify-center gap-1.5 rounded-full text-[14px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {!unavailable && <Plus size={15} />}
+            {unavailable ? labels.unavailable : labels.add}
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -626,16 +731,24 @@ const PUBLIC_DETAIL_PALETTES = {
 }
 
 /** Public zarkebab.uz product page: full-height photo under a frosted glass card. Staff keep ProductDetailPage. */
-export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice = formatCurrency, linkBasePath = '/menu', languageControl = null, place = null, reserve = null }) {
+/**
+ * Product page for the public menu and, with `order`, for staff ordering (waiter / guest tablet):
+ * order = { currentQty, currentNotes, onAddToCart, onCancel } adds required options, quantity, notes and Add to cart.
+ */
+export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice = formatCurrency, linkBasePath = '/menu', languageControl = null, place = null, reserve = null, audience = 'public', order = null }) {
   const [copied, setCopied] = useState(false)
   const [activeMediaUrl, setActiveMediaUrl] = useState('')
   const [selectedOptions, setSelectedOptions] = useState({})
+  const [qty, setQty] = useState(normalizeMenuQuantity(order?.currentQty, item))
+  const [notes, setNotes] = useState(order?.currentNotes || '')
   const { theme } = useTheme()
 
   useEffect(() => {
     setActiveMediaUrl(getMenuItemMediaUrls(item)[0] || '')
     setSelectedOptions({})
-  }, [item?.id, item?.image_url, item?.media_urls])
+    setQty(normalizeMenuQuantity(order?.currentQty, item))
+    setNotes(order?.currentNotes || '')
+  }, [item?.id, item?.image_url, item?.media_urls, order?.currentQty, order?.currentNotes])
 
   if (!item) return null
 
@@ -644,7 +757,16 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
   const mediaUrls = getMenuItemMediaUrls(item)
   const displayedMediaUrl = mediaUrls.includes(activeMediaUrl) ? activeMediaUrl : mediaUrls[0] || ''
   const backdropUrl = isMenuVideoUrl(displayedMediaUrl) ? (mediaUrls.find(url => !isMenuVideoUrl(url)) || '') : displayedMediaUrl
-  const optionGroups = getMenuItemOptionGroups(item, lang, { audience: 'public' }).filter(group => group.options.length > 0)
+  const allOptionGroups = getMenuItemOptionGroups(item, lang, { audience })
+  const optionGroups = allOptionGroups.filter(group => group.options.length > 0)
+  const unavailable = Boolean(order) && item?.available === false
+  const soldByWeight = isMenuItemSoldByWeight(item)
+  const missingRequiredOptions = allOptionGroups.some(group => (
+    group.required && !group.options.some(option => option.id === selectedOptions[group.id])
+  ))
+  const itemPriceMode = normalizePriceMode(item.price_mode || item.priceMode)
+  const selectedOptionBasePrice = getSelectedMenuBasePrice(item, allOptionGroups, selectedOptions)
+  const orderTotal = calculateUnitPrice(selectedOptionBasePrice, itemPriceMode) * qty
   const pricing = getMenuOptionPricing(item, optionGroups, Object.keys(selectedOptions).length ? selectedOptions : null)
   const priceUnit = menuPriceUnitSuffix(item, lang)
   // A price range is too wide to sit beside the name, so it goes underneath.
@@ -662,6 +784,19 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
     back: lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close',
     copy: lang === 'uz' ? 'Havolani nusxalash' : lang === 'ru' ? 'Скопировать ссылку' : 'Copy link',
     copied: lang === 'uz' ? 'Nusxalandi' : lang === 'ru' ? 'Скопировано' : 'Copied',
+    quantity: soldByWeight ? (lang === 'uz' ? 'Og‘irligi (kg)' : lang === 'ru' ? 'Вес (кг)' : 'Weight (kg)') : (lang === 'uz' ? 'Miqdor' : lang === 'ru' ? 'Количество' : 'Quantity'),
+    notes: lang === 'uz' ? 'Maxsus izohlar' : lang === 'ru' ? 'Особые заметки' : 'Special notes',
+    notesPlaceholder: lang === 'uz' ? 'Masalan: piyozsiz, yaxshi pishiring...' : lang === 'ru' ? 'Например: без лука, хорошо прожарить...' : 'For example: no onion, well done...',
+    cancel: lang === 'uz' ? 'Bekor qilish' : lang === 'ru' ? 'Отмена' : 'Cancel',
+    add: lang === 'uz' ? "Savatga qo'shish" : lang === 'ru' ? 'Добавить в корзину' : 'Add to cart',
+    chooseOption: lang === 'uz' ? 'Variantni tanlang' : lang === 'ru' ? 'Выберите вариант' : 'Choose an option',
+    unavailable: lang === 'uz' ? 'Mavjud emas' : lang === 'ru' ? 'Недоступно' : 'Unavailable',
+  }
+
+  function addToCart() {
+    if (!order || unavailable || missingRequiredOptions) return
+    const finalNotes = [optionNoteLine(allOptionGroups, selectedOptions), notes.trim()].filter(Boolean).join('\n')
+    order.onAddToCart(item, qty, finalNotes, selectedOptions, selectedOptionBasePrice)
   }
 
   async function copyProductLink() {
@@ -685,26 +820,32 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
   const chipActive = { background: 'linear-gradient(180deg, #B97A37 0%, #7C4F22 100%)', border: '1px solid #E2AB64', color: '#FFF8EE', boxShadow: '0 6px 18px rgb(201 138 62 / 35%)' }
 
   return (
-    <div className="lux-no-scrollbar relative h-full overflow-y-auto overflow-x-hidden" style={{ background: ui.page, color: ui.text }}>
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 hidden md:block">
+    <div className="relative h-full overflow-hidden" style={{ background: ui.page, color: ui.text }}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden md:block">
         {backdropUrl && <img src={backdropUrl} alt="" className="h-full w-full scale-110 object-cover blur-2xl" style={{ opacity: ui.backdropOpacity }} />}
         <div className="absolute inset-0" style={{ background: ui.backdropVeil }} />
       </div>
 
-      <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between gap-2 p-3 sm:p-4 md:px-8 md:py-6">
+      <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-2 p-3 sm:p-4 md:px-8 md:py-6">
         <button type="button" onClick={onBack} aria-label={labels.back} title={labels.back} style={glassButton} className="flex h-11 w-11 items-center justify-center rounded-full text-[#FFF8EE] transition-transform active:scale-95">
           <X size={20} />
         </button>
         <div className="flex items-center gap-2">
           {languageControl}
-          <button type="button" onClick={copyProductLink} aria-label={copied ? labels.copied : labels.copy} title={copied ? labels.copied : labels.copy} style={glassButton} className="flex h-11 w-11 items-center justify-center rounded-full text-[#FFF8EE] transition-transform active:scale-95">
+          {!order && <button type="button" onClick={copyProductLink} aria-label={copied ? labels.copied : labels.copy} title={copied ? labels.copied : labels.copy} style={glassButton} className="flex h-11 w-11 items-center justify-center rounded-full text-[#FFF8EE] transition-transform active:scale-95">
             {copied ? <Check size={17} /> : <Copy size={16} />}
-          </button>
+          </button>}
         </div>
       </div>
 
+      <div
+        className="lux-no-scrollbar relative h-full overflow-y-auto overflow-x-hidden"
+        // Tapping the blurred backdrop (anywhere outside the photo and the card) closes the page.
+        onClick={event => { if (event.target === event.currentTarget || event.target.hasAttribute('data-dismiss')) onBack() }}
+      >
+
       {/* Desktop: photo and card share one row height, so they are always the same size. */}
-      <div className="relative mx-auto min-h-full max-w-[1120px] md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:content-center md:items-stretch md:justify-center md:gap-10 md:px-8 md:py-24 lg:grid-cols-[460px_460px] lg:gap-12">
+      <div data-dismiss className="relative mx-auto min-h-full max-w-[1120px] md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:content-center md:items-stretch md:justify-center md:gap-10 md:px-8 md:py-24 lg:grid-cols-[460px_460px] lg:gap-12">
         <div style={{ viewTransitionName: 'zk-dish' }} className="sticky top-0 h-[64vh] w-full overflow-hidden md:relative md:h-auto md:min-h-[440px] md:rounded-[34px] md:shadow-[0_40px_80px_rgb(0_0_0/55%)]">
           <SafeMenuImage
             src={displayedMediaUrl}
@@ -793,7 +934,7 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
           {optionGroups.map(group => (
             <div key={group.id} className="mt-5 flex items-center gap-2.5 md:flex-wrap">
               <span className="flex-shrink-0 text-[13px] font-medium" style={{ color: ui.muted }}>{group.title}:</span>
-              <div className="-my-1 flex min-w-0 gap-2 overflow-x-auto py-1 md:flex-wrap md:overflow-visible">
+              <div className="lux-no-scrollbar -my-1 flex min-w-0 gap-2 overflow-x-auto py-1 md:flex-wrap md:overflow-visible">
                 {group.options.map(option => {
                   const active = selectedOptions[group.id] === option.id
                   return (
@@ -846,13 +987,107 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
               <Phone size={17} /> {reserve.label}
             </a>
           )}
+
+          {order && (
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between gap-3 rounded-[20px] p-3" style={quietPanel}>
+                <span className="text-[14px] font-medium" style={{ color: ui.title }}>{labels.quantity}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="−"
+                    onClick={() => setQty(current => Math.max(menuQuantityStep(item), changeMenuQuantity(current, item, -1)))}
+                    className="flex h-10 w-10 items-center justify-center rounded-full"
+                    style={chipIdle}
+                  >
+                    <Minus size={16} />
+                  </button>
+                  {soldByWeight ? (
+                    <input
+                      type="number"
+                      min={menuQuantityStep(item)}
+                      step={menuQuantityStep(item)}
+                      value={qty}
+                      disabled={unavailable}
+                      onChange={event => setQty(normalizeMenuQuantity(event.target.value, item))}
+                      aria-label={labels.quantity}
+                      className="w-16 bg-transparent text-center text-[20px] font-semibold tabular-nums outline-none"
+                      style={{ color: ui.title }}
+                    />
+                  ) : (
+                    <span className="min-w-8 text-center text-[20px] font-semibold tabular-nums" style={{ color: ui.title }}>{qty}</span>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="+"
+                    disabled={unavailable}
+                    onClick={() => setQty(current => changeMenuQuantity(current, item, 1))}
+                    className="flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-40"
+                    style={chipActive}
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+              <textarea
+                value={notes}
+                onChange={event => setNotes(event.target.value)}
+                placeholder={labels.notesPlaceholder}
+                aria-label={labels.notes}
+                rows={2}
+                className="w-full resize-none rounded-[20px] px-4 py-3 text-[14px] leading-6 outline-none"
+                style={{ ...quietPanel, color: ui.title }}
+              />
+              <div className="flex gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={order.onCancel || onBack}
+                  className="h-13 min-h-[52px] flex-1 rounded-full text-[14px] font-medium"
+                  style={chipIdle}
+                >
+                  {labels.cancel}
+                </button>
+                <button
+                  type="button"
+                  onClick={addToCart}
+                  disabled={unavailable || missingRequiredOptions}
+                  className="lux-primary min-h-[52px] flex-[2] rounded-full px-4 text-[14px] font-semibold disabled:cursor-not-allowed disabled:opacity-50 sm:text-[15px]"
+                >
+                  {unavailable ? labels.unavailable : missingRequiredOptions ? labels.chooseOption : `${labels.add} · ${formatPrice(orderTotal)}`}
+                </button>
+              </div>
+            </div>
+          )}
         </section>
+      </div>
       </div>
     </div>
   )
 }
 
-export function ProductDetailPage({ item, category, currentQty, currentNotes, lang, onBack, onCancel, onAddToCart, readOnly = false, formatPrice = formatCurrency, linkBasePath = '/menu', languageControl = null, audience = 'public' }) {
+export function ProductDetailPage(props) {
+  // Staff ordering in the lux style reuses the public product page with ordering controls.
+  if (props.variant === 'lux' && !props.readOnly) {
+    const { item, category, currentQty, currentNotes, lang, onBack, onCancel, onAddToCart, formatPrice, languageControl, audience = 'waiter' } = props
+    return (
+      <div className="zk-lux h-full">
+        <PublicDishDetailPage
+          item={item}
+          category={category}
+          lang={lang}
+          onBack={onBack}
+          formatPrice={formatPrice}
+          languageControl={languageControl}
+          audience={audience}
+          order={{ currentQty, currentNotes, onAddToCart, onCancel }}
+        />
+      </div>
+    )
+  }
+  return <ClassicProductDetailPage {...props} />
+}
+
+function ClassicProductDetailPage({ item, category, currentQty, currentNotes, lang, onBack, onCancel, onAddToCart, readOnly = false, formatPrice = formatCurrency, linkBasePath = '/menu', languageControl = null, audience = 'public' }) {
   const [qty, setQty] = useState(normalizeMenuQuantity(currentQty, item))
   const [notes, setNotes] = useState(currentNotes || '')
   const [selectedOptions, setSelectedOptions] = useState({})

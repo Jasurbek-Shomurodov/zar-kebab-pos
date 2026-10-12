@@ -592,8 +592,8 @@ test('WaiterOrder offers compact mobile grids while keeping tablet product grids
 
   assert.match(productSection, /sm:grid-cols-2 min-\[700px\]:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5/)
   assert.match(source, /sm:grid-cols-2 min-\[700px\]:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5/)
-  assert.match(productSection, /<div className="hidden h-px min-w-0 flex-1 bg-\[#C9C9C9\] sm:block" \/>/)
-  assert.match(productSection, /<h2 className="max-w-\[70%\] flex-shrink-0 text-left text-\[15px\][^"]*sm:text-\[30px\]/)
+  assert.match(productSection, /<h2 className="zk-serif lux-title[^"]*sm:text-\[38px\]/)
+  assert.match(productSection, /variant="lux"/)
   assert.match(productSection, /compactMobileGrid \? 'grid-cols-2 gap-2' : 'grid-cols-2 gap-3'/)
   assert.match(source, /compactMobileGrid=\{!isGuestTabletMode && mobileMenuView === 'compact'\}/)
   assert.doesNotMatch(productSection, /\{items\.length\}/)
@@ -830,4 +830,28 @@ test('AdminTables localizes visible management labels', () => {
   assert.match(source, /label=\{l\.capacity\}/)
   assert.doesNotMatch(source, />Add table</)
   assert.doesNotMatch(source, />Zones</)
+})
+
+test('waiter product page opens and closes with the dish photo morph', () => {
+  const source = readFileSync(new URL('../src/pages/WaiterOrder.jsx', import.meta.url), 'utf8')
+  const cards = readFileSync(new URL('../src/components/MenuProductCards.jsx', import.meta.url), 'utf8')
+
+  assert.match(source, /document\.startViewTransition\(update\)/)
+  // Close must commit the remounted grid before looking up the card photo to morph into.
+  assert.match(source, /flushSync\(\(\) => setDetailItem\(null\)\)[\s\S]{0,300}querySelectorAll\('\[data-item-id\]'\)/)
+  assert.match(source, /onBack=\{closeDetail\}\s*onCancel=\{closeDetail\}/)
+  // The grid remounts on close, so the card photo is found again by its dish id.
+  assert.match(source, /getAttribute\('data-item-id'\) === String\(itemId\)/)
+  assert.match(cards, /data-item-id=\{item\.id\}/)
+})
+
+test('waiter cart opens as a centred panel that morphs from the cart button', () => {
+  const source = readFileSync(new URL('../src/pages/WaiterOrder.jsx', import.meta.url), 'utf8')
+  assert.match(source, /onClick=\{openCart\}/)
+  assert.match(source, /style=\{\{ viewTransitionName: 'zk-cart'/)
+  assert.match(source, /fixed inset-0 z-50 flex items-center justify-center/)
+  // Tapping the blurred backdrop closes the cart.
+  assert.match(source, /backdrop-blur-\[6px\][^\n]*onClick=\{\(\) => closeCart\(\)\}/)
+  // The panel closes itself after a successful send even while the order is still locked.
+  assert.match(source, /onClose=\{\(\) => closeCart\(\{ force: true \}\)\}/)
 })

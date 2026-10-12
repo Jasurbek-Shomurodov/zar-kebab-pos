@@ -102,13 +102,22 @@ html[data-theme="dark"] .zk-lux {
   color: #FFF8EE !important;
   box-shadow: 0 6px 16px rgb(201 138 62 / 30%);
 }
-/* Copper "Get started" pill: dark to copper, used for the main action. */
+/* Copper pill for the main action. Light mode uses a lighter copper so it doesn't sit
+   on the cream page as a near-black bar; dark mode runs from dark brown to copper. */
 .lux-primary {
-  background: linear-gradient(90deg, #2A1E15 0%, #6B4423 55%, #C98A47 100%);
-  border: 1px solid rgb(226 171 100 / 55%);
-  color: #FFF8EE;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%), 0 8px 22px rgb(150 95 40 / 30%);
+  background: linear-gradient(90deg, #A86D33 0%, #C08447 55%, #D9A466 100%);
+  border: 1px solid rgb(201 138 62 / 45%);
+  color: #FFFDF9;
+  text-shadow: 0 1px 1px rgb(90 55 20 / 25%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%), 0 6px 16px rgb(176 122 58 / 22%);
   transition: filter .2s, transform .2s;
+}
+html[data-theme="dark"] .lux-primary {
+  background: linear-gradient(90deg, #2A1E15 0%, #6B4423 55%, #C98A47 100%);
+  border-color: rgb(226 171 100 / 55%);
+  color: #FFF8EE;
+  text-shadow: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%), 0 8px 22px rgb(150 95 40 / 30%);
 }
 .lux-primary:hover { filter: brightness(1.08); }
 .lux-primary:active { transform: scale(.99); }
@@ -128,6 +137,9 @@ html:has(.zk-lux)::-webkit-scrollbar, html:has(.zk-lux) body::-webkit-scrollbar,
 
 /* Product page opens and closes by morphing the tapped photo (View Transitions). */
 ::view-transition-group(zk-dish) { animation-duration: .42s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+/* Waiter cart: the panel grows from the cart button and shrinks back into it. */
+::view-transition-group(zk-cart) { animation-duration: .38s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-old(zk-cart), ::view-transition-new(zk-cart) { height: 100%; object-fit: cover; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .32s; }
 /* The details card rises from the bottom on open. On close PublicMenu hides it before the
    transition starts, so only the photo animates back into its menu card. */
@@ -176,19 +188,39 @@ html[data-theme="dark"] .lux-header { box-shadow: 0 8px 26px rgb(0 0 0 / 30%); }
 .zk-sheet-in { animation: zk-sheet-in .28s cubic-bezier(.2, .8, .2, 1) both; }
 @keyframes zk-sheet-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 
-/* Up to two lines of text; instead of an ellipsis the end of the second line fades out. */
+/* One line of text; instead of an ellipsis its end fades out. */
 .lux-fade-text {
   line-height: 1.35;
-  max-height: 2.7em;
+  white-space: nowrap;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(90deg, #000 55%, transparent 96%);
-  -webkit-mask-size: 100% 1.35em, 100% 1.35em;
-  -webkit-mask-position: top, 0 1.35em;
-  -webkit-mask-repeat: no-repeat;
-  mask-image: linear-gradient(#000 0 0), linear-gradient(90deg, #000 55%, transparent 96%);
-  mask-size: 100% 1.35em, 100% 1.35em;
-  mask-position: top, 0 1.35em;
-  mask-repeat: no-repeat;
+  -webkit-mask-image: linear-gradient(90deg, #000 70%, transparent 98%);
+  mask-image: linear-gradient(90deg, #000 70%, transparent 98%);
+}
+
+/* Dish name strip on photos: light frosted glass in light mode, dark in dark mode.
+   The blur fades in from above so the strip has no hard top edge. */
+.lux-photo-strip {
+  background: linear-gradient(180deg, rgb(250 245 238 / 0%) 0%, rgb(250 245 238 / 60%) 35%, rgb(250 245 238 / 84%) 100%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16px);
+  mask-image: linear-gradient(180deg, transparent 0, #000 16px);
+}
+.lux-photo-strip h3 { color: #1F1A15; }
+.lux-photo-strip p { color: rgb(74 66 58 / 85%); }
+html[data-theme="dark"] .lux-photo-strip {
+  background: linear-gradient(180deg, rgb(20 15 11 / 0%) 0%, rgb(20 15 11 / 50%) 35%, rgb(20 15 11 / 74%) 100%);
+}
+html[data-theme="dark"] .lux-photo-strip h3 { color: #FFFFFF; text-shadow: 0 1px 8px rgb(0 0 0 / 35%); }
+html[data-theme="dark"] .lux-photo-strip p { color: rgb(255 248 238 / 78%); }
+
+/* Phone ordering screens keep the category row itself sticky: give it the glass bar look. */
+@media (max-width: 639px) {
+  .lux-sticky-row {
+    background: color-mix(in srgb, var(--lux-page) 94%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+  }
 }
 
 /* Text inputs on glass. */
@@ -380,6 +412,9 @@ html[data-theme="dark"] .zk-shimmer { background: #222a25; }
 /* Public pages: warm placeholders that match the lux glass cards. */
 .zk-lux .zk-shimmer { background: #ECE3D7; }
 html[data-theme="dark"] .zk-lux .zk-shimmer { background: #2A211A; }
+/* Photo frames (ImageLoadShimmer's orange-50) use the same warm tone, not the dark remap's green. */
+.zk-lux .bg-orange-50 { background-color: #ECE3D7 !important; }
+html[data-theme="dark"] .zk-lux .bg-orange-50 { background-color: #2A211A !important; }
 html[data-theme="dark"] .zk-lux .zk-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 236 210 / 8%), transparent); }
 html[data-theme="dark"] .zk-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 255 255 / 6%), transparent); }
 

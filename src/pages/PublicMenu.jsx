@@ -30,6 +30,7 @@ import {
   PublicDishDetailPage,
 } from '../components/MenuProductCards'
 import heroImage from '../assets/brand/zarkebab-hero-kebab.webp'
+import heroImageLight from '../assets/brand/zarkebab-hero-light.webp'
 
 // Stable catalog identity: the Catering category is now Corporate Sets.
 const CORPORATE_SETS_CATEGORY_ID = 'c1789462941735'
@@ -360,8 +361,9 @@ const HERO_COPY = {
  * Full-width welcome section. The photo runs up under the see-through header and
  * fades into the page at the bottom, where the category chips sit.
  */
-function PublicMenuHero({ lang, onViewMenu, headerOffset = 0, heroRef }) {
+function PublicMenuHero({ lang, onViewMenu, headerOffset = 0, heroRef, theme = 'light' }) {
   const copy = HERO_COPY[lang] || HERO_COPY.en
+  const dark = theme === 'dark'
   return (
     <section
       ref={heroRef}
@@ -369,14 +371,26 @@ function PublicMenuHero({ lang, onViewMenu, headerOffset = 0, heroRef }) {
       className="relative isolate overflow-hidden"
       style={{ marginTop: -headerOffset, paddingTop: headerOffset }}
     >
+      {/* Light mode uses a brighter photo and shades only behind the text, so the bottom can
+          fade straight into the cream page without a muddy dark band. */}
       <img
-        src={heroImage}
+        key={dark ? 'dark' : 'light'}
+        src={dark ? heroImage : heroImageLight}
         alt=""
         fetchpriority="high"
-        className="absolute inset-0 -z-10 h-full w-full object-cover object-center"
+        className={`absolute inset-0 -z-10 h-full w-full object-cover ${dark ? 'object-center' : 'object-[center_58%]'}`}
       />
-      <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(180deg, rgb(20 17 14 / 45%) 0%, rgb(20 17 14 / 20%) 28%, rgb(20 17 14 / 62%) 62%, rgb(20 17 14 / 88%) 86%)' }} />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#14110E]/60 via-transparent to-transparent" />
+      {dark ? (
+        <>
+          <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(180deg, rgb(20 17 14 / 45%) 0%, rgb(20 17 14 / 20%) 28%, rgb(20 17 14 / 62%) 62%, rgb(20 17 14 / 88%) 86%)' }} />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#14110E]/60 via-transparent to-transparent" />
+        </>
+      ) : (
+        <>
+          <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(180deg, rgb(20 15 11 / 38%) 0%, rgb(20 15 11 / 0%) 32%)' }} />
+          <div className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(120% 90% at 0% 85%, rgb(20 15 11 / 72%) 0%, rgb(20 15 11 / 42%) 38%, rgb(20 15 11 / 0%) 70%)' }} />
+        </>
+      )}
       {/* Bottom edge melts into the page colour so the categories start on the photo. */}
       <div className="absolute inset-x-0 -bottom-px -z-10 h-28 sm:h-36" style={{ background: 'linear-gradient(0deg, var(--lux-page) 0%, var(--lux-page) 6px, transparent 100%)' }} />
       <div className="mx-auto flex min-h-[400px] max-w-[1280px] flex-col justify-end px-5 pb-[92px] pt-14 sm:min-h-[78vh] sm:px-8 sm:pb-[132px] sm:pt-24 lg:max-h-[820px]">
@@ -573,7 +587,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   const navigate = useNavigate()
   const { state } = useApp()
   // Every public view (search included) follows the visitor's light/dark theme.
-  useTheme()
+  const { theme } = useTheme()
   const appLang = state.lang || 'ru'
 
   const [categories, setCategories] = useState([])
@@ -1086,7 +1100,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
         </header>
       </div>
 
-      {showHero && <PublicMenuHero lang={lang} onViewMenu={openMenuHome} headerOffset={headerOffset} heroRef={heroRef} />}
+      {showHero && <PublicMenuHero lang={lang} onViewMenu={openMenuHome} headerOffset={headerOffset} heroRef={heroRef} theme={theme} />}
 
       <main id="public-menu-content" className="mx-auto max-w-[1280px] scroll-mt-28 px-3 pb-5 pt-3 sm:px-6 sm:pt-5">
         {!corporateSets && <div data-nosnippet="">
