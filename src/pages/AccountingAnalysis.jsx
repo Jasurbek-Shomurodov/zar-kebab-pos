@@ -63,6 +63,7 @@ import { expenseCategoryLabel, expenseDescriptionLabel, expensePaymentMethodLabe
 import { formatCurrency, formatCurrencyWithPercentage } from '../lib/formatCurrency'
 import { formatLongDate, formatMonthYear } from '../lib/dateFormat'
 import { collectPagedRows } from '../lib/orderHistory'
+import { RollingText, RollingValue } from '../components/RollingNumber'
 
 const EXPENSE_COLUMNS = 'id, entry_type, expense_date, category, payment_method, amount, vendor, description, created_at'
 const MEAL_COLUMNS = 'business_date, average_daily_amount, present_employee_count, total_amount, source_type, finalized_at, created_at'
@@ -872,7 +873,7 @@ function TotalTile({ label, value, change, goodWhenUp, vsLabel, tone }) {
   return (
     <div className="ws-panel">
       <p className="ws-caption">{label}</p>
-      <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${tones[tone] || tones.blue}`}>{formatCurrency(value)}</p>
+      <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${tones[tone] || tones.blue}`}><RollingText text={formatCurrency(value)} /></p>
       <div className="mt-2"><ChangeBadge change={change} goodWhenUp={goodWhenUp} label={vsLabel} /></div>
     </div>
   )
@@ -931,7 +932,7 @@ function GrowthTile({ label, value, valueTone, sub, change, changeLabel, spark, 
   return (
     <div className="ws-panel flex h-full flex-col">
       <p className="ws-caption">{label}</p>
-      <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone || 'text-[#22201d]'}`}>{value}</p>
+      <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone || 'text-[#22201d]'}`}><RollingValue value={value} /></p>
       {changeLabel != null && <div className="mt-2"><ChangeBadge change={change} goodWhenUp label={changeLabel} /></div>}
       {sub && <p className="ws-caption mt-1 leading-snug">{sub}</p>}
       <div className="mt-auto">{spark && <Sparkline values={spark} color={sparkColor} highlightLast />}</div>

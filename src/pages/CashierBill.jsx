@@ -49,6 +49,7 @@ import { loadCashierBillOrders } from '../lib/db'
 import { withReadTimeout } from '../lib/writeTimeout'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { getBillReceiptPath } from '../lib/billHandoff'
+import { RollingText } from '../components/RollingNumber'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const PAY_METHODS = [
@@ -1078,7 +1079,7 @@ export default function CashierBill() {
                   )}
                   <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-200">
                     <span className="font-black text-[#1F2937]">{lbl.totalAmt}</span>
-                    <span className="font-black text-2xl text-[#ff5a00]">{formatCurrency(total)}</span>
+                    <span className="font-black text-2xl text-[#ff5a00]"><RollingText text={formatCurrency(total)} /></span>
                   </div>
                   {cashbackToBeEarned > 0 && (
                     <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-2.5">
@@ -1306,7 +1307,7 @@ export default function CashierBill() {
                   </div>
                   <div className="pt-3 border-t border-dashed border-[#E5E7EB] flex justify-between items-baseline">
                     <span className="font-black text-[#1F2937] text-sm">{lbl.totalAmt}</span>
-                    <span className="font-black text-2xl text-[#ff5a00]">{formatCurrency(total)}</span>
+                    <span className="font-black text-2xl text-[#ff5a00]"><RollingText text={formatCurrency(total)} /></span>
                   </div>
                   {cashbackToBeEarned > 0 && (
                     <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-2.5">

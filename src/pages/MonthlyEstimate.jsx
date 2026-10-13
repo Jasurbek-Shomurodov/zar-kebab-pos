@@ -51,6 +51,7 @@ import { useApp } from '../store/AppContext'
 import { collectPagedRows } from '../lib/orderHistory'
 import { normalizeAccountingPaidOrderSummary } from '../lib/accounting'
 import { loadAccountingPaidOrderSummary, loadMonthlyEstimateBundle } from '../lib/accountingSummary'
+import { RollingValue } from '../components/RollingNumber'
 
 const SELECT_COLUMNS = 'id, entry_type, expense_date, category, payment_method, amount, vendor, description, created_by, created_by_name, created_at, updated_at'
 
@@ -1069,7 +1070,7 @@ function OutlookTile({ label, value, sub, tone = 'default', icon: Icon = null, e
     <div className={`min-w-0 rounded-xl border p-4 ${emphasized ? 'border-[#d6d2cd] bg-white shadow-[0_1px_2px_rgb(34_32_29/6%)]' : 'border-[#e4e1de] bg-white'}`}>
       <p className="ws-caption">{label}</p>
       <p className={`mt-1 flex items-center gap-1.5 break-words text-[clamp(18px,1.5vw,22px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${VALUE_TONES[tone] || VALUE_TONES.default}`}>
-        {Icon && <Icon size={18} className="flex-shrink-0" />}{value}
+        {Icon && <Icon size={18} className="flex-shrink-0" />}<RollingValue value={value} />
       </p>
       <p className="ws-caption mt-1.5 leading-snug">{sub}</p>
     </div>

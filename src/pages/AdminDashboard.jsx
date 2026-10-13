@@ -32,6 +32,7 @@ import BusyHoursCard from '../components/BusyHoursCard'
 import ProductContributionCard from '../components/ProductContributionCard'
 import { loadPaidOrdersForRange, mergePaidOrderHistory } from '../lib/orderHistory'
 import { getOrdersNetProfit, getSaleProfitSummary } from '../lib/profit'
+import { RollingValue } from '../components/RollingNumber'
 
 // ── Localisation ──────────────────────────────────────────────────────────────
 const L = {
@@ -146,7 +147,7 @@ function KpiCard({ icon: Icon, label, value, sub, subColor, badge, highlight, to
           {loading ? (
             <ShimmerBlock className="mt-2 h-6 w-2/3" />
           ) : (
-            <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueClass}`}>{value}</p>
+            <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueClass}`}><RollingValue value={value} /></p>
           )}
         </div>
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">

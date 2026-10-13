@@ -55,6 +55,7 @@ import {
   retractTelegramSalaryEvent,
   notifyTelegramKpiRuleChange,
 } from '../lib/telegramNotifications'
+import { RollingValue } from '../components/RollingNumber'
 
 const FIELD = 'ws-input !h-11 min-w-0 max-w-full font-medium disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 // Notes and reasons are free text, so they always get a multi-line field.
@@ -2557,7 +2558,7 @@ function MetricCard({ icon: Icon, label, value, description }) {
     <div className="ws-panel flex h-full items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="ws-caption">{label}</p>
-        <p className="mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{value}</p>
+        <p className="mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={value} /></p>
         {description && <p className="ws-caption mt-2">{description}</p>}
       </div>
       <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">

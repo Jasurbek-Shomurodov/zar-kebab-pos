@@ -26,6 +26,7 @@ import {
   normalizeSalaryEndDate,
   todayExpenseDate,
 } from '../lib/expenses'
+import { RollingValue } from '../components/RollingNumber'
 
 function isMissingSalaryMigration(error) {
   const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
@@ -796,7 +797,7 @@ function Kpi({ icon: Icon, label, value, hot = false, danger = false }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="ws-caption">{label}</p>
-          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone}`}>{value}</p>
+          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone}`}><RollingValue value={value} /></p>
         </div>
         <div className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f] sm:flex">
           <Icon size={16} />

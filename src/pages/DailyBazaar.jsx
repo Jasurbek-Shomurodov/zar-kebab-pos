@@ -69,6 +69,7 @@ import {
   todayBazaarDate,
   validateBazaarPurchase,
 } from '../lib/bazaar'
+import { RollingText, RollingValue } from '../components/RollingNumber'
 
 const PURCHASE_COLUMNS = `
   id,
@@ -1184,7 +1185,7 @@ function BazaarEntryForm({
 
         <aside className="ws-panel xl:sticky xl:top-5">
         <p className="ws-caption font-medium">{l.totalBazaar}</p>
-        <p className="mt-1 break-words text-3xl font-semibold tracking-tight text-[#22201d] tabular-nums">{formatCurrency(total)}</p>
+        <p className="mt-1 break-words text-3xl font-semibold tracking-tight text-[#22201d] tabular-nums"><RollingText text={formatCurrency(total)} /></p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <div className="rounded-[10px] bg-[#f6f5f3] px-3 py-2.5">
             <p className="ws-caption">{l.normalTotal}</p>
@@ -1455,7 +1456,7 @@ function BazaarHistory({
                           <p className="max-w-[220px] truncate font-medium text-[#22201d]" title={purchase.notes || undefined}>
                             {purchase.created_by_name || '—'}
                           </p>
-                          <p className="whitespace-nowrap text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(total)}</p>
+                          <p className="whitespace-nowrap text-sm font-semibold text-[#22201d] tabular-nums"><RollingText text={formatCurrency(total)} /></p>
                           <span className="ws-badge">
                             <MethodIcon />{bazaarPaymentMethodLabel(purchase.payment_method, lang)}
                           </span>
@@ -1688,7 +1689,7 @@ function MetricCard({ label, value, sub = '' }) {
   return (
     <div className="ws-panel">
       <p className="ws-caption font-medium">{label}</p>
-      <p className="mt-1.5 break-words text-2xl font-semibold tracking-tight text-[#22201d] tabular-nums">{value}</p>
+      <p className="mt-1.5 break-words text-2xl font-semibold tracking-tight text-[#22201d] tabular-nums"><RollingValue value={value} /></p>
       {sub && <p className="ws-caption mt-1">{sub}</p>}
     </div>
   )

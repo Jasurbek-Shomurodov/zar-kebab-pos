@@ -23,6 +23,7 @@ import {
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatLongDateTime } from '../lib/dateFormat'
+import { RollingText } from '../components/RollingNumber'
 
 const CARD_PAGE_SIZE = 8
 const TRANSACTION_PAGE_SIZE = 5
@@ -840,7 +841,7 @@ export default function AdminLoyalty() {
 
                     <div className="mt-4 rounded-xl border border-[#e4e1de] bg-white px-4 py-4">
                       <p className="ws-caption font-medium">{l.balance}</p>
-                      <p className="mt-1 text-[clamp(26px,2.4vw,32px)] font-semibold tracking-[-.02em] tabular-nums text-[#1d7a52]">{formatCurrency(selected.balance || 0)}</p>
+                      <p className="mt-1 text-[clamp(26px,2.4vw,32px)] font-semibold tracking-[-.02em] tabular-nums text-[#1d7a52]"><RollingText text={formatCurrency(selected.balance || 0)} /></p>
                     </div>
 
                     <div className="mt-4 rounded-xl border border-[#e4e1de] bg-white p-4">

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { Info, X } from 'lucide-react'
 import { Shimmer } from './PageShimmer'
+import { RollingValue } from './RollingNumber'
 
 // KPI card and its "how is this calculated" dialog, shared by Accounting and
 // Financial analysis so both explain their totals the same way.
@@ -29,7 +30,7 @@ export function Kpi({ icon: Icon, label, value, sub = '', tone = 'orange', empha
           {/* While totals load, shimmer bars stand in for the value and caption instead of a dash. */}
           {loading
             ? <Shimmer className="mt-2 h-[26px] w-36 max-w-full" />
-            : <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone}`}>{value}</p>}
+            : <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone}`}><RollingValue value={value} /></p>}
         </div>
         <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
           <Icon size={16} className={onClick ? 'transition-opacity group-hover:opacity-0' : ''} />

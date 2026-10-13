@@ -60,6 +60,7 @@ import { canChangeCompletedOrderPaymentMethod, canDeleteOrderToday, canViewPage 
 import { collectPagedRows, loadOrdersForRange, mergeOrderHistory } from '../lib/orderHistory'
 import { loadReportsAccountingBundle } from '../lib/accountingSummary'
 import { getAccountingQuickRange } from '../lib/accounting'
+import { RollingValue } from '../components/RollingNumber'
 
 /** Payment method with fallback */
 function getPaymentMethod(o) {
@@ -218,7 +219,7 @@ function KpiCard({ icon: Icon, iconCls, label, value, sub }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="ws-caption">{label}</p>
-          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${iconCls || 'text-[#22201d]'}`}>{value}</p>
+          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${iconCls || 'text-[#22201d]'}`}><RollingValue value={value} /></p>
         </div>
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
           <Icon size={16} />
@@ -407,7 +408,7 @@ function DishMetric({ icon: Icon, iconCls, label, value, sub }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="ws-caption">{label}</p>
-          <p className={`mt-1 break-words text-xl font-semibold leading-tight tracking-[-.02em] tabular-nums ${iconCls || 'text-[#22201d]'}`}>{value}</p>
+          <p className={`mt-1 break-words text-xl font-semibold leading-tight tracking-[-.02em] tabular-nums ${iconCls || 'text-[#22201d]'}`}><RollingValue value={value} /></p>
         </div>
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
           <Icon size={16} />
