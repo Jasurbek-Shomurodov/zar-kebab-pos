@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   BookOpenCheck,
   CheckCircle2,
@@ -261,6 +261,11 @@ export default function TechCards() {
   const { loaded, loadError } = useAppDataStatus()
   const { menuItemId } = useParams()
   const navigate = useNavigate()
+  // Links from the Ingredients archive warning open a variant recipe and highlight the ingredient to replace.
+  const [searchParams] = useSearchParams()
+  const requestedVariantId = searchParams.get('variant') || ''
+  const highlightedIngredientKey = (searchParams.get('ingredient') || '').trim().toLowerCase()
+  const appliedVariantRequest = useRef('')
   const lang = state.lang || 'ru'
   const l = labels(lang)
   const mayEdit = canEditMenu(profile || { role: state.user?.role })
@@ -348,6 +353,19 @@ export default function TechCards() {
       })
     return () => { active = false }
   }, [loaded, loadError])
+
+  useEffect(() => {
+    const request = `${menuItemId || ''}::${requestedVariantId}`
+    if (!menuItemId || !requestedVariantId || appliedVariantRequest.current === request) return
+    if (!editorVariants.some(option => option.id === requestedVariantId)) return
+    appliedVariantRequest.current = request
+    setActiveVariantOptionId(requestedVariantId)
+  }, [menuItemId, requestedVariantId, editorVariants])
+
+  useEffect(() => {
+    if (!highlightedIngredientKey || !form) return
+    document.querySelector('[data-highlighted-ingredient="true"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [highlightedIngredientKey, form?.menu_item_id, form?.variant_option_id])
 
   useEffect(() => {
     if (!menuItemId || cardsLoading) return
@@ -493,7 +511,7 @@ export default function TechCards() {
     return (
       <AppShell title={l.title}>
         {!loaded ? (
-          <OperationalLoading title={l.title} description={l.subtitle} />
+          <OperationalLoading title={l.title} layout={menuItemId ? 'techCardEditor' : 'techCards'} />
         ) : (
           <OperationalError title={l.listError} description={loadError} actionLabel="Reload" onAction={() => window.location.reload()} />
         )}
@@ -502,7 +520,7 @@ export default function TechCards() {
   }
 
   if (cardsLoading) {
-    return <AppShell title={l.title}><OperationalLoading title={l.title} description={l.subtitle} /></AppShell>
+    return <AppShell title={l.title}><OperationalLoading title={l.title} layout={menuItemId ? 'techCardEditor' : 'techCards'} /></AppShell>
   }
 
   if (cardsError) {
@@ -673,8 +691,9 @@ export default function TechCards() {
                       {form.ingredients.map((ingredient, index) => {
                         const line = summary.ingredients[index]
                         const selectedBazaarIngredient = bazaarIngredientSuggestions.find(item => item.name === ingredient.name)
+                        const highlighted = !!highlightedIngredientKey && String(ingredient.name || '').trim().toLowerCase() === highlightedIngredientKey
                         return (
-                          <div key={ingredient.id || index} className={`ws-row grid min-w-0 grid-cols-2 gap-2 p-3 sm:items-center ${ingredientColumns}`}>
+                          <div key={ingredient.id || index} data-highlighted-ingredient={highlighted || undefined} className={`ws-row grid min-w-0 grid-cols-2 gap-2 p-3 sm:items-center ${ingredientColumns} ${highlighted ? '!bg-[#fff1e8] shadow-[inset_3px_0_0_#ff5a00]' : ''}`}>
                             <label className="col-span-2 min-w-0 sm:col-span-1">
                               <span className={fieldLabel}>{l.ingredient}</span>
                               <BazaarIngredientPicker

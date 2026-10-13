@@ -217,9 +217,210 @@ function EstimateSections() {
   )
 }
 
+// Ingredient catalog cards, as rendered inside the Ingredients panel under its live toolbar.
+function IngredientCards({ cards = 8 }) {
+  return (
+    <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 2xl:grid-cols-4">
+      {Array.from({ length: cards }, (_, index) => (
+        <div key={index} className="flex min-w-0 flex-col rounded-xl border border-[#e4e1de] bg-white p-4">
+          <div className="flex items-start justify-between gap-2">
+            <Shimmer className={`h-4 ${index % 3 === 0 ? 'w-3/5' : index % 3 === 1 ? 'w-1/2' : 'w-2/5'}`} />
+            <Shimmer className="h-7 w-7 flex-shrink-0 rounded-[8px]" />
+          </div>
+          <Shimmer className="mt-2 h-5 w-20 rounded-full" />
+          <Shimmer className="mt-4 h-5 w-1/2" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Ingredients page before its code loads: toolbar panel around the card grid.
+function IngredientsPage() {
+  return (
+    <div className="ws-panel ws-panel-flush">
+      <div className="flex flex-wrap items-center gap-3 border-b border-[#e4e1de] p-5 max-sm:p-4">
+        <Shimmer className="h-11 min-w-[220px] flex-1 rounded-[10px] sm:max-w-sm" />
+        <Shimmer className="h-11 w-[220px] max-w-full rounded-[10px]" />
+        <Shimmer className="h-11 w-64 max-w-full rounded-[12px] sm:ml-auto" />
+      </div>
+      <IngredientCards />
+    </div>
+  )
+}
+
+// Purchases & usage result cards: name + category, then bought / usage / paid / remaining.
+function IngredientMovementCards({ cards = 8 }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {Array.from({ length: cards }, (_, index) => (
+        <div key={index} className="flex min-w-0 flex-col rounded-xl border border-[#e4e1de] bg-white p-4">
+          <div className="flex items-start justify-between gap-2">
+            <Shimmer className={`h-4 ${index % 2 ? 'w-2/5' : 'w-1/2'}`} />
+            <Shimmer className="h-5 w-16 flex-shrink-0 rounded-full" />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5">
+            {Array.from({ length: 4 }, (_, cell) => (
+              <div key={cell} className="space-y-1.5">
+                <Shimmer className="h-2.5 w-3/4" />
+                <Shimmer className="h-4 w-1/2" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function IngredientUsagePage() {
+  return (
+    <div className="ws-panel">
+      <Shimmer className="h-7 w-56 max-w-full" />
+      <Shimmer className="mt-4 h-10 w-full rounded-[10px] sm:w-[420px]" />
+      <div className="my-4 space-y-2">
+        <Shimmer className="h-3 w-full" />
+        <Shimmer className="h-3 w-3/4" />
+      </div>
+      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.7fr)]">
+        {[0, 1].map(index => (
+          <div key={index} className="space-y-1.5">
+            <Shimmer className="h-3 w-20" />
+            <Shimmer className="h-11 w-full rounded-[10px]" />
+          </div>
+        ))}
+      </div>
+      <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
+        <Shimmer className="h-3 w-24" />
+        <Shimmer className="h-8 w-24 rounded-[10px]" />
+      </div>
+      <IngredientMovementCards />
+    </div>
+  )
+}
+
+// Tech Cards list: KPI tiles, category tiles, search + filter, then image cards per category.
+function TechCardsList() {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="ws-panel flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-2">
+              <Shimmer className="h-3 w-1/2" />
+              <Shimmer className="h-6 w-2/3" />
+            </div>
+            <Shimmer className="h-8 w-8 flex-shrink-0 rounded-full" />
+          </div>
+        ))}
+      </div>
+      <div className="ws-panel">
+        <Shimmer className="mb-3 h-5 w-28" />
+        <div className="flex gap-3 overflow-hidden">
+          {Array.from({ length: 8 }, (_, index) => (
+            <div key={index} className="w-[104px] shrink-0 overflow-hidden rounded-xl border border-[#e4e1de] md:w-[112px] xl:w-[120px]">
+              <Shimmer className="aspect-square w-full !rounded-none" />
+              <div className="flex min-h-[44px] items-center justify-center px-2 py-2"><Shimmer className="h-3 w-3/4" /></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Shimmer className="h-11 min-w-[220px] flex-1 rounded-[10px]" />
+        <Shimmer className="h-11 w-60 max-w-full rounded-[12px]" />
+      </div>
+      <div>
+        <div className="mb-3 flex items-center gap-3">
+          <Shimmer className="h-7 w-40" />
+          <Shimmer className="h-5 w-8 rounded-full" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="ws-panel ws-panel-flush flex min-w-0">
+              <Shimmer className="min-h-[104px] w-24 shrink-0 self-stretch !rounded-none sm:w-28" />
+              <div className="min-w-0 flex-1 space-y-2 p-4">
+                <Shimmer className={`h-4 ${index % 2 ? 'w-3/5' : 'w-3/4'}`} />
+                <Shimmer className="!mt-4 h-3 w-1/3" />
+                <Shimmer className="h-4 w-1/4" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// Tech Card editor: product header, ingredient table, included items and method beside the cost summary.
+function TechCardEditor() {
+  return (
+    <>
+      <div className="ws-panel flex flex-wrap items-center gap-4">
+        <Shimmer className="h-16 w-16 shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Shimmer className="h-4 w-48 max-w-full" />
+          <Shimmer className="h-3 w-32" />
+        </div>
+        <Shimmer className="h-8 w-32 rounded-[10px]" />
+      </div>
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
+        <div className="min-w-0 space-y-5">
+          <div className="ws-panel">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Shimmer className="h-5 w-32" />
+                <Shimmer className="h-3 w-2/3" />
+              </div>
+              <Shimmer className="h-8 w-36 rounded-[10px]" />
+            </div>
+            <div className="overflow-hidden rounded-[10px] border border-[#e4e1de]">
+              {Array.from({ length: 5 }, (_, index) => (
+                <div key={index} className="grid grid-cols-2 gap-2 border-b border-[#e4e1de] p-3 last:border-b-0 sm:grid-cols-[minmax(140px,1.5fr)_90px_90px_minmax(120px,1fr)_110px_40px] sm:items-center">
+                  <Shimmer className="col-span-2 h-11 rounded-[10px] sm:col-span-1" />
+                  <Shimmer className="h-11 rounded-[10px]" />
+                  <Shimmer className="h-11 rounded-[10px]" />
+                  <Shimmer className="h-11 rounded-[10px]" />
+                  <Shimmer className="h-4 w-20 sm:justify-self-end" />
+                  <Shimmer className="hidden h-8 w-8 rounded-[8px] sm:block" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="ws-panel">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-2">
+                <Shimmer className="h-5 w-40" />
+                <Shimmer className="h-3 w-1/2" />
+              </div>
+              <Shimmer className="h-8 w-36 rounded-[10px]" />
+            </div>
+            <Shimmer className="h-[104px] w-full rounded-[10px]" />
+          </div>
+          <div className="ws-panel space-y-2">
+            <Shimmer className="h-4 w-40" />
+            <Shimmer className="h-48 w-full rounded-[10px]" />
+          </div>
+        </div>
+        <div className="ws-panel self-start">
+          <Shimmer className="mb-4 h-5 w-28" />
+          {Array.from({ length: 5 }, (_, index) => (
+            <div key={index} className="flex items-center justify-between gap-3 py-2.5">
+              <Shimmer className="h-3 w-24" />
+              <Shimmer className="h-4 w-20" />
+            </div>
+          ))}
+          <Shimmer className="mt-2 h-10 w-full rounded-[10px]" />
+        </div>
+      </div>
+    </>
+  )
+}
+
 // Layouts that render inside the page's own `.ws-page` container, so the
 // skeleton has exactly the loaded page's width, padding and gaps.
-const PAGE_CONTAINER_LAYOUTS = new Set(['estimate'])
+const PAGE_CONTAINER_LAYOUTS = new Set(['estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage'])
+// Result-area layouts placed inside a page panel below its live toolbar: no extra container.
+const INLINE_LAYOUTS = new Set(['ingredientCards', 'ingredientMovementCards'])
 
 const LAYOUTS = {
   table: () => <><Toolbar /><TableRows /></>,
@@ -247,13 +448,19 @@ const LAYOUTS = {
   ),
   form: () => <FormSections />,
   estimate: () => <EstimateSections />,
+  techCards: () => <TechCardsList />,
+  techCardEditor: () => <TechCardEditor />,
+  ingredients: () => <IngredientsPage />,
+  ingredientUsage: () => <IngredientUsagePage />,
+  ingredientCards: () => <IngredientCards />,
+  ingredientMovementCards: () => <IngredientMovementCards />,
 }
 
 /** In-page loading placeholder; `label` is announced to screen readers only. */
 export default function PageShimmer({ layout = 'table', label = '', className = '' }) {
   const Layout = LAYOUTS[layout] || LAYOUTS.table
   return (
-    <div role="status" aria-busy="true" className={`${PAGE_CONTAINER_LAYOUTS.has(layout) ? 'ws-page' : 'flex w-full flex-col gap-4 p-4 sm:p-6 xl:px-9'} ${className}`}>
+    <div role="status" aria-busy="true" className={`${INLINE_LAYOUTS.has(layout) ? '' : PAGE_CONTAINER_LAYOUTS.has(layout) ? 'ws-page' : 'flex w-full flex-col gap-4 p-4 sm:p-6 xl:px-9'} ${className}`}>
       {label && <span className="sr-only">{label}</span>}
       <Layout />
     </div>
@@ -263,7 +470,11 @@ export default function PageShimmer({ layout = 'table', label = '', className = 
 /** Which skeleton fits a route before its page code has loaded. */
 export function layoutForPath(pathname = '') {
   if (pathname === '/admin' || pathname.startsWith('/admin/reports') || pathname === '/admin/accounting' || pathname === '/admin/financial-analysis') return 'dashboard'
-  if (pathname.startsWith('/waiter/order') || pathname.startsWith('/waiter/take-away') || pathname.startsWith('/cashier/bill') || pathname.startsWith('/admin/tech-cards/')) return 'detail'
+  if (pathname.startsWith('/admin/tech-cards/')) return 'techCardEditor'
+  if (pathname.startsWith('/admin/tech-cards')) return 'techCards'
+  if (pathname.startsWith('/admin/ingredients/usage')) return 'ingredientUsage'
+  if (pathname.startsWith('/admin/ingredients')) return 'ingredients'
+  if (pathname.startsWith('/waiter/order') || pathname.startsWith('/waiter/take-away') || pathname.startsWith('/cashier/bill')) return 'detail'
   if (pathname.startsWith('/admin/financial-analysis/estimate')) return 'estimate'
   if (pathname.startsWith('/admin/settings')) return 'form'
   if (pathname.startsWith('/waiter/tables') || pathname.startsWith('/cashier/tables') || pathname.startsWith('/admin/menu') || pathname.startsWith('/admin/tables') || pathname.startsWith('/admin/loyalty')) return 'cards'

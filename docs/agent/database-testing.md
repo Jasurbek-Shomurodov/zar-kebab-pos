@@ -80,11 +80,11 @@
 - `202`/`232`: today-only deletion (owner: old unpaid too), KPI cleanup; apply before UI. `tests/orderDeletion.test.js`.
 - `203`/`213`: KPI start/opening cutoff; apply before UI. Tests: `tests/timeBasedKpi.test.js`.
 - `226`: closed-day KPI, no absence skip. Tests: `tests/closedOrderKpiDay.test.js`.
-- `204`: preserve audit actors on account deletion. Tests: `tests/accountDeletionAudit.test.js`.
-- `205`: Take Away/Delivery/Game Club category schedules; apply before UI. Seeds Game Club Business lunch. Tests: `tests/gameClubCategorySchedule.test.js`.
+- `204`: keep audit actors on account deletion. Tests: `tests/accountDeletionAudit.test.js`.
+- `205`: Take Away/Delivery/Game Club schedules; apply before UI. Seeds Game Club lunch. Tests: `tests/gameClubCategorySchedule.test.js`.
 - `207`–`209`: rate date guard, audits, owner-only DELETE. Apply before UI. Tests: `tests/salaryRateDateWindow.test.js`, `tests/salaryRateHistory.test.js`.
 - `210`: see [salary orders](salary-orders.md).
-- `211`: profile name realtime; history unchanged. Tests: `tests/activeOrderWaiters.test.js`.
+- `211`: profile name realtime. Tests: `tests/activeOrderWaiters.test.js`.
 - `212`/`220`: bill edits (payments); `221`: price-mode guard (ordering); `222`: insert image guard (menu); `224`: payments
-- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`/`239`–`241` menu; `229`–`235` payments/orders.
+- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`/`239`–`242` menu; `229`–`235` payments/orders.
 - `215`–`217`: payroll.md; `218`–`219`: architecture.md.

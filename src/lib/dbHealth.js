@@ -127,6 +127,7 @@ const MIGRATION_HINTS = {
   get_ingredient_movement: 'Run migrations/186_ingredients_feature_and_movement.sql',
   save_bazaar_ingredient: 'Run migrations/160_daily_bazaar_ingredient_catalog.sql',
   set_bazaar_ingredient_active: 'Run migrations/160_daily_bazaar_ingredient_catalog.sql',
+  get_bazaar_ingredient_tech_card_usage: 'Run migrations/242_bazaar_ingredient_tech_card_usage.sql',
   current_staff_can_manage_bazaar_ingredients: 'Run migrations/162_owner_only_bazaar_ingredient_management.sql',
   create_employee_salary_telegram_link: 'Run migrations/107_employee_salary_telegram_notifications.sql',
   generate_daily_kpi_bonuses: 'Run migrations/129_daily_kpi_bonuses.sql',
@@ -222,6 +223,7 @@ export async function runDbHealthChecks(dbClient = supabase) {
   checks.push(await checkRpc(dbClient, 'get_ingredient_movement', { p_date_from: null, p_date_to: null }))
   checks.push(await checkRpc(dbClient, 'save_bazaar_ingredient'))
   checks.push(await checkRpc(dbClient, 'set_bazaar_ingredient_active', { p_product_key: '__db_health_check__', p_is_active: false }))
+  checks.push(await checkRpc(dbClient, 'get_bazaar_ingredient_tech_card_usage', { p_product_key: '__db_health_check__' }))
   checks.push(await checkRpc(dbClient, 'get_accounting_paid_order_summary', {
     p_date_from: '2000-01-01',
     p_date_to: '2000-01-01',

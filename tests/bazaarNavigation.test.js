@@ -24,7 +24,13 @@ test('ingredient editors receive management controls through the delegated featu
   assert.match(page, /canEditFeature\(profile \|\| state.user, 'ingredients'\)/)
   assert.match(page, /\{canManage \? \(/)
   // Cards open the editor on tap; the only card button is archive / restore.
-  assert.match(page, /onClick=\{event => \{ event\.stopPropagation\(\); setIngredientActive\(ingredient\) \}\}/)
+  assert.match(page, /onClick=\{event => \{ event\.stopPropagation\(\); requestIngredientStatus\(ingredient\) \}\}/)
+  // Restore is immediate; archive first lists the Tech Cards that still use the ingredient.
+  assert.match(page, /if \(!ingredient\.is_active\) \{ setIngredientActive\(ingredient\); return \}\s*setError\(''\)\s*setNotice\(''\)\s*loadArchiveUsage\(ingredient\)/)
+  assert.match(page, /supabase\.rpc\('get_bazaar_ingredient_tech_card_usage', \{ p_product_key: ingredient\.product_key \}\)/)
+  assert.match(page, /navigate\(`\/admin\/tech-cards\/\$\{encodeURIComponent\(row\.menuItemId\)\}\?\$\{params\}`\)/)
+  assert.match(page, /if \(await setIngredientActive\(ingredient\)\) setArchiveCheck\(null\)/)
+  assert.doesNotMatch(page, /window\.confirm\(/)
   assert.match(page, /runBazaarIngredientWriteWithRecovery/)
   assert.match(page, /upsertIngredient\(savedIngredientRow\(savedData\)\)/)
   assert.match(page, /isBazaarIngredientNetworkError\(requestError\)/)
@@ -158,4 +164,18 @@ test('Accounting shows one daily Bazaar total and manages its details in Daily B
   assert.match(accountingLib, /export function collapseDailyBazaarExpenseRows/)
   assert.match(accountingLib, /id: `bazaar-day:\$\{date\}`/)
   assert.match(accountingLib, /payment_method: paymentMethods\.length === 1 \? paymentMethods\[0\] : 'mixed'/)
+})
+
+test('Tech Card usage lookup returns only recipe identities to Ingredients staff', () => {
+  const sql = readSource('migrations/242_bazaar_ingredient_tech_card_usage.sql')
+  assert.match(sql, /returns table \(menu_item_id text, variant_option_id text\)/)
+  assert.match(sql, /security definer/)
+  assert.match(sql, /current_staff_can_access\('ingredients'\) is not true\s+and public\.current_staff_can_access\('tech_cards'\) is not true/)
+  assert.match(sql, /lower\(btrim\(ingredient\.name\)\) = lower\(btrim\(catalog\.product_name\)\)/)
+  assert.doesNotMatch(sql, /quantity|unit_price_uzs|preparation_steps/)
+
+  const techCards = readSource('src/pages/TechCards.jsx')
+  assert.match(techCards, /const requestedVariantId = searchParams\.get\('variant'\) \|\| ''/)
+  assert.match(techCards, /if \(!editorVariants\.some\(option => option\.id === requestedVariantId\)\) return/)
+  assert.match(techCards, /data-highlighted-ingredient=\{highlighted \|\| undefined\}/)
 })

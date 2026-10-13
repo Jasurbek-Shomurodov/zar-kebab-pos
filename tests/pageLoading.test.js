@@ -30,7 +30,12 @@ test('page and tab data loads render page-shaped shimmers, not spinners', () => 
   assert.match(source('src/pages/CashierTables.jsx'), /<OperationalLoading layout="cards"/)
   // Monthly estimate loads in its own full-width layout so the page does not jump when data arrives.
   assert.match(source('src/pages/MonthlyEstimate.jsx'), /<OperationalLoading layout="estimate"/)
-  assert.match(source('src/components/PageShimmer.jsx'), /PAGE_CONTAINER_LAYOUTS = new Set\(\['estimate'\]\)/)
+  assert.match(source('src/components/PageShimmer.jsx'), /PAGE_CONTAINER_LAYOUTS = new Set\(\['estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage'\]\)/)
+  // Tech Cards and Ingredients shimmer in their own card layouts, not a generic table.
+  assert.match(source('src/components/PageShimmer.jsx'), /startsWith\('\/admin\/tech-cards\/'\)\) return 'techCardEditor'\s+if \(pathname\.startsWith\('\/admin\/tech-cards'\)\) return 'techCards'\s+if \(pathname\.startsWith\('\/admin\/ingredients\/usage'\)\) return 'ingredientUsage'\s+if \(pathname\.startsWith\('\/admin\/ingredients'\)\) return 'ingredients'/)
+  assert.match(source('src/pages/TechCards.jsx'), /<OperationalLoading title=\{l\.title\} layout=\{menuItemId \? 'techCardEditor' : 'techCards'\} \/>/)
+  assert.match(source('src/pages/BazaarIngredients.jsx'), /\{loading \? <OperationalLoading title=\{l\.title\} layout="ingredientCards" \/>/)
+  assert.match(source('src/components/IngredientMovement.jsx'), /loading \? <OperationalLoading title=\{l\.loading\} layout="ingredientMovementCards" \/>/)
   assert.match(source('src/components/PageShimmer.jsx'), /startsWith\('\/admin\/financial-analysis\/estimate'\)\) return 'estimate'/)
   for (const page of ['AdminUsers', 'Employees']) {
     assert.match(source(`src/pages/${page}.jsx`), /<PageShimmer layout="table"/, page)

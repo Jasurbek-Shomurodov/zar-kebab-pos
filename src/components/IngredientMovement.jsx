@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { ArrowUpDown, Check, Search, X } from 'lucide-react'
 import DateRangePicker from './DateRangePicker'
 import BazaarCategoryPicker from './BazaarCategoryPicker'
+import { OperationalLoading } from './OperationalState'
 import { supabase } from '../lib/supabase'
 import { todayBazaarDate, bazaarCategoryLabel, bazaarUnitLabel, formatBazaarQuantity, getBazaarRange } from '../lib/bazaar'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -126,7 +127,7 @@ export default function IngredientMovement({ lang = 'ru' }) {
           <SortMenu value={sort} onChange={setSort} labels={f} />
         </div>
       </div>
-      {error ? <div role="alert" className="ws-notice ws-tone-negative"><p>{l[error]}</p><button type="button" onClick={() => setRetry(n => n + 1)} className="ws-btn ws-btn-outline ws-btn-sm mt-2">{l.retry}</button></div> : loading ? <p role="status" className="ws-muted py-4">{l.loading}</p> : !data?.rows?.length ? <p className="ws-empty">{l.empty}</p> : !visibleRows.length ? <p className="ws-empty">{f.noMatches}</p> : (
+      {error ? <div role="alert" className="ws-notice ws-tone-negative"><p>{l[error]}</p><button type="button" onClick={() => setRetry(n => n + 1)} className="ws-btn ws-btn-outline ws-btn-sm mt-2">{l.retry}</button></div> : loading ? <OperationalLoading title={l.loading} layout="ingredientMovementCards" /> : !data?.rows?.length ? <p className="ws-empty">{l.empty}</p> : !visibleRows.length ? <p className="ws-empty">{f.noMatches}</p> : (
         // One card per ingredient: bought, recipe usage, amount paid and what is left for the period.
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{visibleRows.map(row => {
           const unit = bazaarUnitLabel(row.unit === 'piece' ? 'pcs' : row.unit, lang)

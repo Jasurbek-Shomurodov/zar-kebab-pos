@@ -1,14 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Archive, Download, Loader2, PackagePlus, Plus, RotateCcw, Save, Search, Tag, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Archive, ChevronRight, Download, Loader2, PackagePlus, Plus, RotateCcw, Save, Search, Tag, X } from 'lucide-react'
 import { useIngredientTabs } from '../components/IngredientNavigation'
 import BazaarCategoryPicker from '../components/BazaarCategoryPicker'
 import { startsWithCapitalOrDigit } from '../lib/nameStart'
 import AppShell from '../components/AppShell'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
+import { Shimmer } from '../components/PageShimmer'
+import { getMenuItemOptionGroups } from '../components/MenuProductCards'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
-import { canEditFeature } from '../lib/permissions'
+import { canEditFeature, canViewPage } from '../lib/permissions'
+import { getItemName } from '../lib/i18n'
+import { isActiveMenuItem } from '../lib/menuItems'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { withWriteTimeout } from '../lib/writeTimeout'
@@ -44,6 +49,12 @@ const LIST_COPY = {
   uz: { namePlaceholder: 'Masalan: Kartoshka', pricePlaceholder: 'Masalan: 12 000', nameStartInvalid: 'Nom bosh harf yoki raqam bilan boshlanishi kerak.', ingredient: 'Masalliq', allCategoriesFilter: 'Barcha kategoriyalar', normalPriceShort: 'Odatiy narx', shown: count => `${count} ta ko‘rsatilgan` },
 }
 
+const ARCHIVE_COPY = {
+  en: { archiveTitle: 'Archive ingredient?', archiveUsed: (name, count) => `“${name}” is used in ${count} ${count === 1 ? 'tech card' : 'tech cards'}. Once archived it disappears from the tech card ingredient picker and these recipes show it as missing. Open each tech card and replace it with another ingredient.`, archiveUnused: name => `“${name}” is not used in any tech card. You can restore it later from Archived.`, archiveUsageFailed: 'Could not check which tech cards use this ingredient.', archiveAnyway: 'Archive anyway', usedIn: 'Used in tech cards', baseRecipe: 'Base recipe', openTechCard: 'Open tech card', noTechCardAccess: 'Ask someone with Tech Cards access to replace it.' },
+  ru: { archiveTitle: 'Архивировать ингредиент?', archiveUsed: (name, count) => `«${name}» используется в техкартах: ${count}. После архивации он пропадёт из выбора ингредиентов, а в этих рецептах будет отмечен как отсутствующий. Откройте каждую техкарту и замените его другим ингредиентом.`, archiveUnused: name => `«${name}» не используется ни в одной техкарте. Его можно восстановить позже во вкладке «Архивные».`, archiveUsageFailed: 'Не удалось проверить, в каких техкартах используется ингредиент.', archiveAnyway: 'Всё равно архивировать', usedIn: 'Используется в техкартах', baseRecipe: 'Основной рецепт', openTechCard: 'Открыть техкарту', noTechCardAccess: 'Попросите сотрудника с доступом к техкартам заменить его.' },
+  uz: { archiveTitle: 'Masalliqni arxivlaysizmi?', archiveUsed: (name, count) => `“${name}” ${count} ta texkartada ishlatiladi. Arxivlangach, u texkarta masalliqlari ro‘yxatidan yo‘qoladi va bu retseptlarda yo‘q deb ko‘rsatiladi. Har bir texkartani ochib, uni boshqa masalliq bilan almashtiring.`, archiveUnused: name => `“${name}” hech qaysi texkartada ishlatilmaydi. Keyinroq «Arxiv» bo‘limidan tiklash mumkin.`, archiveUsageFailed: 'Masalliq qaysi texkartalarda ishlatilishini tekshirib bo‘lmadi.', archiveAnyway: 'Baribir arxivlash', usedIn: 'Ishlatilgan texkartalar', baseRecipe: 'Asosiy retsept', openTechCard: 'Texkartani ochish', noTechCardAccess: 'Texkartalarga ruxsati bor xodimdan almashtirishni so‘rang.' },
+}
+
 // One grid for the header and rows keeps the columns aligned.
 
 const INGREDIENT_COLUMNS = 'product_key, product_name, category, unit, normal_unit_price, pieces_per_unit, is_active, is_catalog_managed, last_purchase_date, updated_at'
@@ -65,8 +76,13 @@ export default function BazaarIngredients() {
   const { state } = useApp()
   const { profile } = useAuth()
   const lang = state.lang || 'ru'
-  const l = { ...(COPY[lang] || COPY.en), ...(CATEGORY_COPY[lang] || CATEGORY_COPY.en), ...(LIST_COPY[lang] || LIST_COPY.en) }
+  const l = { ...(COPY[lang] || COPY.en), ...(CATEGORY_COPY[lang] || CATEGORY_COPY.en), ...(LIST_COPY[lang] || LIST_COPY.en), ...(ARCHIVE_COPY[lang] || ARCHIVE_COPY.en) }
   const canManage = canEditFeature(profile || state.user, 'ingredients')
+  const canOpenTechCards = canViewPage(profile || state.user, 'tech_cards')
+  const navigate = useNavigate()
+  // Archive confirmation: { ingredient, status: 'loading' | 'ready' | 'failed', usages: [{ menu_item_id, variant_option_id }] }.
+  const [archiveCheck, setArchiveCheck] = useState(null)
+  const archiveDialogRef = useRef(null)
   const [ingredients, setIngredients] = useState([])
   // The ingredient open in the add/edit popup (no product_key = new); null while closed.
   const [editForm, setEditForm] = useState(null)
@@ -284,7 +300,7 @@ export default function BazaarIngredients() {
   }
 
   async function setIngredientActive(ingredient) {
-    if (!canManage || updatingKey) return
+    if (!canManage || updatingKey) return false
     setUpdatingKey(ingredient.product_key)
     setError('')
     setNotice('')
@@ -311,12 +327,69 @@ export default function BazaarIngredients() {
       if (statusError) throw statusError
       upsertIngredient(savedIngredientRow(savedData))
       setNotice(l.statusUpdated)
+      return true
     } catch (statusError) {
       setError(errorMessage(statusError, l.statusFailed))
+      return false
     } finally {
       setUpdatingKey('')
     }
   }
+
+  // Archiving asks first and lists the Tech Cards that still use the ingredient, so staff can replace it there.
+  async function loadArchiveUsage(ingredient) {
+    setArchiveCheck({ ingredient, status: 'loading', usages: [] })
+    try {
+      const { data, error: usageError } = await supabase.rpc('get_bazaar_ingredient_tech_card_usage', { p_product_key: ingredient.product_key })
+      if (usageError) throw usageError
+      setArchiveCheck(current => current?.ingredient.product_key === ingredient.product_key ? { ingredient, status: 'ready', usages: data || [] } : current)
+    } catch {
+      setArchiveCheck(current => current?.ingredient.product_key === ingredient.product_key ? { ingredient, status: 'failed', usages: [] } : current)
+    }
+  }
+
+  function requestIngredientStatus(ingredient) {
+    if (!canManage || updatingKey) return
+    if (!ingredient.is_active) { setIngredientActive(ingredient); return }
+    setError('')
+    setNotice('')
+    loadArchiveUsage(ingredient)
+  }
+
+  function closeArchiveDialog() {
+    if (updatingKey) return
+    setArchiveCheck(null)
+  }
+
+  async function confirmArchive() {
+    const ingredient = archiveCheck?.ingredient
+    if (!ingredient) return
+    // A failed archive keeps the dialog open with the error and a retry.
+    if (await setIngredientActive(ingredient)) setArchiveCheck(null)
+  }
+
+  const menuItemsById = useMemo(() => new Map(state.menuItems.filter(isActiveMenuItem).map(item => [item.id, item])), [state.menuItems])
+  const archiveUsageRows = useMemo(() => (archiveCheck?.usages || []).flatMap(usage => {
+    const item = menuItemsById.get(usage.menu_item_id)
+    if (!item) return [] // archived products' recipes no longer matter
+    const variantId = usage.variant_option_id || ''
+    const variant = variantId
+      ? getMenuItemOptionGroups(item, lang, { includeUnavailable: true }).flatMap(group => group.options).find(option => option.id === variantId)
+      : null
+    return [{ key: `${item.id}::${variantId}`, menuItemId: item.id, variantId, name: getItemName(item, lang), variantLabel: variant?.label || (variantId ? variantId : l.baseRecipe), image: item.image_url }]
+  }), [archiveCheck, menuItemsById, lang, l.baseRecipe])
+
+  function openTechCard(row) {
+    const params = new URLSearchParams()
+    if (row.variantId) params.set('variant', row.variantId)
+    params.set('ingredient', archiveCheck?.ingredient.product_name || '')
+    navigate(`/admin/tech-cards/${encodeURIComponent(row.menuItemId)}?${params}`)
+  }
+
+  const archiveDialogOpen = !!archiveCheck
+  useEffect(() => {
+    if (archiveDialogOpen) archiveDialogRef.current?.focus()
+  }, [archiveDialogOpen])
 
   const editDialogOpen = !!editForm
   const draftFields = draft => draft && ['product_name', 'category', 'unit', 'normal_unit_price', 'pieces_per_unit']
@@ -375,7 +448,7 @@ export default function BazaarIngredients() {
         <div className="ws-page">
 
           {pdfFailed && <div role="alert" className="ws-notice ws-tone-negative">{l.pdfFailed}</div>}
-          {displayedError && !editDialogOpen && <div role="alert" className="ws-notice ws-tone-negative">{displayedError}</div>}
+          {displayedError && !editDialogOpen && !archiveDialogOpen && <div role="alert" className="ws-notice ws-tone-negative">{displayedError}</div>}
           {notice && !error && <div role="status" className="ws-notice ws-tone-positive">{notice}</div>}
 
           {!canManage && <div className="ws-notice ws-tone-caution">{l.readOnly}</div>}
@@ -386,9 +459,9 @@ export default function BazaarIngredients() {
               <div className="relative min-w-[220px] flex-1 sm:max-w-sm"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={l.search} className={`${INPUT} !pl-9`} /></div>
               <div className="w-[220px] max-w-full"><BazaarCategoryPicker value={categoryFilter} ingredients={ingredients} extraCategories={customCategories} onChange={setCategoryFilter} lang={lang} allLabel={l.allCategoriesFilter} /></div>
               {!loading && <span className="ws-caption tabular-nums">{l.shown(filtered.length)}</span>}
-              <div className="ws-segmented sm:ml-auto" role="group" aria-label={l.status}>{['active', 'archived', 'all'].map(key => <button key={key} type="button" aria-pressed={status === key} onClick={() => setStatus(key)}>{l[key]}<span className="ml-1.5 tabular-nums text-[#68655f]">{statusCounts[key]}</span></button>)}</div>
+              <div className="ws-segmented sm:ml-auto" role="group" aria-label={l.status}>{['active', 'archived', 'all'].map(key => <button key={key} type="button" aria-pressed={status === key} onClick={() => setStatus(key)}>{l[key]}{!loading && <span className="ml-1.5 tabular-nums text-[#68655f]">{statusCounts[key]}</span>}</button>)}</div>
             </div>
-            {loading ? <OperationalLoading title={l.title} description="" /> : displayedError && ingredients.length === 0 ? <OperationalError title={l.loadFailed} description={displayedError} actionLabel={l.retry} onAction={loadIngredients} /> : filtered.length === 0 ? <div className="ws-empty"><PackagePlus /><p>{l.empty}</p></div> : (
+            {loading ? <OperationalLoading title={l.title} layout="ingredientCards" /> : displayedError && ingredients.length === 0 ? <OperationalError title={l.loadFailed} description={displayedError} actionLabel={l.retry} onAction={loadIngredients} /> : filtered.length === 0 ? <div className="ws-empty"><PackagePlus /><p>{l.empty}</p></div> : (
               // Card grid: names, category and price read at a glance without stretching across the page.
               <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 2xl:grid-cols-4">
                 {filtered.map(ingredient => (
@@ -417,7 +490,7 @@ export default function BazaarIngredients() {
                       <button
                         type="button"
                         disabled={updatingKey === ingredient.product_key}
-                        onClick={event => { event.stopPropagation(); setIngredientActive(ingredient) }}
+                        onClick={event => { event.stopPropagation(); requestIngredientStatus(ingredient) }}
                         aria-label={`${ingredient.is_active ? l.archive : l.restore}: ${ingredient.product_name}`}
                         title={ingredient.is_active ? l.archive : l.restore}
                         className={`ws-btn ws-btn-sm ws-btn-icon -mr-1.5 -mt-1.5 flex-shrink-0 ${ingredient.is_active ? 'ws-btn-ghost ws-btn-danger' : 'ws-btn-outline'}`}
@@ -473,6 +546,89 @@ export default function BazaarIngredients() {
               <button type="submit" disabled={saving || !editDirty || !startsWithCapitalOrDigit(editForm.product_name)} className="ws-btn ws-btn-primary disabled:cursor-not-allowed disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{saving ? l.saving : l.save}</button>
             </div>
           </form>
+        </div>
+      )}
+      {canManage && archiveCheck && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+          <button
+            type="button"
+            aria-label={l.cancel}
+            onClick={closeArchiveDialog}
+            disabled={!!updatingKey}
+            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm disabled:cursor-wait"
+          />
+          <div
+            ref={archiveDialogRef}
+            tabIndex={-1}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="archive-ingredient-title"
+            aria-describedby="archive-ingredient-description"
+            aria-busy={archiveCheck.status === 'loading' || !!updatingKey}
+            onKeyDown={event => { if (event.key === 'Escape') closeArchiveDialog() }}
+            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6 focus:outline-none"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h2 id="archive-ingredient-title" className="ws-display !text-[24px]">{l.archiveTitle}</h2>
+              <button type="button" onClick={closeArchiveDialog} disabled={!!updatingKey} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
+            </div>
+            <div id="archive-ingredient-description">
+              {archiveCheck.status === 'loading' ? (
+                <div role="status" aria-label={l.usedIn} className="space-y-2">
+                  <Shimmer className="h-12 w-full rounded-[10px]" />
+                  {[0, 1, 2].map(index => (
+                    <div key={index} className="flex items-center gap-3 rounded-[10px] border border-[#e4e1de] p-2.5">
+                      <Shimmer className="h-10 w-10 flex-shrink-0 rounded-lg" />
+                      <div className="flex-1 space-y-2"><Shimmer className="h-3 w-1/2" /><Shimmer className="h-2.5 w-1/3" /></div>
+                    </div>
+                  ))}
+                </div>
+              ) : archiveCheck.status === 'failed' ? (
+                <div role="alert" className="ws-notice ws-tone-negative">
+                  <p>{l.archiveUsageFailed}</p>
+                  <button type="button" onClick={() => loadArchiveUsage(archiveCheck.ingredient)} className="ws-btn ws-btn-outline ws-btn-sm mt-2"><RotateCcw size={14} />{l.retry}</button>
+                </div>
+              ) : archiveUsageRows.length ? (
+                <>
+                  <p className="ws-notice ws-tone-caution">{l.archiveUsed(archiveCheck.ingredient.product_name, archiveUsageRows.length)}{!canOpenTechCards && <> {l.noTechCardAccess}</>}</p>
+                  <p className="ws-caption mb-2 mt-4 flex items-center gap-1.5 font-medium">{l.usedIn} <span className="ws-count">{archiveUsageRows.length}</span></p>
+                  <ul className="max-h-72 space-y-1.5 overflow-y-auto">
+                    {archiveUsageRows.map(row => {
+                      const content = (
+                        <>
+                          <span className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-[#efece9]">{row.image && <img src={row.image} alt="" className="h-full w-full object-cover" loading="lazy" />}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-[#22201d]">{row.name}</span>
+                            <span className="ws-caption block truncate">{row.variantLabel}</span>
+                          </span>
+                          {canOpenTechCards && <ChevronRight size={16} className="flex-shrink-0 text-[#68655f] transition-transform group-hover:translate-x-0.5 group-hover:text-[#ff5a00]" />}
+                        </>
+                      )
+                      return (
+                        <li key={row.key}>
+                          {canOpenTechCards ? (
+                            <button type="button" onClick={() => openTechCard(row)} aria-label={`${l.openTechCard}: ${row.name} · ${row.variantLabel}`} className="group flex w-full items-center gap-3 rounded-[10px] border border-[#e4e1de] p-2.5 text-left transition-colors hover:bg-[#f6f5f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40">{content}</button>
+                          ) : (
+                            <div className="flex items-center gap-3 rounded-[10px] border border-[#e4e1de] p-2.5">{content}</div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </>
+              ) : (
+                <p className="ws-muted">{l.archiveUnused(archiveCheck.ingredient.product_name)}</p>
+              )}
+            </div>
+            {displayedError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{displayedError}</p>}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={closeArchiveDialog} disabled={!!updatingKey} className="ws-btn ws-btn-outline">{l.cancel}</button>
+              <button type="button" onClick={confirmArchive} disabled={archiveCheck.status === 'loading' || !!updatingKey} className="ws-btn ws-btn-danger-solid disabled:cursor-not-allowed disabled:opacity-50">
+                {updatingKey ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                {archiveUsageRows.length || archiveCheck.status === 'failed' ? l.archiveAnyway : l.archive}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {canManage && categoryPanelOpen && (
