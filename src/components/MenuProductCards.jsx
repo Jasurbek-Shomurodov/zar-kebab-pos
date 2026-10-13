@@ -7,6 +7,7 @@ import { getMenuOptionPricing, getSelectedMenuBasePrice } from '../lib/menuPrici
 import { getMenuItemPublicUrl } from '../lib/menuLinks'
 import { getMenuItemMediaUrls, isMenuVideoUrl } from '../lib/menuMedia'
 import { menuPrepTimeLabel } from '../lib/menuPrepTime'
+import { menuTimeWindowLabel } from '../lib/menuItems'
 import { calculateUnitPrice, normalizePriceMode } from '../lib/priceModes'
 import {
   changeMenuQuantity,
@@ -566,6 +567,7 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
   const [copied, setCopied] = useState(false)
   const pricing = getMenuOptionPricing(item, getMenuItemOptionGroups(item, lang, { audience: 'public' }))
   const name = getItemName(item, lang)
+  const scheduleLabel = menuTimeWindowLabel(item, lang)
   const copyLabel = copied
     ? (lang === 'uz' ? 'Nusxalandi' : lang === 'ru' ? 'Скопировано' : 'Copied')
     : (lang === 'uz' ? 'Havolani nusxalash' : lang === 'ru' ? 'Скопировать ссылку' : 'Copy link')
@@ -597,6 +599,11 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
           {copied ? <Check size={15} /> : <Copy size={14} />}
         </button>
       </LuxDishPhoto>
+      {scheduleLabel && (
+        <p className="lux-gold flex items-center gap-1 px-1.5 pt-2 text-[11px] font-medium tabular-nums sm:px-2">
+          <Clock3 size={11} /> {scheduleLabel}
+        </p>
+      )}
       <LuxPriceRow item={item} lang={lang} pricing={pricing} formatPrice={formatPrice} />
     </article>
   )

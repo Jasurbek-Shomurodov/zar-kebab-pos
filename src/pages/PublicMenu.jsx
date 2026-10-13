@@ -15,7 +15,7 @@ import {
   normalizeMenuCurrency,
   saveMenuCurrency,
 } from '../lib/menuCurrency'
-import { isCustomerMenuCategory, isCustomerMenuItem, isTouristHiddenMenuCategory } from '../lib/menuItems'
+import { isPublicMenuCategory, isPublicMenuItem, isTouristHiddenMenuCategory, menuTimeWindowLabel } from '../lib/menuItems'
 import { useApp } from '../store/AppContext'
 import { findMenuItemByLinkKey, getMenuItemPublicPath } from '../lib/menuLinks'
 import { getMenuItemForPriceMode } from '../lib/priceModes'
@@ -319,7 +319,7 @@ function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenV
   )
 }
 
-function MenuSectionHeader({ title, tone = 'default' }) {
+function MenuSectionHeader({ title, subtitle = '', tone = 'default' }) {
   const titleClass = tone === 'deal' ? 'text-[#ff5a00]' : 'lux-title'
 
   return (
@@ -328,6 +328,9 @@ function MenuSectionHeader({ title, tone = 'default' }) {
         {title}
       </h2>
       <span aria-hidden="true" className="mt-3 h-px w-14 bg-[#C9A86A] sm:mt-4 sm:w-20" />
+      {subtitle && (
+        <p className="lux-gold mt-3 text-[12px] font-medium uppercase tracking-[0.2em] tabular-nums">{subtitle}</p>
+      )}
     </div>
   )
 }
@@ -547,15 +550,15 @@ function MobileSearchPage({
   )
 }
 
-async function loadPublicMenuData(now = new Date()) {
+async function loadPublicMenuData() {
   const rpcRes = await supabase.rpc('get_public_menu_data')
 
   if (!rpcRes.error && rpcRes.data) {
-    const categories = (rpcRes.data.categories || []).filter(category => isCustomerMenuCategory(category, now))
+    const categories = (rpcRes.data.categories || []).filter(isPublicMenuCategory)
     const categoryIds = new Set(categories.map(category => category.id))
     return {
       categories,
-      items: (rpcRes.data.items || []).filter(item => isCustomerMenuItem(item, now) && (!item.category_id || categoryIds.has(item.category_id))),
+      items: (rpcRes.data.items || []).filter(item => isPublicMenuItem(item) && (!item.category_id || categoryIds.has(item.category_id))),
       source: 'rpc',
     }
   }
@@ -570,11 +573,11 @@ async function loadPublicMenuData(now = new Date()) {
     throw catRes.error || itemRes.error
   }
 
-  const categories = (catRes.data || []).filter(category => isCustomerMenuCategory(category, now))
+  const categories = (catRes.data || []).filter(isPublicMenuCategory)
   const categoryIds = new Set(categories.map(category => category.id))
   return {
     categories,
-    items: (itemRes.data || []).filter(item => isCustomerMenuItem(item, now) && (!item.category_id || categoryIds.has(item.category_id))),
+    items: (itemRes.data || []).filter(item => isPublicMenuItem(item) && (!item.category_id || categoryIds.has(item.category_id))),
     source: 'direct',
     rpcError: rpcRes.error,
   }
@@ -601,7 +604,6 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   const [premiumLang, setPremiumLang] = useState('en')
   const [menuCurrency, setMenuCurrency] = useState(() => premium ? 'USD' : getDefaultMenuCurrency())
   const [currencyRates, setCurrencyRates] = useState({ UZS: 1 })
-  const [visibilityNow, setVisibilityNow] = useState(() => new Date())
   const [priceSettings, setPriceSettings] = useState({ touristMenuEnabled: true, publicTouristPrices: false })
   const menuBasePath = premium ? '/premium-menu' : corporateSets ? '/corporate-sets' : '/menu'
   const lang = premium ? premiumLang : appLang
@@ -656,11 +658,9 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
     if (showLoading) setLoading(true)
     setError('')
     try {
-      const now = new Date()
       // Price switches load with the menu so guests never see one price flip to another.
-      const [data, nextPriceSettings] = await Promise.all([loadPublicMenuData(now), loadPublicMenuPriceSettings()])
+      const [data, nextPriceSettings] = await Promise.all([loadPublicMenuData(), loadPublicMenuPriceSettings()])
       if (menuLoadSeqRef.current !== seq) return
-      setVisibilityNow(now)
       setPriceSettings(nextPriceSettings)
       if (data.source === 'direct' && data.categories.length === 0 && data.items.length === 0 && data.rpcError) {
         throw new Error('Public menu SQL has not been applied yet. Run migrations/009_guest_public_menu.sql.')
@@ -859,7 +859,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
         id={menuCategorySectionId('public-menu-category', section.cat.id)}
         className="scroll-mt-32"
       >
-        <MenuSectionHeader title={getCategoryName(section.cat, lang)} />
+        <MenuSectionHeader title={getCategoryName(section.cat, lang)} subtitle={menuTimeWindowLabel(section.cat, lang)} />
         <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-6 sm:gap-y-11 md:grid-cols-3 xl:grid-cols-4">
           {section.items.map((item, index) => (
             <PublicDishCard

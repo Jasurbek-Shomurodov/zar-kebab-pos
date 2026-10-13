@@ -8,6 +8,9 @@ import {
   isCashierQuickItem,
   isCustomerMenuCategory,
   isCustomerMenuItem,
+  isPublicMenuCategory,
+  isPublicMenuItem,
+  menuTimeWindowLabel,
   isDeletedMenuCategory,
   isDeletedMenuItem,
   isHiddenMenuCategory,
@@ -143,4 +146,17 @@ test('selected staff can see a waiter category outside its schedule without expo
   assert.equal(isCustomerMenuCategory(businessLunch, afterLunch), false)
   assert.equal(isWaiterMenuCategory({ ...businessLunch, waiter_hidden: true }, afterLunch, 'game-club-user'), false)
   assert.equal(isWaiterMenuCategory({ ...businessLunch, deleted_at: '2026-07-10T12:00:00Z' }, afterLunch, 'game-club-user'), false)
+})
+
+test('public menus list scheduled categories and items all day with their time window', () => {
+  const breakfast = { visible_from_time: '08:00:00', visible_until_time: '12:31:00' }
+  assert.equal(isPublicMenuCategory(breakfast), true)
+  assert.equal(isPublicMenuItem(breakfast), true)
+  assert.equal(isPublicMenuCategory({ ...breakfast, hidden: true }), false)
+  assert.equal(isPublicMenuCategory({ ...breakfast, deleted_at: '2026-07-10T12:00:00Z' }), false)
+  assert.equal(isPublicMenuItem({ ...breakfast, public_hidden: true }), false)
+  assert.equal(isPublicMenuItem({ ...breakfast, cashier_only: true }), false)
+  assert.equal(menuTimeWindowLabel(breakfast, 'en'), 'Available 08:00–12:31')
+  assert.equal(menuTimeWindowLabel(breakfast, 'ru'), 'Доступно: 08:00–12:31')
+  assert.equal(menuTimeWindowLabel({}, 'en'), '')
 })

@@ -4,7 +4,7 @@
 
 - Pages: `src/pages/AdminMenu.jsx`, `src/pages/TechCards.jsx`, `src/pages/PublicMenu.jsx`, `src/pages/TelegramMiniApp.jsx`
 - Helpers: `src/lib/menuItems.js`, `src/lib/menuPricing.js`, `src/lib/menuMedia.js`, `src/lib/menuItemCosts.js`, `src/lib/techCards.js`
-- Database: `src/lib/db.js`, migrations `139`, `149`–`151`, `154`–`156`, and `223`
+- Database: `src/lib/db.js`, migrations `139`, `149`–`151`, `154`–`156`, `223`, `241`
 - Focused tests: `tests/menuItems.test.js`, `tests/menuArchiveSafety.test.js`, `tests/menuStock.test.js`, `tests/menuMedia.test.js`, `tests/techCards.test.js`, `tests/techCardsFeature.test.js`, `tests/sourceGuards.menu.test.js`, `tests/sourceGuards.public-menu.test.js`, `tests/menuNameValidation.test.js`
 - Product/category names (uz/ru/en) must start with a capital or digit; Admin Menu blocks saving otherwise (`src/lib/menuItemText.js`). Admin Menu cards use `LuxMenuCard` (`MenuProductCards.jsx`).
 
@@ -16,9 +16,10 @@
 - `public_hidden` is owner-controlled. Non-owner saves preserve it; new products default visible.
 - Manage Menu may create unavailable products and change availability (DB-enforced).
 - `cashier_only`, schedules, category visibility, option visibility, and `deleted_at` are separate controls.
+- Schedules gate waiter ordering only; public/Telegram list scheduled rows all day with a time label (`isPublicMenu*`, `241`).
 - `deleted_at` is the archive boundary. Archived products/categories never reappear because of availability behavior.
 - Archive/restore requires Manage Menu (any role; `223`). Telegram says archived, not deleted.
-- `stock_count` is shelf inventory; never visibility or orderability.
+- `stock_count` is shelf inventory, never visibility/orderability.
 
 ## Product costs and history
 
@@ -28,28 +29,28 @@
 - `order_items.cost_price` is a sale-time snapshot. Reporting never falls back to today's cost for missing history.
 - Price/cost edits affect future order items only; never rewrite paid revenue, profit, reports, or saved costs.
 - Catalog deletion is archival; physical catalog deletion is rejected to preserve reports.
-- Margin `(price - cost) / price` is a live preview.
+- Margin `(price - cost) / price`: live preview.
 
 ## Availability notifications
 
 - Availability changes, creation, and archival queue immutable Russian Team events with product/staff snapshots.
-- Ordinary edits/restoration send nothing; archival does not change `available`. Product saves and quick toggles share the database event.
+- Ordinary edits/restoration send nothing; archival keeps `available`. Saves and quick toggles share the DB event.
 - The daily 08:00 Tashkent snapshot lists unavailable active products by Russian category or confirms all are available. See `telegram.md`.
 
 ## Inventory
 
 - Payment deducts non-cancelled piece quantities exactly once in the atomic unpaid-to-paid transition.
 - Parent and selected-variant stock clamp at zero; `orders.stock_deducted_at` prevents retry/correction double deduction.
-- Weight-based inventory uses its decimal stock model, not piece assumptions.
-- Historical paid orders never trigger new deductions.
+- Weight-based inventory uses decimal stock, not piece assumptions.
+- Old paid orders never deduct again.
 
 ## Media and text
 
 - `media_urls[0]` is the cover and stays synchronized with `image_url`.
-- Gallery: images, GIF, MP4, WebM. New products need a still image (`222`). Cards/Telegram use the cover; details show the gallery.
-- Delete old R2 media after save; clean temp uploads on cancel/removal.
+- Gallery: images, GIF, MP4, WebM; new products need a still image (`222`). Cards use the cover; details the gallery.
+- Delete old R2 media after save; clean temp uploads on cancel.
 - Upload errors render inside `ImageUploadField`, not `SortableItemCard`.
-- Trim localized text at editor/write/display/database boundaries; preserve internal spaces and description line breaks.
+- Trim localized text at editor/write/display/DB boundaries; keep internal spaces and line breaks.
 - `estimated_prep_minutes`: current-catalog estimate, 1–180 (default 15), not a historical order promise.
 - Manage Menu Archive buttons use a retryable in-app dialog.
 - Archive tab: Restore clears `deleted_at`; items restore after their category; restored categories stay hidden.
@@ -69,8 +70,8 @@
 - Variant cost uses protected variant cost, falling back to protected parent cost. Changing parent selection clears stale options.
 - `order_items.tech_card_component_snapshot` freezes chosen options. Payment deducts whole piece components once. Fractional components contribute proportional cost, never rounded integer stock movements.
 - New orders freeze direct/nested ingredient quantities, units and prices in service-only `order_item_tech_card_ingredient_snapshots`; daily consumption uses paid, non-cancelled quantities. Never expose or backfill them.
-- Repeated parents only for distinct variants.
+- Repeat parents only for distinct variants.
 - Migration `186`: `/admin/ingredients` has Team access and movement totals; see the reporting guide. New ingredient snapshots use unambiguous canonical keys.
-- PDF export: `src/components/TechCardPdfDownload.jsx`; `tests/techCardPdfData.test.js`.
+- PDF: `TechCardPdfDownload.jsx`; `tests/techCardPdfData.test.js`.
 - `205`: Take Away/Delivery/Game Club schedule overrides (`always_visible_*`); seeds Game Club lunch. Other visibility rules remain. Test: `tests/gameClubCategorySchedule.test.js`.
-- Prune stale selections after staff load; translate errors on render. Test: `tests/categoryScheduleAccess.test.js`.
+- Prune stale selections after staff load; translate errors on render (`tests/categoryScheduleAccess.test.js`).

@@ -48,7 +48,7 @@ test('switched-off Tourist menu opens tables as Regular and redirects the premiu
   assert.match(source('src/components/GuestModeUI.jsx'), /touristMenuEnabled \|\| priceModeLocked \|\| choice\.value !== PRICE_MODE_TOURIST/)
   assert.match(source('src/pages/WaiterOrder.jsx'), /state\.settings\?\.touristMenuEnabled === false\s*\? DEFAULT_PRICE_MODE/)
   const publicMenu = source('src/pages/PublicMenu.jsx')
-  assert.match(publicMenu, /Promise\.all\(\[loadPublicMenuData\(now\), loadPublicMenuPriceSettings\(\)\]\)/)
+  assert.match(publicMenu, /Promise\.all\(\[loadPublicMenuData\(\), loadPublicMenuPriceSettings\(\)\]\)/)
   assert.match(publicMenu, /if \(!premium \|\| priceSettings\.touristMenuEnabled\) return\s*navigate\(itemId \? `\/menu\/item\//)
   assert.match(publicMenu, /premium \|\| priceSettings\.publicTouristPrices\s*\? visibleItems\.map\(item => getMenuItemForPriceMode\(item, 'tourist'\)\)/)
 })

@@ -2375,14 +2375,17 @@ export default function AdminMenu() {
     const oldIndex = rows.findIndex(row => row.id === activeIdValue)
     const newIndex = rows.findIndex(row => row.id === overIdValue)
     if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return []
-    const sortSlots = rows.map((row, index) => {
-      const value = Number(getOrder(row))
-      return Number.isFinite(value) ? value : index + 1
-    })
-    return arrayMove(rows, oldIndex, newIndex).map((row, index) => ({
-      id: row.id,
-      [sortKey]: sortSlots[index],
-    }))
+    const existingSlots = rows.map(row => Number(getOrder(row)))
+    // Reuse the existing slots only when they are strictly increasing; duplicate or
+    // missing values would turn a move into a no-op swap, so renumber 1..n instead.
+    const slotsUsable = existingSlots.every((value, index) => (
+      Number.isFinite(value) && (index === 0 || value > existingSlots[index - 1])
+    ))
+    const sortSlots = slotsUsable ? existingSlots : rows.map((_, index) => index + 1)
+    return arrayMove(rows, oldIndex, newIndex)
+      .map((row, index) => ({ row, slot: sortSlots[index] }))
+      .filter(({ row, slot }) => Number(getOrder(row)) !== slot)
+      .map(({ row, slot }) => ({ id: row.id, [sortKey]: slot }))
   }
 
   function handleItemDragEnd(event) {

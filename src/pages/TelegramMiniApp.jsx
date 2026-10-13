@@ -10,7 +10,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { isCustomerMenuCategory, isCustomerMenuItem } from '../lib/menuItems'
+import { formatMenuTimeWindow, isPublicMenuCategory, isPublicMenuItem } from '../lib/menuItems'
 import { formatCurrency } from '../lib/formatCurrency'
 import { getCategoryName, getItemDesc, getItemName } from '../lib/i18n'
 import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
@@ -25,14 +25,14 @@ import {
   telegramApi,
 } from '../lib/telegramWebApp'
 
-async function loadTelegramMenuData(now = new Date()) {
+async function loadTelegramMenuData() {
   const rpcRes = await supabase.rpc('get_public_menu_data')
   if (!rpcRes.error && rpcRes.data) {
-    const categories = (rpcRes.data.categories || []).filter(category => isCustomerMenuCategory(category, now))
+    const categories = (rpcRes.data.categories || []).filter(isPublicMenuCategory)
     const categoryIds = new Set(categories.map(category => category.id))
     return {
       categories,
-      items: (rpcRes.data.items || []).filter(item => isCustomerMenuItem(item, now) && (!item.category_id || categoryIds.has(item.category_id))),
+      items: (rpcRes.data.items || []).filter(item => isPublicMenuItem(item) && (!item.category_id || categoryIds.has(item.category_id))),
     }
   }
 
@@ -41,11 +41,11 @@ async function loadTelegramMenuData(now = new Date()) {
     supabase.from('menu_items').select('*').order('sort_order'),
   ])
   if (catRes.error || itemRes.error) throw catRes.error || itemRes.error
-  const categories = (catRes.data || []).filter(category => isCustomerMenuCategory(category, now))
+  const categories = (catRes.data || []).filter(isPublicMenuCategory)
   const categoryIds = new Set(categories.map(category => category.id))
   return {
     categories,
-    items: (itemRes.data || []).filter(item => isCustomerMenuItem(item, now) && (!item.category_id || categoryIds.has(item.category_id))),
+    items: (itemRes.data || []).filter(item => isPublicMenuItem(item) && (!item.category_id || categoryIds.has(item.category_id))),
   }
 }
 
@@ -242,6 +242,9 @@ function MenuView({ categories, items, lang }) {
                 }`}
               >
                 {category.id === 'all' ? l.all : getCategoryName(category, lang)}
+                {formatMenuTimeWindow(category) && (
+                  <span className="ml-1.5 text-[11px] font-bold tabular-nums opacity-70">{formatMenuTimeWindow(category)}</span>
+                )}
               </button>
             ))}
           </div>
@@ -310,7 +313,7 @@ export default function TelegramMiniApp() {
     let cancelled = false
     let refreshInterval = 0
     async function refreshMenu() {
-      const menu = await loadTelegramMenuData(new Date())
+      const menu = await loadTelegramMenuData()
       if (!cancelled) {
         setCategories(menu.categories)
         setItems(menu.items)

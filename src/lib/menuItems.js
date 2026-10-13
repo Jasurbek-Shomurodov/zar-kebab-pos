@@ -55,6 +55,29 @@ export function isWithinMenuTimeWindow(entity, date = new Date()) {
   return now >= start || now < end
 }
 
+function formatMenuTime(value) {
+  const minutes = parseMenuTime(value)
+  if (minutes == null) return ''
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+}
+
+// Public-facing schedule label, e.g. "11:00–15:00". Empty when unscheduled.
+export function formatMenuTimeWindow(entity) {
+  const start = formatMenuTime(getScheduleStart(entity))
+  const end = formatMenuTime(getScheduleEnd(entity))
+  if (!start && !end) return ''
+  if (start && end) return start === end ? '' : `${start}–${end}`
+  return start ? `${start}+` : `–${end}`
+}
+
+export function menuTimeWindowLabel(entity, lang = 'en') {
+  const range = formatMenuTimeWindow(entity)
+  if (!range) return ''
+  if (lang === 'uz') return `Mavjud: ${range}`
+  if (lang === 'ru') return `Доступно: ${range}`
+  return `Available ${range}`
+}
+
 export function isHiddenMenuCategory(category) {
   return !!(category?.hidden || category?.is_hidden || category?.isHidden)
 }
@@ -102,6 +125,12 @@ export function isCustomerMenuCategory(category, date = new Date()) {
     isWithinMenuTimeWindow(category, date)
 }
 
+// The public and Telegram menus are display-only: a scheduled category stays
+// listed all day and shows its time window instead of disappearing.
+export function isPublicMenuCategory(category) {
+  return isActiveMenuCategory(category) && !isHiddenMenuCategory(category)
+}
+
 export function isWaiterMenuCategory(category, date = new Date(), profileId = '', orderType = '') {
   return isActiveMenuCategory(category) &&
     !isWaiterHiddenMenuCategory(category) &&
@@ -131,6 +160,12 @@ export function isCustomerMenuItem(item, date = new Date()) {
     !isCashierOnlyItem(item) &&
     !isPublicHiddenMenuItem(item) &&
     isWithinMenuTimeWindow(item, date)
+}
+
+export function isPublicMenuItem(item) {
+  return isActiveMenuItem(item) &&
+    !isCashierOnlyItem(item) &&
+    !isPublicHiddenMenuItem(item)
 }
 
 export function isWaiterMenuItem(item, date = new Date()) {

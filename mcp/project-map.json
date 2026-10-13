@@ -174,7 +174,7 @@
     {
       "name": "menu-media-inventory",
       "keywords": ["dish", "category", "variant", "price", "currency", "image", "video", "nutrition", "stock", "availability", "archive", "delete", "owner", "permission"],
-      "files": ["src/pages/AdminMenu.jsx", "src/pages/PublicMenu.jsx", "src/lib/menuLinks.js", "src/pages/TelegramMiniApp.jsx", "src/components/MenuProductCards.jsx", "src/lib/menuItems.js", "src/lib/menuPricing.js", "src/lib/menuMedia.js", "src/lib/permissions.js", "src/lib/db.js", "src/store/menuReducer.js", "api/menu-image/upload.js", "migrations/167_owner_only_menu_catalog_archival.sql", "migrations/223_manage_menu_catalog_archival.sql"],
+      "files": ["src/pages/AdminMenu.jsx", "src/pages/PublicMenu.jsx", "src/lib/menuLinks.js", "src/pages/TelegramMiniApp.jsx", "src/components/MenuProductCards.jsx", "src/lib/menuItems.js", "src/lib/menuPricing.js", "src/lib/menuMedia.js", "src/lib/permissions.js", "src/lib/db.js", "src/store/menuReducer.js", "api/menu-image/upload.js", "migrations/167_owner_only_menu_catalog_archival.sql", "migrations/223_manage_menu_catalog_archival.sql", "migrations/241_public_menu_ignores_schedules.sql"],
       "tests": ["tests/categoryScheduleAccess.test.js", "tests/menuItems.test.js", "tests/menuArchiveSafety.test.js", "tests/menuMedia.test.js", "tests/menuItemImageRequired.test.js", "tests/menuPricing.test.js", "tests/menuStock.test.js", "tests/nutrition.test.js", "tests/permissions.test.js", "tests/sourceGuards.menu.test.js", "tests/sourceGuards.public-menu.test.js"]
     },
     {
