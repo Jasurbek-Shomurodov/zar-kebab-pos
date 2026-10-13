@@ -114,7 +114,7 @@ const L = {
     flowTitle: 'Pul oqimi',
     flowSub: 'Har bir manbadan kelgan pul qaysi xarajatlarga ketgani',
     intervalDecade: '10 kun', trendTable: 'Jadval', trendPeriod: 'Davr', trendDays: 'Kun', avgPerDay: 'O‘rtacha kunlik', avgChange: 'Kunlik o‘zgarish', growth: 'O‘sish', orders: 'Buyurtmalar', avgCheck: 'O‘rtacha chek', breakEven: 'Zararsizlik nuqtasi', salesMargin: 'Savdo marjasi', costOfSold: 'Sotilgan mahsulot tannarxi', grossProfit: 'Yalpi foyda', largestTitle: 'Eng katta to‘lovlar', largestSub: 'Davrdagi eng yirik xarajatlar (maosh va xodimlar ovqatisiz). Tarixni ochish uchun bosing.', date: 'Sana', category: 'Kategoriya', details: 'Tafsilot',
-    growthTitle: 'O‘sish', growthSub: 'So‘nggi 12 oy — investorlar uchun bir qarashda', avgSalesPerDay: 'Kunlik o‘rtacha savdo', vsMonth: '{month} bilan solishtirganda', threeMonthGrowth: '3 oylik o‘sish', monthlyGrowth: 'Oylik o‘rtacha o‘sish', perMonth: 'oyiga', overMonths: '{n} oy davomida, kunlik o‘rtacha savdo bo‘yicha', ordersPerDay: 'Kunlik buyurtmalar', monthlyChartTitle: 'Oylar bo‘yicha kunlik savdo', monthlyChartSub: 'Har oyning kunlik o‘rtacha savdosi va zararsizlik nuqtasi. Joriy oy och rangda.', belowBreakEven: 'Zararsizlikdan past', recordsTitle: 'Rekordlar', recordsSub: 'Tugagan oylar va so‘nggi 10 kunliklar ichida', bestMonth: 'Eng yaxshi oy', bestTenDay: 'Eng yaxshi 10 kun', ofRecord: 'rekordning {pct}', newRecord: 'Yangi rekord', paybackTitle: 'Investitsiya qaytimi', paybackSub: 'Ochilgandan beri investor yordami va kafe ishlab topgan pul', invested: 'Kiritilgan', generated: 'Ishlab topilgan', paidBack: 'qaytdi', pace: 'Oylik sur’at', monthsLeft: 'Joriy sur’atda taxminan {n} oy qoldi', paidOff: 'To‘liq qaytdi', noPace: 'So‘nggi oylarda foyda yo‘q, muddatni hisoblab bo‘lmaydi', noInvestment: 'Investor yordami yozilmagan', profitTitle: 'Oylar bo‘yicha foyda', profitSub: 'Kirim (investor yordamisiz) va barcha xarajatlar', unitTitle: 'Mijozlar va chek', unitSub: 'O‘sish ko‘proq mijozdanmi yoki kattaroq chekdan', grossMargin: 'Yalpi marja', migrationNeeded: 'Bu karta uchun migrations/229_accounting_monthly_cashflow.sql ni qo‘llang.', growthFailed: 'O‘sish ma’lumotlarini yuklab bo‘lmadi.',
+    growthTitle: 'O‘sish', growthSub: 'So‘nggi 12 oy — investorlar uchun bir qarashda', avgSalesPerDay: 'Kunlik o‘rtacha savdo', vsMonth: '{month} bilan solishtirganda', threeMonthGrowth: '3 oylik o‘sish', monthlyGrowth: 'Oylik o‘rtacha o‘sish', perMonth: 'oyiga', overMonths: '{n} oy davomida, kunlik o‘rtacha savdo bo‘yicha', ordersPerDay: 'Kunlik buyurtmalar', recordsTitle: 'Rekordlar', recordsSub: 'Tugagan oylar va so‘nggi 10 kunliklar ichida', bestMonth: 'Eng yaxshi oy', bestTenDay: 'Eng yaxshi 10 kun', ofRecord: 'rekordning {pct}', newRecord: 'Yangi rekord', paybackTitle: 'Investitsiya qaytimi', paybackSub: 'Ochilgandan beri investor yordami va kafe ishlab topgan pul', invested: 'Kiritilgan', generated: 'Ishlab topilgan', paidBack: 'qaytdi', pace: 'Oylik sur’at', monthsLeft: 'Joriy sur’atda taxminan {n} oy qoldi', paidOff: 'To‘liq qaytdi', noPace: 'So‘nggi oylarda foyda yo‘q, muddatni hisoblab bo‘lmaydi', noInvestment: 'Investor yordami yozilmagan', profitTitle: 'Oylar bo‘yicha foyda', profitSub: 'Kirim (investor yordamisiz) va barcha xarajatlar', unitTitle: 'Mijozlar va chek', unitSub: 'O‘sish ko‘proq mijozdanmi yoki kattaroq chekdan', grossMargin: 'Yalpi marja', migrationNeeded: 'Bu karta uchun migrations/229_accounting_monthly_cashflow.sql ni qo‘llang.', growthFailed: 'O‘sish ma’lumotlarini yuklab bo‘lmadi.',
     flowBreakdown: 'Tarkib', flowTrends: 'Dinamika', flowSankey: 'Oqim', flowPnl: 'Foyda va zarar', pnlCategories: 'Kategoriyalar', pnlGroups: 'Guruhlar', pnlBoth: 'Ikkalasi', intervalDay: 'Kun', intervalWeek: 'Hafta', intervalMonth: 'Oy', trendTotals: 'Kirim va chiqim', trendGroups: 'Xarajat guruhlari', lineItem: 'Modda', amount: 'Summa', totalIncome: 'Jami kirim', totalExpenses: 'Jami xarajat', trendsFailed: 'Dinamikani yuklab bo‘lmadi.', retry: 'Qayta urinish', chartType: 'Diagramma turi', flowView: 'Ko‘rinish', interval: 'Oraliq', openHistory: 'Tarixni ochish', showSection: 'Ko‘rsatish', hideSection: 'Yashirish',
     hub: 'Jami kirim',
     cafe: 'Kafe daromadi',
@@ -187,7 +187,7 @@ const L = {
     flowTitle: 'Денежный поток',
     flowSub: 'Куда ушли деньги из каждого источника',
     intervalDecade: '10 дней', trendTable: 'Таблица', trendPeriod: 'Период', trendDays: 'Дни', avgPerDay: 'Ср. за день', avgChange: 'Изм. за день', growth: 'Рост', orders: 'Заказы', avgCheck: 'Средний чек', breakEven: 'Точка безубыточности', salesMargin: 'Маржа продаж', costOfSold: 'Себестоимость проданного', grossProfit: 'Валовая прибыль', largestTitle: 'Крупнейшие платежи', largestSub: 'Самые большие расходы периода (без зарплат и питания сотрудников). Нажмите, чтобы открыть историю.', date: 'Дата', category: 'Категория', details: 'Детали',
-    growthTitle: 'Рост', growthSub: 'Последние 12 месяцев — коротко для инвесторов', avgSalesPerDay: 'Средние продажи в день', vsMonth: 'к {month}', threeMonthGrowth: 'Рост за 3 месяца', monthlyGrowth: 'Средний рост в месяц', perMonth: 'в месяц', overMonths: 'за {n} мес., по средним продажам в день', ordersPerDay: 'Заказов в день', monthlyChartTitle: 'Продажи в день по месяцам', monthlyChartSub: 'Средние продажи в день за каждый месяц и точка безубыточности. Текущий месяц светлее.', belowBreakEven: 'Ниже безубыточности', recordsTitle: 'Рекорды', recordsSub: 'Среди завершённых месяцев и последних 10-дневок', bestMonth: 'Лучший месяц', bestTenDay: 'Лучшие 10 дней', ofRecord: '{pct} от рекорда', newRecord: 'Новый рекорд', paybackTitle: 'Окупаемость инвестиций', paybackSub: 'Поддержка инвестора и деньги, заработанные кафе с открытия', invested: 'Вложено', generated: 'Заработано', paidBack: 'окуплено', pace: 'Темп в месяц', monthsLeft: 'При текущем темпе ещё примерно {n} мес.', paidOff: 'Полностью окуплено', noPace: 'В последние месяцы нет прибыли — срок не рассчитать', noInvestment: 'Поддержка инвестора не записана', profitTitle: 'Прибыль по месяцам', profitSub: 'Доход (без поддержки инвестора) и все расходы', unitTitle: 'Клиенты и чек', unitSub: 'Рост за счёт клиентов или среднего чека', grossMargin: 'Валовая маржа', migrationNeeded: 'Для этой карточки примените migrations/229_accounting_monthly_cashflow.sql.', growthFailed: 'Не удалось загрузить данные роста.',
+    growthTitle: 'Рост', growthSub: 'Последние 12 месяцев — коротко для инвесторов', avgSalesPerDay: 'Средние продажи в день', vsMonth: 'к {month}', threeMonthGrowth: 'Рост за 3 месяца', monthlyGrowth: 'Средний рост в месяц', perMonth: 'в месяц', overMonths: 'за {n} мес., по средним продажам в день', ordersPerDay: 'Заказов в день', recordsTitle: 'Рекорды', recordsSub: 'Среди завершённых месяцев и последних 10-дневок', bestMonth: 'Лучший месяц', bestTenDay: 'Лучшие 10 дней', ofRecord: '{pct} от рекорда', newRecord: 'Новый рекорд', paybackTitle: 'Окупаемость инвестиций', paybackSub: 'Поддержка инвестора и деньги, заработанные кафе с открытия', invested: 'Вложено', generated: 'Заработано', paidBack: 'окуплено', pace: 'Темп в месяц', monthsLeft: 'При текущем темпе ещё примерно {n} мес.', paidOff: 'Полностью окуплено', noPace: 'В последние месяцы нет прибыли — срок не рассчитать', noInvestment: 'Поддержка инвестора не записана', profitTitle: 'Прибыль по месяцам', profitSub: 'Доход (без поддержки инвестора) и все расходы', unitTitle: 'Клиенты и чек', unitSub: 'Рост за счёт клиентов или среднего чека', grossMargin: 'Валовая маржа', migrationNeeded: 'Для этой карточки примените migrations/229_accounting_monthly_cashflow.sql.', growthFailed: 'Не удалось загрузить данные роста.',
     flowBreakdown: 'Структура', flowTrends: 'Динамика', flowSankey: 'Поток', flowPnl: 'Прибыль и убытки', pnlCategories: 'Категории', pnlGroups: 'Группы', pnlBoth: 'Оба', intervalDay: 'День', intervalWeek: 'Неделя', intervalMonth: 'Месяц', trendTotals: 'Доход и расход', trendGroups: 'Группы расходов', lineItem: 'Статья', amount: 'Сумма', totalIncome: 'Всего доход', totalExpenses: 'Всего расходы', trendsFailed: 'Не удалось загрузить динамику.', retry: 'Повторить', chartType: 'Тип диаграммы', flowView: 'Вид', interval: 'Интервал', openHistory: 'Открыть историю', showSection: 'Показать', hideSection: 'Скрыть',
     hub: 'Весь приход',
     cafe: 'Доход кафе',
@@ -260,7 +260,7 @@ const L = {
     flowTitle: 'Money flow',
     flowSub: 'Where the money from each source ended up',
     intervalDecade: '10 days', trendTable: 'Table', trendPeriod: 'Period', trendDays: 'Days', avgPerDay: 'Avg / day', avgChange: 'Change / day', growth: 'Growth', orders: 'Orders', avgCheck: 'Avg check', breakEven: 'Break-even', salesMargin: 'Sales margin', costOfSold: 'Cost of items sold', grossProfit: 'Gross profit', largestTitle: 'Largest payments', largestSub: 'The biggest expenses in the period (salaries and staff meals excluded). Tap one to open its history.', date: 'Date', category: 'Category', details: 'Details',
-    growthTitle: 'Growth', growthSub: 'The last 12 months at a glance, for investors', avgSalesPerDay: 'Avg sales per day', vsMonth: 'vs {month}', threeMonthGrowth: '3-month growth', monthlyGrowth: 'Avg monthly growth', perMonth: 'a month', overMonths: 'over {n} months, by avg sales per day', ordersPerDay: 'Orders per day', monthlyChartTitle: 'Sales per day by month', monthlyChartSub: 'Average sales per day each month against the break-even target. The current month is lighter.', belowBreakEven: 'Below break-even', recordsTitle: 'Records', recordsSub: 'Across completed months and recent 10-day periods', bestMonth: 'Best month', bestTenDay: 'Best 10 days', ofRecord: '{pct} of the record', newRecord: 'New record', paybackTitle: 'Payback', paybackSub: 'Investor support against cash the cafe generated since opening', invested: 'Invested', generated: 'Generated', paidBack: 'paid back', pace: 'Monthly pace', monthsLeft: 'About {n} months left at the current pace', paidOff: 'Fully paid back', noPace: 'No profit in recent months, so no payback date yet', noInvestment: 'No investor support recorded', profitTitle: 'Profit by month', profitSub: 'Income (without investor support) against every expense', unitTitle: 'Customers and check', unitSub: 'Is growth coming from more customers or bigger bills?', grossMargin: 'Gross margin', migrationNeeded: 'Apply migrations/229_accounting_monthly_cashflow.sql to show this card.', growthFailed: 'Could not load growth data.',
+    growthTitle: 'Growth', growthSub: 'The last 12 months at a glance, for investors', avgSalesPerDay: 'Avg sales per day', vsMonth: 'vs {month}', threeMonthGrowth: '3-month growth', monthlyGrowth: 'Avg monthly growth', perMonth: 'a month', overMonths: 'over {n} months, by avg sales per day', ordersPerDay: 'Orders per day', recordsTitle: 'Records', recordsSub: 'Across completed months and recent 10-day periods', bestMonth: 'Best month', bestTenDay: 'Best 10 days', ofRecord: '{pct} of the record', newRecord: 'New record', paybackTitle: 'Payback', paybackSub: 'Investor support against cash the cafe generated since opening', invested: 'Invested', generated: 'Generated', paidBack: 'paid back', pace: 'Monthly pace', monthsLeft: 'About {n} months left at the current pace', paidOff: 'Fully paid back', noPace: 'No profit in recent months, so no payback date yet', noInvestment: 'No investor support recorded', profitTitle: 'Profit by month', profitSub: 'Income (without investor support) against every expense', unitTitle: 'Customers and check', unitSub: 'Is growth coming from more customers or bigger bills?', grossMargin: 'Gross margin', migrationNeeded: 'Apply migrations/229_accounting_monthly_cashflow.sql to show this card.', growthFailed: 'Could not load growth data.',
     flowBreakdown: 'Breakdown', flowTrends: 'Trends', flowSankey: 'Sankey', flowPnl: 'Profit & loss', pnlCategories: 'Categories', pnlGroups: 'Groups', pnlBoth: 'Both', intervalDay: 'Day', intervalWeek: 'Week', intervalMonth: 'Month', trendTotals: 'Income vs spending', trendGroups: 'Spending groups', lineItem: 'Line item', amount: 'Amount', totalIncome: 'Total income', totalExpenses: 'Total expenses', trendsFailed: 'Could not load trends.', retry: 'Retry', chartType: 'Chart type', flowView: 'View', interval: 'Interval', openHistory: 'Open history', showSection: 'Show', hideSection: 'Hide',
     hub: 'Total in',
     cafe: 'Cafe income',
@@ -687,7 +687,6 @@ export default function AccountingAnalysis() {
               overview={growthOverview}
               profitRows={profitRows}
               payback={payback}
-              breakEvenDaily={state.settings?.averageDailyBreakEvenIncomeUzs || 0}
               l={l}
               lang={lang}
               onRetry={() => setReloadKey(key => key + 1)}
@@ -940,64 +939,6 @@ function GrowthTile({ label, value, valueTone, sub, change, changeLabel, spark, 
   )
 }
 
-// Average sales per day for each month: green at or above the owner's daily
-// break-even target, red below it; the current month is drawn lighter.
-function MonthlySalesChart({ months, breakEvenDaily, l, lang }) {
-  const [hoverIndex, setHoverIndex] = useState(null)
-  const [wrapRef, measuredWidth, measuredHeight] = useElementWidth()
-  const width = Math.max(months.length * 34 + 70, measuredWidth || 0)
-  // Fills the card's height so it lines up with Records and Payback beside it.
-  const height = Math.max(240, measuredHeight || 0)
-  const pad = { top: 12, right: 8, bottom: 28, left: 58 }
-  const plotW = width - pad.left - pad.right
-  const plotH = height - pad.top - pad.bottom
-  const maxValue = Math.max(breakEvenDaily, ...months.map(row => row.averageDailyIncome), 1) * 1.1
-  const y = value => pad.top + plotH - (value / maxValue) * plotH
-  const slot = plotW / months.length
-  const barWidth = Math.min(40, slot * 0.64)
-  const ticks = [0, maxValue / 3, (maxValue * 2) / 3]
-  const hovered = hoverIndex == null ? null : months[hoverIndex]
-  const centerX = index => pad.left + index * slot + slot / 2
-  return (
-    <div className="flex h-full flex-col">
-      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] font-semibold text-[#68655f]">
-        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#1d7a52]" />{l.avgPerDay}</span>
-        {breakEvenDaily > 0 && <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#c4262c]" />{l.belowBreakEven}</span>}
-        {breakEvenDaily > 0 && <span className="inline-flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dotted border-[#22201d]" />{l.breakEven} · {formatCompact(breakEvenDaily)}</span>}
-      </div>
-      <div ref={wrapRef} className="relative min-h-[240px] flex-1 overflow-x-auto overflow-y-hidden">
-        <svg width={width} height={height} className="absolute left-0 top-0 block" role="img" aria-label={l.monthlyChartTitle} onMouseLeave={() => setHoverIndex(null)}>
-          {ticks.map(tick => (
-            <g key={tick}>
-              <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
-              <text x={pad.left - 8} y={y(tick)} dy="0.35em" textAnchor="end" className="fill-current text-[#8a867f] text-[11px] font-bold">{formatCompact(tick)}</text>
-            </g>
-          ))}
-          {months.map((row, index) => {
-            const below = breakEvenDaily > 0 && row.averageDailyIncome < breakEvenDaily
-            return (
-              <g key={row.monthStart} onMouseEnter={() => setHoverIndex(index)}>
-                <rect x={pad.left + index * slot} y={pad.top} width={slot} height={plotH} fill={hoverIndex === index ? 'rgb(255 90 0 / 7%)' : 'transparent'} />
-                <rect x={centerX(index) - barWidth / 2} y={y(row.averageDailyIncome)} width={barWidth} height={Math.max(1, y(0) - y(row.averageDailyIncome))} rx={3} fill={below ? '#c4262c' : '#1d7a52'} opacity={row.isFinalized ? 1 : 0.55} />
-                <text x={centerX(index)} y={height - 8} textAnchor="middle" className="fill-current text-[#8a867f] text-[11px] font-bold">{formatMonthYear(row.monthStart, lang, row.monthStart).slice(0, 3)}</text>
-              </g>
-            )
-          })}
-          {breakEvenDaily > 0 && <line x1={pad.left} x2={width - pad.right} y1={y(breakEvenDaily)} y2={y(breakEvenDaily)} className="stroke-current text-[#22201d]" strokeWidth={2} strokeDasharray="2 4" pointerEvents="none" />}
-        </svg>
-        {hovered && (
-          <div className="pointer-events-none absolute top-2 z-10 w-56 rounded-xl border border-[#e4e1de] bg-white p-3 text-xs shadow-lg" style={{ left: Math.min(Math.max(0, centerX(hoverIndex) + 12), Math.max(0, width - 232)) }}>
-            <p className="mb-1.5 font-semibold text-[#22201d]">{formatMonthYear(hovered.monthStart, lang, hovered.monthStart)}{hovered.isFinalized ? '' : ` · ${hovered.dayCount} ${l.days}`}</p>
-            {[[l.avgPerDay, formatCompact(hovered.averageDailyIncome)], [l.cafeIncome, formatCompact(hovered.totalIncome)], [l.ordersPerDay, hovered.ordersPerDay], [l.avgCheck, hovered.averageCheck == null ? '—' : formatCompact(hovered.averageCheck)]].map(([label, value]) => (
-              <p key={label} className="flex justify-between gap-2 font-bold text-[#68655f]"><span>{label}</span><span className="tabular-nums text-[#22201d]">{value}</span></p>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function RecordsCard({ overview, l, lang }) {
   const { best, bestTenDay, latest, latestOfBestPct } = overview
   return (
@@ -1098,7 +1039,7 @@ function UnitEconomicsTable({ months, profitRows, l, lang }) {
 // The investor band: headline growth, 12 months of sales per day, records,
 // payback, profit by month and what drives growth. Sales come from immutable
 // monthly snapshots; cash rows come from migration 229.
-function GrowthSection({ growth, overview, profitRows, payback, breakEvenDaily, l, lang, onRetry }) {
+function GrowthSection({ growth, overview, profitRows, payback, l, lang, onRetry }) {
   if (growth.status === 'loading' && !overview) {
     return <div className="ws-panel flex h-40 items-center justify-center text-[#8a867f]" role="status" aria-label={l.loading}><Loader2 className="animate-spin" size={22} aria-hidden="true" /></div>
   }
@@ -1157,16 +1098,9 @@ function GrowthSection({ growth, overview, profitRows, payback, breakEvenDaily, 
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="flex lg:col-span-2">
-          <ChartCard title={l.monthlyChartTitle} description={l.monthlyChartSub} className="flex-1">
-            <MonthlySalesChart months={months} breakEvenDaily={breakEvenDaily} l={l} lang={lang} />
-          </ChartCard>
-        </div>
-        <div className="grid gap-5">
-          <RecordsCard overview={overview} l={l} lang={lang} />
-          <PaybackCard payback={payback} status={cashflowStatus} l={l} />
-        </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <RecordsCard overview={overview} l={l} lang={lang} />
+        <PaybackCard payback={payback} status={cashflowStatus} l={l} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
@@ -1606,18 +1540,14 @@ function sankeyLinkPath(x0, y0, x1, y1) {
 
 function useElementWidth() {
   const [element, setElement] = useState(null)
-  const [size, setSize] = useState({ width: 0, height: 0 })
+  const [width, setWidth] = useState(0)
   useEffect(() => {
     if (!element || typeof ResizeObserver === 'undefined') return undefined
-    const observer = new ResizeObserver(([entry]) => setSize(current => {
-      const width = Math.floor(entry.contentRect.width)
-      const height = Math.floor(entry.contentRect.height)
-      return current.width === width && current.height === height ? current : { width, height }
-    }))
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.floor(entry.contentRect.width)))
     observer.observe(element)
     return () => observer.disconnect()
   }, [element])
-  return [setElement, size.width, size.height]
+  return [setElement, width]
 }
 
 function SankeyChart({ sankey, colors, hubLabel, emptyLabel, sourceLabel, targetLabel, onTargetClick }) {
