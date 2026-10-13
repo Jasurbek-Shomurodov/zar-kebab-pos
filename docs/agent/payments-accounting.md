@@ -12,7 +12,7 @@
 - Use `normalizeServiceRatePct()`, `getOrderPaymentSummary()`, and `getOrderPaymentFields()`; never hand-roll page totals.
 - Dine-in may include service. Take-away, delivery, and Game Club use zero service.
 - Regular and Tourist service settings are separate; new dine-in orders snapshot the rate chosen by authoritative `price_mode`.
-- Reuse an unpaid order's saved service rate only when its saved price mode matches the submitted mode. Empty/stale Regular shells cannot leak Regular service into Tourist orders.
+- Reuse an unpaid order's saved service rate only when its price mode matches the submitted one; stale Regular shells never leak Regular service into Tourist orders.
 - Active and paid orders keep their rate snapshot after settings change. Pending kitchen retries retain the original rate.
 - Use shared loyalty/counter helpers. Reports use paid `orders.total`; unpaid bills use items.
 
@@ -23,7 +23,7 @@
 ## Split payments and corrections
 
 - `201`: separate payment selectors; “Add second payment” in Reports.
-- Delete completed orders access permits atomic non-loyalty tender corrections.
+- Delete completed orders access allows atomic non-loyalty tender fixes.
 - Loyalty rows are visible but immutable without a separate wallet reversal workflow.
 - Method corrections keep amounts fixed. Splits preserve the original sum, other payments, items, totals, paid state/time, loyalty, service and stock. Receipts audit/reconcile splits. Tests: `tests/paidPaymentSplit.test.js`.
 - Deletes need a reason (`184`) and today's Tashkent date (`202`); owners also delete old unpaid bills (`232`). Empty bills get it after refresh; paid history stays protected. Corrections notify Investor.
@@ -32,27 +32,27 @@
 
 - Grouping: Telegram guide; `tests/orderItemPresentation.test.js`.
 
-- Auto-print: one-time cashier request, in-page receipt, no new tabs. Manual print refreshes the bill.
-- Translate bill errors at render; language never refetches bills.
+- Auto-print: one-time cashier request, in-page receipt, no tabs. Manual print refreshes the bill.
+- Translate bill errors at render; language never refetches.
 
 ## Accounting
 
 - Never show today-only POS orders as Accounting history.
-- Wait for expenses, paid-order summary/history, and salary data before ending loading.
+- Keep loading until expenses, paid-order summary/history and salary data arrive.
 - KPIs use permission-checked aggregates, never full history. The all-time cash remainder excludes unpaid salary liability.
-- Detailed order rows belong to reports, receipts, and drilldowns.
+- Order rows belong to reports, receipts and drilldowns.
 - Accounting: recording, spending/salary KPIs, open method balances. Analysis/Estimate: `financial_analysis` (needs `expenses`; `230`); `229` growth; `231`/`233` bundles.
 
 ## Expenses and estimates
 
-- Expenses allow today or three prior Tashkent dates; UI/database reject older dates. Income and unchanged history are allowed.
+- Expenses allow today or three prior Tashkent dates; UI/DB reject older dates. Income and unchanged history are allowed.
 - Bonus display rows are projections: deletion targets `employee_salary_bonuses.source_id`, never a synthetic display id.
-- Salary payments/accruals and Daily Bazaar totals remain protected from overview deletion.
+- Salary payments/accruals and Daily Bazaar totals can't be deleted from the overview.
 - Fines reduce payroll liability but are not cash expenses.
 - Monthly Estimate: selected-month actuals plus expected salary, rent, utilities, and bazaar/sales at completed-day pace; no older arrears. Last-month comparison uses salary cost.
-- Compute salary operating cost per employee so one advance or older-debt payment cannot distort another.
+- Compute salary operating cost per employee so one advance or old-debt payment cannot distort another.
 - `business_settings.monthly_utilities_uzs` is the plan; only recorded `utilities` rows are monthly actuals.
-- `business_settings.average_daily_break_even_income_uzs` is the operator-entered Dashboard benchmark; it does not alter Accounting totals.
+- `business_settings.average_daily_break_even_income_uzs` is the operator's income-chart benchmark; it never alters Accounting totals.
 
 ## Cash Telegram
 
@@ -70,10 +70,10 @@ Migrations `097`, `160`–`163`, `182`.
 - `/admin/ingredients` manages canonical names, categories, purchase units, normal unit prices, and active/archive state. `182`: owner renames keep catalog keys and snapshots; `240`: names start capitalized; the form also blocks saving a name that does not start with a capital letter or digit (`src/lib/nameStart.js`).
 - `186`: active owners/admins with `ingredients` may write; viewers read. Bazaar/Tech Card access grants catalog reads only.
 - Migration `161` starts the managed list empty without changing history.
-- Suggested totals stay editable; exact paid totals drive Accounting.
-- Snapshot normal unit price, quantity-scaled total and variance (`paid - normal`). UI/Investor show line/total variances: positive above normal, negative below.
+- Suggested totals are editable; exact paid totals drive Accounting.
+- Snapshot normal unit price, scaled total and variance (`paid - normal`); UI/Investor show line/total variances (positive = above normal).
 - Saved lines retain their original normal-price snapshot.
-- Catalog deletion is archival; purchase lines keep name, category, unit, and paid snapshots.
+- Catalog deletion is archival; purchase lines keep name, category, unit and paid snapshots.
 - Ingredient writes reconcile before retry and update locally.
 - ISO dates.
 - Server calculates totals. Create retries reuse a request UUID.
