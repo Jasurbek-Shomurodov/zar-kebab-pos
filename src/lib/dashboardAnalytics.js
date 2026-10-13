@@ -2,7 +2,6 @@ import {
   addRestaurantDays,
   getCafeIncomeForRange,
   getOrderDate,
-  getRestaurantHour,
   getOrderItemCategoryId,
   getOrderPaymentBreakdown,
   getOrderRevenueTotal,
@@ -101,30 +100,6 @@ export function getDashboardSalesByCategory(orders, menuItemMap, categoryMap, la
     ...row,
     pct: total > 0 ? Math.round((row.revenue / total) * 100) : 0,
   }))
-}
-
-export function getDashboardBestSelling(orders, menuItemMap) {
-  const map = {}
-  ;(orders || []).forEach(order => {
-    getSoldOrderItems(order).forEach(item => {
-      const key = item.menu_item_id || item.name
-      if (!map[key]) {
-        map[key] = {
-          menuItemId: item.menu_item_id,
-          name: item.name,
-          qty: 0,
-          revenue: 0,
-        }
-      }
-      map[key].qty += Number(item.quantity) || 1
-      map[key].revenue += getOrderItemUnitPrice(item) * (Number(item.quantity) || 1)
-    })
-  })
-
-  return Object.values(map)
-    .sort((a, b) => b.qty - a.qty)
-    .slice(0, 10)
-    .map(row => ({ ...row, image_url: menuItemMap[row.menuItemId]?.image_url || '' }))
 }
 
 export function getDashboardProductContribution(orders = [], menuItemMap = {}) {
@@ -233,41 +208,6 @@ export function getDashboardPaymentMethods(orders, labels = {}) {
     .sort((a, b) => b.amount - a.amount)
 }
 
-export function getDashboardStaffPerformance(orders, staffProfiles = []) {
-  const map = {}
-  ;(orders || []).forEach(order => {
-    const name = order.waiter_name || order.waiter_email || 'Unknown'
-    if (!map[name]) map[name] = { name, orders: 0, revenue: 0, items: 0 }
-    map[name].orders += 1
-    map[name].revenue += getOrderRevenueTotal(order)
-    map[name].items += getSoldOrderItems(order).reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)
-  })
-
-  return Object.values(map)
-    .map(row => {
-      const profile = (staffProfiles || []).find(profile =>
-        profile.full_name === row.name || profile.email === row.name
-      )
-      return {
-        ...row,
-        avgOrder: row.orders > 0 ? Math.round(row.revenue / row.orders) : 0,
-        role: profile?.role || null,
-      }
-    })
-    .sort((a, b) => b.revenue - a.revenue)
-}
-
 export function formatReadableDateTime(date, locale = 'en-US') {
   return formatDateTime(date)
-}
-
-// Creation time reflects when demand reached the cafe, even if payment was delayed.
-export function getDashboardBusyHours(orders = []) {
-  const hours = Array.from({ length: 12 }, (_, index) => ({ hour: index * 2, count: 0 }))
-  for (const order of orders) {
-    const date = order?.created_at
-    if (!date || !toLocalDateStr(date)) continue
-    hours[Math.floor(getRestaurantHour(date) / 2)].count += 1
-  }
-  return hours
 }

@@ -69,7 +69,7 @@ export default function WeeklyIncomeChart({ lang, target = 0 }) {
       monthGroups.push(group)
     }
     group.count += 1
-    return { ...row, barColor: group.border, monthStyle: { backgroundColor: group.background, borderLeft: startsMonth ? '2px solid ' + group.border : '2px solid transparent' } }
+    return { ...row, barColor: group.border, monthStyle: { '--income-hue': group.hue, backgroundColor: group.background, borderLeft: startsMonth ? '2px solid ' + group.border : '2px solid transparent' } }
   })
   const monthOptions = buildIncomeMonthOptions(firstMonth || today.slice(0, 7), today.slice(0, 7))
   const max = Math.max(target * 1.2, ...(rows || []).map(row => row.averageDailyIncome * 1.2), 1)
@@ -94,8 +94,8 @@ export default function WeeklyIncomeChart({ lang, target = 0 }) {
           <div style={{ minWidth: rows.length * 90 }}>
             <p className="mb-3 text-sm font-medium tabular-nums text-[#22201d]">{rows.length > 0 && formatMonthYear(rows[0].weekStart, lang)} – {formatMonthYear(month + '-01', lang)}</p>
             <div className="flex">{monthGroups.map(group => <div key={group.key}
-              className="min-w-0 rounded-t-lg border-t-4 py-2 text-center text-xs font-medium text-[#22201d]"
-              style={{ flex: group.count, backgroundColor: group.background, borderColor: group.border }}>
+              className="zk-income-month min-w-0 rounded-t-lg border-t-4 py-2 text-center text-xs font-medium text-[#22201d]"
+              style={{ '--income-hue': group.hue, flex: group.count, backgroundColor: group.background, borderColor: group.border }}>
               {formatMonthYear(group.key + '-01', lang)}
             </div>)}</div>
             <div className="relative flex h-48 items-end border-b border-[#e4e1de]" role="list" aria-label={l.title}>
@@ -105,12 +105,12 @@ export default function WeeklyIncomeChart({ lang, target = 0 }) {
               {chartRows.map(row => <div key={row.weekStart} role="listitem" tabIndex={0}
                 aria-label={row.weekStart + ' – ' + row.weekEnd + ': ' + formatCurrency(row.averageDailyIncome)}
                 title={l.total + ': ' + formatCurrency(row.totalIncome) + ' · ' + row.dayCount + ' ' + l.days}
-                className="flex h-full min-w-0 flex-1 items-end px-2" style={row.monthStyle}>
+                className="zk-income-month flex h-full min-w-0 flex-1 items-end px-2" style={row.monthStyle}>
                 <div className="w-full rounded-t-lg"
-                  style={{ backgroundColor: row.dayCount === 0 ? '#e4e1de' : row.barColor, height: Math.max(1, row.averageDailyIncome / max * 100) + '%' }} />
+                  style={{ backgroundColor: row.dayCount === 0 ? 'var(--ws-border, #e4e1de)' : row.barColor, height: Math.max(1, row.averageDailyIncome / max * 100) + '%' }} />
               </div>)}
             </div>
-            <div className="flex">{chartRows.map(row => <div key={row.weekStart} className="min-w-0 flex-1 px-2 pb-3 pt-2 text-center text-xs text-[#68655f]" style={row.monthStyle}>
+            <div className="flex">{chartRows.map(row => <div key={row.weekStart} className="zk-income-month min-w-0 flex-1 px-2 pb-3 pt-2 text-center text-xs text-[#68655f]" style={row.monthStyle}>
               <p className="tabular-nums">{Number(row.weekStart.slice(8))}–{Number(row.weekEnd.slice(8))}</p>
               <p className="mt-1 font-semibold tabular-nums" style={{ color: row.barColor }}>{row.averageDailyIncome > 0 ? formatCurrency(row.averageDailyIncome) : '—'}</p>
               <p className="mt-1 text-[10px] tabular-nums">{row.dayCount} {l.days}</p>

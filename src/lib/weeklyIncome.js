@@ -38,7 +38,9 @@ export function buildIncomeMonthOptions(firstMonth, currentMonth) {
 export function incomeMonthColors(month) {
   const [year, number] = month.split('-').map(Number)
   const hue = Math.round(((year * 12 + number - 1) * 137.508) % 360)
-  return { background: 'hsl(' + hue + ' 65% 96%)', border: 'hsl(' + hue + ' 65% 32%)' }
+  // Colors resolve through CSS variables (.zk-income-month in index.css) so the
+  // dark theme can swap the pale tint and deep accent for dark-surface shades.
+  return { hue, background: 'var(--income-bg)', border: 'var(--income-accent)' }
 }
 
 export const FIRST_ORDER_MONTH_STORAGE_KEY = 'zar-first-order-month'

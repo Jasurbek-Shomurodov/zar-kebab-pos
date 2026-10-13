@@ -458,3 +458,13 @@ select:not([multiple]):not([size]):not(.appearance-none):disabled { cursor: not-
   .zk-filters-in-header { display: block; }
   .zk-filters-in-page { display: none; }
 }
+
+/* Ten-day income chart: one stable hue per month (set as --income-hue). */
+.zk-income-month {
+  --income-bg: hsl(var(--income-hue) 65% 96%);
+  --income-accent: hsl(var(--income-hue) 65% 32%);
+}
+html[data-theme="dark"] .zk-income-month {
+  --income-bg: hsl(var(--income-hue) 28% 14%);
+  --income-accent: hsl(var(--income-hue) 60% 62%);
+}

@@ -34,7 +34,7 @@ test('month options stop at cafe opening month across year boundaries', () => {
 })
 test('month colors remain stable with distinct colors across the visible range', () => {
   const months = buildIncomeMonthOptions('2025-09', '2026-09')
-  assert.equal(new Set(months.map(month => incomeMonthColors(month).border)).size, months.length)
+  assert.equal(new Set(months.map(month => incomeMonthColors(month).hue)).size, months.length)
   assert.deepEqual(incomeMonthColors('2026-09'), incomeMonthColors('2026-09'))
 })
 

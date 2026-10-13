@@ -19,6 +19,8 @@ const completedDayMigration = fs.readFileSync(
 )
 const loader = fs.readFileSync(new URL('../src/lib/monthlyIncome.js', import.meta.url), 'utf8')
 const dashboard = fs.readFileSync(new URL('../src/pages/AdminDashboard.jsx', import.meta.url), 'utf8')
+const analysis = fs.readFileSync(new URL('../src/pages/AccountingAnalysis.jsx', import.meta.url), 'utf8')
+const monthlyChart = fs.readFileSync(new URL('../src/components/MonthlyIncomeChart.jsx', import.meta.url), 'utf8')
 const settings = fs.readFileSync(new URL('../src/pages/AdminSettings.jsx', import.meta.url), 'utf8')
 const db = fs.readFileSync(new URL('../src/lib/db.js', import.meta.url), 'utf8')
 const defaults = fs.readFileSync(new URL('../src/store/reducerHelpers.js', import.meta.url), 'utf8')
@@ -145,22 +147,26 @@ test('month-end finalization is duplicate-safe and scheduled with Tashkent bound
   assert.match(migration, /'10 20 \* \* \*'/i)
 })
 
-test('Dashboard monthly chart reads snapshots plus only the live current month aggregate', () => {
+test('Monthly income chart reads snapshots plus only the live current month aggregate', () => {
   assert.match(migration, /create or replace function public\.get_dashboard_monthly_average_income/i)
   assert.match(migration, /left join public\.dashboard_monthly_income_snapshots snapshot/i)
   assert.match(migration, /current_paid_orders as materialized/i)
   assert.match(migration, /"order"\.paid_at >= v_from_instant/i)
   assert.match(migration, /"order"\.paid_at < v_to_instant_exclusive/i)
   assert.match(migration, /grant execute on function public\.get_dashboard_monthly_average_income\(integer\)[\s\S]*to authenticated/i)
-  assert.match(dashboard, /loadDashboardMonthlyAverageIncome/)
-  assert.match(dashboard, /buildDashboardMonthlyIncomeChartRows\(monthlyIncomeRows\)/)
-  assert.match(dashboard, /DASHBOARD_DAILY_BREAK_EVEN_INCOME/)
-  assert.match(dashboard, /breakEvenLineHeight/)
-  assert.match(dashboard, /state\.settings\?\.averageDailyBreakEvenIncomeUzs/)
-  assert.match(dashboard, /border-dotted border-\[#c4262c\]/)
-  assert.match(dashboard, /monthlyIncomeChartRows\.map/)
-  assert.match(dashboard, /formatCompactIncome\(row\.averageDailyIncome, lang\)/)
-  assert.match(dashboard, /Average Daily Income by Month/)
+  // The chart lives on Financial analysis, which already loads the monthly rows;
+  // the Dashboard (the app's landing page) must not request them.
+  assert.doesNotMatch(dashboard, /loadDashboardMonthlyAverageIncome|MonthlyIncomeChart|WeeklyIncomeChart/)
+  assert.match(analysis, /loadDashboardMonthlyAverageIncome/)
+  assert.match(analysis, /<MonthlyIncomeChart[\s\S]*rows=\{growth\.months\}/)
+  assert.match(analysis, /DASHBOARD_DAILY_BREAK_EVEN_INCOME/)
+  assert.match(analysis, /state\.settings\?\.averageDailyBreakEvenIncomeUzs/)
+  assert.match(monthlyChart, /buildDashboardMonthlyIncomeChartRows\(rows\)/)
+  assert.match(monthlyChart, /breakEvenLineHeight/)
+  assert.match(monthlyChart, /border-dotted border-\[#c4262c\]/)
+  assert.match(monthlyChart, /monthlyIncomeChartRows\.map/)
+  assert.match(monthlyChart, /formatCompactIncome\(row\.averageDailyIncome, lang\)/)
+  assert.match(monthlyChart, /Average Daily Income by Month/)
 })
 
 test('current Dashboard month includes completed Tashkent days only', () => {

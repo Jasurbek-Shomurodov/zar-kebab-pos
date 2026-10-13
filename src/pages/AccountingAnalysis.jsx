@@ -21,6 +21,8 @@ import AppShell from '../components/AppShell'
 import { Kpi, KpiExplanationDialog, toKpiDetail } from '../components/AccountingKpi'
 import DateRangePicker from '../components/DateRangePicker'
 import { OperationalLoading } from '../components/OperationalState'
+import MonthlyIncomeChart from '../components/MonthlyIncomeChart'
+import WeeklyIncomeChart from '../components/WeeklyIncomeChart'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../store/AppContext'
 import { getAccountingQuickRange, normalizeAccountingPaidOrderSummary } from '../lib/accounting'
@@ -31,7 +33,7 @@ import {
   loadAccountingPaidOrderSummary,
   loadFinancialAnalysisBundle,
 } from '../lib/accountingSummary'
-import { loadDashboardMonthlyAverageIncome, normalizeDashboardMonthlyIncomeRows } from '../lib/monthlyIncome'
+import { DASHBOARD_DAILY_BREAK_EVEN_INCOME, loadDashboardMonthlyAverageIncome, normalizeDashboardMonthlyIncomeRows } from '../lib/monthlyIncome'
 import { loadDashboardWeeklyIncome, normalizeDashboardWeeklyIncomeRows } from '../lib/weeklyIncome'
 import {
   ANALYSIS_OTHER_COLOR,
@@ -690,6 +692,16 @@ export default function AccountingAnalysis() {
               lang={lang}
               onRetry={() => setReloadKey(key => key + 1)}
             />
+            <div className="mt-5 space-y-5">
+              <MonthlyIncomeChart
+                rows={growth.months}
+                status={growth.status}
+                onRetry={() => setReloadKey(key => key + 1)}
+                lang={lang}
+                target={state.settings?.averageDailyBreakEvenIncomeUzs ?? DASHBOARD_DAILY_BREAK_EVEN_INCOME}
+              />
+              <WeeklyIncomeChart lang={lang} target={state.settings?.averageDailyBreakEvenIncomeUzs ?? DASHBOARD_DAILY_BREAK_EVEN_INCOME} />
+            </div>
           </section>
 
           <section aria-labelledby="analysis-income-heading">

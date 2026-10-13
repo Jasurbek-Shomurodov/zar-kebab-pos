@@ -3,16 +3,13 @@ import assert from 'node:assert/strict'
 
 import {
   formatReadableDateTime,
-  getDashboardBestSelling,
   getDashboardProductContribution,
-  getDashboardBusyHours,
   getDashboardOrderTypePerformance,
   getDashboardPaymentMethods,
   getDashboardPeriodCafeIncome,
   getDashboardPeriodOrders,
   getRollingDashboardMonthRange,
   getDashboardSalesByCategory,
-  getDashboardStaffPerformance,
 } from '../src/lib/dashboardAnalytics.js'
 import {
   getCafeIncomeForRange,
@@ -130,24 +127,16 @@ function analyticsFor(period) {
     revenue: periodOrders.reduce((sum, row) => sum + row.total, 0),
     payments: getDashboardPaymentMethods(periodOrders),
     categories: getDashboardSalesByCategory(periodOrders, menuItemMap, categoryMap, 'en'),
-    best: getDashboardBestSelling(periodOrders, menuItemMap),
-    staff: getDashboardStaffPerformance(periodOrders, [
-      { full_name: 'Jasurbek', role: 'waiter' },
-      { full_name: 'Dildora', role: 'waiter' },
-      { full_name: 'Aziz', role: 'admin' },
-    ]),
   }
 }
 
-test('dashboard selected period filters revenue payments categories and best sellers together for today', () => {
+test('dashboard selected period filters revenue payments and categories together for today', () => {
   const data = analyticsFor('today')
 
   assert.deepEqual(data.ids, ['today'])
   assert.equal(data.revenue, 62000)
   assert.deepEqual(data.payments.map(row => row.key), ['cash'])
   assert.deepEqual(data.categories.map(row => row.name), ['Kebab', 'Drinks'])
-  assert.deepEqual(data.best.map(row => row.menuItemId), ['kebab', 'cola'])
-  assert.deepEqual(data.staff.map(row => row.name), ['Jasurbek'])
 })
 
 test('dashboard today period uses restaurant timezone instead of device timezone', () => {
@@ -180,8 +169,6 @@ test('dashboard period change from today to 7 days removes stale today-only cate
   assert.deepEqual(today.categories.map(row => row.name), ['Kebab', 'Drinks'])
   assert.deepEqual(week.ids, ['today', 'week'])
   assert.deepEqual(week.categories.map(row => row.name), ['First Meal', 'Kebab', 'Drinks'])
-  assert.deepEqual(week.best.map(row => row.menuItemId), ['lagman', 'kebab', 'cola'])
-  assert.deepEqual(week.staff.map(row => row.name), ['Dildora', 'Jasurbek'])
 })
 
 test('dashboard analytics keep category context for soft-deleted menu items', () => {
@@ -264,9 +251,6 @@ test('dashboard period change from 7 days to month updates all widgets to month 
   assert.equal(month.revenue, 218000)
   assert.deepEqual(month.payments.map(row => row.key), ['card', 'cash', 'terminal'])
   assert.deepEqual(month.categories.map(row => row.name), ['First Meal', 'Salads', 'Kebab', 'Drinks'])
-  assert.deepEqual(month.best.map(row => row.menuItemId), ['salad', 'lagman', 'kebab', 'cola'])
-  assert.deepEqual(month.staff.map(row => row.name), ['Dildora', 'Jasurbek'])
-  assert.deepEqual(month.staff.map(row => row.revenue), [156000, 62000])
 })
 
 test('dashboard daily cafe income follows the selected period', () => {
@@ -418,28 +402,12 @@ test('cancelled items never contribute to sold-item dashboard or report metrics'
 
   const soldItems = getSoldOrderItems(mixedOrder)
   const categories = getDashboardSalesByCategory([mixedOrder], menuItemMap, categoryMap, 'en')
-  const best = getDashboardBestSelling([mixedOrder], menuItemMap)
   const orderType = getDashboardOrderTypePerformance([mixedOrder], 'en').find(row => row.key === 'dine_in')
-  const staff = getDashboardStaffPerformance([mixedOrder])
 
   assert.deepEqual(soldItems.map(row => row.menu_item_id), ['kebab'])
   assert.deepEqual(categories.map(row => [row.name, row.qty, row.revenue]), [['Kebab', 2, 50000]])
-  assert.deepEqual(best.map(row => [row.menuItemId, row.qty, row.revenue]), [['kebab', 2, 50000]])
   assert.equal(orderType.items, 2)
   assert.equal(orderType.revenue, 50000)
-  assert.deepEqual(staff.map(row => [row.name, row.items, row.revenue]), [['Jasurbek', 2, 50000]])
-})
-
-test('dashboard best sellers use the available card space for up to ten sold products', () => {
-  const manyItems = Array.from({ length: 12 }, (_, index) =>
-    item(`dish-${index + 1}`, `Dish ${index + 1}`, 12 - index, 10_000)
-  )
-  const rows = getDashboardBestSelling([
-    order({ id: 'many-dishes', items: manyItems, total: 780_000 }),
-  ], {})
-
-  assert.equal(rows.length, 10)
-  assert.deepEqual(rows.map(row => row.menuItemId), manyItems.slice(0, 10).map(row => row.menu_item_id))
 })
 
 test('dashboard period change from month to year updates all widgets to year data', () => {
@@ -449,25 +417,19 @@ test('dashboard period change from month to year updates all widgets to year dat
   assert.equal(year.revenue, 278000)
   assert.deepEqual(year.payments.map(row => row.key), ['terminal', 'card', 'cash'])
   assert.deepEqual(year.categories.map(row => row.name), ['First Meal', 'Drinks', 'Salads', 'Kebab'])
-  assert.deepEqual(year.best.map(row => row.menuItemId), ['cola', 'salad', 'lagman', 'kebab'])
-  assert.deepEqual(year.staff.map(row => row.name), ['Dildora', 'Jasurbek', 'Aziz'])
 })
 
 test('dashboard empty selected period returns zero and empty widget states', () => {
   const empty = getDashboardPeriodOrders(orders, 'today', new Date('2026-05-18T12:00:00'))
   const payments = getDashboardPaymentMethods(empty)
   const categories = getDashboardSalesByCategory(empty, menuItemMap, categoryMap, 'en')
-  const best = getDashboardBestSelling(empty, menuItemMap)
   const orderTypes = getDashboardOrderTypePerformance(empty, 'en')
-  const staff = getDashboardStaffPerformance(empty)
 
   assert.equal(empty.reduce((sum, row) => sum + row.total, 0), 0)
   assert.deepEqual(payments, [])
   assert.deepEqual(categories, [])
-  assert.deepEqual(best, [])
   assert.deepEqual(orderTypes.map(row => row.key), ['dine_in', 'take_away', 'delivery', 'game_club'])
   assert.deepEqual(orderTypes.map(row => row.revenue), [0, 0, 0, 0])
-  assert.deepEqual(staff, [])
 })
 
 test('dashboard order type performance ranks dine in take away and delivery revenue', () => {
@@ -597,21 +559,6 @@ test('merged recent order sessions keep the newest status update time', () => {
   ])
 
   assert.equal(session.updated_at, '2026-06-29T07:59:00.000Z')
-})
-
-test('busy hours use Tashkent creation hours even when payment is delayed', () => {
-  const hours = getDashboardBusyHours([
-    { paid_at: '2026-09-10T18:30:00Z', created_at: '2026-09-10T10:00:00Z' },
-    { paid_at: '2026-09-10T19:05:00Z', created_at: '2026-09-10T11:05:00Z' },
-    { created_at: '2026-09-10T18:00:00Z' },
-    { paid_at: '2026-09-10T12:00:00Z', created_at: 'invalid' }, {},
-  ])
-  assert.equal(hours.length, 12)
-  assert.equal(hours[7].count, 1)
-  assert.equal(hours[8].count, 1)
-  assert.equal(hours[11].count, 1)
-  assert.equal(hours.reduce((sum, row) => sum + row.count, 0), 3)
-  assert.ok(getDashboardBusyHours().every(row => row.count === 0))
 })
 
 test('product contribution ranks revenue and preserves missing historical cost coverage', () => {

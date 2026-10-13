@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react'
+import React, { useMemo, useEffect, useRef, useState } from 'react'
 import {
   TrendingUp, ShoppingBag, Package, Receipt,
   Clock, ArrowUpRight, ArrowDownRight, Users,
@@ -7,19 +7,16 @@ import {
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatCurrency, formatCurrencyWithPercentage } from '../lib/formatCurrency'
-import { formatDateOnly, formatLongDate, formatMonthYear, normalizeDateLang } from '../lib/dateFormat'
+import { formatLongDate, normalizeDateLang } from '../lib/dateFormat'
 import {
   addRestaurantDays,
   getRestaurantHour,
   getOrderDate,
-  getOrderItems,
   getOrderLoyaltyIncomeTotal,
   getOrderRevenueTotal,
-  getOrderTotal,
   groupOrdersBySession,
   isPaidOrder,
   restaurantTodayStr,
-  getSoldOrderItems,
   toRestaurantDateStr,
 } from '../lib/analytics'
 import {
@@ -30,50 +27,27 @@ import {
   getDashboardPeriodOrders,
   getRollingDashboardMonthRange,
   getDashboardSalesByCategory,
-  isOrderInDashboardPeriod,
 } from '../lib/dashboardAnalytics'
 import AppShell from '../components/AppShell'
 import PageShimmer from '../components/PageShimmer'
-import WeeklyIncomeChart from '../components/WeeklyIncomeChart'
 import BusyHoursCard from '../components/BusyHoursCard'
 import ProductContributionCard from '../components/ProductContributionCard'
 import { loadPaidOrdersForRange, mergePaidOrderHistory } from '../lib/orderHistory'
-import {
-  buildDashboardMonthlyIncomeChartRows,
-  DASHBOARD_DAILY_BREAK_EVEN_INCOME,
-  loadDashboardMonthlyAverageIncome,
-} from '../lib/monthlyIncome'
 import { getOrdersNetProfit, getSaleProfitSummary } from '../lib/profit'
 
 // ── Localisation ──────────────────────────────────────────────────────────────
 const L = {
   uz: {
     title:          'Boshqaruv paneli',
-    greeting:       n => `Xush kelibsiz, ${n}! 👋`,
-    subtitle:       "Bugun Zar Kebab'da nima bo'layotganini ko'rishingiz mumkin.",
-    todayRevenue:   'Bugungi daromad',
     loyaltyIncome:  'Loyallik daromadi',
     netProfit:      'Sof foyda',
-    ordersToday:    'Bugungi buyurtmalar',
-    avgOrder:       "O'rtacha buyurtma",
-    itemsSold:      'Sotilgan taomlar',
     activeBills:    'Faol hisoblar',
     needAttention:  'DIQQAT TALAB QILADI',
-    yesterday:      'Kecha',
-    vsYesterday:    'kechaga nisbatan',
     revenueStats:   'Daromad statistikasi',
-    monthlyAvgDailyIncome: "Oylar bo'yicha o'rtacha kunlik daromad",
-    monthlyAvgDailyIncomeSub: "Oxirgi 12 oy ko'rsatiladi; nol daromad qiymatlari yashiriladi.",
-    savedMonth:     'Saqlangan oy',
-    currentMonth:   'Joriy oy',
-    breakEvenIncome: 'Kunlik zararsizlik',
-    monthlyIncomeFailed: "Oylik daromad ma'lumotlarini yuklab bo'lmadi",
-    retry:          'Qayta urinish',
     today:          'Bugun',
     days7:          '7 kun',
     rollingMonth:   'Oy',
     thisMonth:      'Bu oy',
-    thisYear:       'Bu yil',
     prevPeriod:     'Oldingi davr',
     thisPeriod:     'Bu davr',
     growth:         'O\'sish',
@@ -85,58 +59,26 @@ const L = {
     salesByCategory:'Kategoriya bo\'yicha savdo',
     orderTypePerformance:'Buyurtma turi bo‘yicha savdo',
     topOrderType:    'Eng yaxshisi',
-    bestSelling:    "Eng ko'p sotilgan taomlar",
     noSales:        "Savdo ma'lumotlari yo'q",
-    needBillCount:  n => `${n} hisob kerak`,
-    needsBillSection:'HISOB KERAK',
-    paidSection:    "TO'LANGAN",
-    view:           "Ko'rish",
-    noOrders:       "Buyurtma yo'q",
-    table:          'Stol',
-    pcs:            'ta',
     orders:         'buyurtma',
     revenue:        'Daromad',
     avgOrderShort:  "O'rtacha",
     items:          'taom',
-    paid:           "To'langan",
-    new:            'Yangi',
-    preparing:      'Tayyorlanmoqda',
-    needsBill:      'Hisob kerak',
-    ready:          'Tayyor',
-    cancelled:      'Bekor',
-    active:         'Faol',
-    total:          'Jami',
     footer:         'Barcha ma\'lumotlar to\'langan buyurtmalarga asoslangan',
     loading:        'Yuklanmoqda...',
     noData:         "Ma'lumot yo'q",
   },
   ru: {
     title:          'Панель управления',
-    greeting:       n => `Добро пожаловать, ${n}! 👋`,
-    subtitle:       'Вот что сегодня происходит в Zar Kebab.',
-    todayRevenue:   'Доход сегодня',
     loyaltyIncome:  'Доход по лояльности',
     netProfit:      'Чистая прибыль',
-    ordersToday:    'Заказы сегодня',
-    avgOrder:       'Средний заказ',
-    itemsSold:      'Продано блюд',
     activeBills:    'Активные счета',
     needAttention:  'ТРЕБУЕТ ВНИМАНИЯ',
-    yesterday:      'Вчера',
-    vsYesterday:    'vs вчера',
     revenueStats:   'Статистика дохода',
-    monthlyAvgDailyIncome: 'Средний дневной доход по месяцам',
-    monthlyAvgDailyIncomeSub: 'Показаны последние 12 месяцев; нулевые значения дохода скрыты.',
-    savedMonth:     'Сохранённый месяц',
-    currentMonth:   'Текущий месяц',
-    breakEvenIncome: 'Безубыточность в день',
-    monthlyIncomeFailed: 'Не удалось загрузить среднемесячный доход',
-    retry:          'Повторить',
     today:          'Сегодня',
     days7:          '7 дней',
     rollingMonth:   'Месяц',
     thisMonth:      'Этот месяц',
-    thisYear:       'Этот год',
     prevPeriod:     'Предыдущий период',
     thisPeriod:     'Этот период',
     growth:         'Рост',
@@ -148,58 +90,26 @@ const L = {
     salesByCategory:'Продажи по категориям',
     orderTypePerformance:'Продажи по типу заказа',
     topOrderType:    'Лучший',
-    bestSelling:    'Самые продаваемые',
     noSales:        'Данных о продажах нет',
-    needBillCount:  n => `${n} требуют счёт`,
-    needsBillSection:'НУЖЕН СЧЁТ',
-    paidSection:    'ОПЛАЧЕНЫ',
-    view:           'Открыть',
-    noOrders:       'Нет заказов',
-    table:          'Стол',
-    pcs:            'шт',
     orders:         'заказов',
     revenue:        'Доход',
     avgOrderShort:  'Средний',
     items:          'блюд',
-    paid:           'Оплачен',
-    new:            'Новый',
-    preparing:      'Готовится',
-    needsBill:      'Нужен счёт',
-    ready:          'Готово',
-    cancelled:      'Отменён',
-    active:         'Активен',
-    total:          'Всего',
     footer:         'Все данные основаны на оплаченных заказах',
     loading:        'Загрузка...',
     noData:         'Нет данных',
   },
   en: {
     title:          'Dashboard',
-    greeting:       n => `Welcome back, ${n}! 👋`,
-    subtitle:       "Here's what's happening at Zar Kebab today.",
-    todayRevenue:   "Today's Income",
     loyaltyIncome:  'Loyalty income',
     netProfit:      'Net Profit',
-    ordersToday:    'Orders Today',
-    avgOrder:       'Avg Order Value',
-    itemsSold:      'Items Sold',
     activeBills:    'Active Bills',
     needAttention:  'NEED ATTENTION',
-    yesterday:      'Yesterday',
-    vsYesterday:    'vs yesterday',
     revenueStats:   'Income Statistics',
-    monthlyAvgDailyIncome: 'Average Daily Income by Month',
-    monthlyAvgDailyIncomeSub: 'The latest 12 months are shown; zero income values are hidden.',
-    savedMonth:     'Saved month',
-    currentMonth:   'Current month',
-    breakEvenIncome: 'Daily break-even',
-    monthlyIncomeFailed: 'Could not load monthly income averages',
-    retry:          'Retry',
     today:          'Today',
     days7:          '7 Days',
     rollingMonth:   'Month',
     thisMonth:      'This Month',
-    thisYear:       'This Year',
     prevPeriod:     'Previous Period',
     thisPeriod:     'This Period',
     growth:         'Growth',
@@ -211,27 +121,11 @@ const L = {
     salesByCategory:'Sales by Category',
     orderTypePerformance:'Order Type Performance',
     topOrderType:    'Best',
-    bestSelling:    'Best-Selling Dishes',
     noSales:        'No sales data yet',
-    needBillCount:  n => `${n} Need Bill`,
-    needsBillSection:'NEEDS BILL',
-    paidSection:    'PAID',
-    view:           'View',
-    noOrders:       'No orders yet',
-    table:          'Table',
-    pcs:            'pcs',
     orders:         'orders',
     revenue:        'Income',
     avgOrderShort:  'Avg',
     items:          'items',
-    paid:           'Paid',
-    new:            'New',
-    preparing:      'Preparing',
-    needsBill:      'Needs Bill',
-    ready:          'Ready',
-    cancelled:      'Cancelled',
-    active:         'Active',
-    total:          'Total',
     footer:         'All data is based on paid orders',
     loading:        'Loading...',
     noData:         'No data yet',
@@ -246,25 +140,6 @@ function localDateStr(d) {
 
 function todayStr()     { return restaurantTodayStr() }
 function yesterdayStr() { return addRestaurantDays(todayStr(), -1) }
-
-function formatCompactIncome(amount, lang = 'uz') {
-  const locale = lang === 'en' ? 'en-US' : lang === 'ru' ? 'ru-RU' : 'uz-UZ'
-  return new Intl.NumberFormat(locale, {
-    notation: 'compact',
-    compactDisplay: 'short',
-    maximumFractionDigits: 1,
-  }).format(Math.max(0, Math.round(Number(amount) || 0)))
-}
-
-function isOrderInPeriod(order, period) {
-  return isOrderInDashboardPeriod(order, period)
-}
-
-function shortLabel(ds, mode) {
-  if (mode === 'today')  return `${ds.slice(11, 16)}` // hour label passed in directly
-  if (mode === 'year')   return ds.slice(5, 7)
-  return formatDateOnly(ds)
-}
 
 function dashboardPeriodLabel(period, lang) {
   const labels = {
@@ -554,22 +429,32 @@ export default function AdminDashboard() {
   const [historyError, setHistoryError] = useState('')
   const [historyLoading, setHistoryLoading] = useState(true)
   const [loadedHistoryRangeKey, setLoadedHistoryRangeKey] = useState('')
-  const [monthlyIncomeRows, setMonthlyIncomeRows] = useState([])
-  const [monthlyIncomeLoading, setMonthlyIncomeLoading] = useState(true)
-  const [monthlyIncomeError, setMonthlyIncomeError] = useState('')
-  const [monthlyIncomeRequestKey, setMonthlyIncomeRequestKey] = useState(0)
 
   const dashboardHistoryRange = useMemo(() => getDashboardHistoryRange(period), [period])
   const requestedHistoryRangeKey = dashboardHistoryRangeKey(dashboardHistoryRange)
   const analyticsLoading = historyLoading || loadedHistoryRangeKey !== requestedHistoryRangeKey
 
+  // Today's paid orders already arrive with POS hydration and stay live through
+  // realtime (state.orders), so only completed days are fetched here. Those are
+  // immutable, so each range is fetched once per visit and reused when the
+  // period is switched back.
+  const historyCache = useRef(new Map())
   useEffect(() => {
     let cancelled = false
     const requestRangeKey = dashboardHistoryRangeKey(dashboardHistoryRange)
+    const pastDateTo = addRestaurantDays(dashboardHistoryRange.dateTo, -1)
+    const cached = historyCache.current.get(requestRangeKey)
     setHistoryError('')
+    if (cached) {
+      setPaidHistoryOrders(cached)
+      setLoadedHistoryRangeKey(requestRangeKey)
+      setHistoryLoading(false)
+      return undefined
+    }
     setHistoryLoading(true)
-    loadPaidOrdersForRange(dashboardHistoryRange.dateFrom, dashboardHistoryRange.dateTo)
+    loadPaidOrdersForRange(dashboardHistoryRange.dateFrom, pastDateTo)
       .then(orders => {
+        historyCache.current.set(requestRangeKey, orders)
         if (cancelled) return
         setPaidHistoryOrders(orders)
         setLoadedHistoryRangeKey(requestRangeKey)
@@ -584,31 +469,6 @@ export default function AdminDashboard() {
       })
     return () => { cancelled = true }
   }, [dashboardHistoryRange])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    let cancelled = false
-    setMonthlyIncomeLoading(true)
-    setMonthlyIncomeError('')
-
-    loadDashboardMonthlyAverageIncome({ signal: controller.signal })
-      .then(rows => {
-        if (cancelled) return
-        setMonthlyIncomeRows(rows)
-        setMonthlyIncomeLoading(false)
-      })
-      .catch(error => {
-        if (cancelled) return
-        setMonthlyIncomeRows([])
-        setMonthlyIncomeError(error?.message || 'monthly_income_failed')
-        setMonthlyIncomeLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-      controller.abort()
-    }
-  }, [monthlyIncomeRequestKey])
 
   // ── Core derived sets ─────────────────────────────────────────────────────
   const dashboardOrders = useMemo(
@@ -845,23 +705,6 @@ export default function AdminDashboard() {
   }
 
   const chartMax = Math.max(...chartBars.map(b => b.revenue), 1)
-  const dailyBreakEvenIncome = Math.max(0, Math.round(Number(
-    state.settings?.averageDailyBreakEvenIncomeUzs ?? DASHBOARD_DAILY_BREAK_EVEN_INCOME
-  ) || 0))
-  const currentMonthStart = `${todayStr().slice(0, 8)}01`
-  const monthlyIncomeChartRows = buildDashboardMonthlyIncomeChartRows(monthlyIncomeRows).map(row => ({
-    ...row,
-    label: formatMonthYear(row.monthStart, lang, row.monthStart),
-    isCurrent: row.monthStart === currentMonthStart,
-  }))
-  const monthlyIncomeScaleMax = Math.max(
-    ...monthlyIncomeChartRows.map(row => row.averageDailyIncome),
-    dailyBreakEvenIncome > 0 ? Math.ceil(dailyBreakEvenIncome * 1.2) : 0,
-    1,
-  )
-  const breakEvenLineHeight = dailyBreakEvenIncome > 0
-    ? Math.round((dailyBreakEvenIncome / monthlyIncomeScaleMax) * 100)
-    : 0
   const now      = new Date()
   const lastUpdated = formatReadableDateTime(now)
   const currentKpiPeriodLabel = dashboardPeriodLabel(period, lang)
@@ -1120,127 +963,6 @@ export default function AdminDashboard() {
 
           <BusyHoursCard lang={lang} />
         </div>
-
-        <section
-          aria-busy={monthlyIncomeLoading}
-          className="ws-panel min-w-0"
-        >
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="ws-heading">{l.monthlyAvgDailyIncome}</h3>
-              <p className="ws-caption mt-1 leading-relaxed">
-                {l.monthlyAvgDailyIncomeSub}
-              </p>
-            </div>
-            <div className="ws-caption flex flex-wrap items-center gap-3">
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-[#0f766e]" />
-                {l.savedMonth}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm bg-[#ff5a00]" />
-                {l.currentMonth}
-              </span>
-              {dailyBreakEvenIncome > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <span className="w-4 border-t-2 border-dotted border-[#c4262c]" />
-                  {l.breakEvenIncome}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {monthlyIncomeLoading ? (
-            <ChartShimmer />
-          ) : monthlyIncomeError ? (
-            <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-3">
-              <span>{l.monthlyIncomeFailed}: {monthlyIncomeError}</span>
-              <button
-                type="button"
-                onClick={() => setMonthlyIncomeRequestKey(key => key + 1)}
-                className="ws-btn ws-btn-outline ws-btn-sm"
-              >
-                {l.retry}
-              </button>
-            </div>
-          ) : monthlyIncomeChartRows.length === 0 ? (
-            <p className="ws-empty">{l.noData}</p>
-          ) : (
-            <div className="overflow-x-auto pb-1">
-              <div className="min-w-[720px] pt-7">
-                <div
-                  className="relative flex h-48 items-end gap-3 border-b border-[#e4e1de] px-2"
-                  role="list"
-                  aria-label={l.monthlyAvgDailyIncome}
-                >
-                  {dailyBreakEvenIncome > 0 && (
-                    <div
-                      className="pointer-events-none absolute inset-x-2 z-20 border-t-2 border-dotted border-[#c4262c]"
-                      style={{ bottom: `${breakEvenLineHeight}%` }}
-                      aria-hidden="true"
-                    >
-                      <span className="absolute bottom-1 right-0 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#c4262c] shadow-sm">
-                        {formatCompactIncome(dailyBreakEvenIncome, lang)}
-                      </span>
-                    </div>
-                  )}
-                  {monthlyIncomeChartRows.map(row => {
-                    const height = Math.max(3, Math.round((row.averageDailyIncome / monthlyIncomeScaleMax) * 100))
-                    return (
-                      <div
-                        key={row.monthStart}
-                        className="group relative flex h-full min-w-[44px] flex-1 items-end"
-                        role="listitem"
-                        tabIndex={0}
-                        aria-label={`${row.label}: ${formatCurrency(row.averageDailyIncome)}`}
-                      >
-                        <div className="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#22201d] px-2 py-1 text-[10px] font-medium tabular-nums text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                          {formatCurrency(row.averageDailyIncome)}
-                        </div>
-                        <div
-                          className={`w-full rounded-t-lg transition-colors ${
-                            row.averageDailyIncome <= 0
-                              ? 'bg-[#efece9]'
-                              : row.isCurrent
-                              ? 'bg-[#ff5a00]'
-                              : 'bg-[#0f766e] group-hover:bg-[#0f766e]/85'
-                          }`}
-                          style={{ height: `${height}%` }}
-                          title={`${row.label}: ${formatCurrency(row.averageDailyIncome)}`}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="flex gap-3 px-2 pt-2">
-                  {monthlyIncomeChartRows.map(row => (
-                    <div
-                      key={row.monthStart}
-                      className="min-w-[44px] flex-1 text-center leading-tight"
-                    >
-                      <p className={`text-[10px] font-medium ${
-                        row.isCurrent ? 'text-[#ff5a00]' : 'text-[#68655f]'
-                      }`}>
-                        {row.label}
-                      </p>
-                      <p className={`mt-1 text-[10px] font-semibold tabular-nums ${
-                        row.averageDailyIncome <= 0
-                          ? 'text-[#dcd9d6]'
-                          : row.isCurrent
-                          ? 'text-[#ff5a00]'
-                          : 'text-[#0f766e]'
-                      }`}>
-                        {row.averageDailyIncome > 0 ? formatCompactIncome(row.averageDailyIncome, lang) : ''}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <WeeklyIncomeChart lang={lang} target={dailyBreakEvenIncome} />
 
         {/* Footer */}
         <p className="ws-caption text-center">
