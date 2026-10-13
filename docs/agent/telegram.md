@@ -16,7 +16,7 @@
 
 - Saved salary events (not initial setup) get `not_attempted` tracking. States: pending, sent, failed, skipped, confirmed; sent requires a message id.
 - Destinations send independently, duplicate-safe. Salaries: 5 rows/page, unsent retries.
-- Salary operations use `api/telegram/employee-notification.js`. Cleanup needs `ok:true` within 30s; a timeout keeps the record and shows an error.
+- Salary operations use `api/telegram/employee-notification.js`. Cleanup needs `ok:true` within 30s; a timeout keeps the record and errors.
 - Owner deletions first retract tracked private/Salary (Investor)/Team messages; missing ones succeed. Undeletable rate notices become cancelled; other failures block deletion.
 
 ## Salary targets
@@ -40,7 +40,7 @@
 - Game Club paid revenue has its own text/PNG bucket, excluded from other buckets.
 - `180`: Game Club rounds send Team RU date, actor, menu, items, total, plus paid daily income snapshotted at send (Tashkent paid_at, created_at fallback; saved totals). Read errors stay queued; cron retries; unknown sends held. No costs/tenders.
 - Daily/MTD cafe income uses immutable `orders.total`. Cash/terminal uses payment rows; QR maps to terminal; card/loyalty stay distinct.
-- `api/telegram/daily-salary.js` loads MTD cafe income orders via `loadSalaryRows` (paged by `id`); unpaged selects stop at 1000 rows and understate the monthly average. Reference: RPC `get_dashboard_monthly_average_income`.
+- `api/telegram/daily-salary.js` loads MTD cafe income orders via `loadSalaryRows` (paged by `id`); unpaged selects cap at 1000 rows (cf. RPC `get_dashboard_monthly_average_income`).
 - Daily soliq: 4% of paid cafe revenue, in expenses, deducted from net profit.
 - Team KPI: one Russian PNG per finalized date (all awards, total, date, system author); `181` claims dates; unknown sends held. No text fallback or sales/rate/balance data. Award deletion edits its image row.
 

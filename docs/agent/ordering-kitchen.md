@@ -43,7 +43,7 @@
 - The database must reject late inserts into paid orders and stale archived/unavailable products.
 
 - Fresh waiter submissions to an order already marked `needs_bill` require cashier recall first; retain the cart and explain the required action. Cashier-authorized users remain allowed. Never let this preflight block reconciling an uncertain round. Coverage: `tests/billHandoff.test.js`.
-- Shared write and cart submission errors use `src/lib/writeErrorMessage.js` for actionable Uzbek/Russian/English messages at render time; raw diagnostics stay in console logs. Coverage: `tests/writeErrorMessage.test.js`.
+- Write/cart submission errors use `src/lib/writeErrorMessage.js` for actionable uz/ru/en messages at render time; raw diagnostics stay in console logs (`tests/writeErrorMessage.test.js`).
 
 ## Kitchen checks and printing
 
@@ -62,12 +62,12 @@
 
 - Disabled tables remain available to reports/history but are hidden from waiter ordering.
 - Table edit/delete lives in `/admin/tables`, not the waiter grid.
-- Never hard-delete a table with active orders or historical references; verify history on demand before archival/deletion decisions.
+- Never hard-delete a table with active orders or history; verify history on demand before archiving/deleting.
 
-- Game Club uses `/waiter/take-away?orderType=game_club`, a distinct off-premise channel with `GC` order numbers, no table, zero service, and the existing off-premise permission. Regression coverage: `tests/gameClubOrders.test.js`.
+- Game Club uses `/waiter/take-away?orderType=game_club`: a distinct off-premise channel, `GC` numbers, no table, zero service, existing off-premise permission (`tests/gameClubOrders.test.js`).
 
-- Migration `180` queues each new Game Club round at commit, with only that round’s items and the actual submitting actor. Team delivery runs independently of the browser.
+- `180` queues each new Game Club round at commit with only its items and the actual submitter; Team delivery is browser-independent.
 
-- Staff category schedules can be bypassed per order type via `always_visible_take_away`, `always_visible_delivery`, and `always_visible_game_club`. Manage Menu has a checkbox for each; migration `205` seeds Game Club Business lunch. Guest/public menus, item schedules, hidden/archive flags, and unavailability keep their rules. Tests: `tests/gameClubCategorySchedule.test.js`.
+- Staff category schedules can be bypassed per order type (`always_visible_take_away`/`_delivery`/`_game_club`, a Manage Menu checkbox each; `205` seeds Game Club lunch). Guest/public menus, item schedules, hidden/archive flags, and unavailability keep their rules. Tests: `tests/gameClubCategorySchedule.test.js`.
 
-- Custom calendars: `src/components/CalendarPicker.jsx`; ISO values/bounds preserved. Tests: `tests/calendarPicker.test.js`.
+- Calendars: `CalendarPicker.jsx` keeps ISO values/bounds (`tests/calendarPicker.test.js`).

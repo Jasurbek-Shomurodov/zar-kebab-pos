@@ -25,7 +25,7 @@
 - `201`: separate payment selectors; “Add second payment” in Reports.
 - Delete completed orders access allows atomic non-loyalty tender fixes.
 - Loyalty rows are visible but immutable without a separate wallet reversal workflow.
-- Method corrections keep amounts fixed. Splits preserve the original sum, other payments, items, totals, paid state/time, loyalty, service and stock. Receipts audit/reconcile splits. Tests: `tests/paidPaymentSplit.test.js`.
+- Method corrections keep amounts fixed. Splits preserve the original sum, other payments, items, totals, paid state/time, loyalty, service and stock. Receipts audit/reconcile splits (`tests/paidPaymentSplit.test.js`).
 - Deletes need a reason (`184`) and today's Tashkent date (`202`); owners also delete old unpaid bills (`232`). Empty bills get it after refresh; paid history stays protected. Corrections notify Investor.
 
 ## Receipt printing
