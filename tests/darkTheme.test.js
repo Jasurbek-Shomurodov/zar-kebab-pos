@@ -22,6 +22,16 @@ test('dark palette is screen-only and remaps neutral surfaces but not brand oran
   assert.match(source('src/main.jsx'), /import '\.\/styles\/dark-theme\.css'/)
 })
 
+test('dark palette keeps forced overrides and status tints visible', () => {
+  const css = buildDarkThemeCss()
+  // Tech card unit price is a forced light surface; it must not stay white on dark.
+  assert.match(css, /\.\\!bg-\\\[\\#f6f5f3\\\] \{ background-color: #101412 !important; \}/)
+  // Invalid ingredient picker keeps a red tint and a readable red border.
+  assert.match(css, /\.bg-\\\[\\#fdf3f3\\\] \{ background-color: #3a1c1a; \}/)
+  assert.match(css, /\.border-\\\[\\#c4262c\\\] \{ border-color: #e0645c; \}/)
+  assert.doesNotMatch(css, /\\!border-white\\\/25/)
+})
+
 test('every staff top bar carries the light/dark toggle at the top right', () => {
   assert.match(source('src/components/AppShell.jsx'), /\{headerActions\}\s*<ThemeToggle lang=\{state\.lang\} \/>/)
   assert.match(source('src/components/WorkspaceTopBar.jsx'), /\{children\}\s*<ThemeToggle lang=\{lang\} \/>/)

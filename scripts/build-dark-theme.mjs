@@ -40,6 +40,19 @@ const SEMANTIC_TEXT = {
   '#9a5a00': '#dfb883',
 }
 
+// Pale status surfaces sit close enough to grey that the neutral test would
+// flatten them; keep their hue so invalid fields and accents still stand out.
+const SEMANTIC_BG = {
+  '#fdf3f3': '#3a1c1a',
+  '#fef2f2': '#2e1917',
+  '#fff1e8': '#33241a',
+}
+
+// Status hairlines are dark enough to vanish on a dark surface; lift them.
+const SEMANTIC_BORDER = {
+  '#c4262c': '#e0645c',
+}
+
 // Tailwind variants we can express as plain pseudo-classes.
 const VARIANTS = {
   hover: ':hover',
@@ -64,7 +77,7 @@ const PROPS = {
   outline: { kind: 'border', css: 'outline-color' },
 }
 
-const CLASS_RE = /(?<![\w\-[])((?:[a-z-]+:)*)(bg|text|placeholder|fill|stroke|border|divide|ring|outline)-([a-z]+-\d{2,3}|white|black|\[#[0-9a-fA-F]{3,8}\])(?:\/(\d{1,3}|\[[\d.]+\]))?(?![\w\-\]])/g
+const CLASS_RE = /(?<![\w\-[])((?:[a-z-]+:)*)(!?)(bg|text|placeholder|fill|stroke|border|divide|ring|outline)-([a-z]+-\d{2,3}|white|black|\[#[0-9a-fA-F]{3,8}\])(?:\/(\d{1,3}|\[[\d.]+\]))?(?![\w\-\]])/g
 
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -110,6 +123,7 @@ function remap(kind, rgb, interactive = false) {
   const avg = (rgb[0] + rgb[1] + rgb[2]) / 765
   const neutral = Math.max(...rgb) - Math.min(...rgb) <= 24
   if (kind === 'bg') {
+    if (SEMANTIC_BG[hex(rgb)]) return SEMANTIC_BG[hex(rgb)]
     if (neutral) {
       // Light-mode hovers darken a white surface; on dark they lift it instead.
       if (interactive && avg >= 0.87) return DARK.hover
@@ -134,6 +148,7 @@ function remap(kind, rgb, interactive = false) {
     }
     return avg < 0.3 ? mix(rgb, DARK.text, 0.35) : null
   }
+  if (SEMANTIC_BORDER[hex(rgb)]) return SEMANTIC_BORDER[hex(rgb)]
   if (neutral) {
     if (avg > 0.85) return DARK.border
     if (avg > 0.7) return DARK.borderStrong
@@ -161,12 +176,14 @@ export function buildDarkThemeCss() {
   const base = []
   const variant = []
   for (const cls of [...classes.keys()].sort()) {
-    const [, prefixText, propName, colorToken, alphaToken] = classes.get(cls)
+    const [, prefixText, important, propName, colorToken, alphaToken] = classes.get(cls)
     const prop = PROPS[propName]
     const rgb = resolveColor(colorToken)
     if (!rgb) continue
     const variants = prefixText ? prefixText.slice(0, -1).split(':') : []
     if (variants.some(v => !(v in VARIANTS))) continue
+    // A forced translucent white/black is a photo overlay, not a light surface.
+    if (important && alphaToken && (colorToken === 'white' || colorToken === 'black')) continue
 
     const mapped = remap(prop.kind, rgb, variants.some(v => v === 'hover' || v === 'active' || v === 'group-hover'))
     // Variant colours are re-emitted even when unchanged so they still beat a
@@ -180,7 +197,7 @@ export function buildDarkThemeCss() {
       if (v === 'group-hover') ancestor = '.group:hover '
       else selector += VARIANTS[v]
     }
-    const rule = `  html[data-theme="dark"] ${ancestor}${selector}${prop.suffix || ''} { ${prop.css}: ${value}; }`
+    const rule = `  html[data-theme="dark"] ${ancestor}${selector}${prop.suffix || ''} { ${prop.css}: ${value}${important ? ' !important' : ''}; }`
     ;(variants.length ? variant : base).push(rule)
   }
 
