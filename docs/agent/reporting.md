@@ -9,7 +9,7 @@
 
 ## Loader boundaries
 
-- POS hydration covers active/today’s paid orders only. Dashboard fetches past days only (today: `state.orders`), cached per range.
+- POS hydration covers active/today’s paid orders only. Dashboard is today-only (`state.orders`); it fetches just yesterday for comparisons.
 - Use bounded report loaders, receipt order/session IDs, earliest-needed estimate dates, and aggregate overview RPCs.
 
 ## Financial history
@@ -32,10 +32,10 @@
 ## Dashboard
 
 - Recent Orders and receipt/delete controls live in Reports. `202` allows deletion only for today's Tashkent payment date (creation fallback), even for owners; older delete controls are hidden. Coverage: `tests/orderDeletion.test.js`.
-- Sales by Category includes every sold category in the selected period.
-- Product Contribution ranks ten products by revenue: quantity, share, snapshot profit, margin. Missing cost snapshots show unavailable profit. It reuses selected-period orders.
+- Sales by Category includes every category sold today.
+- Product Contribution ranks ten products by revenue: quantity, share, snapshot profit, margin. Missing cost snapshots show unavailable profit.
 - Do not invent products/categories. Monthly Busy Hours uses migrations `192`–`193` to return 12 two-hour buckets for the current Tashkent month. It attributes paid demand to `created_at`, scans one indexed month, returns no order details, and highlights tied peaks.
-- Monthly/ten-day income charts are on Financial analysis, not Dashboard. Monthly Income shows 12 months, hides zero labels, and plots `business_settings.average_daily_break_even_income_uzs` as a red dotted line. Past months use immutable `dashboard_monthly_income_snapshots`; this month uses completed Tashkent days.
+- Monthly/ten-day income charts live on Financial analysis. Monthly Income shows 12 months, hides zero labels, and plots `business_settings.average_daily_break_even_income_uzs` as a red dotted line. Past months use immutable `dashboard_monthly_income_snapshots`; this month uses completed Tashkent days.
 - `157` backfills history; a daily cron finalizes last month. Completed months are never rescanned.
 - Monthly averages divide paid cafe income by calendar days; current month uses completed days only (zero on day one).
 

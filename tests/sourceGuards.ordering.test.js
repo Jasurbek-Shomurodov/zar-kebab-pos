@@ -206,15 +206,17 @@ test('elapsed labels use timezone-safe instant parsing instead of browser-local 
   }
 })
 
-test('AdminDashboard defaults to today period', () => {
+test('AdminDashboard shows today only, without period filters', () => {
   const source = readSource('src/pages/AdminDashboard.jsx')
   const analytics = readSource('src/lib/dashboardAnalytics.js')
-  assert.match(source, /const \[period, setPeriod\]\s*=\s*useState\('today'\)/)
-  assert.doesNotMatch(source, /const \[period, setPeriod\]\s*=\s*useState\('7days'\)/)
+  assert.doesNotMatch(source, /setPeriod|periodTabs|renderPeriodSwitch|rollingMonth|'7days'|thisMonth|thisYear/)
+  assert.match(source, /getDashboardDayOrders\(paidOrders, todayStr\(\)\)/)
+  assert.match(source, /getDashboardDayOrders\(paidOrders, yesterdayStr\(\)\)/)
   assert.doesNotMatch(source, /getDashboardPeriodCafeIncome|selectedPeriodCafeIncome|avgDailyCafeIncome/)
   assert.doesNotMatch(source, /icon=\{DollarSign\}/)
   assert.doesNotMatch(source, /avgOrderValue|previousAvgOrder|avgChange/)
-  assert.match(analytics, /export function getDashboardPeriodCafeIncome\(orders, period, now = new Date\(\)\)/)
+  assert.match(analytics, /export function getDashboardDayOrders\(orders, date = restaurantTodayStr\(\)\)/)
+  assert.doesNotMatch(analytics, /getDashboardPeriodOrders|getRollingDashboardMonthRange|getDashboardPeriodCafeIncome/)
 })
 
 test('AdminDashboard omits the Items Today KPI card', () => {
@@ -224,26 +226,7 @@ test('AdminDashboard omits the Items Today KPI card', () => {
   assert.match(source, /xl:grid-cols-4/)
 })
 
-test('AdminDashboard offers a rolling Month from 4 July to the 5 August boundary', () => {
-  const dashboard = readSource('src/pages/AdminDashboard.jsx')
-  const analytics = readSource('src/lib/dashboardAnalytics.js')
-
-  assert.match(dashboard, /\{ key: 'rollingMonth', label: l\.rollingMonth \}/)
-  assert.match(dashboard, /period === 'rollingMonth'/)
-  assert.match(dashboard, /formatLongDate\(rollingMonthRange\.dateFrom/)
-  assert.match(dashboard, /formatLongDate\(rollingMonthRange\.dateToExclusive/)
-  assert.match(analytics, /export function getRollingDashboardMonthRange/)
-  assert.match(analytics, /dateFrom = addRestaurantDays\(today, -31\)/)
-  assert.match(analytics, /dateToExclusive: addRestaurantDays\(today, 1\)/)
-})
-
-test('AdminDashboard does not offer a This Year period filter', () => {
-  const dashboard = readSource('src/pages/AdminDashboard.jsx')
-
-  assert.doesNotMatch(dashboard, /\{ key: 'year',\s+label: l\.thisYear\s+\}/)
-})
-
-test('AdminDashboard shows period-based order type performance', () => {
+test('AdminDashboard shows today order type performance', () => {
   const dashboard = readSource('src/pages/AdminDashboard.jsx')
   const analytics = readSource('src/lib/dashboardAnalytics.js')
   const card = functionBody(dashboard, 'OrderTypePerformanceCard')
@@ -254,8 +237,8 @@ test('AdminDashboard shows period-based order type performance', () => {
   assert.match(analytics, /getOrderRevenueTotal\(order\)/)
   assert.match(dashboard, /getDashboardOrderTypePerformance/)
   assert.match(dashboard, /const orderTypePerformance = useMemo\(\(\) =>/)
-  assert.match(dashboard, /getDashboardOrderTypePerformance\(periodPaidOrders, lang\)/)
-  assert.match(dashboard, /<OrderTypePerformanceCard rows=\{orderTypePerformance\} lang=\{lang\} loading=\{analyticsLoading\} \/>/)
+  assert.match(dashboard, /getDashboardOrderTypePerformance\(todayPaidOrders, lang\)/)
+  assert.match(dashboard, /<OrderTypePerformanceCard rows=\{orderTypePerformance\} lang=\{lang\} \/>/)
   assert.match(card, /ORDER_TYPE_PERFORMANCE_STYLE/)
   assert.match(card, /topKey/)
   assert.match(card, /row\.orders/)
@@ -272,25 +255,20 @@ test('AdminDashboard category sales use the available card height before scrolli
   assert.doesNotMatch(dashboard, /max-h-\[230px\] space-y-2 overflow-y-auto/)
 })
 
-test('AdminDashboard period filter shimmers every range-dependent statistic until its exact history range is loaded', () => {
+test('AdminDashboard only shimmers comparison KPIs while yesterday loads', () => {
   const dashboard = readSource('src/pages/AdminDashboard.jsx')
 
-  assert.match(dashboard, /const \[historyLoading, setHistoryLoading\] = useState\(true\)/)
-  assert.match(dashboard, /const \[loadedHistoryRangeKey, setLoadedHistoryRangeKey\] = useState\(''\)/)
-  assert.match(dashboard, /const analyticsLoading = historyLoading \|\| loadedHistoryRangeKey !== requestedHistoryRangeKey/)
-  assert.match(dashboard, /setHistoryLoading\(true\)[\s\S]*loadPaidOrdersForRange/)
-  assert.match(dashboard, /setPaidHistoryOrders\(orders\)[\s\S]*setLoadedHistoryRangeKey\(requestRangeKey\)[\s\S]*setHistoryLoading\(false\)/)
-  assert.match(dashboard, /\{l\.salesByCategory\} · \{currentKpiPeriodLabel\}/)
-  assert.match(dashboard, /<ProductContributionCard[^>]*periodLabel=\{currentKpiPeriodLabel\}/)
-  assert.ok((dashboard.match(/aria-busy=\{analyticsLoading\}/g) || []).length >= 3)
-  assert.equal((dashboard.match(/loading=\{analyticsLoading\}/g) || []).length, 5)
+  // Today's widgets render straight from hydrated state.orders; only the
+  // yesterday comparison waits on a request.
+  assert.match(dashboard, /const \[comparisonLoading, setComparisonLoading\] = useState\(true\)/)
+  assert.match(dashboard, /loadPaidOrdersForRange\(yesterday, yesterday\)/)
+  assert.match(dashboard, /setYesterdayHistoryOrders\(orders\)[\s\S]*setComparisonLoading\(false\)/)
+  assert.equal((dashboard.match(/loading=\{comparisonLoading\}/g) || []).length, 3)
+  assert.doesNotMatch(dashboard, /analyticsLoading|ChartShimmer|ListShimmer|LoadingView/)
+  assert.match(dashboard, /\{l\.salesByCategory\} · \{l\.today\}/)
+  assert.match(dashboard, /<ProductContributionCard rows=\{productContribution\} lang=\{lang\} periodLabel=\{l\.today\} \/>/)
   assert.match(dashboard, /<BusyHoursCard lang=\{lang\} \/>/)
-  assert.match(dashboard, /analyticsLoading \? \([\s\S]*<ChartShimmer \/>/)
-  assert.match(dashboard, /analyticsLoading \? \([\s\S]*salesByCategory\.length === 0/)
-  assert.match(dashboard, /rows=\{productContribution\}/)
   assert.match(dashboard, /function ShimmerBlock/)
-  assert.match(dashboard, /function ChartShimmer/)
-  assert.match(dashboard, /function ListShimmer/)
 })
 
 test('AdminDashboard omits staff performance and its profile-loading work', () => {

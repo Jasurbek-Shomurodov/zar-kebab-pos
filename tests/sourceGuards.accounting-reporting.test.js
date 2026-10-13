@@ -598,11 +598,9 @@ test('Accounting overview uses a summary while historical pages retain complete 
   assert.match(estimate, /if \(requestId !== loadRequestRef\.current\) return/)
   assert.match(reports, /loadOrdersForRange\(dateFrom, dateTo\)/)
   assert.match(reports, /mergeOrderHistory\(historyOrders, state\.orders, dateFrom, dateTo\)/)
-  // Today's paid orders come from hydration (state.orders); the Dashboard fetches completed days only.
-  assert.match(dashboard, /const pastDateTo = addRestaurantDays\(dashboardHistoryRange\.dateTo, -1\)/)
-  assert.match(dashboard, /loadPaidOrdersForRange\(dashboardHistoryRange\.dateFrom, pastDateTo\)/)
-  assert.match(dashboard, /mergePaidOrderHistory\(\s*paidHistoryOrders,\s*state\.orders,\s*dashboardHistoryRange\.dateFrom,\s*dashboardHistoryRange\.dateTo,?\s*\)/)
-  assert.match(dashboard, /dateFrom: `\$\{Number\(today\.slice\(0, 4\)\) - 1\}-01-01`/)
+  // Today's paid orders come from hydration (state.orders); the Dashboard fetches only yesterday.
+  assert.match(dashboard, /loadPaidOrdersForRange\(yesterday, yesterday\)/)
+  assert.match(dashboard, /mergePaidOrderHistory\(yesterdayHistoryOrders, state\.orders, yesterdayStr\(\), todayStr\(\)\)/)
   assert.match(db, /loadPaidOrdersForRange\(today, today\)/)
   assert.match(db, /loadActiveOrders\(\)/)
   assert.doesNotMatch(db, /loadOrdersForRange\(yearStart, today\)/)

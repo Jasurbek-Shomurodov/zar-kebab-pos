@@ -7,11 +7,11 @@ const labels = {
   ru: { title: 'Вклад продуктов', revenue: 'Выручка', profit: 'Прибыль', share: 'доля', sold: 'продано', margin: 'маржа', missingCost: 'Себестоимость недоступна', none: 'Нет данных о продажах' },
 }
 
-export default function ProductContributionCard({ rows, lang, periodLabel, loading, LoadingView }) {
+export default function ProductContributionCard({ rows, lang, periodLabel }) {
   const l = labels[lang] || labels.en
-  return <section aria-busy={loading} className="ws-panel col-span-12 xl:col-span-4 min-w-0">
+  return <section className="ws-panel col-span-12 xl:col-span-4 min-w-0">
     <h3 className="ws-heading mb-4">{l.title} · {periodLabel}</h3>
-    {loading ? <LoadingView /> : rows.length === 0 ? <p className="ws-empty !py-6">{l.none}</p> :
+    {rows.length === 0 ? <p className="ws-empty !py-6">{l.none}</p> :
       <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
         {rows.map((row, index) => <div key={row.menuItemId || row.name} className="rounded-[10px] border border-[#e4e1de] p-2.5">
           <div className="flex items-center gap-2.5">

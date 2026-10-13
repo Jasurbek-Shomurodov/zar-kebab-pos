@@ -6,9 +6,7 @@ import {
   getDashboardProductContribution,
   getDashboardOrderTypePerformance,
   getDashboardPaymentMethods,
-  getDashboardPeriodCafeIncome,
-  getDashboardPeriodOrders,
-  getRollingDashboardMonthRange,
+  getDashboardDayOrders,
   getDashboardSalesByCategory,
 } from '../src/lib/dashboardAnalytics.js'
 import {
@@ -99,39 +97,14 @@ const orders = [
   }),
 ]
 
-test('rolling month uses a next-day boundary from 4 July to 5 August', () => {
-  assert.deepEqual(getRollingDashboardMonthRange('2026-08-04'), {
-    dateFrom: '2026-07-04',
-    dateTo: '2026-08-04',
-    dateToExclusive: '2026-08-05',
-    dayCount: 32,
-  })
-
-  const rangeOrders = [
-    order({ id: 'before', paidAt: '2026-07-03T12:00:00', total: 10, items: [] }),
-    order({ id: 'start', paidAt: '2026-07-04T12:00:00', total: 20, items: [] }),
-    order({ id: 'today', paidAt: '2026-08-04T12:00:00', total: 30, items: [] }),
-    order({ id: 'exclusive-end', paidAt: '2026-08-05T12:00:00', total: 40, items: [] }),
-  ]
-
-  assert.deepEqual(
-    getDashboardPeriodOrders(rangeOrders, 'rollingMonth', new Date('2026-08-04T12:00:00+05:00')).map(row => row.id),
-    ['start', 'today']
-  )
-})
-
-function analyticsFor(period) {
-  const periodOrders = getDashboardPeriodOrders(orders, period, now)
-  return {
-    ids: periodOrders.map(row => row.id),
-    revenue: periodOrders.reduce((sum, row) => sum + row.total, 0),
-    payments: getDashboardPaymentMethods(periodOrders),
-    categories: getDashboardSalesByCategory(periodOrders, menuItemMap, categoryMap, 'en'),
+test('dashboard filters revenue payments and categories together for today', () => {
+  const todayOrders = getDashboardDayOrders(orders, toRestaurantDateStr(now))
+  const data = {
+    ids: todayOrders.map(row => row.id),
+    revenue: todayOrders.reduce((sum, row) => sum + row.total, 0),
+    payments: getDashboardPaymentMethods(todayOrders),
+    categories: getDashboardSalesByCategory(todayOrders, menuItemMap, categoryMap, 'en'),
   }
-}
-
-test('dashboard selected period filters revenue payments and categories together for today', () => {
-  const data = analyticsFor('today')
 
   assert.deepEqual(data.ids, ['today'])
   assert.equal(data.revenue, 62000)
@@ -139,7 +112,7 @@ test('dashboard selected period filters revenue payments and categories together
   assert.deepEqual(data.categories.map(row => row.name), ['Kebab', 'Drinks'])
 })
 
-test('dashboard today period uses restaurant timezone instead of device timezone', () => {
+test('dashboard today uses restaurant timezone instead of device timezone', () => {
   const edgeOrders = [
     order({
       id: 'restaurant-today',
@@ -157,18 +130,9 @@ test('dashboard today period uses restaurant timezone instead of device timezone
 
   assert.equal(toRestaurantDateStr('2026-05-19T19:30:00.000Z'), '2026-05-20')
   assert.deepEqual(
-    getDashboardPeriodOrders(edgeOrders, 'today', new Date('2026-05-19T20:00:00.000Z')).map(row => row.id),
+    getDashboardDayOrders(edgeOrders, toRestaurantDateStr(new Date('2026-05-19T20:00:00.000Z'))).map(row => row.id),
     ['restaurant-today']
   )
-})
-
-test('dashboard period change from today to 7 days removes stale today-only category and dish data', () => {
-  const today = analyticsFor('today')
-  const week = analyticsFor('7days')
-
-  assert.deepEqual(today.categories.map(row => row.name), ['Kebab', 'Drinks'])
-  assert.deepEqual(week.ids, ['today', 'week'])
-  assert.deepEqual(week.categories.map(row => row.name), ['First Meal', 'Kebab', 'Drinks'])
 })
 
 test('dashboard analytics keep category context for soft-deleted menu items', () => {
@@ -177,7 +141,7 @@ test('dashboard analytics keep category context for soft-deleted menu items', ()
     kebab: { ...menuItemMap.kebab, deleted_at: '2026-07-09T10:00:00.000Z' },
   }
   const rows = getDashboardSalesByCategory(
-    getDashboardPeriodOrders(orders, 'today', now),
+    getDashboardDayOrders(orders, toRestaurantDateStr(now)),
     deletedMenuMap,
     categoryMap,
     'en'
@@ -198,7 +162,7 @@ test('dashboard analytics keep historical category context after category archiv
     },
   }
   const rows = getDashboardSalesByCategory(
-    getDashboardPeriodOrders(orders, 'today', now),
+    getDashboardDayOrders(orders, toRestaurantDateStr(now)),
     menuItemMap,
     archivedCategoryMap,
     'en'
@@ -242,27 +206,6 @@ test('dashboard category sales prefer sold-item snapshots after a product moves 
       .map(row => row.name),
     ['Other']
   )
-})
-
-test('dashboard period change from 7 days to month updates all widgets to month data', () => {
-  const month = analyticsFor('month')
-
-  assert.deepEqual(month.ids, ['today', 'week', 'month'])
-  assert.equal(month.revenue, 218000)
-  assert.deepEqual(month.payments.map(row => row.key), ['card', 'cash', 'terminal'])
-  assert.deepEqual(month.categories.map(row => row.name), ['First Meal', 'Salads', 'Kebab', 'Drinks'])
-})
-
-test('dashboard daily cafe income follows the selected period', () => {
-  const today = getDashboardPeriodCafeIncome(orders, 'today', now)
-  const week = getDashboardPeriodCafeIncome(orders, '7days', now)
-  const month = getDashboardPeriodCafeIncome(orders, 'month', now)
-  const year = getDashboardPeriodCafeIncome(orders, 'year', now)
-
-  assert.deepEqual([today.total, today.dayCount, today.averageDaily], [62_000, 1, 62_000])
-  assert.deepEqual([week.total, week.dayCount, week.averageDaily], [158_000, 7, 22_571])
-  assert.deepEqual([month.total, month.dayCount, month.averageDaily], [218_000, 19, 11_474])
-  assert.deepEqual([year.total, year.dayCount, year.averageDaily], [278_000, 139, 2_000])
 })
 
 test('month-to-date cafe income averages paid revenue across all elapsed calendar days', () => {
@@ -410,17 +353,8 @@ test('cancelled items never contribute to sold-item dashboard or report metrics'
   assert.equal(orderType.revenue, 50000)
 })
 
-test('dashboard period change from month to year updates all widgets to year data', () => {
-  const year = analyticsFor('year')
-
-  assert.deepEqual(year.ids, ['today', 'week', 'month', 'year'])
-  assert.equal(year.revenue, 278000)
-  assert.deepEqual(year.payments.map(row => row.key), ['terminal', 'card', 'cash'])
-  assert.deepEqual(year.categories.map(row => row.name), ['First Meal', 'Drinks', 'Salads', 'Kebab'])
-})
-
-test('dashboard empty selected period returns zero and empty widget states', () => {
-  const empty = getDashboardPeriodOrders(orders, 'today', new Date('2026-05-18T12:00:00'))
+test('dashboard day without sales returns zero and empty widget states', () => {
+  const empty = getDashboardDayOrders(orders, toRestaurantDateStr(new Date('2026-05-18T12:00:00')))
   const payments = getDashboardPaymentMethods(empty)
   const categories = getDashboardSalesByCategory(empty, menuItemMap, categoryMap, 'en')
   const orderTypes = getDashboardOrderTypePerformance(empty, 'en')
@@ -472,32 +406,6 @@ test('dashboard order type performance ranks dine in take away and delivery reve
   assert.equal(rows[0].pct, 56)
   assert.equal(rows[1].avgOrder, 100000)
   assert.equal(rows[2].pct, 17)
-})
-
-test('latest selected period wins when a slow analytics response resolves out of order', async () => {
-  let selectedPeriod = 'today'
-  let rendered = null
-
-  function request(period, delay) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({ period, data: analyticsFor(period) })
-      }, delay)
-    }).then(result => {
-      if (result.period === selectedPeriod) {
-        rendered = result
-      }
-    })
-  }
-
-  const slowToday = request('today', 20)
-  selectedPeriod = '7days'
-  const fastWeek = request('7days', 1)
-
-  await Promise.all([slowToday, fastWeek])
-
-  assert.equal(rendered.period, '7days')
-  assert.deepEqual(rendered.data.ids, ['today', 'week'])
 })
 
 test('dashboard readable date format uses a clear date time separator', () => {

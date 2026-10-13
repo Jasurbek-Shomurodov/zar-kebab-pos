@@ -1,6 +1,4 @@
 import {
-  addRestaurantDays,
-  getCafeIncomeForRange,
   getOrderDate,
   getOrderItemCategoryId,
   getOrderPaymentBreakdown,
@@ -12,69 +10,15 @@ import {
 import { getOrderItemUnitPrice } from './priceModes.js'
 import { ORDER_TYPE_KEYS, inferOrderType, orderTypeLabel } from './orderTypes.js'
 import { getOrderItemCostPrice } from './profit.js'
+import { formatDateTime } from './dateFormat.js'
 
 function localDateStr(value) {
   return toLocalDateStr(value instanceof Date ? value.toISOString() : value)
 }
 
-import { formatDateTime } from './dateFormat.js'
-
-function todayStr(now = new Date()) {
-  return restaurantTodayStr(now)
-}
-
-export function getRollingDashboardMonthRange(today = todayStr()) {
-  const dateFrom = addRestaurantDays(today, -31)
-  return {
-    dateFrom,
-    dateTo: today,
-    dateToExclusive: addRestaurantDays(today, 1),
-    dayCount: 32,
-  }
-}
-
-export function isOrderInDashboardPeriod(order, period, now = new Date()) {
-  const ds = localDateStr(getOrderDate(order))
-  if (!ds) return false
-
-  if (period === 'today') return ds === todayStr(now)
-
-  if (period === '7days') {
-    const today = todayStr(now)
-    const start = addRestaurantDays(today, -6)
-    return ds >= start && ds <= today
-  }
-
-  if (period === 'rollingMonth') {
-    const range = getRollingDashboardMonthRange(todayStr(now))
-    return ds >= range.dateFrom && ds < range.dateToExclusive
-  }
-
-  if (period === 'month') {
-    const today = todayStr(now)
-    const prefix = today.slice(0, 8)
-    return ds.startsWith(prefix)
-  }
-
-  if (period === 'year') {
-    return ds.startsWith(`${todayStr(now).slice(0, 4)}-`)
-  }
-
-  return true
-}
-
-export function getDashboardPeriodOrders(orders, period, now = new Date()) {
-  return (orders || []).filter(order => isOrderInDashboardPeriod(order, period, now))
-}
-
-export function getDashboardPeriodCafeIncome(orders, period, now = new Date()) {
-  const today = todayStr(now)
-  let dateFrom = today
-  if (period === '7days') dateFrom = addRestaurantDays(today, -6)
-  else if (period === 'rollingMonth') dateFrom = getRollingDashboardMonthRange(today).dateFrom
-  else if (period === 'month') dateFrom = `${today.slice(0, 8)}01`
-  else if (period === 'year') dateFrom = `${today.slice(0, 4)}-01-01`
-  return getCafeIncomeForRange(orders, dateFrom, today, now)
+// The Dashboard shows a single Tashkent day (today, compared with yesterday).
+export function getDashboardDayOrders(orders, date = restaurantTodayStr()) {
+  return (orders || []).filter(order => localDateStr(getOrderDate(order)) === date)
 }
 
 export function getDashboardSalesByCategory(orders, menuItemMap, categoryMap, lang = 'en') {
