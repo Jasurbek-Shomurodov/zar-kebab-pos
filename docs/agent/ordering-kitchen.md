@@ -51,6 +51,7 @@
 
 - Never substitute an older round while the requested round loads.
 - Refresh a missing round directly before printing and auto-print each round only once.
+- "Print all" in the preparation header passes repeated `round`/`order` pairs to `/kitchen-check/:orderId`; each round prints as its own check with a page break, and auto-print waits until every missing round is looked up.
 - See `PRINTING.md` for receipt-printer setup.
 
 ## Tables

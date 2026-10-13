@@ -93,6 +93,7 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
       decreaseItem: 'Kamaytirish',
       increaseItem: 'Ko‘paytirish',
       printCheck: 'Chek chiqarish',
+      printAllChecks: 'Hammasini chiqarish',
       roundLabel: n => `Buyurtma ${n}`,
       missingItem: 'Menyuda yo‘q',
       removeReason: 'Menyuda mavjud emas',
@@ -114,6 +115,7 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
       decreaseItem: 'Уменьшить',
       increaseItem: 'Увеличить',
       printCheck: 'Печать чека',
+      printAllChecks: 'Печать всех',
       roundLabel: n => `Заказ ${n}`,
       missingItem: 'Нет в меню',
       removeReason: 'Нет в меню',
@@ -135,6 +137,7 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
       decreaseItem: 'Decrease',
       increaseItem: 'Increase',
       printCheck: 'Print check',
+      printAllChecks: 'Print all',
       roundLabel: n => `Order ${n}`,
       missingItem: 'Not in menu',
       removeReason: 'Not present in menu',
@@ -275,6 +278,16 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
             <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full flex-shrink-0">
               {readyCount} {lang === 'uz' ? 'tayyor' : lang === 'ru' ? 'готово' : 'ready'}
             </span>
+          )}
+          {preparationGroups.length > 1 && (
+            <button
+              type="button"
+              onClick={() => onPrintKitchenCheck(preparationGroups)}
+              className="inline-flex h-8 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#ff5a00] px-2.5 text-[11px] font-black text-white transition-colors hover:bg-[#cc4800]"
+            >
+              <Printer size={13} />
+              {l.printAllChecks}
+            </button>
           )}
         </div>
         {preparationGroups.length > 0 && (
@@ -1108,14 +1121,21 @@ export default function WaiterOrder() {
     })
   }
 
+  // Accepts one round group, or an array of groups to print every round in one go.
   function handlePrintKitchenCheck(group) {
-    const sourceOrderId = group?.orderId || activeOrder?.id
+    const groups = (Array.isArray(group) ? group : [group]).filter(Boolean)
+    const sourceOrderId = groups[0]?.orderId || activeOrder?.id
     if (!sourceOrderId) return
-    const params = new URLSearchParams({
-      print: '1',
-      round: String(group?.roundId || ''),
-      back: isTakeAwayFlow ? '/waiter/take-away?panel=order' : `/waiter/order/${tableId}?panel=order`,
-    })
+    const params = new URLSearchParams({ print: '1' })
+    if (groups.length > 1) {
+      groups.forEach(row => {
+        params.append('round', String(row.roundId || ''))
+        params.append('order', String(row.orderId || sourceOrderId))
+      })
+    } else {
+      params.set('round', String(groups[0]?.roundId || ''))
+    }
+    params.set('back', isTakeAwayFlow ? '/waiter/take-away?panel=order' : `/waiter/order/${tableId}?panel=order`)
     navigate(`/kitchen-check/${encodeURIComponent(sourceOrderId)}?${params.toString()}`)
   }
 

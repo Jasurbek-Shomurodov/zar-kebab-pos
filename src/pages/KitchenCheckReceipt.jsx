@@ -49,7 +49,11 @@ const PRINT_CSS = `
     display: none !important;
   }
   .kitchen-check-bg {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     display: block !important;
+    width: 80mm !important;
     background: #fff !important;
     padding: 0 !important;
     min-height: unset !important;
@@ -59,9 +63,7 @@ const PRINT_CSS = `
     visibility: visible !important;
   }
   .kitchen-check-print-area {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+    position: static !important;
     display: block !important;
     width: 80mm !important;
     max-width: 80mm !important;
@@ -78,6 +80,13 @@ const PRINT_CSS = `
     font-size: 14px !important;
     line-height: 1.2 !important;
     font-weight: 700 !important;
+  }
+  .kitchen-check-bg > div {
+    display: block !important;
+  }
+  .kitchen-check-print-area + .kitchen-check-print-area {
+    break-before: page;
+    page-break-before: always;
   }
   .kitchen-check-print-area * {
     color: #000 !important;
@@ -178,20 +187,32 @@ function KitchenCheckPaper({ group }) {
   )
 }
 
+function kitchenTargetKey(target) {
+  return `${target.orderId}\n${target.roundId}`
+}
+
 export default function KitchenCheckReceipt() {
-  const { orderId } = useParams()
+  const { orderId: routeOrderId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
   const { state } = useApp()
   const { loaded, loadError } = useAppDataStatus()
   const params = new URLSearchParams(location.search)
-  const roundId = params.get('round') || ''
   const autoPrint = params.get('print') === '1'
   const backPath = sanitizeBackPath(params.get('back')) || '/waiter/tables'
   const lang = state.lang || 'ru'
-  const [fetchedGroup, setFetchedGroup] = useState(null)
+  const [fetchedGroups, setFetchedGroups] = useState({})
   const [roundLookupState, setRoundLookupState] = useState('idle')
   const printedRoundRef = useRef('')
+
+  // One check per `round`; repeated `round`/`order` pairs print several rounds at once.
+  const targets = useMemo(() => {
+    const search = new URLSearchParams(location.search)
+    const rounds = search.getAll('round').filter(Boolean)
+    const orderIds = search.getAll('order')
+    if (rounds.length === 0) return [{ orderId: routeOrderId, roundId: '' }]
+    return rounds.map((roundId, index) => ({ orderId: orderIds[index] || routeOrderId, roundId }))
+  }, [location.search, routeOrderId])
 
   const menuItemMap = useMemo(() => {
     const map = {}
@@ -199,17 +220,22 @@ export default function KitchenCheckReceipt() {
     return map
   }, [state.menuItems])
 
-  const stateGroup = useMemo(() => {
+  const stateGroups = useMemo(() => targets.map(({ orderId, roundId }) => {
     const order = state.orders.find(item => item.id === orderId)
     const selected = getKitchenCheckGroup(order, roundId)
     return selected ? localizeKitchenGroup(selected, menuItemMap, 'ru') : null
-  }, [menuItemMap, orderId, roundId, state.orders])
+  }), [menuItemMap, state.orders, targets])
 
-  const group = stateGroup || fetchedGroup
+  const missingTargets = targets.filter((target, index) => target.roundId && !stateGroups[index])
+  const missingKey = missingTargets.map(kitchenTargetKey).join('\n\n')
+
+  const groups = targets
+    .map((target, index) => stateGroups[index] || fetchedGroups[kitchenTargetKey(target)] || null)
+    .filter(Boolean)
 
   useEffect(() => {
-    setFetchedGroup(null)
-    if (!loaded || loadError || !roundId || stateGroup) {
+    setFetchedGroups({})
+    if (!loaded || loadError || !missingKey) {
       setRoundLookupState('idle')
       return undefined
     }
@@ -219,12 +245,23 @@ export default function KitchenCheckReceipt() {
     const timeout = setTimeout(() => controller.abort(), 6000)
     setRoundLookupState('loading')
 
-    loadKitchenCheckOrder(orderId, { signal: controller.signal })
-      .then(order => {
+    const lookups = missingKey.split('\n\n').map(key => {
+      const [orderId, roundId] = key.split('\n')
+      return { key, orderId, roundId }
+    })
+    const orderIds = [...new Set(lookups.map(lookup => lookup.orderId))]
+
+    Promise.all(orderIds.map(orderId => loadKitchenCheckOrder(orderId, { signal: controller.signal })))
+      .then(orders => {
         if (cancelled) return
-        const selected = getKitchenCheckGroup(order, roundId)
-        setFetchedGroup(selected ? localizeKitchenGroup(selected, menuItemMap, 'ru') : null)
-        setRoundLookupState(selected ? 'found' : 'missing')
+        const found = {}
+        for (const { key, orderId, roundId } of lookups) {
+          const order = orders[orderIds.indexOf(orderId)]
+          const selected = getKitchenCheckGroup(order, roundId)
+          if (selected) found[key] = localizeKitchenGroup(selected, menuItemMap, 'ru')
+        }
+        setFetchedGroups(found)
+        setRoundLookupState(Object.keys(found).length > 0 ? 'found' : 'missing')
       })
       .catch(() => {
         if (!cancelled) setRoundLookupState('error')
@@ -236,22 +273,22 @@ export default function KitchenCheckReceipt() {
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [loaded, loadError, menuItemMap, orderId, roundId, stateGroup])
+  }, [loaded, loadError, menuItemMap, missingKey])
+
+  const isLookingUpRound = loaded && !loadError && !!missingKey && (
+    roundLookupState === 'idle' || roundLookupState === 'loading'
+  )
+  const printKey = groups.map(group => `${group.orderId}:${group.roundId}`).join('|')
 
   useEffect(() => {
-    if (!autoPrint || !group) return
-    const printKey = `${orderId}:${group.roundId}`
+    if (!autoPrint || !printKey || isLookingUpRound) return
     if (printedRoundRef.current === printKey) return
     const timer = setTimeout(() => {
       printedRoundRef.current = printKey
       handlePrintKitchenCheck(0)
     }, 600)
     return () => clearTimeout(timer)
-  }, [autoPrint, group, orderId])
-
-  const isLookingUpRound = loaded && !loadError && !!roundId && !group && (
-    roundLookupState === 'idle' || roundLookupState === 'loading'
-  )
+  }, [autoPrint, isLookingUpRound, printKey])
 
   if (!loaded || isLookingUpRound) {
     return (
@@ -261,7 +298,7 @@ export default function KitchenCheckReceipt() {
     )
   }
 
-  if (loadError || !group) {
+  if (loadError || groups.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
         <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
@@ -304,7 +341,11 @@ export default function KitchenCheckReceipt() {
       </div>
 
       <div className="kitchen-check-bg flex min-h-screen justify-center px-4 py-4">
-        <KitchenCheckPaper group={group} />
+        <div className="flex flex-col items-center gap-4">
+          {groups.map(group => (
+            <KitchenCheckPaper key={`${group.orderId}:${group.roundId}`} group={group} />
+          ))}
+        </div>
       </div>
     </div>
   )
