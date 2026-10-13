@@ -30,6 +30,10 @@ test('ingredient editors receive management controls through the delegated featu
   assert.match(page, /supabase\.rpc\('get_bazaar_ingredient_tech_card_usage', \{ p_product_key: ingredient\.product_key \}\)/)
   assert.match(page, /navigate\(`\/admin\/tech-cards\/\$\{encodeURIComponent\(row\.menuItemId\)\}\?\$\{params\}`\)/)
   assert.match(page, /if \(await setIngredientActive\(ingredient\)\) setArchiveCheck\(null\)/)
+  // An ingredient still used by a Tech Card cannot be archived; there is no override.
+  assert.match(page, /if \(!ingredient \|\| archiveCheck\.status !== 'ready' \|\| archiveUsageRows\.length\) return/)
+  assert.match(page, /const canArchive = archiveCheck\.status === 'ready' && !archiveUsageRows\.length/)
+  assert.doesNotMatch(page, /archiveAnyway/)
   assert.doesNotMatch(page, /window\.confirm\(/)
   assert.match(page, /runBazaarIngredientWriteWithRecovery/)
   assert.match(page, /upsertIngredient\(savedIngredientRow\(savedData\)\)/)

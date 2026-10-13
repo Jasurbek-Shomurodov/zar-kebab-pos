@@ -72,7 +72,7 @@
 - New orders freeze direct/nested ingredient quantities, units and prices in service-only `order_item_tech_card_ingredient_snapshots`; daily consumption uses paid, non-cancelled quantities. Never expose or backfill them.
 - Repeat parents only per distinct variant.
 - `186`: `/admin/ingredients` Team access, movement totals (see reporting); canonical snapshot keys.
-- Ingredient archive lists using cards (`242`, ids only); links highlight via `?variant=&ingredient=`.
+- Used ingredients cannot archive; dialog lists cards (`242`, ids only), links `?variant=&ingredient=`.
 - PDF: `TechCardPdfDownload.jsx`; `tests/techCardPdfData.test.js`.
 - `205`: Take Away/Delivery/Game Club schedule overrides (`always_visible_*`); seeds Game Club lunch. Test: `tests/gameClubCategorySchedule.test.js`.
 - Prune stale selections after staff load; translate errors on render (`tests/categoryScheduleAccess.test.js`).

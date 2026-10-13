@@ -50,9 +50,9 @@ const LIST_COPY = {
 }
 
 const ARCHIVE_COPY = {
-  en: { archiveTitle: 'Archive ingredient?', archiveUsed: (name, count) => `“${name}” is used in ${count} ${count === 1 ? 'tech card' : 'tech cards'}. Once archived it disappears from the tech card ingredient picker and these recipes show it as missing. Open each tech card and replace it with another ingredient.`, archiveUnused: name => `“${name}” is not used in any tech card. You can restore it later from Archived.`, archiveUsageFailed: 'Could not check which tech cards use this ingredient.', archiveAnyway: 'Archive anyway', usedIn: 'Used in tech cards', baseRecipe: 'Base recipe', openTechCard: 'Open tech card', noTechCardAccess: 'Ask someone with Tech Cards access to replace it.' },
-  ru: { archiveTitle: 'Архивировать ингредиент?', archiveUsed: (name, count) => `«${name}» используется в техкартах: ${count}. После архивации он пропадёт из выбора ингредиентов, а в этих рецептах будет отмечен как отсутствующий. Откройте каждую техкарту и замените его другим ингредиентом.`, archiveUnused: name => `«${name}» не используется ни в одной техкарте. Его можно восстановить позже во вкладке «Архивные».`, archiveUsageFailed: 'Не удалось проверить, в каких техкартах используется ингредиент.', archiveAnyway: 'Всё равно архивировать', usedIn: 'Используется в техкартах', baseRecipe: 'Основной рецепт', openTechCard: 'Открыть техкарту', noTechCardAccess: 'Попросите сотрудника с доступом к техкартам заменить его.' },
-  uz: { archiveTitle: 'Masalliqni arxivlaysizmi?', archiveUsed: (name, count) => `“${name}” ${count} ta texkartada ishlatiladi. Arxivlangach, u texkarta masalliqlari ro‘yxatidan yo‘qoladi va bu retseptlarda yo‘q deb ko‘rsatiladi. Har bir texkartani ochib, uni boshqa masalliq bilan almashtiring.`, archiveUnused: name => `“${name}” hech qaysi texkartada ishlatilmaydi. Keyinroq «Arxiv» bo‘limidan tiklash mumkin.`, archiveUsageFailed: 'Masalliq qaysi texkartalarda ishlatilishini tekshirib bo‘lmadi.', archiveAnyway: 'Baribir arxivlash', usedIn: 'Ishlatilgan texkartalar', baseRecipe: 'Asosiy retsept', openTechCard: 'Texkartani ochish', noTechCardAccess: 'Texkartalarga ruxsati bor xodimdan almashtirishni so‘rang.' },
+  en: { archiveTitle: 'Archive ingredient?', archiveBlockedTitle: 'Ingredient is in use', archiveUsed: (name, count) => `“${name}” is used in ${count} ${count === 1 ? 'tech card' : 'tech cards'} and cannot be archived. Open each tech card, replace it with another ingredient, then archive it.`, archiveUnused: name => `“${name}” is not used in any tech card. You can restore it later from Archived.`, archiveUsageFailed: 'Could not check which tech cards use this ingredient.', close: 'Close', usedIn: 'Used in tech cards', baseRecipe: 'Base recipe', openTechCard: 'Open tech card', noTechCardAccess: 'Ask someone with Tech Cards access to replace it.' },
+  ru: { archiveTitle: 'Архивировать ингредиент?', archiveBlockedTitle: 'Ингредиент используется', archiveUsed: (name, count) => `«${name}» используется в техкартах (${count}), поэтому его нельзя архивировать. Откройте каждую техкарту, замените его другим ингредиентом, затем архивируйте.`, archiveUnused: name => `«${name}» не используется ни в одной техкарте. Его можно восстановить позже во вкладке «Архивные».`, archiveUsageFailed: 'Не удалось проверить, в каких техкартах используется ингредиент.', close: 'Закрыть', usedIn: 'Используется в техкартах', baseRecipe: 'Основной рецепт', openTechCard: 'Открыть техкарту', noTechCardAccess: 'Попросите сотрудника с доступом к техкартам заменить его.' },
+  uz: { archiveTitle: 'Masalliqni arxivlaysizmi?', archiveBlockedTitle: 'Masalliq ishlatilmoqda', archiveUsed: (name, count) => `“${name}” ${count} ta texkartada ishlatiladi, shuning uchun uni arxivlab bo‘lmaydi. Har bir texkartani ochib, uni boshqa masalliq bilan almashtiring, keyin arxivlang.`, archiveUnused: name => `“${name}” hech qaysi texkartada ishlatilmaydi. Keyinroq «Arxiv» bo‘limidan tiklash mumkin.`, archiveUsageFailed: 'Masalliq qaysi texkartalarda ishlatilishini tekshirib bo‘lmadi.', close: 'Yopish', usedIn: 'Ishlatilgan texkartalar', baseRecipe: 'Asosiy retsept', openTechCard: 'Texkartani ochish', noTechCardAccess: 'Texkartalarga ruxsati bor xodimdan almashtirishni so‘rang.' },
 }
 
 // One grid for the header and rows keeps the columns aligned.
@@ -363,7 +363,8 @@ export default function BazaarIngredients() {
 
   async function confirmArchive() {
     const ingredient = archiveCheck?.ingredient
-    if (!ingredient) return
+    // Archive only after the check confirms no active Tech Card uses the ingredient.
+    if (!ingredient || archiveCheck.status !== 'ready' || archiveUsageRows.length) return
     // A failed archive keeps the dialog open with the error and a retry.
     if (await setIngredientActive(ingredient)) setArchiveCheck(null)
   }
@@ -569,7 +570,7 @@ export default function BazaarIngredients() {
             className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6 focus:outline-none"
           >
             <div className="mb-4 flex items-start justify-between gap-3">
-              <h2 id="archive-ingredient-title" className="ws-display !text-[24px]">{l.archiveTitle}</h2>
+              <h2 id="archive-ingredient-title" className="ws-display !text-[24px]">{archiveCheck.status === 'ready' && archiveUsageRows.length ? l.archiveBlockedTitle : l.archiveTitle}</h2>
               <button type="button" onClick={closeArchiveDialog} disabled={!!updatingKey} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
             </div>
             <div id="archive-ingredient-description">
@@ -622,11 +623,20 @@ export default function BazaarIngredients() {
             </div>
             {displayedError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{displayedError}</p>}
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={closeArchiveDialog} disabled={!!updatingKey} className="ws-btn ws-btn-outline">{l.cancel}</button>
-              <button type="button" onClick={confirmArchive} disabled={archiveCheck.status === 'loading' || !!updatingKey} className="ws-btn ws-btn-danger-solid disabled:cursor-not-allowed disabled:opacity-50">
-                {updatingKey ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
-                {archiveUsageRows.length || archiveCheck.status === 'failed' ? l.archiveAnyway : l.archive}
-              </button>
+              {(() => {
+                const canArchive = archiveCheck.status === 'ready' && !archiveUsageRows.length
+                return (
+                  <>
+                    <button type="button" onClick={closeArchiveDialog} disabled={!!updatingKey} className="ws-btn ws-btn-outline">{canArchive || archiveCheck.status === 'loading' ? l.cancel : l.close}</button>
+                    {(canArchive || archiveCheck.status === 'loading') && (
+                      <button type="button" onClick={confirmArchive} disabled={!canArchive || !!updatingKey} className="ws-btn ws-btn-danger-solid disabled:cursor-not-allowed disabled:opacity-50">
+                        {updatingKey ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                        {l.archive}
+                      </button>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           </div>
         </div>
