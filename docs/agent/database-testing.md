@@ -7,8 +7,7 @@
 - SQL migrations: `migrations/`
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
-
-- `194`/`206`/`237`: display roles; `238` Tourist; `243`/`245`/`247` attendance; `244` KPI 4am. Tests: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237`: display roles; `238` Tourist; `243`/5/7/`249` checkin; `244` KPI 4am; `248` hire `250` edit. Test: `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 
@@ -27,7 +26,7 @@
   - Dashboard monthly income snapshots, break-even target, and completed-day live average: `157`–`158`, `174`
   - authoritative Daily Bazaar ingredient catalog, clean reset, owner-only catalog writes, and immutable price-variance snapshots: `160`–`163`
   - immutable sold-item Tech Card ingredient snapshots and duplicate-safe daily ingredient image delivery: `164`–`165`
-  - Tashkent-calendar expense backdate enforcement: `166`
+  - Tashkent expense backdate limit: `166`
   - salary/KPI accrual, notifications, Tech Card catalog access, and Team queue repair: `169`–`172`
   - paid-order correction feature access: `173`
   - Investor alerts for order deletes and payment corrections, including trigger repair: `175`–`176`

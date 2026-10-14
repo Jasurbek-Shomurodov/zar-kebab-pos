@@ -4,6 +4,7 @@ import {
   expensePaymentMethodLabel,
 } from '../../../src/lib/expenses.js'
 import { formatCurrency } from '../../../src/lib/formatCurrency.js'
+import { employeeJobFunctionLabel } from '../../../src/lib/employeeJobFunctions.js'
 import { formatLongDate } from '../../../src/lib/dateFormat.js'
 import {
   calculateBazaarExpectedTotal,
@@ -224,6 +225,34 @@ export function buildEmployeeLifecycleInvestorMessage(delivery, language = 'ru')
   if (eventType === 'created' && salaryAmount > 0) {
     const unit = delivery?.salary_unit === 'daily' ? copy.daily : copy.monthly
     lines.push(`${copy.salary}: <b>${escapeTelegramHtml(formatCurrency(salaryAmount))}</b> (${unit})`)
+  }
+  if (delivery?.actor_name) lines.push(`${copy.actor}: ${escapeTelegramHtml(delivery.actor_name)}`)
+  return lines.join('\n')
+}
+
+// Only the fields that changed are listed, each as before → after.
+export function buildEmployeeProfileChangeInvestorMessage(delivery, language = 'ru') {
+  const lang = normalizeLanguage(language)
+  const copy = {
+    uz: { title: 'Xodim ma’lumotlari o‘zgartirildi', employee: 'Xodim', name: 'Ism', role: 'Lavozim', workStart: 'Ish boshlanishi', notSet: 'belgilanmagan', actor: 'O‘zgartirgan' },
+    ru: { title: 'Данные сотрудника изменены', employee: 'Сотрудник', name: 'Имя', role: 'Должность', workStart: 'Начало работы', notSet: 'не задано', actor: 'Изменил(а)' },
+    en: { title: 'Employee details changed', employee: 'Employee', name: 'Name', role: 'Role', workStart: 'Work starts', notSet: 'not set', actor: 'Changed by' },
+  }[lang]
+  const role = value => employeeJobFunctionLabel(value, lang) || copy.notSet
+  const time = value => String(value || '').slice(0, 5) || copy.notSet
+  const change = (label, before, after) => `${label}: ${escapeTelegramHtml(before)} → <b>${escapeTelegramHtml(after)}</b>`
+  const lines = [
+    `✏️ <b>${copy.title}</b>`,
+    `${copy.employee}: <b>${escapeTelegramHtml(delivery?.name_after || '—')}</b>`,
+  ]
+  if ((delivery?.name_before || '') !== (delivery?.name_after || '')) {
+    lines.push(change(copy.name, delivery?.name_before || '—', delivery?.name_after || '—'))
+  }
+  if ((delivery?.job_function_before || '') !== (delivery?.job_function_after || '')) {
+    lines.push(change(copy.role, role(delivery?.job_function_before), role(delivery?.job_function_after)))
+  }
+  if (time(delivery?.work_start_before) !== time(delivery?.work_start_after)) {
+    lines.push(change(copy.workStart, time(delivery?.work_start_before), time(delivery?.work_start_after)))
   }
   if (delivery?.actor_name) lines.push(`${copy.actor}: ${escapeTelegramHtml(delivery.actor_name)}`)
   return lines.join('\n')

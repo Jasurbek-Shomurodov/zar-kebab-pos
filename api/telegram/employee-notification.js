@@ -21,6 +21,7 @@ import { deliverTeamDailyKpi, retractTeamDailyKpiItem } from './_lib/teamDailyKp
 import {
   buildAbsenceUndoInvestorMessage,
   buildEmployeeLifecycleInvestorMessage,
+  buildEmployeeProfileChangeInvestorMessage,
   buildInvestorExpenseGroupMessage,
   buildInvestorIncomeGroupMessage,
   buildInvestorOrderChangeMessage,
@@ -1831,6 +1832,89 @@ async function notifyEmployeeLifecycle(supabase, user, salaryProfileId, lifecycl
   }
 }
 
+// Name, role and work-start changes: the same claim/send flow and Investor
+// (salary_events) target as lifecycle events, keyed by the trigger's row.
+async function notifyEmployeeProfileChange(supabase, user, salaryProfileId) {
+  const normalizedProfileId = String(salaryProfileId || '').trim()
+  if (!normalizedProfileId) {
+    throw Object.assign(new Error('salaryProfileId is required'), { status: 400 })
+  }
+
+  const table = 'employee_profile_change_investor_notification_deliveries'
+  const { data: existing, error: existingError } = await supabase
+    .from(table)
+    .select('*')
+    .eq('salary_profile_id', normalizedProfileId)
+    .eq('actor_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (existingError) throw existingError
+  if (!existing) throw Object.assign(new Error('Employee profile change notification event not found'), { status: 404 })
+  if (!canRetryInvestorExpenseDelivery(existing)) {
+    return savedEmployeeLifecycleDeliveryResult(existing)
+  }
+
+  const target = await loadSalaryGroupTarget(supabase)
+  const now = new Date().toISOString()
+  const claimed = await supabase
+    .from(table)
+    .update({
+      status: target.chatId ? 'pending' : 'skipped',
+      telegram_chat_id: target.chatId || null,
+      telegram_message_id: null,
+      error_message: target.chatId ? '' : 'ZarKebab Investor Telegram group is not configured',
+      attempted_at: now,
+      sent_at: null,
+      updated_at: now,
+    })
+    .eq('id', existing.id)
+    .eq('status', existing.status)
+    .eq('updated_at', existing.updated_at)
+    .select('*')
+    .maybeSingle()
+  if (claimed.error) throw claimed.error
+  if (!claimed.data) {
+    const { data: concurrent, error: concurrentError } = await supabase
+      .from(table)
+      .select('*')
+      .eq('id', existing.id)
+      .single()
+    if (concurrentError) throw concurrentError
+    return savedEmployeeLifecycleDeliveryResult(concurrent)
+  }
+  if (!target.chatId) return savedEmployeeLifecycleDeliveryResult(claimed.data, false)
+
+  try {
+    const response = await sendTelegramMessage(
+      target.chatId,
+      buildEmployeeProfileChangeInvestorMessage(claimed.data, 'ru'),
+    )
+    const sentAt = new Date().toISOString()
+    const { data: sentDelivery, error: updateError } = await supabase
+      .from(table)
+      .update({
+        status: 'sent',
+        telegram_message_id: getTelegramMessageId(response),
+        error_message: '',
+        sent_at: sentAt,
+        updated_at: sentAt,
+      })
+      .eq('id', existing.id)
+      .select('*')
+      .single()
+    if (updateError) throw updateError
+    return savedEmployeeLifecycleDeliveryResult(sentDelivery, false)
+  } catch (error) {
+    const errorMessage = String(error?.message || error).slice(0, 1000)
+    await supabase
+      .from(table)
+      .update({ status: 'failed', error_message: errorMessage, updated_at: new Date().toISOString() })
+      .eq('id', existing.id)
+    return { ...savedEmployeeLifecycleDeliveryResult(existing, false), ok: false, status: 'failed', errorMessage }
+  }
+}
+
 async function notifyInvestorIncome(supabase, user, expenseId) {
   const { data: expense, error } = await supabase
     .from('expenses')
@@ -2046,6 +2130,7 @@ export default async function handler(req, res) {
       absence_undo: absenceId,
       order_change: orderIds?.[0],
       employee_lifecycle: salaryProfileId,
+      employee_profile_change: salaryProfileId,
     }
     const isMenuUnavailable = notificationType === 'menu_unavailable'
     const isMenuAvailable = notificationType === 'menu_available'
@@ -2053,7 +2138,7 @@ export default async function handler(req, res) {
     const isMenuArchived = notificationType === 'menu_archived'
     const isMenuEvent = isMenuUnavailable || isMenuAvailable || isMenuCreated || isMenuArchived
     const isSalaryRetraction = notificationType === 'retract_salary_event'
-    if (!isMenuEvent && !isSalaryRetraction && !['salary_order', 'fine', 'payment', 'bonus', 'absence', 'absence_undo', 'rate', 'kpi_rule', 'expense', 'investor_income', 'order_change', 'employee_lifecycle'].includes(notificationType)) {
+    if (!isMenuEvent && !isSalaryRetraction && !['salary_order', 'fine', 'payment', 'bonus', 'absence', 'absence_undo', 'rate', 'kpi_rule', 'expense', 'investor_income', 'order_change', 'employee_lifecycle', 'employee_profile_change'].includes(notificationType)) {
       return json(res, 400, { error: 'Unsupported notification type' })
     }
     if (isMenuEvent && !menuItemId) {
@@ -2103,6 +2188,8 @@ export default async function handler(req, res) {
       result = await notifyAbsenceUndo(supabase, user, absenceId)
     } else if (notificationType === 'employee_lifecycle') {
       result = await notifyEmployeeLifecycle(supabase, user, salaryProfileId, lifecycleEventType)
+    } else if (notificationType === 'employee_profile_change') {
+      result = await notifyEmployeeProfileChange(supabase, user, salaryProfileId)
     } else if (notificationType === 'salary_order') {
       result = await notifyPayment(supabase, user, paymentId, true)
     } else if (notificationType === 'payment') {

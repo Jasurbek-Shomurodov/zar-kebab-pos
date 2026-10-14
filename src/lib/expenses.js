@@ -618,6 +618,21 @@ export function getSalaryBalance(salaryProfile, dateTo = todayExpenseDate()) {
   return accrued + bonuses - getSalaryPaidAmount(salaryProfile, dateTo) - getSalaryFineAmount(salaryProfile, dateTo)
 }
 
+// One day of the salary ledger: base pay (zero when absent or not employed),
+// accrued bonuses and fines dated that day, and payments made that day.
+export function getSalaryDaySummary(salaryProfile, date = todayExpenseDate()) {
+  const day = String(date || todayExpenseDate()).slice(0, 10)
+  const base = getSalaryAccruedAmount(salaryProfile, day, day)
+  const bonuses = getSalaryBonusAccruedAmount(salaryProfile, day, day)
+  const fines = (salaryProfile?.fines || []).reduce((sum, fine) => (
+    String(fine?.fine_date || '').slice(0, 10) === day ? sum + normalizeExpenseAmount(fine?.amount) : sum
+  ), 0)
+  const paid = (salaryProfile?.payments || []).reduce((sum, payment) => (
+    String(payment?.paid_date || '').slice(0, 10) === day ? sum + normalizeExpenseAmount(payment?.amount) : sum
+  ), 0)
+  return { base, bonuses, fines, paid, earned: base + bonuses - fines }
+}
+
 export function getSalaryDue(salaryProfile, dateTo = todayExpenseDate()) {
   return Math.max(0, getSalaryBalance(salaryProfile, dateTo))
 }

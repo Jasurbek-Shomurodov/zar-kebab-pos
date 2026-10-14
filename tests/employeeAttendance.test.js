@@ -6,6 +6,7 @@ import {
   buildAttendanceCheckinRow,
   buildAttendanceCheckinUrl,
   buildAttendanceCodeRejectedMessage,
+  buildAttendanceKioskQrDataUrl,
   buildAttendanceKioskUrl,
   classifyArrival,
   formatArrivalSummary,
@@ -15,6 +16,9 @@ import {
   formatAttendanceQrWindow,
   isAttendanceQrWindowOpen,
   readAttendanceKioskKey,
+  ATTENDANCE_START_DATE,
+  buildAttendanceNotStartedMessage,
+  isAttendanceStarted,
 } from '../src/lib/attendance.js'
 
 const migration = readFileSync(new URL('../migrations/243_employee_attendance_checkins.sql', import.meta.url), 'utf8')
@@ -45,6 +49,23 @@ test('screen links carry the key in the hash only', () => {
   assert.equal(readAttendanceKioskKey(`#x=1&k=${KEY}`), KEY)
   assert.equal(readAttendanceKioskKey('#k=short'), '')
   assert.equal(readAttendanceKioskKey(''), '')
+})
+
+test('a new screen link is shown as a locally rendered QR in the dialog', async () => {
+  const url = buildAttendanceKioskUrl('https://admin.zarkebab.uz', KEY)
+  const qr = await buildAttendanceKioskQrDataUrl(url)
+  assert.match(qr, /^data:image\/png;base64,/)
+  assert.equal(await buildAttendanceKioskQrDataUrl(url), qr)
+  assert.notEqual(await buildAttendanceKioskQrDataUrl(buildAttendanceKioskUrl('https://admin.zarkebab.uz', 'b'.repeat(64))), qr)
+  assert.equal(await buildAttendanceKioskQrDataUrl(''), '')
+
+  const employees = readFileSync(new URL('../src/pages/Employees.jsx', import.meta.url), 'utf8')
+  assert.match(employees, /buildAttendanceKioskQrDataUrl\(screenLink\)/)
+  assert.match(employees, /screenQr\s*\?\s*<img src=\{screenQr\}/)
+  assert.match(employees, /: <Shimmer className="size-\[min\(60vw,220px\)\]/)
+  // The key must never leave the browser for a hosted QR generator.
+  assert.doesNotMatch(employees, /api\.qrserver|chart\.googleapis|quickchart/i)
+  assert.equal(employees.split('screenQrAlt:').length - 1, 3)
 })
 
 test('arrival is classified by whole Tashkent minutes against the start time', () => {
@@ -357,4 +378,46 @@ test('drawer tab appears only for selected accounts inside their hours; Dashboar
   assert.match(app, /<Route path="\/checkin-qr" element=\{\s*<LazyProtectedRoute><CheckinQr \/><\/LazyProtectedRoute>/)
   assert.match(settings, /tab === 'checkin-qr' \? \(\s*<AttendanceQrAccessSettings lang=\{lang\} canManage=\{canManageSettings\} \/>/)
   assert.doesNotMatch(dashboard, /CheckinQr/)
+})
+
+const startMigration = readFileSync(new URL('../migrations/249_attendance_starts_2026_10_15.sql', import.meta.url), 'utf8')
+
+test('attendance starts on 2026-10-15 everywhere', () => {
+  assert.equal(ATTENDANCE_START_DATE, '2026-10-15')
+  assert.equal(isAttendanceStarted('2026-10-14'), false)
+  assert.equal(isAttendanceStarted('2026-10-15'), true)
+  assert.equal(isAttendanceStarted(''), false)
+  assert.match(buildAttendanceNotStartedMessage(), /15 октября/)
+  assert.match(startMigration, new RegExp(`date '${ATTENDANCE_START_DATE}'`))
+  // The bot answers before verifying, so early scans never reach the guarded insert.
+  const checkIn = webhook.slice(webhook.indexOf('async function checkInEmployee'))
+  assert.ok(checkIn.indexOf('isAttendanceStarted(getTashkentClock(scannedAt).date)') < checkIn.indexOf("rpc('verify_attendance_checkin_payload'"))
+  const hook = readFileSync(new URL('../src/lib/useRotatingCheckinQr.js', import.meta.url), 'utf8')
+  assert.match(hook, /if \(!enabled \|\| !botUsername \|\| !started\)/)
+  assert.match(hook, /!started \? 'not-started'/)
+  const employees = readFileSync(new URL('../src/pages/Employees.jsx', import.meta.url), 'utf8')
+  assert.match(employees, /const attendanceLive = attendanceAvailable && isAttendanceStarted\(today\)/)
+})
+
+test('249 refuses check-ins dated before the start date', async () => {
+  const { PGlite } = await import('@electric-sql/pglite')
+  const db = new PGlite()
+  try {
+    await db.exec(`
+      CREATE ROLE anon; CREATE ROLE authenticated;
+      CREATE TABLE public.employee_salary_profiles (id uuid PRIMARY KEY);
+      CREATE FUNCTION public.current_staff_can_access(text) RETURNS boolean LANGUAGE sql AS 'select true';
+      INSERT INTO public.employee_salary_profiles VALUES ('00000000-0000-0000-0000-000000000001');
+    `)
+    await db.exec(migration)
+    await db.exec(startMigration)
+    await db.exec(startMigration)
+    const insert = `INSERT INTO employee_attendance_checkins (salary_profile_id, business_date, arrival_status)
+      VALUES ('00000000-0000-0000-0000-000000000001', $1, 'no_schedule') RETURNING id`
+    await assert.rejects(db.query(insert, ['2026-10-14']), /attendance_not_started/)
+    assert.equal((await db.query(insert, ['2026-10-15'])).rows.length, 1)
+    await assert.rejects(db.query("UPDATE employee_attendance_checkins SET business_date = '2026-10-01'"), /attendance_not_started/)
+  } finally {
+    await db.close()
+  }
 })

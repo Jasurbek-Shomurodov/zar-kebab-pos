@@ -477,3 +477,16 @@ roll-digit{overflow:hidden}
 roll-strip{display:flex;flex-direction:column;transition:transform .9s cubic-bezier(.16,1,.3,1) var(--roll-delay,0ms)}
 roll-strip>roll-char{display:block;height:1lh}
 @media (prefers-reduced-motion:reduce){roll-strip{transition:none}}
+
+/* Check-in QR countdown: one linear shrink per code (CheckinCountdownBar). */
+.zk-qr-countdown {
+  transform: scaleX(var(--zk-from, 1));
+  transform-origin: left center;
+  animation-name: zk-qr-countdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes zk-qr-countdown {
+  from { transform: scaleX(var(--zk-from, 1)); }
+  to { transform: scaleX(0); }
+}

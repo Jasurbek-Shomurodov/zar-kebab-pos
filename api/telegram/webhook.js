@@ -10,11 +10,19 @@ import { loadSalaryProfiles } from './_lib/salaryProfileData.js'
 import { callTelegramApi, escapeTelegramHtml, sendTelegramMessage } from './_lib/telegram.js'
 import { getEmployeePaymentConfirmationCopy } from './_lib/paymentMessages.js'
 import {
+  employeeRegistrationAlreadyLinkedMessage,
+  employeeRegistrationLinkedMessage,
+  linkEmployeeRegistration,
+} from './_lib/employeeRegistration.js'
+import {
   buildAttendanceCheckinMessage,
   buildAttendanceCheckinRow,
   buildAttendanceCodeRejectedMessage,
   buildAttendanceNotLinkedMessage,
   parseAttendanceCheckinCommand,
+  buildAttendanceNotStartedMessage,
+  getTashkentClock,
+  isAttendanceStarted,
 } from '../../src/lib/attendance.js'
 
 const LANGUAGES = {
@@ -55,7 +63,13 @@ async function linkEmployee(supabase, message, token) {
   if (findError) throw findError
 
   if (!link) {
-    await sendTelegramMessage(message.chat.id, invalidLinkMessage())
+    // Not an existing employee's link: it may be a new-employee registration.
+    const outcome = await linkEmployeeRegistration(supabase, { token, user, chat: message.chat })
+    await sendTelegramMessage(message.chat.id, outcome === 'linked'
+      ? employeeRegistrationLinkedMessage()
+      : outcome === 'already_linked'
+        ? employeeRegistrationAlreadyLinkedMessage()
+        : invalidLinkMessage())
     return
   }
 
@@ -108,6 +122,11 @@ async function checkInEmployee(supabase, message, command) {
     return
   }
   const scannedAt = Number.isFinite(message.date) ? new Date(message.date * 1000) : new Date()
+  // Before the start date the database refuses check-ins (migration 249); answer politely.
+  if (!isAttendanceStarted(getTashkentClock(scannedAt).date)) {
+    await sendTelegramMessage(message.chat.id, buildAttendanceNotStartedMessage())
+    return
+  }
   const { data: verdict, error: verifyError } = await supabase.rpc('verify_attendance_checkin_payload', {
     p_payload: command.payload,
     p_at: scannedAt.toISOString(),

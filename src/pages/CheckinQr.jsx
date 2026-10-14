@@ -1,13 +1,14 @@
 import React from 'react'
-import { Clock3, QrCode, WifiOff } from 'lucide-react'
+import { CalendarClock, Clock3, QrCode, WifiOff } from 'lucide-react'
 import { Shimmer } from '../components/PageShimmer'
+import CheckinCountdownBar from '../components/CheckinCountdownBar'
 import AppShell from '../components/AppShell'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { formatAttendanceQrWindow } from '../lib/attendance'
 import { useAttendanceQrAccess } from '../lib/attendanceQrAccess'
-import { CHECKIN_QR_SLOT_SECONDS, useRotatingCheckinQr, useScreenWakeLock } from '../lib/useRotatingCheckinQr'
+import { useRotatingCheckinQr, useScreenWakeLock } from '../lib/useRotatingCheckinQr'
 
 // Drawer page for accounts selected in Settings (migration 247). The database
 // refuses codes outside the account's window, whatever this device's clock says.
@@ -21,6 +22,7 @@ const L = {
     offline: 'Aloqa yo‘q. Qayta ulanguncha kod yashirildi.',
     noBot: 'VITE_TELEGRAM_BOT_USERNAME sozlanmagan.',
     unavailable: 'Kelish QR kodi hali sozlanmagan (247-migratsiya).',
+    notStarted: 'Ishga kelishni belgilash 15-oktabrdan boshlanadi.',
   },
   ru: {
     title: 'QR для отметки',
@@ -31,6 +33,7 @@ const L = {
     offline: 'Нет связи. Код скрыт, пока связь не восстановится.',
     noBot: 'Не настроен VITE_TELEGRAM_BOT_USERNAME.',
     unavailable: 'QR отметки ещё не настроен (миграция 247).',
+    notStarted: 'Отметка прихода начнётся 15 октября.',
   },
   en: {
     title: 'Check-in QR',
@@ -41,6 +44,7 @@ const L = {
     offline: 'No connection. The code is hidden until it reconnects.',
     noBot: 'VITE_TELEGRAM_BOT_USERNAME is not configured.',
     unavailable: 'The check-in QR is not set up yet (migration 247).',
+    notStarted: 'Attendance check-in starts on 15 October.',
   },
 }
 
@@ -49,7 +53,7 @@ export default function CheckinQr() {
   const { profile } = useAuth()
   const l = L[state.lang] || L.en
   const { loading, access, openNow } = useAttendanceQrAccess(profile?.id)
-  const { status, dataUrl, secondsLeft } = useRotatingCheckinQr(
+  const { status, dataUrl, slotEndsAt } = useRotatingCheckinQr(
     signal => supabase.rpc('get_attendance_qr_token').abortSignal(signal),
     { source: 'staff', enabled: openNow },
   )
@@ -59,6 +63,7 @@ export default function CheckinQr() {
   let message = null
   if (loading) message = null
   else if (!access) message = { icon: <QrCode size={36} />, text: l.notSelected }
+  else if (status === 'not-started') message = { icon: <CalendarClock size={36} />, text: l.notStarted }
   else if (!openNow || status === 'disabled') {
     message = { icon: <Clock3 size={36} />, text: l.closed, detail: formatAttendanceQrWindow(access.start_time, access.end_time, state.lang) }
   } else if (status === 'no-bot') message = { icon: <QrCode size={36} />, text: l.noBot }
@@ -83,10 +88,7 @@ export default function CheckinQr() {
                 : <Shimmer className="size-[min(80vw,calc(100dvh-260px))] min-h-[220px] min-w-[220px] rounded-2xl" />}
             </div>
             <div className="w-[min(80vw,520px)]">
-              <div className="h-1.5 overflow-hidden rounded-full bg-[#e8e4df]">
-                <div className="h-full rounded-full bg-[#ff5a00] transition-[width] duration-1000 ease-linear"
-                  style={{ width: `${Math.min(100, (secondsLeft / CHECKIN_QR_SLOT_SECONDS) * 100)}%` }} />
-              </div>
+              <CheckinCountdownBar key={slotEndsAt} slotEndsAt={slotEndsAt} />
               <p className="ws-caption mt-3 !text-[14px]">{l.how}</p>
             </div>
           </>

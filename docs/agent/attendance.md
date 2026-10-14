@@ -14,11 +14,13 @@
 ## Flow
 
 - A manager with Accounting write creates one screen link (`create_attendance_kiosk`); a new link or `revoke_attendance_kiosks` disables the previous screen. Only one screen is active.
+- The dialog shows the one-time link with a QR of it (rendered locally with `qrcode` via `buildAttendanceKioskQrDataUrl`; never a hosted QR service) so the entrance device can scan it open.
 - The key lives only in the URL hash; the screen stores it in localStorage and strips it from the address bar. Keys are stored as SHA-256 hashes.
 - The screen calls `get_attendance_kiosk_token` (anon) every 15 s slot (`247`) and shows `t.me/<bot>?start=ci_<code>_<slot>_<sig>`. The signature secret never leaves the database. The call doubles as a heartbeat (`last_seen_at`, shown as Screen online within 90 s).
 - If refreshes fail for 60 s the screen hides the QR (offline state) instead of showing a code that may be rejected. It holds a Wake Lock while active.
 - The webhook verifies with `verify_attendance_checkin_payload` (service role) using Telegram's `message.date`, not receipt time: valid from two 15 s slots before to eight after the code's slot (about 2 to 2.25 minutes). Saved/forwarded links expire; tampered, forged or revoked codes are invalid. The retired printed `/start checkin` gets a "scan the screen" reply.
 - Drawer: Settings writers pick accounts with a daily Tashkent window (`attendance_qr_access`; start = end is all day, end < start wraps midnight). The tab shows only for selected active accounts inside their window (the page shows the hours if opened directly outside it); `get_attendance_qr_token` refuses codes and signs with a shared `staff` row created on first use. Screen links never revoke it. `247` removed the 245 Dashboard card and revoked its `dashboard` signer.
+- Start date (`249`): `ATTENDANCE_START_DATE` = 2026-10-15 (Tashkent), mirrored in the migration's insert/update trigger. Before it the bot replies "starts 15 October" without verifying, the screen and drawer show that instead of a QR (they switch at Tashkent midnight without reload), and Employees hides Checked in, Not checked in and checked-in Active daily; the screen link and Work starts stay editable.
 - Identity is the linked salary Telegram (`employee_salary_telegram_links`); inactive or deleted employees are refused.
 
 ## Records

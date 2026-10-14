@@ -416,9 +416,65 @@ function TechCardEditor() {
   )
 }
 
+// Loading skeleton in the page's own shape: three metric tiles, the operations
+// form (heading, four-way switch, field row, note + button) and the Telegram card.
+function SalariesPage() {
+  const panel = 'rounded-xl border border-[#e4e1de] bg-white p-5'
+  return (
+    <>
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className={`${panel} space-y-3`}>
+            <Shimmer className="h-3 w-24" />
+            <Shimmer className="h-7 w-44" />
+            <Shimmer className="h-2.5 w-4/5" />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-2">
+        <Shimmer className="h-8 w-56" />
+        <Shimmer className="h-3 w-80 max-w-full" />
+      </div>
+      <div className={`${panel} space-y-5`}>
+        <div className="space-y-2">
+          <Shimmer className="h-5 w-72 max-w-full" />
+          <Shimmer className="h-3 w-96 max-w-full" />
+        </div>
+        <Shimmer className="h-12 w-full rounded-xl" />
+        <Shimmer className="h-12 w-full rounded-xl" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="space-y-2">
+              <Shimmer className="h-3 w-20" />
+              <Shimmer className="h-11 w-full rounded-[10px]" />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-end">
+          <div className="space-y-2 lg:col-span-9">
+            <Shimmer className="h-3 w-24" />
+            <Shimmer className="h-20 w-full rounded-[10px]" />
+          </div>
+          <Shimmer className="h-11 w-full rounded-[10px] lg:col-span-3" />
+        </div>
+      </div>
+      <div className={`${panel} space-y-4`}>
+        <div className="space-y-2">
+          <Shimmer className="h-5 w-52" />
+          <Shimmer className="h-3 w-80 max-w-full" />
+        </div>
+        <div className="flex gap-4">
+          <Shimmer className="h-11 flex-1 rounded-[10px]" />
+          <Shimmer className="h-11 w-32 rounded-[10px]" />
+        </div>
+      </div>
+    </>
+  )
+}
+
 // Layouts that render inside the page's own `.ws-page` container, so the
 // skeleton has exactly the loaded page's width, padding and gaps.
-const PAGE_CONTAINER_LAYOUTS = new Set(['estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage'])
+const PAGE_CONTAINER_LAYOUTS = new Set(['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage'])
 // Result-area layouts placed inside a page panel below its live toolbar: no extra container.
 const INLINE_LAYOUTS = new Set(['ingredientCards', 'ingredientMovementCards'])
 
@@ -447,6 +503,7 @@ const LAYOUTS = {
     </div>
   ),
   form: () => <FormSections />,
+  salaries: () => <SalariesPage />,
   estimate: () => <EstimateSections />,
   techCards: () => <TechCardsList />,
   techCardEditor: () => <TechCardEditor />,
@@ -470,6 +527,7 @@ export default function PageShimmer({ layout = 'table', label = '', className = 
 /** Which skeleton fits a route before its page code has loaded. */
 export function layoutForPath(pathname = '') {
   if (pathname === '/admin' || pathname.startsWith('/admin/reports') || pathname === '/admin/accounting' || pathname === '/admin/financial-analysis') return 'dashboard'
+  if (pathname.startsWith('/admin/accounting/salaries')) return 'salaries'
   if (pathname.startsWith('/admin/tech-cards/')) return 'techCardEditor'
   if (pathname.startsWith('/admin/tech-cards')) return 'techCards'
   if (pathname.startsWith('/admin/ingredients/usage')) return 'ingredientUsage'

@@ -1,10 +1,9 @@
 import CalendarPicker from '../components/CalendarPicker'
-import TimePicker24 from '../components/TimePicker24'
-import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
 import React, { useEffect, useMemo, useState } from 'react'
-import { BadgeMinus, CalendarX2, ChevronLeft, ChevronRight, Copy, Loader2, Percent, Plus, Save, Send, Trash2, Users, WalletCards } from 'lucide-react'
+import { BadgeMinus, CalendarX2, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Save, Send, Users, WalletCards } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import { accountingTitle, buildAccountingTabs } from '../lib/accountingTabs'
 import { OperationalLoading } from '../components/OperationalState'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -13,31 +12,17 @@ import { loadSalaryRows } from '../lib/salaryData'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatDateTime, formatLongDate } from '../lib/dateFormat'
 import {
-  calculateDailyKpiBonus,
-  formatKpiRateInput,
   formatKpiRatePercent,
   formatKpiSalesBasis,
-  normalizeKpiStartTime,
   formatKpiStartTime,
-  getEffectiveKpiRule,
-  getKpiAccountLinks,
-  getKpiAccountConflicts,
-  getActiveKpiAccounts,
-  getKpiRuleEditDate,
-  removeKpiRulePreservingHistory,
-  parseKpiPercentToBps,
 } from '../lib/dailyKpi'
 import { canEditFeature } from '../lib/permissions'
 import {
   EXPENSE_PAYMENT_METHODS,
-  SALARY_RATE_UNITS,
   buildSalaryReactivationAbsenceRows,
   canRecordSalaryTransaction,
-  convertSalaryAmountToDaily,
   expensePaymentMethodLabel,
   getSalaryAbsenceDates,
-  getExpenseEntryMinDate,
-  isExpenseEntryDateAllowed,
   getSalaryBalance,
   getSalaryDue,
   getTotalSalaryDue,
@@ -56,7 +41,6 @@ import {
   notifyTelegramKpiRuleChange,
 } from '../lib/telegramNotifications'
 import { RollingValue } from '../components/RollingNumber'
-import { buildSalaryRatePayload } from '../lib/employeeSettings'
 
 const FIELD = 'ws-input !h-11 min-w-0 max-w-full font-medium disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 // Notes and reasons are free text, so they always get a multi-line field.
@@ -69,7 +53,6 @@ function countNoteWords(value) {
   return String(value || '').trim().split(/\s+/).filter(Boolean).length
 }
 const TELEGRAM_DELIVERY_PAGE_SIZE = 5
-const KPI_PREVIEW_BASE_AMOUNT = 10_000_000
 
 function isMissingSalaryMigration(error) {
   const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
@@ -78,16 +61,6 @@ function isMissingSalaryMigration(error) {
     text.includes('could not find the') ||
     text.includes('column') ||
     text.includes('amount') ||
-    text.includes('schema cache') ||
-    text.includes('42p01')
-  )
-}
-
-function isMissingKpiMigration(error) {
-  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return (text.includes('employee_kpi_rules') || text.includes('employee_daily_kpi_results')) && (
-    text.includes('does not exist') ||
-    text.includes('could not find the') ||
     text.includes('schema cache') ||
     text.includes('42p01')
   )
@@ -141,9 +114,7 @@ export default function Salaries() {
   const lang = state.lang || 'ru'
   const role = (profile?.role || state.user?.role || 'guest').toLowerCase()
   const canManage = canEditFeature(profile || { role }, 'expenses')
-  const canRemoveKpiRules = role === 'owner'
   const today = todayExpenseDate()
-  const minimumSalaryDate = getExpenseEntryMinDate(today)
 
   const L = {
     uz: {
@@ -182,8 +153,10 @@ export default function Salaries() {
       fineDate: 'Jarima sanasi',
       bonusComment: 'Bonus izohi',
       paymentNote: 'To‘lov izohi',
-      bonusCommentPlaceholder: 'Bonus sababini kiriting',
-      noteMinWords: 'Kamida 5 ta so‘z bilan yozing.',
+      bonusCommentPlaceholder: 'Bonus nima uchun berilmoqda? Kamida 5 ta so‘z.',
+      paymentNotePlaceholder: 'To‘lov nima uchun? Kamida 5 ta so‘z.',
+      fineReasonPlaceholder: 'Jarima sababi nima? Kamida 5 ta so‘z.',
+      absenceReasonPlaceholder: 'Xodim nima uchun kelmadi? Kamida 5 ta so‘z.',
       fineReason: 'Jarima sababi',
       absence: 'Kelmagan kun',
       markAbsence: 'Kelmagan kunni belgilash',
@@ -204,6 +177,7 @@ export default function Salaries() {
       quickActionsHelp: 'To‘lov, bonus, jarima yoki kelmagan kunni bir joyda yozing.',
       salarySettings: 'Maosh sozlamalari',
       salarySettingsHelp: 'Yangi xodim uchun maosh belgilang yoki amaldagi stavkani o‘zgartiring.',
+      close: 'Yopish',
       addHelp: 'Yangi xodim va uning boshlang‘ich maoshini kiriting.',
       changeHelp: 'Yangi stavka va u amal qiladigan sanani belgilang.',
       transactionHelp: 'Operatsiya turini tanlang, keyin xodim va summani kiriting.',
@@ -292,6 +266,17 @@ export default function Salaries() {
       telegramCopied: 'Telegram havolasi nusxalandi',
       telegramLinked: 'Telegram ulangan',
       telegramBotMissing: 'VITE_TELEGRAM_BOT_USERNAME sozlanmagan.',
+      newTelegramTitle: 'Telegram (majburiy)',
+      newTelegramHelp: 'Xodim havolani ochib, botda «Start» ni bossin. Telegram ulanmaguncha xodim qo‘shilmaydi.',
+      newTelegramConnect: 'Telegramni ulash',
+      newTelegramNewLink: 'Yangi havola',
+      newTelegramWaiting: 'Xodim botda «Start» ni bosishi kutilmoqda',
+      newTelegramLinked: 'Telegram ulandi',
+      newTelegramExpired: 'Havola eskirdi. Yangisini yarating.',
+      newTelegramRequired: 'Saqlashdan oldin xodimning Telegramini ulang.',
+      newTelegramAlreadyLinked: 'Bu Telegram akkaunt boshqa xodimga ulangan. Boshqa akkaunt bilan yangi havola yarating.',
+      newTelegramRegistrationInvalid: 'Telegram havolasi endi ishlamaydi. Yangisini yarating.',
+      employeeDetailsInvalid: 'Ism, sana va maosh summasini tekshiring.',
       telegramDeliveryTitle: 'Maosh xabarlari holati',
       telegramDeliveryHelp: 'Maosh xabarlari va KPI sozlamasi o‘zgarishlarining Maosh guruhiga yetkazilishini kuzating.',
       telegramDeliveryEmpty: 'Hali Telegram xabarlari yo‘q.',
@@ -351,8 +336,10 @@ export default function Salaries() {
       fineDate: 'Дата штрафа',
       bonusComment: 'Комментарий к бонусу',
       paymentNote: 'Комментарий к выплате',
-      bonusCommentPlaceholder: 'Укажите причину бонуса',
-      noteMinWords: 'Напишите не менее 5 слов.',
+      bonusCommentPlaceholder: 'За что этот бонус? Не менее 5 слов.',
+      paymentNotePlaceholder: 'За что эта выплата? Не менее 5 слов.',
+      fineReasonPlaceholder: 'За что этот штраф? Не менее 5 слов.',
+      absenceReasonPlaceholder: 'Почему сотрудник отсутствует? Не менее 5 слов.',
       fineReason: 'Причина штрафа',
       absence: 'Отсутствие',
       markAbsence: 'Отметить отсутствие',
@@ -373,6 +360,7 @@ export default function Salaries() {
       quickActionsHelp: 'Записывайте выплаты, бонусы, штрафы и отсутствия в одном месте.',
       salarySettings: 'Настройка зарплат',
       salarySettingsHelp: 'Назначьте зарплату новому сотруднику или измените действующую ставку.',
+      close: 'Закрыть',
       addHelp: 'Укажите нового сотрудника и его первоначальную зарплату.',
       changeHelp: 'Укажите новую ставку и дату, с которой она действует.',
       transactionHelp: 'Сначала выберите тип операции, затем сотрудника и сумму.',
@@ -461,6 +449,17 @@ export default function Salaries() {
       telegramCopied: 'Ссылка Telegram скопирована',
       telegramLinked: 'Telegram подключён',
       telegramBotMissing: 'Не настроен VITE_TELEGRAM_BOT_USERNAME.',
+      newTelegramTitle: 'Telegram (обязательно)',
+      newTelegramHelp: 'Сотрудник открывает ссылку и нажимает «Start» в боте. Без подключённого Telegram сотрудника добавить нельзя.',
+      newTelegramConnect: 'Подключить Telegram',
+      newTelegramNewLink: 'Новая ссылка',
+      newTelegramWaiting: 'Ждём, когда сотрудник нажмёт «Start» в боте',
+      newTelegramLinked: 'Telegram подключён',
+      newTelegramExpired: 'Ссылка устарела. Создайте новую.',
+      newTelegramRequired: 'Подключите Telegram сотрудника перед сохранением.',
+      newTelegramAlreadyLinked: 'Этот Telegram-аккаунт уже привязан к другому сотруднику. Создайте новую ссылку для другого аккаунта.',
+      newTelegramRegistrationInvalid: 'Ссылка Telegram больше не действует. Создайте новую.',
+      employeeDetailsInvalid: 'Проверьте имя, дату и сумму зарплаты.',
       telegramDeliveryTitle: 'Статус уведомлений о зарплате',
       telegramDeliveryHelp: 'Проверяйте доставку сообщений о зарплате и изменениях настроек KPI в группу зарплат.',
       telegramDeliveryEmpty: 'Уведомлений Telegram пока нет.',
@@ -520,8 +519,10 @@ export default function Salaries() {
       fineDate: 'Fine date',
       bonusComment: 'Bonus comment',
       paymentNote: 'Payment note',
-      bonusCommentPlaceholder: 'Add the reason for the bonus',
-      noteMinWords: 'Write at least 5 words.',
+      bonusCommentPlaceholder: 'What is this bonus for? At least 5 words.',
+      paymentNotePlaceholder: 'What is this payment for? At least 5 words.',
+      fineReasonPlaceholder: 'Why is the employee fined? At least 5 words.',
+      absenceReasonPlaceholder: 'Why is the employee absent? At least 5 words.',
       fineReason: 'Reason for fine',
       absence: 'Absence',
       markAbsence: 'Mark absence',
@@ -542,6 +543,7 @@ export default function Salaries() {
       quickActionsHelp: 'Record payments, bonuses, fines, and absences in one place.',
       salarySettings: 'Salary setup',
       salarySettingsHelp: 'Set a salary for a new employee or change an active rate.',
+      close: 'Close',
       addHelp: 'Enter a new employee and their starting salary.',
       changeHelp: 'Set the new rate and the date it takes effect.',
       transactionHelp: 'Choose an operation first, then select the employee and amount.',
@@ -630,6 +632,17 @@ export default function Salaries() {
       telegramCopied: 'Telegram link copied',
       telegramLinked: 'Telegram linked',
       telegramBotMissing: 'VITE_TELEGRAM_BOT_USERNAME is not configured.',
+      newTelegramTitle: 'Telegram (required)',
+      newTelegramHelp: 'The employee opens the link and presses Start in the bot. An employee cannot be added until Telegram is connected.',
+      newTelegramConnect: 'Connect Telegram',
+      newTelegramNewLink: 'New link',
+      newTelegramWaiting: 'Waiting for the employee to press Start in the bot',
+      newTelegramLinked: 'Telegram connected',
+      newTelegramExpired: 'The link expired. Create a new one.',
+      newTelegramRequired: "Connect the employee's Telegram before saving.",
+      newTelegramAlreadyLinked: 'This Telegram account is already linked to another employee. Create a new link for a different account.',
+      newTelegramRegistrationInvalid: 'This Telegram link no longer works. Create a new one.',
+      employeeDetailsInvalid: 'Check the name, date and salary amount.',
       telegramDeliveryTitle: 'Salary notification status',
       telegramDeliveryHelp: 'Track salary messages and KPI setting changes delivered to the Salary group.',
       telegramDeliveryEmpty: 'No Telegram notifications yet.',
@@ -656,8 +669,6 @@ export default function Salaries() {
   }
   const l = L[lang] || L.en
   const [salaryProfiles, setSalaryProfiles] = useState([])
-  const [kpiAccounts, setKpiAccounts] = useState([])
-  const [kpiAccountsError, setKpiAccountsError] = useState(false)
   const [telegramLinks, setTelegramLinks] = useState([])
   const [paymentDeliveries, setPaymentDeliveries] = useState([])
   const [paymentDeliveriesUnavailable, setPaymentDeliveriesUnavailable] = useState(false)
@@ -666,6 +677,7 @@ export default function Salaries() {
   const [groupEventDeliveriesUnavailable, setGroupEventDeliveriesUnavailable] = useState(false)
   const [telegramSalaryProfileId, setTelegramSalaryProfileId] = useState('')
   const [telegramInviteUrl, setTelegramInviteUrl] = useState('')
+  // New employees link Telegram first: { token, url, status, username, errorCode }.
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
   const [telegramSendingKeys, setTelegramSendingKeys] = useState([])
@@ -674,21 +686,6 @@ export default function Salaries() {
   const [confirmActionKey, setConfirmActionKey] = useState('')
   const [page, setPage] = useState(1)
   const [telegramDeliveryPage, setTelegramDeliveryPage] = useState(1)
-  const [form, setForm] = useState({
-    employee_name: '',
-    job_function: '',
-    joined_at: today,
-    salary_amount: '',
-    salary_unit: 'daily',
-    payment_method: 'cash',
-  })
-  const [changeForm, setChangeForm] = useState({
-    salary_profile_id: '',
-    effective_from: today,
-    salary_amount: '',
-    salary_unit: 'daily',
-    note: '',
-  })
   const [transactionForm, setTransactionForm] = useState({
     salary_profile_id: '',
     entry_type: 'payment',
@@ -702,44 +699,6 @@ export default function Salaries() {
     absence_date: today,
     note: '',
   })
-  const [salarySetupMode, setSalarySetupMode] = useState('add')
-  const [kpiRules, setKpiRules] = useState([])
-  const [kpiRulesLoading, setKpiRulesLoading] = useState(true)
-  const [kpiRulesError, setKpiRulesError] = useState('')
-  const [kpiRuleToRemove, setKpiRuleToRemove] = useState(null)
-  const [kpiRuleRemoveError, setKpiRuleRemoveError] = useState('')
-  const [kpiForm, setKpiForm] = useState({
-    salary_profile_id: '',
-    effective_from: today,
-    rate_percentage: '1',
-    sales_basis: 'employee_opened_orders',
-    order_opener_profile_id: '',
-    start_time: '00:00',
-    is_enabled: true,
-  })
-
-  async function loadKpiRules() {
-    setKpiRulesLoading(true)
-    setKpiRulesError('')
-    try {
-      const { data, error: loadError } = await supabase
-        .from('employee_kpi_rules')
-        .select('*')
-        .order('effective_from', { ascending: false })
-        .order('created_at', { ascending: false })
-      if (loadError) {
-        setKpiRules([])
-        setKpiRulesError(isMissingKpiMigration(loadError) ? l.kpiMigration : loadError.message || l.kpiLoadFailed)
-        return
-      }
-      setKpiRules(data || [])
-    } catch (loadError) {
-      setKpiRules([])
-      setKpiRulesError(isMissingKpiMigration(loadError) ? l.kpiMigration : loadError?.message || l.kpiLoadFailed)
-    } finally {
-      setKpiRulesLoading(false)
-    }
-  }
 
   async function loadTelegramDeliveryData() {
     try {
@@ -785,8 +744,6 @@ export default function Salaries() {
         supabase.from('employee_salary_telegram_links').select('salary_profile_id, telegram_user_id, linked_at, notifications_enabled'),
         refreshTelegram ? loadTelegramDeliveryData() : Promise.resolve(),
       ])
-      setKpiAccountsError(Boolean(teamRes.error))
-      setKpiAccounts(teamRes.error ? [] : getActiveKpiAccounts(teamRes.data || []))
       if (profileRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error) {
         const err = profileRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error
         setError(isMissingSalaryMigration(err) ? l.migration : err.message)
@@ -799,8 +756,6 @@ export default function Salaries() {
         setTelegramLinks(telegramLinkRes.error ? [] : telegramLinkRes.data || [])
       }
     } catch (loadError) {
-      setKpiAccountsError(true)
-      setKpiAccounts([])
       setError(isMissingSalaryMigration(loadError) ? l.migration : loadError.message)
       setSalaryProfiles([])
     } finally {
@@ -810,7 +765,6 @@ export default function Salaries() {
 
   useEffect(() => {
     void loadData({ showLoader: true })
-    void loadKpiRules()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function runTelegramNotificationInBackground(eventType, eventId, {
@@ -923,11 +877,6 @@ export default function Salaries() {
   const activeSalaryProfiles = useMemo(() => (
     sortedSalaryProfiles.filter(item => item.is_active !== false)
   ), [sortedSalaryProfiles])
-  const selectedKpiProfile = activeSalaryProfiles.find(item => item.id === kpiForm.salary_profile_id)
-  const selectedKpiRule = getEffectiveKpiRule(kpiRules, kpiForm.salary_profile_id, today)
-  const kpiAccountLinks = useMemo(() => getKpiAccountLinks(kpiRules, activeSalaryProfiles, today), [kpiRules, activeSalaryProfiles, today])
-  const kpiPreviewRateBps = parseKpiPercentToBps(kpiForm.rate_percentage)
-  const kpiPreviewBonus = calculateDailyKpiBonus(KPI_PREVIEW_BASE_AMOUNT, kpiPreviewRateBps)
   const paymentDeliveryRows = useMemo(() => {
     const salaryProfileMap = new Map(salaryProfiles.map(item => [item.id, item]))
     return paymentDeliveries.map(delivery => {
@@ -1115,268 +1064,6 @@ export default function Salaries() {
   useEffect(() => {
     setTelegramDeliveryPage(current => Math.min(current, telegramDeliveryPageCount))
   }, [telegramDeliveryPageCount])
-
-  function selectKpiEmployee(salaryProfileId, requestedRule = null) {
-    const currentRule = requestedRule || getEffectiveKpiRule(kpiRules, salaryProfileId, today)
-    setKpiForm({
-      salary_profile_id: salaryProfileId,
-      effective_from: getKpiRuleEditDate(requestedRule?.effective_from, today),
-      rate_percentage: currentRule ? formatKpiRateInput(currentRule.rate_bps) : '1',
-      sales_basis: currentRule?.sales_basis || 'employee_opened_orders',
-      order_opener_profile_id: currentRule?.order_opener_profile_id || activeSalaryProfiles.find(item => item.id === salaryProfileId)?.profile_id || '',
-      start_time: normalizeKpiStartTime(currentRule?.start_time),
-      is_enabled: currentRule?.is_enabled !== false,
-    })
-  }
-
-  async function saveKpiRule() {
-    const salaryProfile = activeSalaryProfiles.find(item => item.id === kpiForm.salary_profile_id)
-    const rateBps = parseKpiPercentToBps(kpiForm.rate_percentage)
-    if (!canManage || !salaryProfile || !kpiForm.effective_from || kpiForm.effective_from < today || rateBps <= 0) return
-    if (kpiForm.is_enabled && kpiForm.sales_basis === 'employee_opened_orders' && !kpiAccounts.some(account => account.id === kpiForm.order_opener_profile_id)) {
-      setKpiRulesError(l.kpiAccountRequired)
-      return
-    }
-    const accountConflicts = kpiForm.is_enabled && kpiForm.sales_basis === 'employee_opened_orders'
-      ? getKpiAccountConflicts(kpiAccountLinks, kpiForm.order_opener_profile_id, salaryProfile.id)
-      : []
-    if (accountConflicts.length) {
-      setKpiRulesError(`${l.kpiAccountTaken} ${accountConflicts.map(item => item.employee_name || '—').join(', ')}`)
-      return
-    }
-    const startTime = normalizeKpiStartTime(kpiForm.start_time)
-    if (!startTime) {
-      setKpiRulesError(l.kpiStartRequired)
-      return
-    }
-    const openerId = kpiForm.sales_basis === 'employee_opened_orders' ? kpiForm.order_opener_profile_id || null : null
-    const existingRule = kpiRules.find(rule => (
-      rule.salary_profile_id === salaryProfile.id
-      && String(rule.effective_from || '').slice(0, 10) === kpiForm.effective_from
-    ))
-    const configurationChanged = !existingRule
-      || normalizeKpiStartTime(existingRule.start_time) !== startTime
-      || existingRule.sales_basis !== kpiForm.sales_basis
-      || (existingRule.order_opener_profile_id || null) !== openerId
-      || Number(existingRule.rate_bps) !== rateBps
-      || Boolean(existingRule.is_enabled) !== Boolean(kpiForm.is_enabled)
-
-    setSaving('kpi-rule')
-    setKpiRulesError('')
-    setError('')
-    setMessage('')
-    const { data: savedRule, error: saveError } = await supabase
-      .from('employee_kpi_rules')
-      .upsert({
-        salary_profile_id: salaryProfile.id,
-        effective_from: kpiForm.effective_from,
-        rate_bps: rateBps,
-        sales_basis: kpiForm.sales_basis,
-        order_opener_profile_id: openerId,
-        start_time: startTime,
-        is_enabled: Boolean(kpiForm.is_enabled),
-        created_by: profile?.id || null,
-        created_by_name: profile?.full_name || profile?.email || state.user?.name || '',
-      }, { onConflict: 'salary_profile_id,effective_from' })
-      .select('id, last_change_event_id')
-      .single()
-    setSaving('')
-    if (saveError) {
-      setKpiRulesError(isMissingKpiMigration(saveError) ? l.kpiMigration : saveError.message || l.kpiLoadFailed)
-      return
-    }
-    setMessage(l.kpiSaved)
-    if (configurationChanged) {
-      runTelegramNotificationInBackground('kpi_rule', savedRule?.last_change_event_id, {
-        failureMessage: l.kpiTelegramFailed,
-      })
-    }
-    await loadKpiRules()
-  }
-
-  function requestRemoveKpiRule(salaryProfile, rule, effectiveFrom) {
-    const removalDate = String(effectiveFrom || '').slice(0, 10)
-    if (
-      !canRemoveKpiRules
-      || !salaryProfile?.id
-      || !rule?.id
-      || !/^\d{4}-\d{2}-\d{2}$/.test(removalDate)
-      || removalDate < today
-      || removalDate < String(rule.effective_from || '').slice(0, 10)
-    ) return
-    setKpiRulesError('')
-    setKpiRuleRemoveError('')
-    setKpiRuleToRemove({ salaryProfile, rule, effectiveFrom: removalDate })
-  }
-
-  function cancelRemoveKpiRule() {
-    if (saving === `kpi-rule-delete-${kpiRuleToRemove?.rule?.id}`) return
-    setKpiRuleToRemove(null)
-    setKpiRuleRemoveError('')
-  }
-
-  async function removeKpiRule() {
-    const rule = kpiRuleToRemove?.rule
-    const effectiveFrom = kpiRuleToRemove?.effectiveFrom
-    if (!canRemoveKpiRules || !rule?.id || !effectiveFrom) {
-      setKpiRuleRemoveError(l.kpiRemoveOwnerOnly)
-      return
-    }
-
-    const savingKey = `kpi-rule-delete-${rule.id}`
-    setSaving(savingKey)
-    setKpiRuleRemoveError('')
-    setKpiRulesError('')
-    setError('')
-    setMessage('')
-
-    let removalResult
-    try {
-      removalResult = await removeKpiRulePreservingHistory({
-        client: supabase,
-        rule,
-        effectiveFrom,
-        createdBy: profile?.id || null,
-        createdByName: profile?.full_name || profile?.email || state.user?.name || '',
-      })
-    } catch (removalError) {
-      removalResult = { action: 'failed', error: removalError }
-    } finally {
-      setSaving('')
-    }
-
-    if (removalResult.error) {
-      setKpiRuleRemoveError(
-        isMissingKpiMigration(removalResult.error)
-          ? l.kpiMigration
-          : l.kpiRemoveFailed
-      )
-      return
-    }
-    if (removalResult.action === 'not_deleted') {
-      setKpiRuleRemoveError(l.kpiRemoveOwnerOnly)
-      return
-    }
-
-    setKpiRuleToRemove(null)
-    setKpiRuleRemoveError('')
-    setKpiForm({
-      salary_profile_id: '',
-      effective_from: today,
-      rate_percentage: '1',
-      sales_basis: 'employee_opened_orders',
-      order_opener_profile_id: '',
-      start_time: '00:00',
-      is_enabled: true,
-    })
-    setMessage(removalResult.action === 'disabled' ? l.kpiStopped : l.kpiRemoved)
-    if (removalResult.action === 'disabled') {
-      runTelegramNotificationInBackground('kpi_rule', removalResult.rule?.last_change_event_id, {
-        failureMessage: l.kpiTelegramFailed,
-      })
-    }
-    await loadKpiRules()
-  }
-
-  async function createSalaryProfile(event) {
-    event.preventDefault()
-    if (!canManage) return
-    setError('')
-    setMessage('')
-    const employeeName = String(form.employee_name || '').trim()
-    const amount = normalizeExpenseAmount(form.salary_amount)
-    if (!isExpenseEntryDateAllowed(form.joined_at)) {
-      setError(l.salaryDateLimit)
-      return
-    }
-    if (!employeeName || !EMPLOYEE_JOB_FUNCTIONS.some(item => item.value === form.job_function) || !form.joined_at || amount <= 0) return
-    setSaving('create')
-    const { data: salaryProfile, error: profileError } = await supabase
-      .from('employee_salary_profiles')
-      .insert({
-        profile_id: null,
-        employee_name: employeeName,
-        job_function: form.job_function,
-        joined_at: form.joined_at,
-        pay_schedule: 'monthly',
-        payment_method: form.payment_method,
-        created_by: profile?.id || null,
-      })
-      .select()
-      .single()
-    if (profileError) {
-      setError(profileError.message)
-      setSaving('')
-      return
-    }
-    const { error: rateError } = await supabase
-      .from('employee_salary_rates')
-      .insert(buildSalaryRatePayload({
-        salaryProfileId: salaryProfile.id,
-        effectiveFrom: form.joined_at,
-        amount,
-        salaryUnit: form.salary_unit,
-        createdBy: profile?.id || null,
-      }))
-    setSaving('')
-    if (rateError) {
-      await supabase.from('employee_salary_profiles').delete().eq('id', salaryProfile.id)
-      setError(rateError.message)
-      return
-    }
-    setMessage(l.createdMessage)
-    setForm(current => ({ ...current, employee_name: '', job_function: '', salary_amount: '' }))
-    await loadData({ refreshTelegram: false })
-    const notification = await notifyTelegramEmployeeLifecycle(salaryProfile.id, 'created')
-    if (!notification?.ok) setError(l.lifecycleTelegramFailed)
-  }
-
-  async function addRate() {
-    const selectedProfile = salaryProfiles.find(item => item.id === changeForm.salary_profile_id)
-    if (!selectedProfile) return
-    const isInitialRate = (selectedProfile.rates || []).length === 0
-    const amount = normalizeExpenseAmount(changeForm.salary_amount)
-    const effectiveFrom = changeForm.effective_from
-    if (!isExpenseEntryDateAllowed(effectiveFrom)) {
-      setError(l.salaryDateLimit)
-      return
-    }
-    if (!canManage || amount <= 0) return
-    setError('')
-    setMessage('')
-    setSaving('rate-create')
-    const { data: savedRate, error: rateError } = await supabase
-      .from('employee_salary_rates')
-      .insert(buildSalaryRatePayload({
-        salaryProfileId: selectedProfile.id,
-        effectiveFrom,
-        amount,
-        salaryUnit: changeForm.salary_unit || 'daily',
-        note: changeForm.note || '',
-        createdBy: profile?.id || null,
-      }))
-      .select('id')
-      .single()
-    setSaving('')
-    if (rateError) {
-      setError(rateError.message)
-      return
-    }
-    setChangeForm({
-      salary_profile_id: '',
-      effective_from: today,
-      salary_amount: '',
-      salary_unit: 'daily',
-      note: '',
-    })
-    setMessage(l.rateSavedMessage)
-    if (!isInitialRate) {
-      runTelegramNotificationInBackground('rate', savedRate?.id, {
-        failureMessage: l.rateTelegramFailed,
-      })
-    }
-    await loadData({ refreshTelegram: false })
-  }
 
   async function addTransaction() {
     const salaryProfile = salaryProfiles.find(item => item.id === transactionForm.salary_profile_id)
@@ -1579,23 +1266,36 @@ export default function Salaries() {
     if (!notification?.ok) setError(l.lifecycleTelegramFailed)
   }
 
-  const backToAccounting = { label: l.back, onClick: () => navigate('/admin/accounting') }
+  function chooseEntryType(entryType) {
+    setTransactionForm(current => {
+      const selectedProfile = salaryProfiles.find(item => item.id === current.salary_profile_id)
+      const paidDate = current.paid_date || today
+      const keepSelected = entryType !== 'absence' && canRecordSalaryTransaction(selectedProfile, entryType, paidDate)
+      return {
+        ...current,
+        entry_type: entryType,
+        salary_profile_id: keepSelected ? current.salary_profile_id : '',
+        amount: keepSelected && entryType === 'payment'
+          ? String(getSalaryDue(selectedProfile, paidDate) || '')
+          : '',
+        note: '',
+      }
+    })
+  }
+
 
   if (loading) {
     return (
-      <AppShell title={l.title} back={backToAccounting}>
+      <AppShell title={accountingTitle(lang)} tabs={buildAccountingTabs(lang, 'salaries', navigate)}>
         <div className="min-h-full bg-[#f6f5f3]">
-          <OperationalLoading
-            title={l.loadingTitle}
-            description={l.loadingDescription}
-          />
+          <OperationalLoading title={l.loadingTitle} layout="salaries" />
         </div>
       </AppShell>
     )
   }
 
   return (
-    <AppShell title={l.title} back={backToAccounting}>
+    <AppShell title={accountingTitle(lang)} tabs={buildAccountingTabs(lang, 'salaries', navigate)}>
       <div className="min-h-full overflow-x-hidden bg-[#f6f5f3]">
         <div className="ws-page">
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
@@ -1651,20 +1351,7 @@ export default function Salaries() {
                         <button
                           key={entryType}
                           type="button"
-                          onClick={() => setTransactionForm(current => {
-                            const selectedProfile = salaryProfiles.find(item => item.id === current.salary_profile_id)
-                            const paidDate = current.paid_date || today
-                            const keepSelected = entryType !== 'absence' && canRecordSalaryTransaction(selectedProfile, entryType, paidDate)
-                            return {
-                              ...current,
-                              entry_type: entryType,
-                              salary_profile_id: keepSelected ? current.salary_profile_id : '',
-                              amount: keepSelected && entryType === 'payment'
-                                ? String(getSalaryDue(selectedProfile, paidDate) || '')
-                                : '',
-                              note: '',
-                            }
-                          })}
+                          onClick={() => chooseEntryType(entryType)}
                           disabled={!canManage || loading}
                           aria-pressed={active}
                           className="min-w-0 !h-auto min-h-10 !whitespace-normal break-words !px-1.5 py-1 text-center !text-xs leading-tight disabled:cursor-not-allowed disabled:opacity-60 sm:!text-sm"
@@ -1700,11 +1387,12 @@ export default function Salaries() {
                         </Field>
                       </div>
                       <div className="sm:col-span-2 lg:col-span-9">
-                        <Field label={l.absenceReason} hint={l.noteMinWords}>
+                        <Field label={l.absenceReason}>
                           <textarea
                             rows={2}
                             value={absenceForm.note}
                             onChange={event => setAbsenceForm(current => ({ ...current, note: event.target.value }))}
+                            placeholder={l.absenceReasonPlaceholder}
                             className={NOTE_FIELD}
                             disabled={!canManage || loading}
                             required
@@ -1720,7 +1408,7 @@ export default function Salaries() {
                         type="button"
                         onClick={addAbsence}
                         disabled={!canManage || loading || !absenceForm.salary_profile_id || !absenceForm.absence_date || countNoteWords(absenceForm.note) < MIN_NOTE_WORDS || absenceAlreadyRecorded || saving === 'absence-create'}
-                        className="ws-btn ws-btn-primary !h-11 self-end sm:col-span-2 lg:col-span-3"
+                        className="ws-btn ws-btn-primary !h-11 self-end sm:col-span-2 lg:col-span-3 lg:mb-[22px]"
                       >
                         {saving === 'absence-create' ? <Loader2 size={16} className="animate-spin" /> : <CalendarX2 size={15} />}
                         {l.absence}
@@ -1818,7 +1506,7 @@ export default function Salaries() {
                   )}
                   {transactionForm.entry_type === 'fine' && (
                     <div className="sm:col-span-2 lg:col-span-9">
-                      <Field label={l.fineReason} hint={l.noteMinWords}>
+                      <Field label={l.fineReason}>
                         <textarea
                           rows={2}
                           value={transactionForm.note}
@@ -1829,6 +1517,7 @@ export default function Salaries() {
                           spellCheck={false}
                           data-gramm="false"
                           data-gramm_editor="false"
+                          placeholder={l.fineReasonPlaceholder}
                           className={NOTE_FIELD}
                           disabled={!canManage || loading}
                           required
@@ -1838,11 +1527,12 @@ export default function Salaries() {
                   )}
                   {transactionForm.entry_type === 'payment' && (
                     <div className="sm:col-span-2 lg:col-span-9">
-                      <Field label={l.paymentNote} hint={l.noteMinWords}>
+                      <Field label={l.paymentNote}>
                         <textarea
                           rows={2}
                           value={transactionForm.note}
                           onChange={event => setTransactionForm(current => ({ ...current, note: event.target.value }))}
+                          placeholder={l.paymentNotePlaceholder}
                           className={NOTE_FIELD}
                           disabled={!canManage || loading}
                           required
@@ -1852,7 +1542,7 @@ export default function Salaries() {
                   )}
                   {transactionForm.entry_type === 'bonus' && (
                     <div className="sm:col-span-2 lg:col-span-9">
-                      <Field label={l.bonusComment} hint={l.noteMinWords}>
+                      <Field label={l.bonusComment}>
                         <textarea
                           rows={2}
                           value={transactionForm.note}
@@ -1869,7 +1559,7 @@ export default function Salaries() {
                     type="button"
                     onClick={addTransaction}
                     disabled={!canManage || loading || !transactionForm.salary_profile_id || normalizeExpenseAmount(transactionForm.amount) <= 0 || countNoteWords(transactionForm.note) < MIN_NOTE_WORDS || (saving !== '' && ['payment-create', 'bonus-create', 'fine-create'].includes(saving))}
-                    className={`ws-btn ws-btn-primary !h-11 self-end items-center lg:col-span-3 sm:col-span-2`}
+                    className={`ws-btn ws-btn-primary !h-11 self-end items-center lg:col-span-3 lg:mb-[22px] sm:col-span-2`}
                   >
                     {['payment-create', 'bonus-create', 'fine-create'].includes(saving)
                       ? <Loader2 size={16} className="animate-spin" />
@@ -1887,183 +1577,8 @@ export default function Salaries() {
             </div>
           </section>
 
-          <section aria-labelledby="salary-settings-heading">
-            <SectionHeading
-              id="salary-settings-heading"
-              title={l.salarySettings}
-              description={l.salarySettingsHelp}
-            />
+          <section aria-label={l.telegramTitle}>
             <div className="grid w-full min-w-0 grid-cols-1 items-stretch gap-4">
-              <div className={`ws-panel h-full w-full min-w-0 max-w-full ${salarySetupMode === 'kpi' ? 'overflow-visible' : 'overflow-hidden'}`}>
-                <CardHeading
-                  icon={salarySetupMode === 'kpi' ? Percent : salarySetupMode === 'change' ? Save : Plus}
-                  title={salarySetupMode === 'kpi' ? l.kpiRuleTitle : salarySetupMode === 'change' ? l.changeSalary : l.add}
-                  description={salarySetupMode === 'kpi' ? l.kpiRuleHelp : salarySetupMode === 'change' ? l.changeHelp : l.addHelp}
-                />
-                <div className="ws-segmented !grid mb-5 w-full grid-cols-3" role="group" aria-label={l.salarySettings}>
-                  {[
-                    { key: 'add', label: l.add },
-                    { key: 'change', label: l.changeSalary },
-                    { key: 'kpi', label: l.kpiRuleTitle },
-                  ].map(item => {
-                    const active = salarySetupMode === item.key
-                    return (
-                      <button
-                        key={item.key}
-                        type="button"
-                        onClick={() => {
-                          if (item.key === 'change' && salarySetupMode !== 'change') {
-                            setChangeForm(current => ({ ...current, effective_from: todayExpenseDate() }))
-                          }
-                          setSalarySetupMode(item.key)
-                        }}
-                        disabled={loading}
-                        aria-pressed={active}
-                        className="min-w-0 !h-auto min-h-10 !whitespace-normal break-words !px-1.5 py-1 text-center !text-xs leading-tight disabled:cursor-not-allowed disabled:opacity-60 sm:!text-sm"
-                      >
-                        {item.label}
-                      </button>
-                    )
-                  })}
-                </div>
-                {salarySetupMode === 'add' && (
-                <form onSubmit={createSalaryProfile} className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div>
-                    <Field label={l.employeeName}>
-                      <input
-                        type="text"
-                        value={form.employee_name}
-                        onChange={event => setForm(current => ({ ...current, employee_name: event.target.value }))}
-                        className={FIELD}
-                        disabled={!canManage || loading}
-                      />
-                    </Field>
-                  </div>
-                  <Field label={l.jobFunction}>
-                    <select
-                      value={form.job_function}
-                      onChange={event => setForm(current => ({ ...current, job_function: event.target.value }))}
-                      aria-label={l.jobFunction}
-                      required
-                      className={FIELD}
-                      disabled={!canManage || loading}
-                    >
-                      <option value="" disabled>{l.selectJobFunction}</option>
-                      {EMPLOYEE_JOB_FUNCTIONS.map(item => (
-                        <option key={item.value} value={item.value}>{employeeJobFunctionLabel(item.value, lang)}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label={l.effectiveDate} hint={l.salaryDateLimit}>
-                    <DateInput min={minimumSalaryDate} value={form.joined_at} lang={lang} onChange={value => setForm(current => ({ ...current, joined_at: value }))} disabled={!canManage || loading} />
-                  </Field>
-                  <Field label={l.salaryAmount}>
-                    <input type="text" inputMode="numeric" value={formatAmountInput(form.salary_amount)} onChange={event => setForm(current => ({ ...current, salary_amount: parseAmountInput(event.target.value) }))} placeholder="0 UZS" className={FIELD} disabled={!canManage || loading} />
-                  </Field>
-                  <Field label={l.salaryUnit}>
-                    <select value={form.salary_unit} onChange={event => setForm(current => ({ ...current, salary_unit: event.target.value }))} className={FIELD} disabled={!canManage || loading}>
-                      {SALARY_RATE_UNITS.map(item => <option key={item} value={item}>{salaryRateUnitLabel(item, lang)}</option>)}
-                    </select>
-                  </Field>
-                  <button
-                    disabled={!canManage || loading || !form.employee_name.trim() || !form.job_function || normalizeExpenseAmount(form.salary_amount) <= 0 || saving === 'create'}
-                    className="ws-btn ws-btn-primary !h-11 self-end items-center"
-                  >
-                    {saving === 'create' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{l.save}
-                  </button>
-                </form>
-                )}
-
-              {salarySetupMode === 'kpi' && (
-              <DailyKpiSection
-                embedded
-                labels={l}
-                lang={lang}
-                minimumEffectiveDate={today}
-                canManage={canManage}
-                canRemoveRules={canRemoveKpiRules}
-                loading={loading}
-                activeSalaryProfiles={activeSalaryProfiles}
-                kpiAccounts={kpiAccounts}
-                kpiAccountLinks={kpiAccountLinks}
-                accountsError={kpiAccountsError}
-                onReloadAccounts={() => loadData({ showLoader: true, refreshTelegram: false })}
-                selectedKpiProfile={selectedKpiProfile}
-                form={kpiForm}
-                onSelectEmployee={selectKpiEmployee}
-                onFormChange={setKpiForm}
-                onSave={saveKpiRule}
-                saving={saving === 'kpi-rule'}
-                ruleToRemove={kpiRuleToRemove}
-                ruleRemoveError={kpiRuleRemoveError}
-                removingRuleId={saving.startsWith('kpi-rule-delete-') ? saving.slice('kpi-rule-delete-'.length) : ''}
-                onRequestRemoveRule={requestRemoveKpiRule}
-                onCancelRemoveRule={cancelRemoveKpiRule}
-                onConfirmRemoveRule={removeKpiRule}
-                rulesLoading={kpiRulesLoading}
-                rulesError={kpiRulesError}
-                selectedRule={selectedKpiRule}
-                previewRateBps={kpiPreviewRateBps}
-                previewBonus={kpiPreviewBonus}
-              />
-              )}
-
-              {salarySetupMode === 'change' && (
-                <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="sm:col-span-2 lg:col-span-1">
-                    <Field label={l.selectEmployee}>
-                      <select
-                        value={changeForm.salary_profile_id}
-                        onChange={event => {
-                          const selectedProfile = salaryProfiles.find(item => item.id === event.target.value)
-                          setChangeForm(current => ({
-                            ...current,
-                            salary_profile_id: event.target.value,
-                            effective_from: today,
-                            salary_unit: selectedProfile?.rates?.[0]?.rate_unit || current.salary_unit,
-                          }))
-                        }}
-                        className={FIELD}
-                        disabled={!canManage || loading}
-                      >
-                        <option value="">{l.selectEmployee}</option>
-                        {activeSalaryProfiles.map(item => (
-                          <option key={item.id} value={item.id}>{item.employee_name || item.profile?.full_name || item.profile?.email}</option>
-                        ))}
-                      </select>
-                    </Field>
-                  </div>
-                  <Field label={l.effectiveDate} hint={l.salaryDateLimit}>
-                    <DateInput min={minimumSalaryDate} value={changeForm.effective_from} lang={lang} onChange={value => setChangeForm(current => ({ ...current, effective_from: value }))} disabled={!canManage || loading} />
-                  </Field>
-                  <Field label={l.salaryAmount}>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={formatAmountInput(changeForm.salary_amount)}
-                      onChange={event => setChangeForm(current => ({ ...current, salary_amount: parseAmountInput(event.target.value) }))}
-                      placeholder="0 UZS"
-                      className={FIELD}
-                      disabled={!canManage || loading}
-                    />
-                  </Field>
-                  <Field label={l.salaryUnit}>
-                    <select value={changeForm.salary_unit} onChange={event => setChangeForm(current => ({ ...current, salary_unit: event.target.value }))} className={FIELD} disabled={!canManage || loading}>
-                      {SALARY_RATE_UNITS.map(item => <option key={item} value={item}>{salaryRateUnitLabel(item, lang)}</option>)}
-                    </select>
-                  </Field>
-                  <button
-                    type="button"
-                    onClick={() => addRate()}
-                    disabled={!canManage || loading || !changeForm.salary_profile_id || !isExpenseEntryDateAllowed(changeForm.effective_from, today) || normalizeExpenseAmount(changeForm.salary_amount) <= 0 || saving === 'rate-create'}
-                    className="ws-btn ws-btn-primary !h-11 self-end items-center lg:col-start-3"
-                  >
-                    {saving === 'rate-create' ? <Loader2 size={16} className="animate-spin" /> : <Save size={15} />}{l.save}
-                  </button>
-                </div>
-              )}
-              </div>
-
               <div className="ws-panel h-full min-w-0">
                 <CardHeading icon={Send} title={l.telegramTitle} description={l.telegramHelp} />
                 <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -2278,270 +1793,6 @@ export default function Salaries() {
   )
 }
 
-function DailyKpiSection({
-  embedded = false,
-  labels,
-  lang,
-  minimumEffectiveDate,
-  canManage,
-  canRemoveRules,
-  loading,
-  activeSalaryProfiles,
-  kpiAccounts,
-  kpiAccountLinks = new Map(),
-  accountsError,
-  onReloadAccounts,
-  selectedKpiProfile,
-  form,
-  onSelectEmployee,
-  onFormChange,
-  onSave,
-  saving,
-  ruleToRemove,
-  ruleRemoveError,
-  removingRuleId,
-  onRequestRemoveRule,
-  onCancelRemoveRule,
-  onConfirmRemoveRule,
-  rulesLoading,
-  rulesError,
-  selectedRule,
-  previewRateBps,
-  previewBonus,
-}) {
-  const employeeLabel = salaryProfile => (
-    salaryProfile?.employee_name || salaryProfile?.profile?.full_name || salaryProfile?.profile?.email || '—'
-  )
-  const kpiAccountOptionLabel = account => {
-    const name = `${account.full_name || account.email}${account.full_name && account.email ? ` (${account.email})` : ''}`
-    const linked = kpiAccountLinks.get(account.id) || []
-    if (!linked.length) return name
-    if (linked.some(item => item.id === form.salary_profile_id)) return `✓ ${name} — ${labels.kpiAccountLinkedHere}`
-    return `🔗 ${name} — ${labels.kpiAccountLinkedTo} ${linked.map(employeeLabel).join(', ')}`
-  }
-  const canRemoveSelectedRule = canRemoveRules
-    && selectedKpiProfile
-    && selectedRule
-    && selectedRule.is_enabled !== false
-    && /^\d{4}-\d{2}-\d{2}$/.test(String(form.effective_from || '').slice(0, 10))
-    && String(form.effective_from).slice(0, 10) >= String(minimumEffectiveDate || '').slice(0, 10)
-    && String(form.effective_from).slice(0, 10) >= String(selectedRule.effective_from || '').slice(0, 10)
-
-  return (
-    <>
-      <div className={embedded ? 'min-w-0 max-w-full' : 'ws-panel h-full min-w-0 max-w-full'}>
-          {!embedded && <CardHeading icon={Percent} title={labels.kpiRuleTitle} description={labels.kpiRuleHelp} />}
-
-          {rulesError && (
-            <p role="alert" className="ws-notice ws-tone-caution mb-4">
-              {rulesError}
-            </p>
-          )}
-          <div className="min-w-0 space-y-5">
-            <div className="flex items-center justify-between gap-4 border-b border-[#e4e1de] pb-3">
-              <p className="min-w-0 text-xs leading-relaxed text-[#68655f]">{labels.kpiHelp}</p>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.is_enabled}
-              onClick={() => onFormChange(current => ({ ...current, is_enabled: !current.is_enabled }))}
-              disabled={!canManage || loading || rulesLoading}
-              className={`inline-flex h-10 shrink-0 items-center justify-between gap-3 rounded-lg border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                form.is_enabled
-                  ? 'ws-tone-positive'
-                  : 'border-[#e4e1de] bg-[#efece9] text-[#68655f]'
-              }`}
-            >
-              <span>{form.is_enabled ? labels.kpiEnabled : labels.kpiDisabled}</span>
-              <span className={`relative h-6 w-11 rounded-full transition-colors ${form.is_enabled ? 'bg-[#1d7a52]' : 'bg-[#dcd9d6]'}`} aria-hidden="true">
-                <span className={`absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${form.is_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-              </span>
-            </button>
-            </div>
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
-            <div className="min-w-0">
-              <Field label={labels.employee}>
-                <select
-                  value={form.salary_profile_id}
-                  onChange={event => onSelectEmployee(event.target.value)}
-                  className={FIELD}
-                  disabled={!canManage || loading || rulesLoading}
-                >
-                  <option value="">{labels.selectEmployee}</option>
-                  {activeSalaryProfiles.map(item => (
-                    <option key={item.id} value={item.id}>{employeeLabel(item)}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-            <div className="min-w-0">
-              <Field label={labels.kpiAccount}>
-                <select value={form.order_opener_profile_id} className={FIELD}
-                  aria-label={labels.kpiAccount}
-                  disabled={!selectedKpiProfile || !canManage || loading || rulesLoading || form.sales_basis === 'restaurant' || accountsError}
-                  onChange={event => onFormChange(current => ({ ...current, order_opener_profile_id: event.target.value }))}>
-                  <option value="">{labels.kpiSelectAccount}</option>
-                  {form.order_opener_profile_id && !kpiAccounts.some(account => account.id === form.order_opener_profile_id) && (
-                    <option value={form.order_opener_profile_id} disabled>{labels.kpiAccountUnavailable}</option>
-                  )}
-                  {kpiAccounts.map(account => (
-                    <option key={account.id} value={account.id}>{kpiAccountOptionLabel(account)}</option>
-                  ))}
-                </select>
-              </Field>
-              <p className="mt-2 text-xs text-[#68655f]">{form.sales_basis === 'restaurant' ? labels.kpiAccountNotNeeded : labels.kpiAccountHelp}</p>
-              {selectedKpiProfile && form.is_enabled && form.sales_basis === 'employee_opened_orders' && (
-                accountsError ? <p role="alert" className="mt-2 text-xs font-medium text-[#9a5a00]">
-                  {labels.kpiAccountsFailed} <button type="button" onClick={onReloadAccounts} disabled={loading} className="font-medium text-[#ff5a00] underline">{labels.kpiAccountsRetry}</button>
-                </p> : !kpiAccounts.length ? <p className="mt-2 text-xs font-medium text-[#9a5a00]">{labels.kpiAccountsEmpty}</p>
-                  : null
-              )}
-            </div>
-            </div>
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6rem] items-start gap-4 sm:grid-cols-[minmax(0,1fr)_8rem]">
-            <div className="min-w-0">
-              <Field label={labels.kpiBasis}>
-                <select value={form.sales_basis} className={FIELD}
-                  disabled={!canManage || loading || rulesLoading}
-                  onChange={event => onFormChange(current => ({ ...current, sales_basis: event.target.value }))}>
-                  <option value="employee_opened_orders">{labels.kpiOwnOrders}</option>
-                  <option value="restaurant">{labels.kpiAllDineIn}</option>
-                </select>
-              </Field>
-            </div>
-            <div className="min-w-0">
-              <Field label={labels.kpiRate}>
-                <div className="relative min-w-0">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={form.rate_percentage}
-                    onChange={event => {
-                      const value = event.target.value.replace(',', '.').replace(/[^\d.]/g, '')
-                      if (/^\d{0,3}(?:\.\d{0,2})?$/.test(value)) {
-                        onFormChange(current => ({ ...current, rate_percentage: value }))
-                      }
-                    }}
-                    placeholder="1"
-                    className={`${FIELD} pr-10`}
-                    disabled={!canManage || loading || rulesLoading}
-                    aria-describedby="daily-kpi-rate-preview"
-                  />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-[#68655f]">%</span>
-                </div>
-              </Field>
-            </div>
-            </div>
-            <div className="rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-3 sm:p-4">
-              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
-            <Field label={labels.effectiveDate}>
-              <DateInput
-                value={form.effective_from}
-                lang={lang}
-                min={minimumEffectiveDate}
-                onChange={value => onFormChange(current => ({ ...current, effective_from: value }))}
-                disabled={!canManage || loading || rulesLoading}
-              />
-            </Field>
-            <div className="min-w-0">
-              <TimePicker24 value={form.start_time} label={labels.kpiStartTime}
-                hourLabel={labels.kpiHour} minuteLabel={labels.kpiMinute} doneLabel={labels.kpiTimeDone}
-                className={FIELD} disabled={!canManage || loading || rulesLoading}
-                onChange={value => onFormChange(current => ({ ...current, start_time: value }))} />
-            </div>
-              </div>
-              <p className="mt-3 text-xs leading-relaxed text-[#68655f]">{labels.kpiStartHelp}</p>
-            </div>
-            <div className="flex flex-col gap-4 border-t border-[#e4e1de] pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div id="daily-kpi-rate-preview" className="min-w-0">
-              <p className="ws-caption font-medium">{labels.kpiPreview}</p>
-              <p className="mt-1 break-words text-sm font-semibold leading-relaxed tabular-nums text-[#22201d]">
-                {formatCurrency(KPI_PREVIEW_BASE_AMOUNT)} × {previewRateBps > 0 ? formatKpiRatePercent(previewRateBps, lang) : '—'} = {previewRateBps > 0 ? formatCurrency(previewBonus) : '—'}
-              </p>
-            </div>
-            <div className="shrink-0 [&>button]:w-full sm:[&>button]:w-auto">
-
-              <button
-                type="button"
-                onClick={onSave}
-                disabled={!canManage || loading || rulesLoading || !selectedKpiProfile || !form.effective_from || previewRateBps <= 0 || !normalizeKpiStartTime(form.start_time) || (form.is_enabled && form.sales_basis === 'employee_opened_orders' && !kpiAccounts.some(account => account.id === form.order_opener_profile_id)) || saving}
-                className="ws-btn ws-btn-primary !h-11"
-              >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={15} />}
-                {labels.kpiSave}
-              </button>
-            </div>            </div>
-              {canRemoveSelectedRule && (
-                <button
-                  type="button"
-                  onClick={() => onRequestRemoveRule(selectedKpiProfile, selectedRule, form.effective_from)}
-                  disabled={Boolean(removingRuleId) || saving}
-                  className="ws-btn ws-btn-ghost ws-btn-danger min-h-10 touch-manipulation !px-2"
-                >
-                  {removingRuleId === selectedRule.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  {labels.kpiRemove}
-                </button>
-              )}
-          </div>
-          <details className="mt-4 min-w-0 break-words text-xs leading-relaxed text-[#68655f]">
-            <summary className="cursor-pointer">{labels.kpiCalculationHelp}</summary>
-            <p className="mt-2">{labels.kpiBaseStatement}</p>
-            <p className="mt-1.5 font-semibold text-[#22201d]">{labels.kpiAccruesToSalary}</p>
-          </details>
-      </div>
-
-      {ruleToRemove && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#22201d]/40 px-4 backdrop-blur-[2px]" role="presentation">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="remove-kpi-rule-title"
-            className="ws-dialog w-full max-w-md p-5 sm:p-6"
-          >
-            <div className="min-w-0">
-              <h3 id="remove-kpi-rule-title" className="ws-display">{labels.kpiRemoveTitle}</h3>
-              <p className="mt-3 truncate text-sm font-semibold text-[#22201d]">{employeeLabel(ruleToRemove.salaryProfile)}</p>
-              <p className="ws-caption mt-0.5 tabular-nums">
-                {formatKpiRatePercent(ruleToRemove.rule.rate_bps, lang)} · {labels.effectiveDate}: {formatLongDate(ruleToRemove.rule.effective_from, lang, ruleToRemove.rule.effective_from)}
-              </p>
-              <p className="mt-1 text-xs font-semibold text-[#c4262c]">
-                {labels.kpiRemoveFrom}: {formatLongDate(ruleToRemove.effectiveFrom, lang, ruleToRemove.effectiveFrom)}
-              </p>
-            </div>
-            <p className="ws-notice ws-tone-caution mt-4 leading-relaxed">
-              {labels.kpiRemoveWarning}
-            </p>
-            {ruleRemoveError && (
-              <p role="alert" className="ws-notice ws-tone-negative mt-3 leading-relaxed">
-                {ruleRemoveError}
-              </p>
-            )}
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={onCancelRemoveRule}
-                disabled={removingRuleId === ruleToRemove.rule.id}
-                className="ws-btn ws-btn-outline !h-11"
-              >
-                {labels.kpiRemoveCancel}
-              </button>
-              <button
-                type="button"
-                onClick={onConfirmRemoveRule}
-                disabled={removingRuleId === ruleToRemove.rule.id}
-                className="ws-btn ws-btn-danger-solid !h-11"
-              >
-                {removingRuleId === ruleToRemove.rule.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={15} />}
-                {labels.kpiRemoveConfirm}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
-
 function MetricCard({ icon: Icon, label, value, description }) {
   return (
     <div className="ws-panel flex h-full items-start justify-between gap-3">
@@ -2579,6 +1830,7 @@ function CardHeading({ icon: Icon, title, description }) {
     </div>
   )
 }
+
 
 function Field({ label, hint = '', hintClassName = '', children }) {
   return (

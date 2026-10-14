@@ -7,7 +7,6 @@ import {
   Banknote,
   CalendarDays,
   Clock3,
-  Contact,
   CreditCard,
   Loader2,
   Plus,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import DateRangePicker from '../components/DateRangePicker'
+import { accountingTitle, buildAccountingTabs } from '../lib/accountingTabs'
 import { OperationalLoading } from '../components/OperationalState'
 import { Kpi, KpiExplanationDialog, toKpiDetail } from '../components/AccountingKpi'
 import { ChoiceGroup, ChoiceTile } from '../components/ChoiceTiles'
@@ -686,9 +686,6 @@ export default function Expenses() {
     () => salaryProfiles.filter(salaryProfile => !salaryProfile.deleted_at),
     [salaryProfiles]
   )
-  const activeSalaryProfileCount = loading
-    ? null
-    : payableSalaryProfiles.filter(salaryProfile => salaryProfile.is_active !== false).length
   const totalSalaryDue = useMemo(
     () => getTotalSalaryDue(payableSalaryProfiles, salaryDueDate),
     [payableSalaryProfiles, salaryDueDate]
@@ -831,39 +828,10 @@ export default function Expenses() {
 
   return (
     <AppShell
-      title={l.title}
-      titleAccessory={(
-        // Reporting period follows the page title when the content column is wide enough (see .zk-period-in-header).
-        <div className="zk-period-in-header w-[clamp(240px,32cqi,340px)]">
-          <DateRangePicker
-            l={l}
-            lang={lang}
-            rangeKey={activeRangeKey}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            today={todayExpenseDate()}
-            onPreset={selectQuickRange}
-            onApply={setCustomRange}
-            compact
-            className="w-full"
-          />
-        </div>
-      )}
+      title={accountingTitle(lang)}
+      tabs={buildAccountingTabs(lang, 'overview', navigate)}
       headerActions={(
         <nav aria-label={l.title} className="flex items-center gap-2">
-          <AccountingShortcut
-            icon={Users}
-            label={l.salaries}
-            count={activeSalaryProfileCount}
-            onClick={() => navigate('/admin/accounting/salaries')}
-          />
-          <AccountingShortcut
-            icon={Contact}
-            label={l.employees}
-            count={activeSalaryProfileCount}
-            onClick={() => navigate('/admin/accounting/employees')}
-          />
-          <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-[#e4e1de] sm:block" />
           <button
             type="button"
             onClick={loadExpenses}
@@ -879,23 +847,25 @@ export default function Expenses() {
     >
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page">
-          <section className="ws-panel zk-period-in-page" aria-labelledby="accounting-period-heading">
+          {/* Reporting period sits under the top bar, which holds the Accounting tabs. */}
+          <section className="flex flex-wrap items-center justify-between gap-3" aria-labelledby="accounting-period-heading">
             <div className="min-w-0">
               <h2 id="accounting-period-heading" className="ws-heading">{l.period}</h2>
               <p className="ws-caption mt-0.5">{l.periodHelp}</p>
             </div>
-            <div className="mt-4">
-              <DateRangePicker
-                l={l}
-                lang={lang}
-                rangeKey={activeRangeKey}
-                dateFrom={dateFrom}
-                dateTo={dateTo}
-                today={todayExpenseDate()}
-                onPreset={selectQuickRange}
-                onApply={setCustomRange}
-              />
-            </div>
+            <DateRangePicker
+              l={l}
+              lang={lang}
+              rangeKey={activeRangeKey}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              today={todayExpenseDate()}
+              onPreset={selectQuickRange}
+              onApply={setCustomRange}
+              compact
+              align="right"
+              className="w-full sm:w-[340px]"
+            />
           </section>
 
           {error && <div role="alert" className="ws-notice ws-tone-negative">{error}</div>}
@@ -1120,22 +1090,6 @@ export default function Expenses() {
         </div>
       </div>
     </AppShell>
-  )
-}
-
-function AccountingShortcut({ icon: Icon, label, count = null, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className="ws-btn ws-btn-outline !h-[38px] !px-2.5 xl:!px-3.5"
-    >
-      <Icon size={16} />
-      <span className="hidden xl:inline">{label}</span>
-      {count != null && <span className="ws-count">{count}</span>}
-    </button>
   )
 }
 

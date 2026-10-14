@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { buildAttendanceCheckinUrl } from './attendance'
+import { buildAttendanceCheckinUrl, getTashkentClock, isAttendanceStarted } from './attendance'
 
 // Shared rotation loop for the entrance screen and the Dashboard card
 // (migration 245). Codes rotate every 15 s; the bot rejects them about two
@@ -16,18 +16,22 @@ function isMissingRpc(error) {
 // requestToken(signal) -> Supabase RPC builder resolving to { data, error }.
 // source identifies the token stream; changing it restarts the loop.
 // status: loading | active | offline | disabled (null token / forbidden) | unavailable (RPC missing) | idle
+// | not-started (before ATTENDANCE_START_DATE; no codes are requested)
 export function useRotatingCheckinQr(requestToken, { source, enabled = true } = {}) {
   const botUsername = String(import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim()
   const [status, setStatus] = useState(enabled ? 'loading' : 'idle')
   const [dataUrl, setDataUrl] = useState('')
+  // When the shown code's 15 s slot ends, on this device's clock.
+  const [slotEndsAt, setSlotEndsAt] = useState(0)
   const [now, setNow] = useState(() => Date.now())
-  const nextRefreshAt = useRef(0)
   const lastOkAt = useRef(0)
   const requestRef = useRef(requestToken)
   requestRef.current = requestToken
+  // Re-evaluated every tick, so an open screen starts at Tashkent midnight.
+  const started = isAttendanceStarted(getTashkentClock(new Date(now)).date)
 
   useEffect(() => {
-    if (!enabled || !botUsername) {
+    if (!enabled || !botUsername || !started) {
       setStatus('idle')
       return undefined
     }
@@ -38,7 +42,6 @@ export function useRotatingCheckinQr(requestToken, { source, enabled = true } = 
 
     const schedule = delay => {
       window.clearTimeout(timer)
-      nextRefreshAt.current = Date.now() + delay
       timer = window.setTimeout(refresh, delay)
     }
 
@@ -48,6 +51,7 @@ export function useRotatingCheckinQr(requestToken, { source, enabled = true } = 
       const abortTimer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
       try {
         const { data, error } = await requestRef.current(controller.signal)
+        const receivedAt = Date.now()
         if (cancelled) return
         if (isMissingRpc(error)) {
           // Migration not applied yet; pick it up without a reload.
@@ -75,6 +79,7 @@ export function useRotatingCheckinQr(requestToken, { source, enabled = true } = 
         const nextDataUrl = await QRCode.toDataURL(url, { width: 720, margin: 2, errorCorrectionLevel: 'M' })
         if (cancelled) return
         setDataUrl(nextDataUrl)
+        setSlotEndsAt(receivedAt + Math.max(0, Number(data.ms_left) || 0))
         lastOkAt.current = Date.now()
         setStatus('active')
         // Refresh just after the 15 s slot turns over, judged by the server clock.
@@ -100,7 +105,7 @@ export function useRotatingCheckinQr(requestToken, { source, enabled = true } = 
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('online', onVisible)
     }
-  }, [enabled, botUsername, source])
+  }, [enabled, botUsername, source, started])
 
   // Countdown and stale-code guard.
   useEffect(() => {
@@ -115,9 +120,9 @@ export function useRotatingCheckinQr(requestToken, { source, enabled = true } = 
   }, [])
 
   return {
-    status: !enabled ? 'idle' : botUsername ? status : 'no-bot',
+    status: !started ? 'not-started' : !enabled ? 'idle' : botUsername ? status : 'no-bot',
     dataUrl: status === 'active' ? dataUrl : '',
-    secondsLeft: Math.max(0, Math.ceil((nextRefreshAt.current - now) / 1000)),
+    slotEndsAt,
     now,
   }
 }

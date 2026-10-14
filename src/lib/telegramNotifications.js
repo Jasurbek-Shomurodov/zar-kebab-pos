@@ -117,6 +117,16 @@ export async function notifyTelegramEmployeeLifecycle(salaryProfileId, lifecycle
   }
 }
 
+export async function notifyTelegramEmployeeProfileChange(salaryProfileId) {
+  if (!salaryProfileId) return { ok: false, status: 'failed', errorMessage: '' }
+  try {
+    return await postAuthenticatedTelegramNotification({ type: 'employee_profile_change', salaryProfileId })
+  } catch (error) {
+    console.warn('[telegram] Investor employee profile change notification failed:', error)
+    return { ok: false, status: 'failed', errorMessage: String(error?.message || error) }
+  }
+}
+
 export function notifyTelegramEmployeeRate(rateId) {
   return notifyTelegramSalaryEvent('rate', rateId)
 }

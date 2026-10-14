@@ -53,7 +53,7 @@ test('both employee management screens request retry-safe lifecycle delivery', (
   assert.match(endpoint, /buildEmployeeLifecycleInvestorMessage\(delivery, 'ru'\)/)
   assert.match(endpoint, /loadSalaryGroupTarget/)
   assert.match(endpoint, /\.eq\('actor_id', user\.id\)/)
-  assert.match(salaries, /notifyTelegramEmployeeLifecycle\(salaryProfile\.id, 'created'\)/)
+  assert.match(fs.readFileSync(new URL('../src/components/NewEmployeeDialog.jsx', import.meta.url), 'utf8'), /notifyTelegramEmployeeLifecycle\(salaryProfileId, 'created'\)/)
   assert.match(salaries, /nextActive \? 'activated' : 'deactivated'/)
   assert.match(employees, /nextActive \? 'activated' : 'deactivated'/)
 })

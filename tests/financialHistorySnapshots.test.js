@@ -75,9 +75,11 @@ test('KPI rules cannot enter finalized dates and old missing runs remain recover
   assert.match(migration, /create or replace function public\.get_pending_daily_kpi_dates/i)
   assert.match(migration, /left join public\.employee_daily_kpi_runs/i)
   assert.match(migration, /run\.business_date is null/i)
-  assert.match(salaries, /kpiForm\.effective_from < today/)
-  assert.match(salaries, /minimumEffectiveDate=\{today\}/)
-  assert.match(salaries, /min=\{minimumEffectiveDate\}/)
+  // The employee dialog never offers or saves a KPI date before today.
+  const employeeSettings = fs.readFileSync(new URL('../src/lib/employeeSettings.js', import.meta.url), 'utf8')
+  const employeesPage = fs.readFileSync(new URL('../src/pages/Employees.jsx', import.meta.url), 'utf8')
+  assert.match(employeeSettings, /form\.effective_from < today\) return \{ code: 'date' \}/)
+  assert.match(employeesPage, /<DateInput value=\{kpiForm\.effective_from\} lang=\{lang\} min=\{today\}/)
 })
 
 test('Reports fails closed on incomplete expense data and buckets hours in Tashkent', () => {

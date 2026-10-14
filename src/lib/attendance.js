@@ -28,6 +28,14 @@ export function buildAttendanceKioskUrl(origin, key) {
   return `${String(origin || '').replace(/\/$/, '')}${ATTENDANCE_KIOSK_PATH}#k=${key}`
 }
 
+// QR of the one-time screen link so the entrance device can open it with its
+// camera. Rendered locally: the key must never reach a third-party QR service.
+export async function buildAttendanceKioskQrDataUrl(url) {
+  if (!url) return ''
+  const QRCode = (await import('qrcode')).default
+  return QRCode.toDataURL(url, { width: 480, margin: 1, errorCorrectionLevel: 'M' })
+}
+
 export function readAttendanceKioskKey(hash) {
   const match = String(hash || '').match(/(?:^#|&)k=([0-9a-f]{64})(?:&|$)/)
   return match ? match[1] : ''
@@ -45,6 +53,19 @@ export function normalizeWorkStartTime(value) {
 function minutesOfDay(time) {
   const [hours, minutes] = time.split(':').map(Number)
   return hours * 60 + minutes
+}
+
+// Attendance tracking starts on this Tashkent date (migration 249). Earlier
+// scans are refused and pages show no check-in stats before it.
+export const ATTENDANCE_START_DATE = '2026-10-15'
+
+export function isAttendanceStarted(date) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) && String(date) >= ATTENDANCE_START_DATE
+}
+
+export function buildAttendanceNotStartedMessage() {
+  return '📅 Отметка прихода начнётся 15 октября. Сегодня сканировать не нужно.\n\n'
+    + '📅 Ishga kelishni belgilash 15-oktabrdan boshlanadi. Bugun skanerlash shart emas.'
 }
 
 // Tashkent date and wall-clock HH:MM for a moment.

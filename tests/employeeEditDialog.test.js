@@ -65,5 +65,47 @@ test('tapping an employee card opens the edit dialog with audited, notifying wri
   assert.match(source, /notifySalaryChangeInBackground\(notifyTelegramEmployeeRate/)
   assert.match(source, /configurationChanged\) \{\s*notifySalaryChangeInBackground\(notifyTelegramKpiRuleChange/)
   assert.doesNotMatch(source, /window\.confirm\(|alert\(/)
-  assert.match(employees('Salaries'), /import \{ buildSalaryRatePayload \} from '\.\.\/lib\/employeeSettings'/)
+  // Salary changes live only here now; Salaries no longer writes rates.
+  assert.doesNotMatch(employees('Salaries'), /from\('employee_salary_rates'\)\s*\.insert/)
+})
+
+test('employee cards show Telegram link status and hide it when links cannot be read', () => {
+  const source = employees('Employees')
+  assert.match(source, /\.from\('employee_salary_telegram_links'\)\.select\('salary_profile_id, notifications_enabled'\)/)
+  assert.match(source, /setTelegramLinks\(telegramLinkRes\.error \? null : new Map\(/)
+  assert.match(source, /\{telegramLinks && \(\s*<Fact label=\{l\.telegram\}/)
+  assert.equal(source.split('telegramNotLinked:').length - 1, 3)
+})
+
+test('the edit dialog links Telegram with the existing one-time link and waits for Start', () => {
+  const source = employees('Employees')
+  assert.match(source, /supabase\.rpc\('create_employee_salary_telegram_link', \{\s*target_salary_profile_id: employee\.id,/)
+  assert.match(source, /`https:\/\/t\.me\/\$\{botUsername\}\?start=employee_\$\{token\}`/)
+  assert.match(source, /import\('qrcode'\)/)
+  assert.match(source, /\.eq\('salary_profile_id', pendingTelegramEmployeeId\)/)
+  assert.equal(source.split('telegramWaiting:').length - 1, 3)
+})
+
+test('every employee change made outside Salaries still reaches the Investor (salary_events) group', () => {
+  const page = employees('Employees')
+  const dialog = fs.readFileSync(new URL('../src/components/NewEmployeeDialog.jsx', import.meta.url), 'utf8')
+  const endpoint = fs.readFileSync(new URL('../api/telegram/employee-notification.js', import.meta.url), 'utf8')
+  const fnBody = (source, name) => source.slice(source.indexOf(`async function ${name}`), source.indexOf('\n  }\n', source.indexOf(`async function ${name}`)))
+
+  // Hiring, (de)activation and absence undo use the lifecycle/undo endpoints as before.
+  assert.match(dialog, /const notification = await notifyTelegramEmployeeLifecycle\(salaryProfileId, 'created'\)/)
+  assert.match(page, /nextActive \? 'activated' : 'deactivated'/)
+  assert.match(page, /notifyTelegramAbsenceUndo\(absence\.id\)/)
+  // Rate and KPI edits send the same events Salaries used to send.
+  assert.match(fnBody(page, 'saveEmployeeSalary'), /if \(!isInitialRate\) notifySalaryChangeInBackground\(notifyTelegramEmployeeRate, savedRate\?\.id/)
+  assert.match(fnBody(page, 'saveEmployeeKpi'), /notifySalaryChangeInBackground\(notifyTelegramKpiRuleChange, savedRule\?\.last_change_event_id/)
+  // A failed delivery is shown, never silently dropped.
+  assert.match(fnBody(page, 'saveEmployeeSalary') + page, /\.catch\(\(\) => setError\(failureMessage\)\)/)
+
+  // All of these resolve to the one salary_events target, labelled as the ZarKebab Investor group.
+  assert.match(endpoint, /async function loadSalaryGroupTarget[\s\S]*?\.eq\('target_key', 'salary_events'\)/)
+  const lifecycle = endpoint.slice(endpoint.indexOf('async function notifyEmployeeLifecycle'), endpoint.indexOf('async function notifyInvestorIncome'))
+  assert.match(lifecycle, /await loadSalaryGroupTarget\(supabase\)/)
+  assert.match(lifecycle, /ZarKebab Investor Telegram group is not configured/)
+  assert.match(endpoint, /deliverSalaryGroupEvent\(supabase, 'kpi_rule', event, 0\)/)
 })

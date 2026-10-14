@@ -137,7 +137,13 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.doesNotMatch(expenseHistory, /formatTime\(expense\.expense_date/)
   assert.match(expenses, /EXPENSE_CATEGORIES/)
   assert.match(expenses, /EXPENSE_PAYMENT_METHODS/)
-  assert.match(expenses, /navigate\('\/admin\/accounting\/salaries'\)/)
+  // Overview, Salaries and Employees are tabs of one Accounting top bar; the period picker sits in the page.
+  const accountingTabs = readSource('src/lib/accountingTabs.js')
+  assert.match(accountingTabs, /salaries: '\/admin\/accounting\/salaries'/)
+  assert.match(expenses, /tabs=\{buildAccountingTabs\(lang, 'overview', navigate\)\}/)
+  assert.match(salaries, /tabs=\{buildAccountingTabs\(lang, 'salaries', navigate\)\}/)
+  assert.match(readSource('src/pages/Employees.jsx'), /tabs=\{buildAccountingTabs\(lang, 'employees', navigate\)\}/)
+  assert.doesNotMatch(expenses, /zk-period-in-header|AccountingShortcut/)
   assert.match(analysis, /navigate\('\/admin\/financial-analysis\/estimate'\)/)
   assert.match(expenses, /getTotalSalaryDue/)
   assert.match(expenseLib, /export function getSalaryBonusAccruedAmount/)
@@ -163,22 +169,23 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(salaries, /const monthlyPayrollTotal = useMemo\(\(\) => getTotalMonthlySalaryCommitment\(salaryProfiles, today\), \[salaryProfiles, today\]\)/)
   assert.match(salaries, /value=\{loading \? '—' : formatCurrency\(monthlyPayrollTotal\)\}/)
   assert.match(salaries, /l\.quickActions/)
-  assert.match(salaries, /l\.salarySettings/)
+  // Salary setup moved to Employees (Add employee button + edit dialog); only Telegram stays below operations.
+  assert.doesNotMatch(salaries, /salary-settings-heading|salarySetupMode/)
   assert.ok(
-    salaries.indexOf('aria-labelledby="salary-operations-heading"') < salaries.indexOf('aria-labelledby="salary-settings-heading"'),
-    'daily salary operations should appear before salary setup'
+    salaries.indexOf('aria-labelledby="salary-operations-heading"') < salaries.indexOf('<section aria-label={l.telegramTitle}>'),
+    'daily salary operations should appear before Telegram notifications'
   )
   assert.doesNotMatch(salaries, /className=\{SECTION_GRID\}/)
   assert.match(salaries, /salary-operations-heading[\s\S]*className="grid min-w-0 grid-cols-1 items-stretch gap-4"/)
-  assert.match(salaries, /const \[salarySetupMode, setSalarySetupMode\] = useState\('add'\)/)
-  assert.match(salaries, /\{ key: 'add',[\s\S]*\{ key: 'change',[\s\S]*\{ key: 'kpi'/)
-  assert.match(salaries, /salary-settings-heading[\s\S]*grid w-full min-w-0 grid-cols-1 items-stretch gap-4[\s\S]*h-full w-full min-w-0/)
   assert.doesNotMatch(salaries, /lg:col-span-2/)
   assert.match(salaries, /grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-\[minmax\(0,1fr\)_auto\]/)
-  assert.ok((salaries.match(/h-11 self-end items-center/g) || []).length >= 3)
+  // Payment and absence actions stay bottom-aligned (the add-employee Save moved to its dialog).
+  assert.ok((salaries.match(/h-11 self-end items-center/g) || []).length >= 2)
   assert.match(salaries, /aria-pressed=\{active\}/)
   assert.match(salaries, /function MetricCard/)
   assert.match(salaries, /function SectionHeading/)
+  // Salary forms stay inline on the page; the card-and-dialog layout was rejected.
+  assert.doesNotMatch(salaries, /function ActionCard|function SalaryDialog/)
   assert.doesNotMatch(salaries, /xl:grid-cols-\[minmax\(0,1fr\)_382px\]/)
   // The estimate is selected-month only: no all-time overview numbers.
   assert.doesNotMatch(monthlyEstimate, /ACCOUNTING_HISTORY_START_DATE|overallExpenses|overallPaidOrderSummary|overviewRows|function Kpi/)
@@ -236,7 +243,8 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(employees, /const absentTodayEmployeeIds = useMemo\(\(\) => new Set\(/)
   assert.match(employees, /getSalaryAbsenceDates\(employee\)\.has\(today\)/)
   assert.match(employees, /getDailySalaryAmount\(a, getSalaryActiveUntil\(a, today\)\) - getDailySalaryAmount\(b, getSalaryActiveUntil\(b, today\)\) \|\|\s*employeeName\(a\)\.localeCompare\(employeeName\(b\)\)/)
-  assert.match(employees, /label=\{l\.absentToday\} value=\{absentTodayCount\} danger=\{absentTodayCount > 0\}/)
+  // Today's absences share the Active tile and stay red while any exist.
+  assert.match(employees, /label=\{l\.active\} value=\{activeCount\}\s*note=\{`\$\{l\.absentToday\}: \$\{absentTodayCount\}`\} noteDanger=\{absentTodayCount > 0\}/)
   assert.match(employees, /absentToday\s*\?\s*'!border-\[#c4262c\]\/40 ring-2 ring-\[#c4262c\]\/10'/)
   assert.match(employees, /absentToday \? l\.absentToday : l\.active/)
   assert.match(expenseLib, /export function getSalaryAbsenceForDate\(salaryProfile, date = todayExpenseDate\(\)\)/)
@@ -258,6 +266,14 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(employees, /md:col-span-2 xl:col-span-3/)
   assert.match(employees, /const activeDailySalary = useMemo\(\(\) => \(\s*activeEmployees\.reduce\(\(sum, item\) => sum \+ getDailySalaryAmount\(item, today\), 0\)\s*\), \[activeEmployees, today\]\)/)
   assert.match(employees, /label=\{l\.activeDaily\} value=\{formatCurrency\(activeDailySalary\)\}/)
+  assert.match(employees, /checkins\.has\(item\.id\) \? getDailySalaryAmount\(item, today\) : 0/)
+  // The edit dialog's Save stays disabled until a field differs from the saved employee.
+  assert.match(employees, /hasChanges=\{Object\.values\(getEmployeeEditChanges\(editingEmployee\)\)\.some\(Boolean\)\}/)
+  assert.match(employees, /onClick=\{onSave\} disabled=\{saving \|\| !hasChanges\}/)
+  // A successful edit closes the dialog and shows a short-lived "saved" popup.
+  assert.match(employees, /if \(ok\) \{\s*cancelNameEdit\(\)\s*setSavedNotice\(/)
+  assert.match(employees, /setTimeout\(\(\) => setSavedNotice\(null\), 3000\)/)
+  assert.match(employees, /label=\{l\.activeDaily\} value=\{formatCurrency\(checkedInDailySalary\)\} total=\{formatCurrency\(activeDailySalary\)\}/)
   assert.match(expenseLib, /export function isGeneratedSalaryExpense\(expense\)/)
   assert.match(expenseLib, /export function getExpenseHistoryDeleteTarget\(expense\)/)
   assert.match(functionBody(expenseLib, 'getExpenseHistoryDeleteTarget'), /employee_salary_bonuses/)
@@ -291,17 +307,21 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(employeeHistory, /l\.absences/)
   assert.match(salaries, /absence_date/)
   assert.match(salaries, /removeSalaryProfile/)
-  assert.match(salaries, /buildSalaryRatePayload/)
+  assert.match(employees, /\.insert\(buildSalaryRatePayload\(/)
   assert.match(salaries, /employee_name/)
-  assert.match(salaries, /profile_id: null/)
-  assert.match(salaries, /effectiveFrom: form\.joined_at/)
+  // New employees are created by the Telegram-gated RPC (248): a manual name
+  // with no POS account, and the first rate starts on the joining date.
+  const telegramGatedCreation = readSource('migrations/248_employee_creation_requires_telegram.sql')
+  assert.match(readSource('src/components/NewEmployeeDialog.jsx'), /p_joined_at: form\.joined_at/)
+  assert.match(telegramGatedCreation, /profile_id, employee_name, job_function, joined_at[\s\S]*?\(\s*null, v_name/)
+  assert.match(telegramGatedCreation, /v_profile_id, p_joined_at, p_amount/)
   assert.match(salaries, /effectiveDate: 'Effective date'/)
-  assert.match(salaries, /label=\{l\.effectiveDate\}/)
+  assert.match(employees, /label=\{l\.effectiveDate\}/)
   // The shared rate builder keeps the compatibility daily_amount in sync.
   assert.match(readSource('src/lib/employeeSettings.js'), /daily_amount: convertSalaryAmountToDaily\(amount, salaryUnit\)/)
   assert.match(salaries, /l\.bonus/)
-  assert.match(salaries, /const \[changeForm, setChangeForm\]/)
-  assert.match(salaries, /SALARY_RATE_UNITS/)
+  assert.match(employees, /const \[salaryForm, setSalaryForm\] = useState\(null\)/)
+  assert.match(employees, /SALARY_RATE_UNITS\.map/)
   assert.match(salaries, /rate_unit/)
   assert.match(salaries, /PAGE_SIZE = 12/)
   assert.match(salaries, /toggleSalaryProfileActive/)
@@ -316,7 +336,6 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(salaries, /l\.paymentBonus/)
   assert.match(salaries, /const \[transactionForm, setTransactionForm\]/)
   assert.match(salaries, /entry_type: 'payment'/)
-  assert.match(salaries, /onClick=\{\(\) => addRate\(\)\}/)
   assert.match(salaries, /onClick=\{addTransaction\}/)
   assert.match(salaryHistoryLib, /export function buildSalaryHistoryEntries/)
   assert.match(salaryHistoryLib, /entryType: 'payment'/)
@@ -341,7 +360,8 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(employees, /onClick=\{\(\) => startNameEdit\(employee\)\}/)
   assert.match(functionBody(employees, 'startNameEdit'), /if \(!canEditName \|\| !employee\?\.id\) return/)
   assert.match(functionBody(employees, 'saveEmployeeName'), /if \(!canEditName \|\| !employee\?\.id/)
-  assert.match(functionBody(employees, 'saveEmployeeName'), /\.update\(\{ employee_name: nextName, job_function: editingJobFunction \|\| null \}\)/)
+  assert.match(functionBody(employees, 'saveEmployeeName'), /\.update\(\{ employee_name: nextName, job_function: editingJobFunction \|\| null, work_start_time: editingWorkStart \|\| null \}\)/)
+  assert.match(functionBody(employees, 'saveEmployeeName'), /notifyTelegramEmployeeProfileChange\(employee\.id\)/)
   assert.match(functionBody(employees, 'saveEmployeeName'), /\.eq\('id', employee\.id\)/)
   assert.match(employeeHistory, /const isOwner = normalizeRole\(profile\?\.role \|\| state\.user\?\.role\) === 'owner'/)
   assert.match(employeeHistory, /const canDeleteHistory = canManage && isOwner/)

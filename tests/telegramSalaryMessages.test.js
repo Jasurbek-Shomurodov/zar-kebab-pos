@@ -733,26 +733,25 @@ test('recorded salary operations trigger the authenticated shared Telegram endpo
     endpoint.indexOf('async function loadSalaryGroupTarget'),
     endpoint.indexOf('async function loadSalaryTeamTarget')
   )
-  const createSalaryProfileSource = salariesPage.slice(
-    salariesPage.indexOf('async function createSalaryProfile'),
-    salariesPage.indexOf('async function addRate')
-  )
-  const addRateSource = salariesPage.slice(
-    salariesPage.indexOf('async function addRate'),
-    salariesPage.indexOf('async function addTransaction')
+  // Rate changes moved to the Employees edit dialog; creation to NewEmployeeDialog.
+  const employeesPage = fs.readFileSync(new URL('../src/pages/Employees.jsx', import.meta.url), 'utf8')
+  const createSalaryProfileSource = fs.readFileSync(new URL('../src/components/NewEmployeeDialog.jsx', import.meta.url), 'utf8')
+  const addRateSource = employeesPage.slice(
+    employeesPage.indexOf('async function saveEmployeeSalary'),
+    employeesPage.indexOf('async function saveEmployeeKpi')
   )
 
   assert.match(salariesPage, /\.select\('id'\)\.single\(\)/)
   assert.match(salariesPage, /runTelegramNotificationInBackground\(entryType, writeResult\.data\?\.id\)/)
   assert.match(salariesPage, /runTelegramNotificationInBackground\('absence', savedAbsence\?\.id\)/)
   assert.match(addRateSource, /\.insert\(buildSalaryRatePayload\([\s\S]*?\.select\('id'\)\s*\.single\(\)/)
-  assert.match(addRateSource, /runTelegramNotificationInBackground\('rate',\s*\w+\?\.id,\s*\{/)
-  assert.match(addRateSource, /failureMessage:\s*l\.rateTelegramFailed/)
-  assert.match(addRateSource, /const isInitialRate = \(selectedProfile\.rates \|\| \[\]\)\.length === 0/)
-  assert.match(addRateSource, /if \(!isInitialRate\) \{[\s\S]*?runTelegramNotificationInBackground\('rate'/)
-  assert.doesNotMatch(createSalaryProfileSource, /runTelegramNotificationInBackground\('rate'/)
+  assert.match(addRateSource, /notifySalaryChangeInBackground\(notifyTelegramEmployeeRate, savedRate\?\.id, l\.rateTelegramFailed\)/)
+  assert.match(addRateSource, /const isInitialRate = \(employee\.rates \|\| \[\]\)\.length === 0/)
+  assert.match(addRateSource, /if \(!isInitialRate\) notifySalaryChangeInBackground\(notifyTelegramEmployeeRate/)
+  assert.doesNotMatch(createSalaryProfileSource, /notifyTelegramEmployeeRate/)
+  assert.match(employeesPage, /void send\(eventId\)/)
   assert.match(salariesPage, /void send\(eventId\)/)
-  assert.doesNotMatch(addRateSource, /await\s+(?:runTelegramNotificationInBackground|notifyTelegramEmployeeRate)/)
+  assert.doesNotMatch(addRateSource, /await\s+(?:notifySalaryChangeInBackground|notifyTelegramEmployeeRate)/)
   assert.match(salariesPage, /rate:\s*notifyTelegramEmployeeRate/)
   assert.match(salariesPage, /const collections = \{[\s\S]*?rate:\s*'rates'[\s\S]*?\}/)
   assert.match(salariesPage, /const dateFields = \{[\s\S]*?rate:\s*'effective_from'[\s\S]*?\}/)

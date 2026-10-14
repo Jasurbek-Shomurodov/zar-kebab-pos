@@ -16,6 +16,7 @@
 
 - Saved salary events (not initial setup) get `not_attempted` tracking. States: pending, sent, failed, skipped, confirmed; sent requires a message id.
 - Destinations send independently, duplicate-safe. Salaries: 5 rows/page, unsent retries.
+- `248`: unknown `employee_` tokens link new-hire registrations.
 - Salary operations use `api/telegram/employee-notification.js`. Cleanup needs `ok:true` within 30s; a timeout keeps the record and errors.
 - Owner deletions first retract tracked private/Salary (Investor)/Team messages; missing ones succeed. Undeletable rate notices become cancelled; other failures block deletion.
 
@@ -53,7 +54,7 @@
 
 ## Investor
 
-- Employee lifecycle queues immutable Russian Investor events: employee/date/actor.
+- Lifecycle (`178`), name/role/start edits (`250`): immutable Russian Investor events.
 - Ingredient changes (`189`) snapshot before/after values and actor. Unchanged saves and imports stay silent. `ingredient-events` sends to `salary_events`; unknown sends stay held.
 - Order deletes require a reason (`184`); Investor alerts snapshot order, total, actor and tenders. Corrections and splits (`201`) notify Investor once with before/after allocations.
 - New cash expenses (text) and Bazaar purchases (one localized PNG + caption, never also a text receipt) notify Investor via legacy `salary_events`.

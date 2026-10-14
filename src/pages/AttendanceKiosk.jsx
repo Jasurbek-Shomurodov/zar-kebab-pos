@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { MonitorOff, ScanLine, WifiOff } from 'lucide-react'
+import { CalendarClock, MonitorOff, ScanLine, WifiOff } from 'lucide-react'
 import { Shimmer } from '../components/PageShimmer'
+import CheckinCountdownBar from '../components/CheckinCountdownBar'
 import { supabase } from '../lib/supabase'
 import { formatLongDate, formatTime } from '../lib/dateFormat'
 import {
@@ -8,7 +9,7 @@ import {
   ATTENDANCE_KIOSK_PATH,
   readAttendanceKioskKey,
 } from '../lib/attendance'
-import { CHECKIN_QR_SLOT_SECONDS, useRotatingCheckinQr, useScreenWakeLock } from '../lib/useRotatingCheckinQr'
+import { useRotatingCheckinQr, useScreenWakeLock } from '../lib/useRotatingCheckinQr'
 
 // Signed-out entrance screen (migration 245). It trades its screen key for a
 // QR payload that rotates every 15 s; the bot rejects codes older than ~2 min.
@@ -34,11 +35,11 @@ function takeKioskKey() {
 
 export default function AttendanceKiosk() {
   const [key] = useState(takeKioskKey)
-  const { status: qrStatus, dataUrl, secondsLeft, now } = useRotatingCheckinQr(
+  const { status: qrStatus, dataUrl, slotEndsAt, now } = useRotatingCheckinQr(
     signal => supabase.rpc('get_attendance_kiosk_token', { p_key: key }).abortSignal(signal),
     { source: key, enabled: Boolean(key) },
   )
-  const status = key ? qrStatus : 'no-key'
+  const status = key || qrStatus === 'not-started' ? qrStatus : 'no-key'
 
   // A new link pasted into an already-open tab only changes the hash, which
   // does not reload the page; adopt the new key with a clean reload.
@@ -76,10 +77,7 @@ export default function AttendanceKiosk() {
               : <Shimmer className="size-[min(70vw,calc(100dvh-320px))] min-h-[220px] min-w-[220px] rounded-2xl" />}
           </div>
           <div className="w-[min(90vw,640px)]">
-            <div className="h-1.5 overflow-hidden rounded-full bg-[#e8e4df]">
-              <div className="h-full rounded-full bg-[#ff5a00] transition-[width] duration-1000 ease-linear"
-                style={{ width: `${Math.min(100, (secondsLeft / CHECKIN_QR_SLOT_SECONDS) * 100)}%` }} />
-            </div>
+            <CheckinCountdownBar key={slotEndsAt} slotEndsAt={slotEndsAt} />
             <p className="mt-3 text-base font-semibold text-[#55524c]">
               <ScanLine size={18} className="mr-1.5 inline-block align-[-3px]" />
               Камера телефона → Telegram → «Start» · Telefon kamerasi → Telegram → «Start»
@@ -95,6 +93,11 @@ export default function AttendanceKiosk() {
 
 function KioskState({ status }) {
   const states = {
+    'not-started': {
+      icon: <CalendarClock size={40} />,
+      ru: 'Отметка прихода начнётся 15 октября.',
+      uz: 'Ishga kelishni belgilash 15-oktabrdan boshlanadi.',
+    },
     offline: {
       icon: <WifiOff size={40} />,
       ru: 'Нет связи. Код скрыт, пока экран не подключится снова.',

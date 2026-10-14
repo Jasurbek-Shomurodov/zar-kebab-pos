@@ -1,9 +1,11 @@
 import CalendarPicker from '../components/CalendarPicker'
 import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
 import React, { useEffect, useMemo, useState } from 'react'
-import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, Copy, ExternalLink, History, Loader2, MonitorSmartphone, Pencil, Percent, Power, Save, ScanLine, UserRound, Users, WalletCards, X } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, CalendarX2, Check, CheckCircle2, ChevronDown, ChevronUp, Copy, ExternalLink, HandCoins, History, Loader2, MonitorSmartphone, Pencil, Percent, Plus, Power, Save, ScanLine, Send, UserRound, Users, WalletCards, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import { accountingTitle, buildAccountingTabs } from '../lib/accountingTabs'
+import NewEmployeeDialog from '../components/NewEmployeeDialog'
 import TimePicker24 from '../components/TimePicker24'
 import PageShimmer, { Shimmer } from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
@@ -32,13 +34,14 @@ import {
   isEmployeeSalaryChanged,
   isKpiRulePayloadChanged,
 } from '../lib/employeeSettings'
-import { notifyTelegramAbsenceUndo, notifyTelegramEmployeeLifecycle, notifyTelegramEmployeeRate, notifyTelegramKpiRuleChange } from '../lib/telegramNotifications'
+import { notifyTelegramAbsenceUndo, notifyTelegramEmployeeLifecycle, notifyTelegramEmployeeProfileChange, notifyTelegramEmployeeRate, notifyTelegramKpiRuleChange } from '../lib/telegramNotifications'
 import {
   getDailySalaryAmount,
   getSalaryAbsenceForDate,
   getSalaryAbsenceDates,
   getSalaryActiveUntil,
   getSalaryBalance,
+  getSalaryDaySummary,
   getTotalSalaryDue,
   getExpenseEntryMinDate,
   isExpenseEntryDateAllowed,
@@ -50,7 +53,7 @@ import {
 } from '../lib/expenses'
 import { RollingValue } from '../components/RollingNumber'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
-import { buildAttendanceKioskUrl, formatArrivalSummary, normalizeWorkStartTime } from '../lib/attendance'
+import { buildAttendanceKioskQrDataUrl, buildAttendanceKioskUrl, formatArrivalSummary, isAttendanceStarted, normalizeWorkStartTime } from '../lib/attendance'
 
 function isMissingSalaryMigration(error) {
   const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
@@ -97,18 +100,6 @@ export default function Employees() {
   const L = {
     uz: {
       title: 'Xodimlar',
-      allRoles: 'Barcha lavozimlar',
-      sortBy: 'Saralash',
-      defaultSort: 'Odatiy tartib',
-      balanceDesc: 'Balans: yuqoridan pastga',
-      balanceAsc: 'Balans: pastdan yuqoriga',
-      salaryDesc: 'Kunlik maosh: yuqoridan pastga',
-      salaryAsc: 'Kunlik maosh: pastdan yuqoriga',
-      nameAsc: 'Ism: A–Z',
-      joinedDesc: 'Ishga kirgan: eng yangi',
-      joinedAsc: 'Ishga kirgan: eng eski',
-      noMatches: 'Bu lavozimda xodimlar topilmadi',
-      resetFilters: 'Filtrlarni tozalash',
       sub: 'Maosh tizimidagi xodimlar ro‘yxati',
       back: 'Maoshlarga qaytish',
       active: 'Faol',
@@ -131,6 +122,10 @@ export default function Employees() {
       undoAbsenceFailed: 'Bugungi yo‘qlikni bekor qilib bo‘lmadi.',
       undoAbsenceNotificationFailed: 'Yo‘qlik bekor qilindi, lekin ZarKebab Investor guruhiga xabar yuborilmadi.',
       balance: 'Balans',
+      todayPay: 'Bugun to‘lanadi',
+      bonusShort: 'bonus',
+      fineShort: 'jarima',
+      paidShort: 'to‘langan',
       due: 'Qarz',
       endDate: 'Tugash sanasi',
       status: 'Holat',
@@ -164,7 +159,8 @@ export default function Employees() {
       createScreenLink: 'Ekran havolasini yaratish',
       replaceScreenLink: 'Yangi havola yaratish',
       replaceScreenWarning: 'Hozirgi ekran yangi havola ochilmaguncha ishlamaydi.',
-      screenLinkOnce: 'Havolani hozir nusxalang — u faqat bir marta ko‘rsatiladi. Uni kirish joyidagi qurilmada oching.',
+      screenLinkOnce: 'Havola faqat bir marta ko‘rsatiladi. Kirish joyidagi qurilma kamerasi bilan QR ni skanerlang yoki havolani nusxalab oching.',
+      screenQrAlt: 'Kelish ekrani havolasi QR kodi',
       copyLink: 'Nusxalash',
       linkCopied: 'Nusxalandi',
       openHere: 'Shu qurilmada ochish',
@@ -183,6 +179,17 @@ export default function Employees() {
       hour: 'Soat',
       minute: 'Daqiqa',
       done: 'Tayyor',
+      addEmployee: 'Xodim qo‘shish',
+      telegram: 'Telegram',
+      telegramLinked: 'Ulangan',
+      telegramNotLinked: 'Ulanmagan',
+      telegramMuted: 'Xabarlar o‘chiq',
+      telegramConnect: 'Telegram havolasini yaratish',
+      telegramNewLink: 'Yangi havola',
+      telegramHelp: 'Xodim QR ni skanerlasin yoki havolani ochib, botda «Start» ni bossin.',
+      telegramWaiting: 'Xodim botda «Start» ni bosishi kutilmoqda',
+      telegramQrAlt: 'Xodimning Telegram havolasi QR kodi',
+      telegramBotMissing: 'VITE_TELEGRAM_BOT_USERNAME sozlanmagan.',
       profileSection: 'Xodim',
       salarySection: 'Maosh',
       salaryAmount: 'Maosh summasi',
@@ -207,7 +214,9 @@ export default function Employees() {
       kpiStartRequired: 'KPI boshlanish vaqtini kiriting.',
       kpiRateRequired: 'KPI foizini kiriting.',
       kpiDateInvalid: 'KPI sanasi bugundan oldin bo‘lishi mumkin emas.',
+      employeeSaved: 'O‘zgarishlar saqlandi',
       rateTelegramFailed: 'Maosh stavkasi saqlandi, lekin Telegram xabarlari yuborilmadi.',
+      profileTelegramFailed: 'Xodim ma’lumotlari saqlandi, lekin ZarKebab Investor guruhiga xabar yuborilmadi.',
       kpiTelegramFailed: 'KPI sozlamasi saqlandi, lekin Maosh guruhiga Telegram xabari yuborilmadi.',
       profileOwnerOnly: 'Ism va lavozimni faqat egasi o‘zgartira oladi.',
       inactiveSettingsHint: 'Maosh va KPI faqat faol xodimlar uchun o‘zgartiriladi.',
@@ -215,18 +224,6 @@ export default function Employees() {
     },
     ru: {
       title: 'Сотрудники',
-      allRoles: 'Все должности',
-      sortBy: 'Сортировка',
-      defaultSort: 'По умолчанию',
-      balanceDesc: 'Баланс: по убыванию',
-      balanceAsc: 'Баланс: по возрастанию',
-      salaryDesc: 'Дневная зарплата: по убыванию',
-      salaryAsc: 'Дневная зарплата: по возрастанию',
-      nameAsc: 'Имя: А–Я',
-      joinedDesc: 'Дата выхода: сначала новые',
-      joinedAsc: 'Дата выхода: сначала старые',
-      noMatches: 'Нет сотрудников с этой должностью',
-      resetFilters: 'Сбросить фильтры',
       sub: 'Список сотрудников в зарплатной системе',
       back: 'Назад к зарплатам',
       active: 'Активен',
@@ -249,6 +246,10 @@ export default function Employees() {
       undoAbsenceFailed: 'Не удалось отменить сегодняшнее отсутствие.',
       undoAbsenceNotificationFailed: 'Отсутствие отменено, но сообщение в группу ZarKebab Investor не отправлено.',
       balance: 'Баланс',
+      todayPay: 'К выплате за сегодня',
+      bonusShort: 'бонус',
+      fineShort: 'штраф',
+      paidShort: 'выплачено',
       due: 'Долг',
       endDate: 'Дата окончания',
       status: 'Статус',
@@ -282,7 +283,8 @@ export default function Employees() {
       createScreenLink: 'Создать ссылку экрана',
       replaceScreenLink: 'Создать новую ссылку',
       replaceScreenWarning: 'Текущий экран перестанет работать, пока на нём не откроют новую ссылку.',
-      screenLinkOnce: 'Скопируйте ссылку сейчас — она показывается только один раз. Откройте её на устройстве у входа.',
+      screenLinkOnce: 'Ссылка показывается только один раз. Отсканируйте QR камерой устройства у входа или скопируйте ссылку и откройте её там.',
+      screenQrAlt: 'QR-код ссылки на экран отметки',
       copyLink: 'Копировать',
       linkCopied: 'Скопировано',
       openHere: 'Открыть на этом устройстве',
@@ -301,6 +303,17 @@ export default function Employees() {
       hour: 'Час',
       minute: 'Минута',
       done: 'Готово',
+      addEmployee: 'Добавить сотрудника',
+      telegram: 'Telegram',
+      telegramLinked: 'Подключён',
+      telegramNotLinked: 'Не подключён',
+      telegramMuted: 'Уведомления выкл.',
+      telegramConnect: 'Создать ссылку Telegram',
+      telegramNewLink: 'Новая ссылка',
+      telegramHelp: 'Сотрудник сканирует QR или открывает ссылку и нажимает «Start» в боте.',
+      telegramWaiting: 'Ждём, когда сотрудник нажмёт «Start» в боте',
+      telegramQrAlt: 'QR-код ссылки Telegram сотрудника',
+      telegramBotMissing: 'Не настроен VITE_TELEGRAM_BOT_USERNAME.',
       profileSection: 'Сотрудник',
       salarySection: 'Зарплата',
       salaryAmount: 'Сумма зарплаты',
@@ -325,7 +338,9 @@ export default function Employees() {
       kpiStartRequired: 'Укажите время начала KPI.',
       kpiRateRequired: 'Укажите процент KPI.',
       kpiDateInvalid: 'Дата KPI не может быть в прошлом.',
+      employeeSaved: 'Изменения сохранены',
       rateTelegramFailed: 'Ставка зарплаты сохранена, но сообщения в Telegram не отправлены.',
+      profileTelegramFailed: 'Данные сотрудника сохранены, но сообщение в группу ZarKebab Investor не отправлено.',
       kpiTelegramFailed: 'Настройка KPI сохранена, но сообщение в группу зарплат не отправлено.',
       profileOwnerOnly: 'Имя и должность может менять только владелец.',
       inactiveSettingsHint: 'Зарплату и KPI можно менять только у активных сотрудников.',
@@ -333,18 +348,6 @@ export default function Employees() {
     },
     en: {
       title: 'Employees',
-      allRoles: 'All roles',
-      sortBy: 'Sort by',
-      defaultSort: 'Default order',
-      balanceDesc: 'Balance: highest first',
-      balanceAsc: 'Balance: lowest first',
-      salaryDesc: 'Daily salary: highest first',
-      salaryAsc: 'Daily salary: lowest first',
-      nameAsc: 'Name: A–Z',
-      joinedDesc: 'Joined: newest first',
-      joinedAsc: 'Joined: oldest first',
-      noMatches: 'No employees match this role',
-      resetFilters: 'Reset filters',
       sub: 'Employee list from the salary system',
       back: 'Back to salaries',
       active: 'Active',
@@ -367,6 +370,10 @@ export default function Employees() {
       undoAbsenceFailed: "Could not undo today's absence.",
       undoAbsenceNotificationFailed: 'Absence was undone, but the ZarKebab Investor group notification was not sent.',
       balance: 'Balance',
+      todayPay: 'Payable today',
+      bonusShort: 'bonus',
+      fineShort: 'fine',
+      paidShort: 'paid',
       due: 'Due',
       endDate: 'End date',
       status: 'Status',
@@ -400,7 +407,8 @@ export default function Employees() {
       createScreenLink: 'Create screen link',
       replaceScreenLink: 'Create new link',
       replaceScreenWarning: 'The current screen stops working until the new link is opened on it.',
-      screenLinkOnce: 'Copy this link now — it is shown only once. Open it on the entrance device.',
+      screenLinkOnce: 'This link is shown only once. Scan the QR with the entrance device’s camera, or copy the link and open it there.',
+      screenQrAlt: 'QR code of the check-in screen link',
       copyLink: 'Copy',
       linkCopied: 'Copied',
       openHere: 'Open on this device',
@@ -419,6 +427,17 @@ export default function Employees() {
       hour: 'Hour',
       minute: 'Minute',
       done: 'Done',
+      addEmployee: 'Add employee',
+      telegram: 'Telegram',
+      telegramLinked: 'Linked',
+      telegramNotLinked: 'Not linked',
+      telegramMuted: 'Notifications off',
+      telegramConnect: 'Create Telegram link',
+      telegramNewLink: 'New link',
+      telegramHelp: 'The employee scans the QR or opens the link and presses Start in the bot.',
+      telegramWaiting: 'Waiting for the employee to press Start in the bot',
+      telegramQrAlt: 'QR code of the employee Telegram link',
+      telegramBotMissing: 'VITE_TELEGRAM_BOT_USERNAME is not configured.',
       profileSection: 'Employee',
       salarySection: 'Salary',
       salaryAmount: 'Salary amount',
@@ -443,7 +462,9 @@ export default function Employees() {
       kpiStartRequired: 'Enter a KPI start time.',
       kpiRateRequired: 'Enter a KPI percentage.',
       kpiDateInvalid: 'The KPI date cannot be in the past.',
+      employeeSaved: 'Changes saved',
       rateTelegramFailed: 'The salary rate was saved, but Telegram messages were not sent.',
+      profileTelegramFailed: 'The employee details were saved, but the ZarKebab Investor group notification was not sent.',
       kpiTelegramFailed: 'The KPI setting was saved, but the Salary group message was not sent.',
       profileOwnerOnly: 'Only the owner can change the name and role.',
       inactiveSettingsHint: 'Salary and KPI can only be changed for active employees.',
@@ -456,13 +477,13 @@ export default function Employees() {
   const [kpiRules, setKpiRules] = useState([])
   const [kpiRulesAvailable, setKpiRulesAvailable] = useState(true)
   const [kpiAccounts, setKpiAccounts] = useState([])
+  // null = links could not be read, so the card hides Telegram instead of guessing.
+  const [telegramLinks, setTelegramLinks] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
   const [confirmActionKey, setConfirmActionKey] = useState('')
   const [deactivateDates, setDeactivateDates] = useState({})
   const [inactiveExpanded, setInactiveExpanded] = useState(false)
-  const [roleFilter, setRoleFilter] = useState('all')
-  const [sortBy, setSortBy] = useState('default')
   const [editingNameId, setEditingNameId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingJobFunction, setEditingJobFunction] = useState('')
@@ -470,6 +491,15 @@ export default function Employees() {
   const [salaryForm, setSalaryForm] = useState(null)
   const [kpiForm, setKpiForm] = useState(null)
   const [editError, setEditError] = useState('')
+  // Brief "saved" popup after the edit dialog closes: { id, name }.
+  const [savedNotice, setSavedNotice] = useState(null)
+  useEffect(() => {
+    if (!savedNotice) return undefined
+    const timer = setTimeout(() => setSavedNotice(null), 3000)
+    return () => clearTimeout(timer)
+  }, [savedNotice])
+  const [telegramInvite, setTelegramInvite] = useState(null)
+  const [newEmployeeOpen, setNewEmployeeOpen] = useState(false)
   const [checkins, setCheckins] = useState(() => new Map())
   const [attendanceAvailable, setAttendanceAvailable] = useState(false)
   const [screenOpen, setScreenOpen] = useState(false)
@@ -478,12 +508,13 @@ export default function Employees() {
   const [screenConfirm, setScreenConfirm] = useState('')
   const [screenBusy, setScreenBusy] = useState(false)
   const [screenCopied, setScreenCopied] = useState(false)
+  const [screenQr, setScreenQr] = useState('')
   const [error, setError] = useState('')
 
   async function loadEmployees() {
     setLoading(true)
     setError('')
-    const [teamRes, profileRes, rateRes, paymentRes, bonusRes, fineRes, absenceRes, kpiRuleRes] = await Promise.all([
+    const [teamRes, profileRes, rateRes, paymentRes, bonusRes, fineRes, absenceRes, kpiRuleRes, telegramLinkRes] = await Promise.all([
       supabase.from('profiles').select('id, full_name, email, role, status, created_at').order('full_name'),
       loadSalaryRows(() => supabase.from('employee_salary_profiles').select('*').order('employee_name')),
       loadSalaryRows(() => supabase.from('employee_salary_rates').select('*').order('effective_from', { ascending: false })),
@@ -496,11 +527,13 @@ export default function Employees() {
         .lte('effective_from', today)
         .order('effective_from', { ascending: false })
         .order('updated_at', { ascending: false }),
+      supabase.from('employee_salary_telegram_links').select('salary_profile_id, notifications_enabled'),
     ])
 
     setKpiRules(kpiRuleRes.error ? [] : kpiRuleRes.data || [])
     setKpiRulesAvailable(!kpiRuleRes.error)
     setKpiAccounts(teamRes.error ? [] : getActiveKpiAccounts(teamRes.data || []))
+    setTelegramLinks(telegramLinkRes.error ? null : new Map((telegramLinkRes.data || []).map(link => [link.salary_profile_id, link])))
 
     const salaryError = profileRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error
     if (salaryError) {
@@ -542,6 +575,17 @@ export default function Employees() {
       window.clearInterval(timer)
     }
   }, [today])
+
+  // The new link is shown once; its QR lets the entrance device scan it.
+  useEffect(() => {
+    let cancelled = false
+    setScreenQr('')
+    if (!screenLink) return undefined
+    buildAttendanceKioskQrDataUrl(screenLink)
+      .then(dataUrl => { if (!cancelled) setScreenQr(dataUrl) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [screenLink])
 
   const botConfigured = Boolean(String(import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim())
 
@@ -624,44 +668,37 @@ export default function Employees() {
         employeeName(a).localeCompare(employeeName(b))
       ))
   ), [employees])
-  const { sortedActiveEmployees, inactiveEmployees } = useMemo(() => {
-    const matches = [...defaultActiveEmployees, ...defaultInactiveEmployees].filter(employee => roleFilter === 'all' || (
-      roleFilter === 'unassigned' ? !employee.job_function : employee.job_function === roleFilter
-    ))
-    // Compute ledger values once per employee, using the same dates as the cards.
-    const values = new Map(matches.map(employee => [employee.id, {
-      balance: getSalaryBalance(employee, today),
-      salary: getDailySalaryAmount(employee, getSalaryActiveUntil(employee, today)),
-    }]))
-    const compare = (a, b) => {
-      const byName = employeeName(a).localeCompare(employeeName(b), lang)
-      switch (sortBy) {
-        case 'balanceDesc': return values.get(b.id).balance - values.get(a.id).balance || byName
-        case 'balanceAsc': return values.get(a.id).balance - values.get(b.id).balance || byName
-        case 'salaryDesc': return values.get(b.id).salary - values.get(a.id).salary || byName
-        case 'salaryAsc': return values.get(a.id).salary - values.get(b.id).salary || byName
-        case 'nameAsc': return byName
-        case 'joinedDesc': return String(b.joined_at || '').localeCompare(String(a.joined_at || '')) || byName
-        case 'joinedAsc': return String(a.joined_at || '').localeCompare(String(b.joined_at || '')) || byName
-        default: return 0
-      }
-    }
-    return {
-      sortedActiveEmployees: matches.filter(employee => employee.is_active !== false).sort(compare),
-      inactiveEmployees: matches.filter(employee => employee.is_active === false).sort(compare),
-    }
-  }, [defaultActiveEmployees, defaultInactiveEmployees, roleFilter, sortBy, today, lang])
+  const sortedActiveEmployees = defaultActiveEmployees
+  const inactiveEmployees = defaultInactiveEmployees
   const employeeGridEntries = [
     ...sortedActiveEmployees.map(employee => ({ type: 'employee', employee })),
     ...(inactiveEmployees.length > 0 ? [{ type: 'inactive-toggle', id: 'inactive-toggle' }] : []),
     ...(inactiveExpanded ? inactiveEmployees.map(employee => ({ type: 'employee', employee })) : []),
   ]
   const activeCount = activeEmployees.length
+  // Shimmer only the first load; later reloads keep the last figures and roll to the new ones.
+  const tilesLoading = loading && employees.length === 0
   const absentTodayCount = absentTodayEmployeeIds.size
+  // Check-in stats appear from ATTENDANCE_START_DATE; the screen link and work start times can be set up before.
+  const attendanceLive = attendanceAvailable && isAttendanceStarted(today)
   const checkedInCount = activeEmployees.filter(employee => checkins.has(employee.id)).length
   const activeDailySalary = useMemo(() => (
     activeEmployees.reduce((sum, item) => sum + getDailySalaryAmount(item, today), 0)
   ), [activeEmployees, today])
+  // Daily pay of the employees who checked in today, out of the full active daily payroll.
+  const checkedInDailySalary = useMemo(() => (
+    activeEmployees.reduce((sum, item) => sum + (checkins.has(item.id) ? getDailySalaryAmount(item, today) : 0), 0)
+  ), [activeEmployees, checkins, today])
+  // Today's pay across the team: daily pay of those not absent, plus today's bonuses, minus today's fines.
+  const todaySalary = useMemo(() => employees.reduce((sum, item) => {
+    const day = getSalaryDaySummary(item, today)
+    return {
+      earned: sum.earned + day.earned,
+      bonuses: sum.bonuses + day.bonuses,
+      fines: sum.fines + day.fines,
+      paid: sum.paid + day.paid,
+    }
+  }, { earned: 0, bonuses: 0, fines: 0, paid: 0 }), [employees, today])
   const totalDue = useMemo(() => getTotalSalaryDue(employees, today), [employees, today])
   const inactiveSalaryDue = useMemo(() => getTotalSalaryDue(inactiveEmployees, today), [inactiveEmployees, today])
 
@@ -763,6 +800,7 @@ export default function Employees() {
     setEditingWorkStart(normalizeWorkStartTime(employee.work_start_time))
     setSalaryForm(buildEmployeeSalaryForm(employee, today))
     setKpiForm(buildEmployeeKpiForm(kpiRules, employee, today))
+    setTelegramInvite(null)
     setConfirmActionKey('')
     setEditError('')
   }
@@ -779,6 +817,7 @@ export default function Employees() {
     setEditingWorkStart('')
     setSalaryForm(null)
     setKpiForm(null)
+    setTelegramInvite(null)
     setEditError('')
   }
 
@@ -796,21 +835,17 @@ export default function Employees() {
       return false
     }
 
-    let { error: updateError } = await supabase
+    // One update, so migration 250's trigger records one Investor event per save.
+    const { error: updateError } = await supabase
       .from('employee_salary_profiles')
-      .update({ employee_name: nextName, job_function: editingJobFunction || null })
+      .update({ employee_name: nextName, job_function: editingJobFunction || null, work_start_time: editingWorkStart || null })
       .eq('id', employee.id)
-    // Older databases lack work_start_time (migration 243); only send it when it changed.
-    if (!updateError && editingWorkStart !== normalizeWorkStartTime(employee.work_start_time)) {
-      ({ error: updateError } = await supabase
-        .from('employee_salary_profiles')
-        .update({ work_start_time: editingWorkStart || null })
-        .eq('id', employee.id))
-    }
     if (updateError) {
       setEditError(updateError.message)
       return false
     }
+    void notifyTelegramEmployeeProfileChange(employee.id)
+      .then(result => { if (!result?.ok && result?.status !== 'skipped') setError(l.profileTelegramFailed) })
     return true
   }
 
@@ -900,13 +935,20 @@ export default function Employees() {
 
   // Each part is saved only when it changed. After a partial failure the reload
   // refreshes the baselines, so a retry skips what was already stored.
+  // Which parts of the edit dialog differ from the saved employee; Save stays disabled until one does.
+  function getEmployeeEditChanges(employee) {
+    const editable = employee.is_active !== false
+    return {
+      profileChanged: Boolean(canEditName && isEmployeeProfileChanged(employee)),
+      salaryChanged: Boolean(editable && salaryForm && isEmployeeSalaryChanged(employee, salaryForm, today)),
+      kpiChanged: Boolean(editable && kpiRulesAvailable && kpiForm && isEmployeeKpiChanged(kpiRules, employee, kpiForm, today)),
+    }
+  }
+
   async function saveEmployeeEdits() {
     const employee = employees.find(item => item.id === editingNameId)
     if (!canManage || !employee) return
-    const editable = employee.is_active !== false
-    const profileChanged = canEditName && isEmployeeProfileChanged(employee)
-    const salaryChanged = editable && salaryForm && isEmployeeSalaryChanged(employee, salaryForm, today)
-    const kpiChanged = editable && kpiRulesAvailable && kpiForm && isEmployeeKpiChanged(kpiRules, employee, kpiForm, today)
+    const { profileChanged, salaryChanged, kpiChanged } = getEmployeeEditChanges(employee)
     if (!profileChanged && !salaryChanged && !kpiChanged) {
       cancelNameEdit()
       return
@@ -928,52 +970,105 @@ export default function Employees() {
       wroteAny = true
     }
     setSaving('')
-    if (ok) cancelNameEdit()
+    if (ok) {
+      cancelNameEdit()
+      setSavedNotice({ id: Date.now(), name: editingName.trim() || employeeName(employee) })
+    }
     if (wroteAny) await loadEmployees()
   }
 
+  // Same one-time link as Salaries: the bot binds the chat when the employee presses Start.
+  async function createEmployeeTelegramLink(employee) {
+    const botUsername = String(import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim().replace(/^@/, '')
+    if (!canManage || !employee?.id) return
+    if (!botUsername) {
+      setEditError(l.telegramBotMissing)
+      return
+    }
+    setEditError('')
+    setTelegramInvite({ employeeId: employee.id, url: '', qr: '', loading: true, copied: false })
+    const { data: token, error: linkError } = await supabase.rpc('create_employee_salary_telegram_link', {
+      target_salary_profile_id: employee.id,
+    })
+    if (linkError || !token) {
+      setTelegramInvite(null)
+      setEditError(linkError?.message || l.telegramBotMissing)
+      return
+    }
+    const url = `https://t.me/${botUsername}?start=employee_${token}`
+    setTelegramInvite({ employeeId: employee.id, url, qr: '', loading: false, copied: false })
+    // Rendered in the browser so the one-time token never reaches a hosted QR service.
+    import('qrcode')
+      .then(QRCode => QRCode.default.toDataURL(url, { width: 280, margin: 1, errorCorrectionLevel: 'M' }))
+      .then(qr => setTelegramInvite(current => (current?.url === url ? { ...current, qr } : current)))
+      .catch(() => {})
+  }
+
+  async function copyEmployeeTelegramLink() {
+    if (!telegramInvite?.url) return
+    try {
+      await navigator.clipboard.writeText(telegramInvite.url)
+      setTelegramInvite(current => current && { ...current, copied: true })
+    } catch {
+      setEditError(telegramInvite.url)
+    }
+  }
+
+  const pendingTelegramEmployeeId = telegramInvite?.url && !telegramLinks?.has(telegramInvite.employeeId)
+    ? telegramInvite.employeeId
+    : ''
+  // While a link is open, quietly check whether the employee has pressed Start.
+  useEffect(() => {
+    if (!pendingTelegramEmployeeId) return undefined
+    let cancelled = false
+    const timer = setInterval(async () => {
+      const { data } = await supabase
+        .from('employee_salary_telegram_links')
+        .select('salary_profile_id, notifications_enabled')
+        .eq('salary_profile_id', pendingTelegramEmployeeId)
+        .maybeSingle()
+      if (cancelled || !data) return
+      setTelegramLinks(current => new Map(current || []).set(data.salary_profile_id, data))
+      setTelegramInvite(null)
+    }, 3000)
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [pendingTelegramEmployeeId])
+
   const editingEmployee = canManage ? employees.find(item => item.id === editingNameId) || null : null
 
-  const back = { label: l.back, onClick: () => navigate('/admin/accounting/salaries') }
-
   return (
-    <AppShell title={l.title} back={back}>
+    <AppShell title={accountingTitle(lang)} tabs={buildAccountingTabs(lang, 'employees', navigate)} headerActions={canManage && (
+      <div className="flex items-center gap-2">
+        {attendanceAvailable && (
+          <button type="button" onClick={openScreenDialog} title={l.checkinQr} aria-label={l.checkinQr} className="ws-btn ws-btn-outline ws-btn-sm">
+            <MonitorSmartphone size={15} /><span className="hidden sm:inline">{l.checkinQr}</span>
+          </button>
+        )}
+        <button type="button" onClick={() => setNewEmployeeOpen(true)} className="ws-btn ws-btn-primary ws-btn-sm">
+          <Plus size={15} />{l.addEmployee}
+        </button>
+      </div>
+    )}>
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page">
-          <div className={`grid grid-cols-2 gap-3 ${attendanceAvailable ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
-            <Kpi icon={Users} label={l.active} value={activeCount} />
-            {attendanceAvailable && <Kpi icon={ScanLine} label={l.checkedInToday} value={`${checkedInCount} / ${activeCount}`} />}
-            <Kpi icon={CalendarX2} label={l.absentToday} value={absentTodayCount} danger={absentTodayCount > 0} />
-            <Kpi icon={CalendarDays} label={l.activeDaily} value={formatCurrency(activeDailySalary)} />
-            <div className={attendanceAvailable ? 'col-span-2 grid lg:col-span-1' : 'grid'}>
-              <Kpi icon={WalletCards} label={l.due} value={formatCurrency(totalDue)} hot={totalDue > 0} />
+          <div className={`grid grid-cols-2 gap-3 ${attendanceLive ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+            {/* Absences are a subset of the active team, so they share its tile. */}
+            <Kpi loading={tilesLoading} icon={Users} label={l.active} value={activeCount}
+              note={`${l.absentToday}: ${absentTodayCount}`} noteDanger={absentTodayCount > 0} />
+            {attendanceLive && <Kpi loading={tilesLoading} icon={ScanLine} label={l.checkedInToday} value={`${checkedInCount} / ${activeCount}`} />}
+            {attendanceLive
+              ? <Kpi loading={tilesLoading} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(checkedInDailySalary)} total={formatCurrency(activeDailySalary)} />
+              : <Kpi loading={tilesLoading} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(activeDailySalary)} />}
+            <Kpi loading={tilesLoading} icon={HandCoins} label={l.todayPay} value={formatCurrency(todaySalary.earned)}
+              danger={todaySalary.earned < 0}
+              note={[
+                todaySalary.bonuses > 0 && `+${formatCurrency(todaySalary.bonuses)} ${l.bonusShort}`,
+                todaySalary.fines > 0 && `−${formatCurrency(todaySalary.fines)} ${l.fineShort}`,
+                todaySalary.paid > 0 && `${formatCurrency(todaySalary.paid)} ${l.paidShort}`,
+              ].filter(Boolean).join(' · ')} />
+            <div className={attendanceLive ? 'col-span-2 grid lg:col-span-1' : 'grid'}>
+              <Kpi loading={tilesLoading} icon={WalletCards} label={l.due} value={formatCurrency(totalDue)} hot={totalDue > 0} />
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="ws-caption flex w-full flex-col gap-1.5 font-medium sm:w-auto">
-              {l.jobFunction}
-              <select value={roleFilter} onChange={event => setRoleFilter(event.target.value)} className="ws-input sm:w-[240px] sm:min-w-[220px]">
-                <option value="all">{l.allRoles}</option>
-                {EMPLOYEE_JOB_FUNCTIONS.map(job => <option key={job.value} value={job.value}>{employeeJobFunctionLabel(job.value, lang)}</option>)}
-                <option value="unassigned">{l.noJobFunction}</option>
-              </select>
-            </label>
-            <label className="ws-caption flex w-full flex-col gap-1.5 font-medium sm:w-auto">
-              {l.sortBy}
-              <select value={sortBy} onChange={event => setSortBy(event.target.value)} className="ws-input sm:w-[240px] sm:min-w-[220px]">
-                <option value="default">{l.defaultSort}</option>
-                {['balanceDesc', 'balanceAsc', 'salaryDesc', 'salaryAsc', 'nameAsc', 'joinedDesc', 'joinedAsc'].map(value => <option key={value} value={value}>{l[value]}</option>)}
-              </select>
-            </label>
-            {(roleFilter !== 'all' || sortBy !== 'default') && (
-              <button type="button" onClick={() => { setRoleFilter('all'); setSortBy('default') }} className="ws-btn ws-btn-ghost h-11">{l.resetFilters}</button>
-            )}
-            {canManage && attendanceAvailable && (
-              <button type="button" onClick={openScreenDialog} className="ws-btn ws-btn-outline h-11 sm:ml-auto">
-                <MonitorSmartphone size={16} />{l.checkinQr}
-              </button>
-            )}
           </div>
 
           {error && <div className="ws-notice ws-tone-negative">{error}</div>}
@@ -982,8 +1077,6 @@ export default function Employees() {
             <PageShimmer layout="table" className="!p-0" />
           ) : employees.length === 0 ? (
             <div className="ws-panel ws-empty"><Users /><p>{l.empty}</p></div>
-          ) : employeeGridEntries.length === 0 ? (
-            <div role="status" className="ws-panel ws-empty"><Users /><p>{l.noMatches}</p></div>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {employeeGridEntries.map(entry => {
@@ -1002,7 +1095,7 @@ export default function Employees() {
                         </span>
                         <span className="min-w-0">
                           <span className="block text-[15px] font-semibold text-[#22201d]">{l.inactiveSection}</span>
-                          <span className="ws-caption mt-0.5 block">{sortBy === 'default' ? l.inactiveNewestFirst : l[sortBy]}</span>
+                          <span className="ws-caption mt-0.5 block">{l.inactiveNewestFirst}</span>
                         </span>
                       </span>
                       <span className="flex min-w-0 items-center gap-2 sm:gap-4">
@@ -1028,7 +1121,7 @@ export default function Employees() {
                 const effectiveKpiRule = getEffectiveKpiRule(kpiRules, employee.id, today)
                 const todayCheckin = checkins.get(employee.id)
                 const workStart = normalizeWorkStartTime(employee.work_start_time)
-                const showAttendance = attendanceAvailable && !inactive && !absentToday
+                const showAttendance = attendanceLive && !inactive && !absentToday
                 return (
                   <section key={employee.id} onClick={event => {
                     // Buttons and fields inside the card keep their own actions.
@@ -1087,7 +1180,7 @@ export default function Employees() {
                       )}
                     </div>
 
-                    <div className={`mt-4 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-3 ${inactive ? 'ws-inactive-stats' : 'bg-[#f8f6f3]'}`}>
+                    <div className={`mt-3 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-2.5 ${inactive ? 'ws-inactive-stats' : 'bg-[#f8f6f3]'}`}>
                       <Stat
                         label={l.balance}
                         value={formatCurrency(salaryBalance)}
@@ -1098,14 +1191,23 @@ export default function Employees() {
                       <Stat label={l.daily} value={formatCurrency(getDailySalaryAmount(employee, activeUntil))} />
                     </div>
 
-                    <div className="mt-1 divide-y divide-[#e4e1de]/60">
-                      <Row label={l.joined} value={formatLongDate(employee.joined_at, lang, employee.joined_at)} />
-                      {inactive && employee.ended_at && <Row label={l.ended} value={formatLongDate(employee.ended_at, lang, employee.ended_at)} />}
+                    <dl className="mb-3 mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+                      <Fact label={l.joined} value={formatLongDate(employee.joined_at, lang, employee.joined_at)} />
+                      {inactive && employee.ended_at && <Fact label={l.ended} value={formatLongDate(employee.ended_at, lang, employee.ended_at)} />}
                       {attendanceAvailable && !inactive && (
-                        <Row label={l.workStart} value={workStart || l.workStartNotSet} />
+                        <Fact label={l.workStart} value={workStart || l.workStartNotSet} muted={!workStart} />
                       )}
                       {showAttendance && todayCheckin && (
-                        <Row label={l.present} value={formatArrivalSummary(todayCheckin, lang)} hot={todayCheckin.arrival_status === 'late'} />
+                        <Fact label={l.present} value={formatArrivalSummary(todayCheckin, lang)} hot={todayCheckin.arrival_status === 'late'} />
+                      )}
+                      {telegramLinks && (
+                        <Fact label={l.telegram} value={
+                          <span className={`ws-badge ${!telegramLinks.has(employee.id) ? 'ws-tone-caution' : telegramLinks.get(employee.id).notifications_enabled === false ? '' : 'ws-tone-positive'}`}>
+                            {!telegramLinks.has(employee.id)
+                              ? l.telegramNotLinked
+                              : telegramLinks.get(employee.id).notifications_enabled === false ? l.telegramMuted : l.telegramLinked}
+                          </span>
+                        } />
                       )}
                       <EmployeeKpiRow
                         label={l.kpi}
@@ -1117,7 +1219,7 @@ export default function Employees() {
                         notConfiguredLabel={l.kpiNotConfigured}
                         unavailableLabel={l.kpiUnavailable}
                       />
-                    </div>
+                    </dl>
 
                     {!inactive && confirmToggle && (
                       <label className="ws-notice ws-tone-negative mt-3 block !px-3 !py-2">
@@ -1191,6 +1293,19 @@ export default function Employees() {
           )}
         </div>
       </div>
+      {newEmployeeOpen && (
+        <NewEmployeeDialog
+          lang={lang}
+          canManage={canManage}
+          onClose={() => setNewEmployeeOpen(false)}
+          onCreated={async ({ notificationError }) => {
+            setNewEmployeeOpen(false)
+            await loadEmployees()
+            if (notificationError) setError(notificationError)
+          }}
+        />
+      )}
+
       {editingEmployee && (
         <EmployeeEditDialog
           employee={editingEmployee}
@@ -1201,6 +1316,10 @@ export default function Employees() {
           showWorkStart={attendanceAvailable}
           kpiAvailable={kpiRulesAvailable}
           kpiAccounts={kpiAccounts}
+          telegramLink={telegramLinks ? telegramLinks.get(editingEmployee.id) || false : null}
+          telegramInvite={telegramInvite?.employeeId === editingEmployee.id ? telegramInvite : null}
+          onCreateTelegramLink={() => createEmployeeTelegramLink(editingEmployee)}
+          onCopyTelegramLink={copyEmployeeTelegramLink}
           name={editingName}
           onNameChange={setEditingName}
           jobFunction={editingJobFunction}
@@ -1213,6 +1332,7 @@ export default function Employees() {
           onKpiFormChange={setKpiForm}
           error={editError}
           saving={saving === `employee-edit-${editingEmployee.id}`}
+          hasChanges={Object.values(getEmployeeEditChanges(editingEmployee)).some(Boolean)}
           onSave={saveEmployeeEdits}
           onClose={cancelNameEdit}
         />
@@ -1252,7 +1372,14 @@ export default function Employees() {
             {screenLink && (
               <div className="ws-notice ws-tone-positive mt-3">
                 <p className="text-[13px] font-medium">{l.screenLinkOnce}</p>
-                <input readOnly value={screenLink} onFocus={event => event.target.select()} className="ws-input mt-2 w-full font-mono !text-xs" />
+                <div className="mt-3 flex justify-center">
+                  <div className="rounded-2xl bg-white p-2 ring-1 ring-black/5">
+                    {screenQr
+                      ? <img src={screenQr} alt={l.screenQrAlt} className="block size-[min(60vw,220px)]" />
+                      : <Shimmer className="size-[min(60vw,220px)] rounded-xl" />}
+                  </div>
+                </div>
+                <input readOnly value={screenLink} onFocus={event => event.target.select()} className="ws-input mt-3 w-full font-mono !text-xs" />
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button type="button" onClick={copyScreenLink} className="ws-btn ws-btn-outline ws-btn-sm">
                     {screenCopied ? <Check size={14} /> : <Copy size={14} />}{screenCopied ? l.linkCopied : l.copyLink}
@@ -1286,18 +1413,31 @@ export default function Employees() {
           </div>
         </div>
       )}
+      {savedNotice && (
+        <div key={savedNotice.id} role="status" aria-live="polite"
+          style={{ animation: 'zk-sheet-in 220ms ease-out' }}
+          className="pointer-events-none fixed inset-x-0 bottom-6 z-[130] mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-[#22201d] px-4 py-3 text-white shadow-[0_12px_32px_rgb(0_0_0/24%)]">
+          <CheckCircle2 size={20} className="flex-shrink-0 text-[#4ade80]" />
+          <span className="min-w-0">
+            <span className="block text-[14px] font-semibold">{l.employeeSaved}</span>
+            <span className="block truncate text-[12px] text-white/70">{savedNotice.name}</span>
+          </span>
+        </div>
+      )}
     </AppShell>
   )
 }
 
-function Kpi({ icon: Icon, label, value, hot = false, danger = false }) {
+function Kpi({ icon: Icon, label, value, total = '', note = '', noteDanger = false, hot = false, danger = false, loading = false }) {
   const valueTone = danger ? 'text-[#c4262c]' : hot ? 'text-[#9a5a00]' : 'text-[#22201d]'
   return (
     <div className="ws-panel min-w-0">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="ws-caption">{label}</p>
-          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone}`}><RollingValue value={value} /></p>
+          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone}`}>{loading ? <Shimmer className="my-1 h-6 w-28 rounded-md" /> : <RollingValue value={value} />}</p>
+          {!loading && total && <p className="ws-caption mt-0.5 tabular-nums">/ {total}</p>}
+          {!loading && note && <p className={`ws-caption mt-0.5 tabular-nums ${noteDanger ? '!text-[#c4262c] font-medium' : ''}`}>{note}</p>}
         </div>
         <div className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f] sm:flex">
           <Icon size={16} />
@@ -1307,11 +1447,11 @@ function Kpi({ icon: Icon, label, value, hot = false, danger = false }) {
   )
 }
 
-function Row({ label, value, hot = false, negative = false }) {
+function Fact({ label, value, hot = false, muted = false }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 py-2.5">
-      <span className="text-[13px] text-[#68655f]">{label}</span>
-      <span className={`min-w-0 break-words text-right text-[13px] font-semibold tabular-nums ${negative ? 'text-[#c4262c]' : hot ? 'text-[#9a5a00]' : 'text-[#22201d]'}`}>{value}</span>
+    <div className="min-w-0">
+      <dt className="text-[12px] text-[#68655f]">{label}</dt>
+      <dd className={`mt-0.5 break-words text-[13px] font-semibold tabular-nums ${hot ? 'text-[#9a5a00]' : muted ? 'text-[#68655f]' : 'text-[#22201d]'}`}>{value}</dd>
     </div>
   )
 }
@@ -1347,25 +1487,23 @@ function EmployeeKpiRow({
         : disabledLabel
 
   return (
-    <div className="py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[13px] text-[#68655f]">{label}</span>
-        <span className="flex min-w-0 items-center gap-2">
-          {configured && available && (
-            <span className={`text-[13px] font-semibold tabular-nums ${enabled ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
-              {formatKpiRatePercent(rule.rate_bps, lang)}
-            </span>
-          )}
-          <span className={`ws-badge ${enabled ? 'ws-tone-positive' : ''}`}>
-            {statusLabel}
+    <div className="col-span-2 min-w-0">
+      <dt className="text-[12px] text-[#68655f]">{label}</dt>
+      <dd className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        {configured && available && (
+          <span className={`text-[13px] font-semibold tabular-nums ${enabled ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
+            {formatKpiRatePercent(rule.rate_bps, lang)}
           </span>
+        )}
+        <span className={`ws-badge ${enabled ? 'ws-tone-positive' : ''}`}>
+          {statusLabel}
         </span>
-      </div>
-      {configured && available && (
-        <p className="mt-1 text-right text-[12px] leading-snug text-[#68655f]">
-          {formatKpiSalesBasis(rule.sales_basis, lang)} · {formatKpiStartTime(rule.start_time, lang)}
-        </p>
-      )}
+        {configured && available && (
+          <span className="min-w-0 text-[12px] leading-snug text-[#68655f]">
+            {formatKpiSalesBasis(rule.sales_basis, lang)} · {formatKpiStartTime(rule.start_time, lang)}
+          </span>
+        )}
+      </dd>
     </div>
   )
 }
@@ -1390,6 +1528,10 @@ function EmployeeEditDialog({
   showWorkStart,
   kpiAvailable,
   kpiAccounts,
+  telegramLink,
+  telegramInvite,
+  onCreateTelegramLink,
+  onCopyTelegramLink,
   name,
   onNameChange,
   jobFunction,
@@ -1402,6 +1544,7 @@ function EmployeeEditDialog({
   onKpiFormChange,
   error,
   saving,
+  hasChanges,
   onSave,
   onClose,
 }) {
@@ -1469,6 +1612,45 @@ function EmployeeEditDialog({
               </div>
             )}
           </section>
+
+          {telegramLink !== null && (
+            <section className="space-y-3 border-t border-[#e4e1de] pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#22201d]"><Send size={15} />{l.telegram}</h3>
+                <span className={`ws-badge ${!telegramLink ? 'ws-tone-caution' : telegramLink.notifications_enabled === false ? '' : 'ws-tone-positive'}`}>
+                  {!telegramLink ? l.telegramNotLinked : telegramLink.notifications_enabled === false ? l.telegramMuted : l.telegramLinked}
+                </span>
+              </div>
+              {!telegramLink && active && (
+                telegramInvite?.url ? (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                    <div className="shrink-0 self-center rounded-2xl bg-white p-2 ring-1 ring-black/5">
+                      {telegramInvite.qr
+                        ? <img src={telegramInvite.qr} alt={l.telegramQrAlt} className="block size-[140px]" />
+                        : <Shimmer className="size-[140px] rounded-xl" />}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <p className="ws-caption">{l.telegramHelp}</p>
+                      <input readOnly value={telegramInvite.url} onFocus={event => event.target.select()} className="ws-input w-full font-mono !text-xs" />
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={onCopyTelegramLink} className="ws-btn ws-btn-outline ws-btn-sm">
+                          {telegramInvite.copied ? <Check size={14} /> : <Copy size={14} />}{telegramInvite.copied ? l.linkCopied : l.copyLink}
+                        </button>
+                        <button type="button" onClick={onCreateTelegramLink} disabled={saving} className="ws-btn ws-btn-ghost ws-btn-sm">{l.telegramNewLink}</button>
+                      </div>
+                      <p role="status" className="flex items-center gap-2 text-[12px] font-medium text-[#9a5a00]">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-[#9a5a00]" aria-hidden="true" />{l.telegramWaiting}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onClick={onCreateTelegramLink} disabled={saving || telegramInvite?.loading} className="ws-btn ws-btn-outline ws-btn-sm">
+                    {telegramInvite?.loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}{l.telegramConnect}
+                  </button>
+                )
+              )}
+            </section>
+          )}
 
           {!active ? (
             <p className="ws-notice">{l.inactiveSettingsHint}</p>
@@ -1575,7 +1757,7 @@ function EmployeeEditDialog({
           {error && <p role="alert" className="ws-notice ws-tone-negative mb-3">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={close} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
-            <button type="button" onClick={onSave} disabled={saving} className="ws-btn ws-btn-primary">
+            <button type="button" onClick={onSave} disabled={saving || !hasChanges} className="ws-btn ws-btn-primary disabled:cursor-not-allowed disabled:opacity-50">
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               {l.saveName}
             </button>
