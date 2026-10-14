@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Package, Search } from 'lucide-react'
 import { bazaarCategoriesFor, bazaarCategoryLabel, bazaarUnitLabel } from '../lib/bazaar'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -26,6 +27,8 @@ export default function BazaarIngredientPicker({
 }) {
   const l = pickerLabels(lang)
   const rootRef = useRef(null)
+  const panelRef = useRef(null)
+  const [position, setPosition] = useState({ left: 8, top: 8 })
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
@@ -60,7 +63,7 @@ export default function BazaarIngredientPicker({
   useEffect(() => {
     if (!open) return undefined
     function closeOnOutsidePointer(event) {
-      if (!rootRef.current?.contains(event.target)) setOpen(false)
+      if (!rootRef.current?.contains(event.target) && !panelRef.current?.contains(event.target)) setOpen(false)
     }
     function closeOnEscape(event) {
       if (event.key === 'Escape') setOpen(false)
@@ -72,6 +75,31 @@ export default function BazaarIngredientPicker({
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [open])
+
+  // The popover is portaled so table wrappers with overflow-hidden cannot clip it.
+  useLayoutEffect(() => {
+    if (!open) return undefined
+    function place() {
+      const rect = rootRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const width = Math.min(680, window.innerWidth - 16)
+      const height = panelRef.current?.offsetHeight || 520
+      const below = rect.bottom + 8
+      const fitsBelow = below + height + 8 <= window.innerHeight
+      const fitsAbove = rect.top - height - 8 >= 8
+      setPosition({
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        top: fitsBelow || !fitsAbove ? Math.max(8, Math.min(below, window.innerHeight - height - 8)) : rect.top - height - 8,
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open, activeCategory, normalizedSearch])
 
   useEffect(() => {
     if (activeCategory !== 'all' && !visibleSections.some(section => section.key === activeCategory)) {
@@ -103,8 +131,11 @@ export default function BazaarIngredientPicker({
         <ChevronDown size={16} className={`shrink-0 text-[#68655f] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-[min(680px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
+      {open && createPortal(
+        <div
+          ref={panelRef}
+          style={{ ...position, width: 'min(680px, calc(100vw - 16px))', maxHeight: 'calc(100dvh - 16px)' }}
+          className="fixed z-[200] flex flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
           <div className="border-b border-gray-100 p-3">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
@@ -118,7 +149,7 @@ export default function BazaarIngredientPicker({
             </div>
           </div>
 
-          <div className="grid max-h-[440px] min-h-[280px] grid-cols-1 overflow-hidden sm:grid-cols-[230px_minmax(0,1fr)]">
+          <div className="grid max-h-[440px] min-h-0 flex-1 grid-cols-1 overflow-hidden sm:grid-cols-[230px_minmax(0,1fr)]">
             <div className="max-h-[180px] overflow-y-auto border-b border-gray-100 bg-gray-50/70 p-2 sm:max-h-[440px] sm:border-b-0 sm:border-r">
               <button
                 type="button"
@@ -173,7 +204,8 @@ export default function BazaarIngredientPicker({
               {visibleItems.length === 0 && <div className="flex min-h-40 items-center justify-center px-4 text-center text-sm font-bold text-[#9CA3AF]">{l.empty}</div>}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
