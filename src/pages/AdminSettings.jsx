@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Store, Percent, Globe, Printer, Bell, Shield, Table2, ChefHat,
   Check, ChevronRight, Activity, AlertTriangle, RefreshCw, Home, Zap, UtensilsCrossed, BadgeDollarSign, Moon, Sun,
@@ -17,18 +17,21 @@ import { useTheme, setTheme } from '../lib/theme'
 const SETTINGS_NAV_LABELS = {
   uz: {
     groups: { restaurant: 'Restoran', workspace: 'Ish joyi' },
+    tabs: { general: 'Umumiy', checkinQr: 'Kelish QR kodi' },
     sections: { restaurant: 'Restoran ma’lumotlari', billing: 'Xizmat haqi', costs: 'Xarajatlar va maqsadlar', preferences: 'Sozlamalar va ko‘rinish', printing: 'Chop etish', tables: 'Stollar', health: 'Tizim holati' },
     cards: { restaurant: 'Asosiy', billing: 'Xizmat haqi', costs: 'Oylik va kunlik ko‘rsatkichlar', language: 'Til', appearance: 'Ko‘rinish', notifications: 'Bildirishnomalar', printing: 'Cheklar', tables: 'Zal' },
     theme: 'Mavzu', themeSub: 'Faqat shu qurilma uchun', themes: { light: 'Yorug‘', dark: 'Qorong‘i' },
   },
   ru: {
     groups: { restaurant: 'Ресторан', workspace: 'Рабочее место' },
+    tabs: { general: 'Общие', checkinQr: 'QR для отметки' },
     sections: { restaurant: 'Данные ресторана', billing: 'Сервисный сбор', costs: 'Расходы и цели', preferences: 'Настройки и вид', printing: 'Печать', tables: 'Столы', health: 'Состояние системы' },
     cards: { restaurant: 'Основное', billing: 'Сервисный сбор', costs: 'Месячные и дневные показатели', language: 'Язык', appearance: 'Оформление', notifications: 'Уведомления', printing: 'Чеки', tables: 'Зал' },
     theme: 'Тема', themeSub: 'Только для этого устройства', themes: { light: 'Светлая', dark: 'Тёмная' },
   },
   en: {
     groups: { restaurant: 'Restaurant', workspace: 'Workspace' },
+    tabs: { general: 'General', checkinQr: 'Check-in QR' },
     sections: { restaurant: 'Restaurant details', billing: 'Service charge', costs: 'Costs & targets', preferences: 'Preferences', printing: 'Printing', tables: 'Tables', health: 'System health' },
     cards: { restaurant: 'General', billing: 'Service charge', costs: 'Monthly and daily figures', language: 'Language', appearance: 'Appearance', notifications: 'Notifications', printing: 'Receipts', tables: 'Floor' },
     theme: 'Theme', themeSub: 'Applies to this device only', themes: { light: 'Light', dark: 'Dark' },
@@ -99,6 +102,7 @@ export default function AdminSettings() {
   const { state, dispatch } = useApp()
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { theme } = useTheme()
   const lang     = state.lang
   const settings = state.settings
@@ -452,12 +456,35 @@ export default function AdminSettings() {
   const l = L[lang] || L.en
 
   const nav = SETTINGS_NAV_LABELS[lang] || SETTINGS_NAV_LABELS.en
+  const tab = searchParams.get('tab') === 'checkin-qr' ? 'checkin-qr' : 'general'
+  // The tab lives in the URL so refreshes and language switches keep it.
+  const selectTab = next => setSearchParams(current => {
+    const params = new URLSearchParams(current)
+    if (next === 'general') params.delete('tab')
+    else params.set('tab', next)
+    return params
+  }, { replace: true })
 
   return (
-    <AppShell title={l.title}>
+    <AppShell
+      title={l.title}
+      tabs={{
+        label: l.title,
+        value: tab,
+        onChange: selectTab,
+        items: [
+          { key: 'general', label: nav.tabs.general },
+          { key: 'checkin-qr', label: nav.tabs.checkinQr },
+        ],
+      }}
+    >
       <div className="min-h-full bg-[#f6f5f3]">
-      <div className="ws-page !max-w-[880px]">
+      <div className="ws-page">
           <div className="flex min-w-0 flex-col gap-4">
+            {tab === 'checkin-qr' ? (
+              <AttendanceQrAccessSettings lang={lang} canManage={canManageSettings} />
+            ) : (
+            <>
             <h2 className="ws-heading mt-1">{nav.groups.restaurant}</h2>
 
             {(
@@ -647,8 +674,6 @@ export default function AdminSettings() {
               </Section>
             )}
 
-            <AttendanceQrAccessSettings lang={lang} canManage={canManageSettings} />
-
             {(
               <Section title={nav.sections.tables}>
               <SettingRow icon={Table2} label={l.tableManagement} sub={l.tableManagementSub} compact>
@@ -732,6 +757,8 @@ export default function AdminSettings() {
               </p>
             )}
               </>
+            )}
+            </>
             )}
           </div>
       </div>

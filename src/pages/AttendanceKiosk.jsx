@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Loader2, MonitorOff, ScanLine, WifiOff } from 'lucide-react'
+import { MonitorOff, ScanLine, WifiOff } from 'lucide-react'
+import { Shimmer } from '../components/PageShimmer'
 import { supabase } from '../lib/supabase'
 import { formatLongDate, formatTime } from '../lib/dateFormat'
 import {
@@ -62,14 +63,17 @@ export default function AttendanceKiosk() {
         </p>
       </div>
 
-      {showQr ? (
+      {/* While the first code loads, the same layout shimmers in place of the QR. */}
+      {showQr || status === 'loading' ? (
         <>
           <div>
             <h1 className="text-[clamp(24px,min(4.5vw,5dvh),44px)] font-black leading-tight">Пришли на работу? Отсканируйте</h1>
             <p className="mt-1 text-[clamp(17px,min(3vw,3.5dvh),28px)] font-bold text-[#55524c]">Ishga keldingizmi? Skanerlang</p>
           </div>
           <div className="rounded-3xl bg-white p-3 shadow-xl ring-1 ring-black/5">
-            <img src={dataUrl} alt="QR" className="block size-[min(70vw,calc(100dvh-320px))] min-h-[220px] min-w-[220px]" />
+            {showQr
+              ? <img src={dataUrl} alt="QR" className="block size-[min(70vw,calc(100dvh-320px))] min-h-[220px] min-w-[220px]" />
+              : <Shimmer className="size-[min(70vw,calc(100dvh-320px))] min-h-[220px] min-w-[220px] rounded-2xl" />}
           </div>
           <div className="w-[min(90vw,640px)]">
             <div className="h-1.5 overflow-hidden rounded-full bg-[#e8e4df]">
@@ -91,7 +95,6 @@ export default function AttendanceKiosk() {
 
 function KioskState({ status }) {
   const states = {
-    loading: { icon: <Loader2 size={40} className="animate-spin" />, ru: 'Загрузка…', uz: 'Yuklanmoqda…' },
     offline: {
       icon: <WifiOff size={40} />,
       ru: 'Нет связи. Код скрыт, пока экран не подключится снова.',
@@ -118,7 +121,7 @@ function KioskState({ status }) {
       uz: 'VITE_TELEGRAM_BOT_USERNAME sozlanmagan.',
     },
   }
-  const state = states[status] || states.loading
+  const state = states[status] || states.unavailable
   return (
     <div role="status" className="flex max-w-xl flex-col items-center gap-4 text-[#55524c]">
       {state.icon}

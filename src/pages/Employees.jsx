@@ -5,7 +5,7 @@ import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import TimePicker24 from '../components/TimePicker24'
-import PageShimmer from '../components/PageShimmer'
+import PageShimmer, { Shimmer } from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
 import { supabase } from '../lib/supabase'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -1040,7 +1040,7 @@ export default function Employees() {
 
             <div className="mt-4 flex min-h-11 items-center gap-2">
               {screenState.loading ? (
-                <Loader2 size={16} className="animate-spin text-[#68655f]" />
+                <Shimmer className="h-6 w-44 rounded-full" />
               ) : screenState.active ? (
                 <ScreenStatus active={screenState.active} l={l} />
               ) : !screenState.error && (

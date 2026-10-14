@@ -1,17 +1,17 @@
 # Zar Kebab POS Agent Guide
 
-Read this file before changing code. It is deliberately short: load only the feature guide relevant to the task.
+Read this before changing code; then load only the feature guide relevant to the task.
 
 ## Project essentials
 
-Zar Kebab POS is a Vite/React 18 application backed by Supabase. It covers the public and Telegram menus, waiter ordering, kitchen checks, cashier billing, admin, reporting, accounting, payroll, and Telegram notifications.
+Zar Kebab POS is a Vite/React 18 app on Supabase: public and Telegram menus, waiter ordering, kitchen checks, cashier billing, admin, reporting, accounting, payroll and Telegram notifications.
 
 Core locations:
 
 - Routes: `src/App.jsx`
 - Shared POS orchestration: `src/store/AppContext.jsx`
 - Domain reducers: `src/store/`
-- Supabase reads, writes, and realtime: `src/lib/db.js`
+- Supabase reads/writes/realtime: `src/lib/db.js`
 - Payment and service math: `src/lib/analytics.js`
 - SQL migrations: `migrations/`
 - Tests: `tests/`
@@ -32,11 +32,11 @@ For repository navigation:
 - If the symbol or filename is known, use `rg` and read only the matching range.
 - For an unfamiliar feature, use `repo_nav` to find the feature map, declarations, and focused tests before opening source.
 - Do not begin by reading an entire large page, `src/lib/db.js`, or a complete source-guard suite.
-- `README.md` is an operator/deployment runbook. Read it only for Telegram setup or deployment work.
+- `README.md` is an operator runbook; read it only for Telegram setup or deployment.
 
 ## Read only the relevant guide
 
-Before editing a feature, read its guide completely. Read more than one only when the task genuinely crosses those boundaries.
+Before editing a feature, read its guide completely; read more only when the task crosses boundaries.
 
 | Task area | Required guide |
 | --- | --- |
@@ -57,16 +57,17 @@ Before editing a feature, read its guide completely. Read more than one only whe
 
 - Language changes update presentation only: never reload, remount pages, reset forms/filters, or refetch language-independent data. Keep translations out of data-loader dependencies; translate stored error codes at render time.
 
-- Preserve historical financial data. Paid order prices, costs, service rates, payment amounts, and reporting snapshots are immutable inputs.
-- Catalog deletion is archival. Do not physically delete products or categories referenced by history.
-- Keep protected costs, recipes, payroll, and accounting data out of public, waiter, cashier, and Telegram-menu payloads.
-- Use shared domain helpers instead of duplicating payment, salary, date, or reporting calculations in pages.
-- Prefer focused selector hooks in `src/store/appHooks.js`; keep `AppContext.jsx` as stable orchestration.
-- Do not use blocking `alert()` or `window.confirm()` in operational flows. Show visible, retryable UI state.
-- Treat network timeouts on idempotent writes as unknown outcomes and reconcile the durable record before retrying with the same identity.
-- Do not weaken a regression/source-guard test merely to make the suite pass; understand the protected behavior first.
-- Preserve unrelated user changes in a dirty worktree.
-- PostgREST silently caps each select at 1000 rows. Multi-day or unbounded reads feeding a total, average, or balance must page (`loadSalaryRows` in `src/lib/salaryData.js`, ordered by `id`) or aggregate in an RPC.
+- Preserve historical financial data: paid order prices, costs, service rates, payments and reporting snapshots are immutable.
+- Catalog deletion is archival; never physically delete products or categories referenced by history.
+- Keep protected costs, recipes, payroll and accounting data out of public, waiter, cashier and Telegram-menu payloads.
+- Use shared domain helpers; never duplicate payment, salary, date or reporting math in pages.
+- Prefer focused selector hooks (`src/store/appHooks.js`); keep `AppContext.jsx` stable orchestration.
+- No blocking `alert()`/`window.confirm()` in operational flows; show visible, retryable UI state.
+- Loading content shows content-shaped shimmers (`PageShimmer`/`Shimmer`, `src/components/PageShimmer.jsx`), never spinners or loading text; spinners only mark a pressed button's pending action.
+- Treat timeouts on idempotent writes as unknown outcomes; reconcile the durable record before retrying with the same identity.
+- Never weaken a regression/source-guard test just to pass; understand what it protects.
+- Preserve unrelated changes in a dirty worktree.
+- PostgREST silently caps selects at 1000 rows. Multi-day or unbounded reads feeding a total, average or balance must page (`loadSalaryRows` in `src/lib/salaryData.js`, ordered by `id`) or aggregate in an RPC.
 
 ## Git publishing
 

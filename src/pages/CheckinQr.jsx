@@ -1,5 +1,6 @@
 import React from 'react'
-import { Clock3, Loader2, QrCode, WifiOff } from 'lucide-react'
+import { Clock3, QrCode, WifiOff } from 'lucide-react'
+import { Shimmer } from '../components/PageShimmer'
 import AppShell from '../components/AppShell'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -20,7 +21,6 @@ const L = {
     offline: 'Aloqa yo‘q. Qayta ulanguncha kod yashirildi.',
     noBot: 'VITE_TELEGRAM_BOT_USERNAME sozlanmagan.',
     unavailable: 'Kelish QR kodi hali sozlanmagan (247-migratsiya).',
-    loading: 'Yuklanmoqda…',
   },
   ru: {
     title: 'QR для отметки',
@@ -31,7 +31,6 @@ const L = {
     offline: 'Нет связи. Код скрыт, пока связь не восстановится.',
     noBot: 'Не настроен VITE_TELEGRAM_BOT_USERNAME.',
     unavailable: 'QR отметки ещё не настроен (миграция 247).',
-    loading: 'Загрузка…',
   },
   en: {
     title: 'Check-in QR',
@@ -42,7 +41,6 @@ const L = {
     offline: 'No connection. The code is hidden until it reconnects.',
     noBot: 'VITE_TELEGRAM_BOT_USERNAME is not configured.',
     unavailable: 'The check-in QR is not set up yet (migration 247).',
-    loading: 'Loading…',
   },
 }
 
@@ -57,15 +55,15 @@ export default function CheckinQr() {
   )
   useScreenWakeLock(Boolean(dataUrl))
 
+  // Loading shimmers in the QR's own shape; messages are for settled states.
   let message = null
-  if (loading) message = { icon: <Loader2 size={36} className="animate-spin" />, text: l.loading }
+  if (loading) message = null
   else if (!access) message = { icon: <QrCode size={36} />, text: l.notSelected }
   else if (!openNow || status === 'disabled') {
     message = { icon: <Clock3 size={36} />, text: l.closed, detail: formatAttendanceQrWindow(access.start_time, access.end_time, state.lang) }
   } else if (status === 'no-bot') message = { icon: <QrCode size={36} />, text: l.noBot }
   else if (status === 'unavailable') message = { icon: <QrCode size={36} />, text: l.unavailable }
   else if (status === 'offline') message = { icon: <WifiOff size={36} />, text: l.offline }
-  else if (!dataUrl) message = { icon: <Loader2 size={36} className="animate-spin" />, text: l.loading }
 
   return (
     <AppShell title={l.title}>
@@ -78,9 +76,11 @@ export default function CheckinQr() {
           </div>
         ) : (
           <>
-            <h1 className="text-[clamp(22px,min(4vw,5dvh),40px)] font-black leading-tight text-[#141414]">{l.scan}</h1>
+            <h1 aria-busy={!dataUrl} className="text-[clamp(22px,min(4vw,5dvh),40px)] font-black leading-tight text-[#141414]">{l.scan}</h1>
             <div className="rounded-3xl bg-white p-3 shadow-xl ring-1 ring-black/5">
-              <img src={dataUrl} alt={l.title} className="block size-[min(80vw,calc(100dvh-260px))] min-h-[220px] min-w-[220px]" />
+              {dataUrl
+                ? <img src={dataUrl} alt={l.title} className="block size-[min(80vw,calc(100dvh-260px))] min-h-[220px] min-w-[220px]" />
+                : <Shimmer className="size-[min(80vw,calc(100dvh-260px))] min-h-[220px] min-w-[220px] rounded-2xl" />}
             </div>
             <div className="w-[min(80vw,520px)]">
               <div className="h-1.5 overflow-hidden rounded-full bg-[#e8e4df]">

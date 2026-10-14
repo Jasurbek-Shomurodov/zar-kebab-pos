@@ -344,7 +344,7 @@ test('entrance screen hides the key, keeps the screen awake, and never shows a s
   assert.match(app, /<Route path="\/checkin-screen" element=\{<PublicHostAdminRedirect \/>\} \/>/)
 })
 
-test('drawer tab appears only for selected accounts in their window; Dashboard has no QR', () => {
+test('drawer tab appears only for selected accounts inside their hours; Dashboard has no QR', () => {
   const sidebar = readFileSync(new URL('../src/components/UnifiedSidebar.jsx', import.meta.url), 'utf8')
   const page = readFileSync(new URL('../src/pages/CheckinQr.jsx', import.meta.url), 'utf8')
   const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
@@ -355,6 +355,6 @@ test('drawer tab appears only for selected accounts in their window; Dashboard h
   assert.match(page, /rpc\('get_attendance_qr_token'\)/)
   assert.match(page, /\{ source: 'staff', enabled: openNow \}/)
   assert.match(app, /<Route path="\/checkin-qr" element=\{\s*<LazyProtectedRoute><CheckinQr \/><\/LazyProtectedRoute>/)
-  assert.match(settings, /<AttendanceQrAccessSettings lang=\{lang\} canManage=\{canManageSettings\} \/>/)
+  assert.match(settings, /tab === 'checkin-qr' \? \(\s*<AttendanceQrAccessSettings lang=\{lang\} canManage=\{canManageSettings\} \/>/)
   assert.doesNotMatch(dashboard, /CheckinQr/)
 })

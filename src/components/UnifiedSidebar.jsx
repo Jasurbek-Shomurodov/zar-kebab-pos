@@ -33,7 +33,7 @@ const NAV = [
   },
   {
     // Not a Team feature: shown to accounts selected in Settings, only inside
-    // their time window (migration 247; the database enforces the same rule).
+    // their hours (migration 247; the database refuses codes outside them).
     key: 'checkin_qr',
     icon: QrCode,
     labels: { uz: 'Kelish QR kodi', ru: 'QR для отметки', en: 'Check-in QR' },
