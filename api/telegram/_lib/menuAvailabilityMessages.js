@@ -91,12 +91,13 @@ export function groupUnavailableMenuItems(items) {
   return categoryGroups
 }
 
-export function buildDailyUnavailableMenuTeamMessage(items, businessDate) {
+// snapshotTime is the Tashkent HH:MM the list was read (04:05 with the daily reports).
+export function buildDailyUnavailableMenuTeamMessage(items, businessDate, snapshotTime = '08:00') {
   const unavailableItems = Array.isArray(items) ? items : []
   const dateLabel = formatLongDate(businessDate, 'ru', businessDate || '—')
   const header = [
     '🚫 <b>Недоступные блюда</b>',
-    `📅 <b>На ${escapeTelegramHtml(dateLabel)}, 08:00</b>`,
+    `📅 <b>На ${escapeTelegramHtml(dateLabel)}, ${escapeTelegramHtml(snapshotTime)}</b>`,
   ]
 
   if (unavailableItems.length === 0) {

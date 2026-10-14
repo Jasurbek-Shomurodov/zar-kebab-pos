@@ -492,11 +492,16 @@ async function markDailyUnavailableMenuDeliverySent(
 
 // Non-empty snapshots go out as one PNG with no text copy; it is the tracked message.
 // Rendering happens before the send, so a render failure leaves nothing to resend.
+function getTashkentClockTime(now = new Date()) {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now)
+}
+
 async function sendDailyUnavailableMenuSnapshot(chatId, items, businessDate) {
+  const snapshotTime = getTashkentClockTime()
   if (items.length === 0) {
-    return sendTelegramMessage(chatId, buildDailyUnavailableMenuTeamMessage(items, businessDate))
+    return sendTelegramMessage(chatId, buildDailyUnavailableMenuTeamMessage(items, businessDate, snapshotTime))
   }
-  const photo = await renderDailyUnavailableMenuImage(items, businessDate)
+  const photo = await renderDailyUnavailableMenuImage(items, businessDate, snapshotTime)
   return sendTelegramPhoto(chatId, photo, { filename: `unavailable-menu-${businessDate}.png` })
 }
 
@@ -1212,6 +1217,16 @@ export default async function handler(req, res) {
       }
     }
 
+    // The unavailable-dishes snapshot goes out with the other morning reports.
+    // It is claimed once per Tashkent date, so the 08:00 task only retries a
+    // failed send; its own failure never defers the salary summary.
+    let dailyUnavailableMenu
+    try {
+      dailyUnavailableMenu = await sendDailyUnavailableMenuNotification(supabase, getTashkentDate(now))
+    } catch (error) {
+      dailyUnavailableMenu = { status: 'failed', error: String(error?.message || error).slice(0, 1000) }
+    }
+
     const notificationSummaryRun = dailySummaryRuns.find(
       run => run.businessDate === notificationDate
     )
@@ -1245,6 +1260,7 @@ export default async function handler(req, res) {
       kpiUnavailable,
       kpiRuns,
       dailySummaryRuns,
+      dailyUnavailableMenu,
       dailyPayrollGroupRuns,
       dailyPayrollGroupSentCount: dailyPayrollGroupRuns.filter(result => result.status === 'sent').length,
       dailyPayrollGroupFailedCount: dailyPayrollGroupRuns.filter(result => result.status === 'failed').length,

@@ -100,7 +100,7 @@ function renderColumn(groups, x, startY) {
   }).join('')
 }
 
-export function buildDailyUnavailableMenuImageSvg(items, businessDate) {
+export function buildDailyUnavailableMenuImageSvg(items, businessDate, snapshotTime = '08:00') {
   const unavailableItems = Array.isArray(items) ? items : []
   const dateLabel = formatLongDate(businessDate, 'ru', businessDate || '—')
   const { left, right, height: columnsHeight } = splitColumns(layoutGroups(unavailableItems))
@@ -119,7 +119,7 @@ export function buildDailyUnavailableMenuImageSvg(items, businessDate) {
   <path d="M${CARD_X} ${CARD_X + HEADER_HEIGHT}V${CARD_X + 28}a28 28 0 0 1 28 -28H${CARD_X + cardWidth - 28}a28 28 0 0 1 28 28V${CARD_X + HEADER_HEIGHT}Z" fill="#8b1e1e"/>
   <text x="${leftX}" y="${CARD_X + 58}" font-size="22" font-weight="700" letter-spacing="3" fill="#f3d9a4">ZAR KEBAB</text>
   <text x="${leftX}" y="${CARD_X + 118}" font-size="50" font-weight="700" fill="white">Недоступные блюда</text>
-  <text x="${leftX}" y="${CARD_X + 160}" font-size="27" fill="white" fill-opacity="0.88">На ${escape(dateLabel)}, 08:00</text>
+  <text x="${leftX}" y="${CARD_X + 160}" font-size="27" fill="white" fill-opacity="0.88">На ${escape(dateLabel)}, ${escape(snapshotTime)}</text>
   ${renderColumn(left, leftX, bodyTop)}
   ${renderColumn(right, rightX, bodyTop)}
   <rect x="${leftX}" y="${footerTop}" width="${cardWidth - PADDING_X * 2}" height="88" rx="18" fill="#2a1d14"/>
@@ -128,9 +128,9 @@ export function buildDailyUnavailableMenuImageSvg(items, businessDate) {
   </g></svg>`
 }
 
-export async function renderDailyUnavailableMenuImage(items, businessDate) {
+export async function renderDailyUnavailableMenuImage(items, businessDate, snapshotTime) {
   configurePayrollFonts()
-  return sharp(Buffer.from(buildDailyUnavailableMenuImageSvg(items, businessDate)), { density: 144 })
+  return sharp(Buffer.from(buildDailyUnavailableMenuImageSvg(items, businessDate, snapshotTime)), { density: 144 })
     .png()
     .toBuffer()
 }

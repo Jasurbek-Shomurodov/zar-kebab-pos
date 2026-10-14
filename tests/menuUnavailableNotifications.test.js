@@ -138,6 +138,7 @@ test('daily unavailable-product snapshot is Russian and lists the current state'
 
   assert.match(message, /Недоступные блюда/)
   assert.match(message, /На 26 августа 2026, 08:00/)
+  assert.match(buildDailyUnavailableMenuTeamMessage([], '2026-10-15', '04:05'), /На 15 октября 2026, 04:05/)
   assert.match(message, /📂 <b>Мангал &amp; гриль<\/b>/)
   assert.match(message, /1\. Шашлык &lt;Особый&gt;/)
   assert.match(message, /2\. Лагмон &amp; манти/)
@@ -240,6 +241,7 @@ test('daily unavailable-product image groups, numbers, wraps and escapes every i
 
   assert.match(svg, /Недоступные блюда/)
   assert.match(svg, /На 26 августа 2026, 08:00/)
+  assert.match(buildDailyUnavailableMenuImageSvg([], '2026-10-15', '04:05'), /На 15 октября 2026, 04:05/)
   assert.match(svg, /МАНГАЛ &amp; ГРИЛЬ/)
   assert.match(svg, /Шашлык &lt;Особый&gt;/)
   assert.match(svg, />и мороженым</)
@@ -249,13 +251,19 @@ test('daily unavailable-product image groups, numbers, wraps and escapes every i
 
 test('non-empty daily unavailable-product snapshot is sent as one tracked image without text', () => {
   const sender = dailyCron.match(/async function sendDailyUnavailableMenuSnapshot[\s\S]*?\n}\n/)?.[0] || ''
-  assert.match(sender, /if \(items\.length === 0\) \{\s*return sendTelegramMessage\(chatId, buildDailyUnavailableMenuTeamMessage\(items, businessDate\)\)/)
-  assert.match(sender, /const photo = await renderDailyUnavailableMenuImage\(items, businessDate\)\s*return sendTelegramPhoto\(chatId, photo/)
+  assert.match(sender, /if \(items\.length === 0\) \{\s*return sendTelegramMessage\(chatId, buildDailyUnavailableMenuTeamMessage\(items, businessDate, snapshotTime\)\)/)
+  assert.match(sender, /const snapshotTime = getTashkentClockTime\(\)/)
+  assert.match(sender, /const photo = await renderDailyUnavailableMenuImage\(items, businessDate, snapshotTime\)\s*return sendTelegramPhoto\(chatId, photo/)
   assert.match(dailyCron, /const response = await sendDailyUnavailableMenuSnapshot\(target\.chatId, items, businessDate\)\s*telegramMessageId = getTelegramMessageId\(response\)/)
   assert.doesNotMatch(dailyCron, /sendDailyUnavailableMenuImage|Image not sent:/)
 })
 
-test('08:00 Tashkent cron sends one duplicate-safe active unavailable-product snapshot', () => {
+test('the 04:05 report run sends one duplicate-safe unavailable-product snapshot; 08:00 only retries', () => {
+  const mainRun = dailyCron.slice(dailyCron.indexOf('const catchUpDates = await loadKpiCatchUpDates'))
+  assert.match(mainRun, /dailyUnavailableMenu = await sendDailyUnavailableMenuNotification\(supabase, getTashkentDate\(now\)\)/)
+  // Its failure is reported, never a reason to defer the salary summary.
+  assert.match(mainRun, /catch \(error\) \{\s*dailyUnavailableMenu = \{ status: 'failed'/)
+  assert.doesNotMatch(mainRun.slice(0, mainRun.indexOf('const requestFailed')), /requestFailed[\s\S]*dailyUnavailableMenu/)
   const unavailableCron = vercelConfig.crons.find(cron => (
     cron.path === '/api/telegram/daily-salary?task=unavailable-products'
   ))
@@ -271,7 +279,7 @@ test('08:00 Tashkent cron sends one duplicate-safe active unavailable-product sn
   assert.match(dailyCron, /\.eq\('target_key', 'team_events'\)/)
   assert.match(dailyCron, /daily_unavailable_menu_notification_deliveries/)
   assert.match(dailyCron, /item_categories: items\.map\(getRussianMenuCategoryName\)/)
-  assert.match(dailyCron, /buildDailyUnavailableMenuTeamMessage\(items, businessDate\)/)
+  assert.match(dailyCron, /buildDailyUnavailableMenuTeamMessage\(items, businessDate, snapshotTime\)/)
   assert.match(dailyMigration, /business_date\s+date primary key/)
   assert.match(dailyMigration, /item_ids\s+jsonb/)
   assert.match(dailyMigration, /item_names\s+jsonb/)
