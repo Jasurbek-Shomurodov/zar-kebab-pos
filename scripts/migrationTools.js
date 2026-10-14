@@ -123,6 +123,9 @@ export function recentFunctionFingerprints(files = migrationFiles()) {
     for (const match of file.sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?(\w+)\s*\([^]*?\bas\s+(\$\w*\$)([^]*?)\2/gi)) {
       latest.set(match[1], { name: match[1], filename: file.filename, body: match[3] })
     }
+    for (const match of file.sql.matchAll(/drop\s+function\s+(?:if\s+exists\s+)?(?:public\.)?(\w+)/gi)) {
+      if (latest.get(match[1])?.filename !== file.filename) latest.delete(match[1])
+    }
   }
   const present = new Set(files.map(file => file.filename))
   const rewrites = inPlaceFunctionRewrites.filter(rewrite => present.has(rewrite.filename))
@@ -144,9 +147,15 @@ export function migrationHealthIssues(catalog, expected = recentFunctionFingerpr
     ['menu_item_tech_card_ingredients','tech_card_ingredients_mark_costs_dirty'],
     ['menu_item_tech_card_components','tech_card_components_mark_costs_dirty'],
     ['bazaar_product_catalog','queue_ingredient_investor_notification'],
+    // Migration 219: new Telegram queue rows wake their sender immediately.
+    ['game_club_team_notifications','kick_game_club_team_queue'],
+    ['ingredient_investor_notifications','kick_ingredient_investor_queue'],
+    ['order_status_telegram_messages','kick_order_status_cleanup_insert'],
+    ['order_status_telegram_messages','kick_order_status_cleanup_update'],
+    ['employee_order_kpi_notifications','kick_employee_order_kpi_insert'],
+    ['employee_order_kpi_notifications','kick_employee_order_kpi_update'],
   ]) if (!(catalog.triggers || []).some(t => t.table === table && t.name === name && ['O','A'].includes(t.enabled))) issues.push(`Missing enabled trigger: ${table}.${name}`)
-  for (const name of ['zar-kebab-game-club-team','zar-kebab-order-status-cleanup','zar-kebab-ingredient-investor','zar-kebab-employee-order-kpi']) {
-    if (!(catalog.jobs || []).some(j => j.name === name && j.active && j.schedule === '* * * * *')) issues.push(`Missing active minute schedule: ${name}`)
-  }
+  // Migration 219 replaced the per-queue minute crons with one retry sweep.
+  if (!(catalog.jobs || []).some(j => j.name === 'zar-kebab-queue-sweep' && j.active && j.schedule === '*/15 * * * *')) issues.push('Missing active 15-minute schedule: zar-kebab-queue-sweep')
   return issues
 }

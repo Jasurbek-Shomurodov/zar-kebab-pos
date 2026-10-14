@@ -50,7 +50,7 @@ test('tracked SQL executes once, rejects edits and rolls failures back with thei
 test('health catches old definitions even when the RPC exists and catches missing notification schedule', () => {
   const issues = migrationHealthIssues({ functions: [{name:'save_bazaar_ingredient',md5:'old'}], triggers:[], jobs:[] }, [{name:'save_bazaar_ingredient',md5:'new',filename:'182.sql'}])
   assert.ok(issues.some(s => s.includes('definition differs')))
-  assert.ok(issues.some(s => s.includes('zar-kebab-ingredient-investor')))
+  assert.ok(issues.some(s => s.includes('zar-kebab-queue-sweep')))
 })
 
 test('ingredient rename repair preserves identity and historical purchase names', async () => {
@@ -111,4 +111,18 @@ test('function fingerprints mirror migration 246 in-place PT409 rewrite', () => 
   assert.equal(before.md5, md5(" begin raise exception 'x' using errcode='40001'; end "))
   assert.equal(after.md5, md5(" begin raise exception 'x' using errcode = 'PT409'; end "))
   assert.equal(after.filename, '220_bill.sql')
+})
+
+test('health expects the 219 queue sweep and ignores functions a later migration drops', () => {
+  const file = (filename, sql) => ({ filename, sql, sha256: '' })
+  const expected = recentFunctionFingerprints([
+    file('218_minute.sql', 'create or replace function public.invoke_minute_telegram_queues() returns void language sql as $$ select 1 $$;'),
+    file('219_sweep.sql', 'drop function if exists public.invoke_minute_telegram_queues();'),
+  ])
+  assert.deepEqual(expected, [])
+
+  const issues = migrationHealthIssues({ functions: [], triggers: [], jobs: [{ name: 'zar-kebab-queue-sweep', active: true, schedule: '*/15 * * * *' }] }, [])
+  assert.ok(!issues.some(issue => /schedule/.test(issue)))
+  assert.ok(issues.includes('Missing enabled trigger: employee_order_kpi_notifications.kick_employee_order_kpi_insert'))
+  assert.ok(migrationHealthIssues({ functions: [], triggers: [], jobs: [] }, []).includes('Missing active 15-minute schedule: zar-kebab-queue-sweep'))
 })
