@@ -46,11 +46,12 @@ Before editing a feature, read its guide completely. Read more than one only whe
 | Cashier, payments, service fees, Accounting, expenses, Daily Bazaar | `docs/agent/payments-accounting.md` |
 | Orders paid from salary, non-cash settlement, linked payroll | `docs/agent/salary-orders.md` |
 | Employees, salaries, fines, absences, advances, KPI, employee meals | `docs/agent/payroll.md` |
+| Attendance check-in screen and rotating QR | `docs/agent/attendance.md` |
 | Telegram targets, messages, delivery tracking, cron notifications | `docs/agent/telegram.md` |
 | Dashboard, reports, historical snapshots, profit and date ranges | `docs/agent/reporting.md` |
 | Migrations, database compatibility, tests, source guards, deployment checks | `docs/agent/database-testing.md` |
 
-The former 58 KB instruction file is preserved at `docs/agent/legacy-context.md`. Do not read it for normal work. Consult it only when investigating an older regression or migration absent from the focused guides.
+`docs/agent/legacy-context.md` keeps the former 58 KB guide; read it only for older regressions or migrations absent from focused guides.
 
 ## Universal invariants
 

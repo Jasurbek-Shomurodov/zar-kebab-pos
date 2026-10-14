@@ -6,7 +6,7 @@ import { buildEmployeeOrderKpiMessage, deliverEmployeeOrderKpiNotification, retr
 
 test('compact private message escapes order numbers and distinguishes an estimate', () => {
   const text = buildEmployeeOrderKpiMessage({order_number:'<12>',total:345000,rate_bps:300,cut:10350,daily_cut:25220})
-  assert.equal(text, '✅ Заказ №&lt;12&gt; оплачен — 345 000 сум\n🎉 Спасибо за вашу работу!\n💰 Бонус с заказа: ≈ 10 350 сум\n📈 Ваш KPI за сегодня: ≈ 25 220 сум')
+  assert.equal(text, '✅ Заказ №&lt;12&gt; оплачен — 345 000 сум\n🎉 Спасибо за вашу работу!\n💰 Бонус с заказа: ≈ 10 350 сум\n📈 Ваш KPI за смену: ≈ 25 220 сум')
 })
 
 test('production payment trigger snapshots only new paid orders and eligible linked openers', async t => {

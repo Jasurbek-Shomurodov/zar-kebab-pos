@@ -50,10 +50,22 @@
       "symbol": "set_order_actor_tracking_fields"
     },
     {
+      "name": "stale-data RPC errors use PT409, not 40001",
+      "aliases": ["Postgres CPU 100%", "Order item changed or unavailable error flood", "PostgREST infinite retry serialization_failure", "bill edit request never returns"],
+      "path": "migrations/246_stale_write_errors_not_serialization_failure.sql",
+      "symbol": "update_bill_item_quantity"
+    },
+    {
       "name": "employee attendance QR check-in",
-      "aliases": ["employee scans QR when arriving", "late or early arrival Telegram message", "work start time", "present or not checked in today"],
-      "path": "src/lib/attendance.js",
-      "symbol": "buildAttendanceCheckinRow"
+      "aliases": ["employee scans QR when arriving", "late or early arrival Telegram message", "work start time", "present or not checked in today", "entrance check-in screen", "rotating QR code expired"],
+      "path": "migrations/245_attendance_kiosk_rotating_qr.sql",
+      "symbol": "verify_attendance_checkin_payload"
+    },
+    {
+      "name": "KPI shift ends at 04:00",
+      "aliases": ["sales after midnight count for previous day", "waiter works until 2am KPI", "KPI business date cutoff", "daily report cron 04:05"],
+      "path": "migrations/244_kpi_day_ends_0400.sql",
+      "symbol": "kpi_business_date"
     },
     {
       "name": "employee KPI workday start time",
@@ -192,8 +204,8 @@
     {
       "name": "payments-cashier",
       "keywords": ["available salary", "salary deduction", "salary-covered order", "cashier", "bill", "payment", "service", "split", "settlement", "receipt", "auto-print", "print dialog", "loyalty", "delete paid orders", "payment correction", "Investor order change alert"],
-      "files": ["migrations/212_atomic_bill_item_edits.sql", "migrations/220_cancel_emptied_bill_orders.sql", "migrations/224_terminal_cancelled_orders.sql", "api/telegram/_lib/orderSalaryBalances.js", "docs/agent/salary-orders.md", "src/components/SalaryOrderPayment.jsx", "migrations/210_order_salary_settlement.sql", "src/pages/CashierBill.jsx", "src/pages/CashierTables.jsx", "src/pages/Receipt.jsx", "src/lib/analytics.js", "src/lib/cashierCheckout.js", "src/lib/cashierBills.js", "src/components/PaidPaymentSplitEditor.jsx", "src/lib/paidPaymentSplit.js", "migrations/201_split_completed_order_payment.sql", "src/lib/billHandoff.js", "src/lib/loyalty.js", "src/lib/db.js"],
-      "tests": ["tests/cashierBills.test.js", "tests/orderDeletion.test.js", "tests/atomicBillItemEdits.test.js", "tests/cancelledOrderTerminal.test.js", "tests/orderSalaryBalances.test.js", "tests/orderSalarySettlement.test.js", "tests/orderItemPresentation.test.js", "tests/orderItemGroupingLanguage.test.js", "tests/orderPayment.test.js", "tests/cashierCheckout.test.js", "tests/cashierPaymentFixes.test.js", "tests/billHandoff.test.js", "tests/atomicPaymentSettlement.test.js", "tests/paidPaymentSplit.test.js", "tests/telegramInvestorOrderChanges.test.js", "tests/loyaltyCards.test.js", "tests/sourceGuards.payments-reporting.test.js"]
+      "files": ["migrations/212_atomic_bill_item_edits.sql", "migrations/220_cancel_emptied_bill_orders.sql", "migrations/246_stale_write_errors_not_serialization_failure.sql", "migrations/224_terminal_cancelled_orders.sql", "api/telegram/_lib/orderSalaryBalances.js", "docs/agent/salary-orders.md", "src/components/SalaryOrderPayment.jsx", "migrations/210_order_salary_settlement.sql", "src/pages/CashierBill.jsx", "src/pages/CashierTables.jsx", "src/pages/Receipt.jsx", "src/lib/analytics.js", "src/lib/cashierCheckout.js", "src/lib/cashierBills.js", "src/components/PaidPaymentSplitEditor.jsx", "src/lib/paidPaymentSplit.js", "migrations/201_split_completed_order_payment.sql", "src/lib/billHandoff.js", "src/lib/loyalty.js", "src/lib/db.js"],
+      "tests": ["tests/cashierBills.test.js", "tests/orderDeletion.test.js", "tests/atomicBillItemEdits.test.js", "tests/staleWriteErrorCode.test.js", "tests/cancelledOrderTerminal.test.js", "tests/orderSalaryBalances.test.js", "tests/orderSalarySettlement.test.js", "tests/orderItemPresentation.test.js", "tests/orderItemGroupingLanguage.test.js", "tests/orderPayment.test.js", "tests/cashierCheckout.test.js", "tests/cashierPaymentFixes.test.js", "tests/billHandoff.test.js", "tests/atomicPaymentSettlement.test.js", "tests/paidPaymentSplit.test.js", "tests/telegramInvestorOrderChanges.test.js", "tests/loyaltyCards.test.js", "tests/sourceGuards.payments-reporting.test.js"]
     },
     {
       "name": "accounting-bazaar",

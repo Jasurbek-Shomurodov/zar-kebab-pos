@@ -8,7 +8,7 @@
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
 
-- `194`/`206`/`237`: display-only employee roles; `238` Tourist menu switch; `243` attendance check-ins. Tests: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237`: display roles; `238` Tourist; `243`/`245` attendance; `244` KPI 04:00. Tests: `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 
@@ -41,12 +41,13 @@
 
 ## Invariants
 
-- Report reads retry network/502/503/504: 3×15s, 500/1000ms backoff; only table GET/HEAD and pending-date RPCs. No write retries. Tests: `tests/reportReadFetch.test.js`.
-- Use atomic RPCs for multi-table writes such as kitchen submission, menu item + protected cost, Tech Cards, Daily Bazaar, and payment corrections.
+- Report reads retry network/502/503/504: 3×15s, 500/1000ms backoff; table GET/HEAD and pending-date RPCs only. No write retries. Tests: `tests/reportReadFetch.test.js`.
+- Atomic RPCs for multi-table writes: kitchen submit, menu item + protected cost, Tech Cards, Daily Bazaar, payment corrections.
 - Enforce UI permissions with RLS/RPCs.
+- Stale errors: `PT409`, never `40001` (PostgREST loops): `246`.
 - Preserve order/cost/category/payroll/notification/audit snapshots.
 - Uncertain writes reuse request/round IDs; reconcile receipts before retrying.
-- Archive referenced catalog records instead of physically deleting them.
+- Archive referenced catalog records; never hard-delete them.
 
 ## Checks
 

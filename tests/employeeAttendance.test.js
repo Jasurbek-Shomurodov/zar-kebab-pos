@@ -5,23 +5,44 @@ import {
   buildAttendanceCheckinMessage,
   buildAttendanceCheckinRow,
   buildAttendanceCheckinUrl,
+  buildAttendanceCodeRejectedMessage,
+  buildAttendanceKioskUrl,
   classifyArrival,
   formatArrivalSummary,
   getTashkentClock,
-  isAttendanceCheckinCommand,
   normalizeWorkStartTime,
+  parseAttendanceCheckinCommand,
+  readAttendanceKioskKey,
 } from '../src/lib/attendance.js'
 
 const migration = readFileSync(new URL('../migrations/243_employee_attendance_checkins.sql', import.meta.url), 'utf8')
 const webhook = readFileSync(new URL('../api/telegram/webhook.js', import.meta.url), 'utf8')
 
-test('check-in QR deep link and /start payload', () => {
-  assert.equal(buildAttendanceCheckinUrl('@ZarKebabBot'), 'https://t.me/ZarKebabBot?start=checkin')
-  assert.equal(buildAttendanceCheckinUrl(''), '')
-  assert.equal(isAttendanceCheckinCommand('/start checkin'), true)
-  assert.equal(isAttendanceCheckinCommand('/start@ZarKebabBot checkin'), true)
-  assert.equal(isAttendanceCheckinCommand('/start'), false)
-  assert.equal(isAttendanceCheckinCommand('/start employee_checkin'), false)
+const PAYLOAD = 'ci_0a1b2c3d_59700000_0123456789abcdef'
+const KEY = 'a'.repeat(64)
+
+test('rotating QR deep link and /start payload parsing', () => {
+  assert.equal(buildAttendanceCheckinUrl('@ZarKebabBot', PAYLOAD), `https://t.me/ZarKebabBot?start=${PAYLOAD}`)
+  assert.equal(buildAttendanceCheckinUrl('', PAYLOAD), '')
+  assert.equal(buildAttendanceCheckinUrl('ZarKebabBot', 'checkin'), '')
+  assert.ok(PAYLOAD.length <= 64, 'Telegram start payloads are limited to 64 characters')
+  assert.deepEqual(parseAttendanceCheckinCommand(`/start ${PAYLOAD}`), { kind: 'rotating', payload: PAYLOAD })
+  assert.deepEqual(parseAttendanceCheckinCommand(`/start@ZarKebabBot ${PAYLOAD}`), { kind: 'rotating', payload: PAYLOAD })
+  assert.deepEqual(parseAttendanceCheckinCommand('/start checkin'), { kind: 'legacy' })
+  assert.equal(parseAttendanceCheckinCommand('/start'), null)
+  assert.equal(parseAttendanceCheckinCommand('/start employee_00000000-0000-0000-0000-000000000001'), null)
+  assert.equal(parseAttendanceCheckinCommand(`/start ${PAYLOAD.toUpperCase()}`), null)
+  assert.equal(parseAttendanceCheckinCommand(`${PAYLOAD}`), null)
+  assert.match(buildAttendanceCodeRejectedMessage('legacy'), /больше не действует/)
+  assert.match(buildAttendanceCodeRejectedMessage('expired'), /истёк/)
+})
+
+test('screen links carry the key in the hash only', () => {
+  assert.equal(buildAttendanceKioskUrl('https://admin.zarkebab.uz/', KEY), `https://admin.zarkebab.uz/checkin-screen#k=${KEY}`)
+  assert.equal(readAttendanceKioskKey(`#k=${KEY}`), KEY)
+  assert.equal(readAttendanceKioskKey(`#x=1&k=${KEY}`), KEY)
+  assert.equal(readAttendanceKioskKey('#k=short'), '')
+  assert.equal(readAttendanceKioskKey(''), '')
 })
 
 test('arrival is classified by whole Tashkent minutes against the start time', () => {
@@ -62,11 +83,16 @@ test('Telegram replies thank early/on-time arrivals and note lateness without fi
   assert.equal(formatArrivalSummary(early, 'en'), '08:52 · 1 h 8 min early')
 })
 
-test('webhook handles check-in before the language /start menu and never writes payroll', () => {
-  const checkinBranch = webhook.indexOf('isAttendanceCheckinCommand(message?.text)')
+test('webhook verifies the rotating code by Telegram message time before identity, and never writes payroll', () => {
+  const checkinBranch = webhook.indexOf('isPrivateChat && attendanceCommand')
   assert.ok(checkinBranch > 0)
   assert.ok(checkinBranch < webhook.indexOf('isLanguageCommand && isPrivateChat'))
   const handler = webhook.slice(webhook.indexOf('async function checkInEmployee'), webhook.indexOf('function languageKeyboard'))
+  assert.match(handler, /command\.kind !== 'rotating'/)
+  assert.match(handler, /message\.date \* 1000/)
+  assert.ok(handler.indexOf("rpc('verify_attendance_checkin_payload'") < handler.indexOf('employee_salary_telegram_links'))
+  assert.match(handler, /verdict !== 'valid'/)
+  assert.match(handler, /buildAttendanceCheckinRow\(salaryProfile, message\.from\.id, scannedAt\)/)
   assert.match(handler, /ignoreDuplicates: true/)
   assert.doesNotMatch(handler, /employee_salary_(fines|bonuses|absences)/)
 })
@@ -94,4 +120,153 @@ test('migration keeps one check-in per employee per day, read-only for staff', a
   } finally {
     await db.close()
   }
+})
+
+const kioskMigration = readFileSync(new URL('../migrations/245_attendance_kiosk_rotating_qr.sql', import.meta.url), 'utf8')
+
+async function kioskDb() {
+  const { PGlite } = await import('@electric-sql/pglite')
+  const db = new PGlite()
+  await db.exec(`
+    CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
+    CREATE SCHEMA auth;
+    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS 'select null::uuid';
+    CREATE FUNCTION public.current_staff_can_write(text) RETURNS boolean LANGUAGE sql AS
+      $$select coalesce(current_setting('test.can_write', true), 'on') = 'on'$$;
+    CREATE FUNCTION public.current_staff_can_access(text) RETURNS boolean LANGUAGE sql AS 'select true';
+    CREATE OR REPLACE FUNCTION pg_catalog.now() RETURNS timestamptz LANGUAGE sql STABLE AS
+      $$select current_setting('test.now')::timestamptz$$;
+    CREATE OR REPLACE FUNCTION pg_catalog.clock_timestamp() RETURNS timestamptz LANGUAGE sql AS
+      $$select current_setting('test.now')::timestamptz$$;
+    SELECT set_config('test.now', '2026-10-15T03:00:10Z', false);
+  `)
+  await db.exec(kioskMigration)
+  const at = iso => db.query("select set_config('test.now', $1, false)", [iso])
+  const key = async () => (await db.query('select create_attendance_kiosk() k')).rows[0].k
+  const token = async k => (await db.query('select get_attendance_kiosk_token($1) t', [k])).rows[0].t
+  const verify = async (payload, when) => (await db.query('select verify_attendance_checkin_payload($1, $2) v', [payload, when])).rows[0].v
+  return { db, at, key, token, verify }
+}
+
+test('rotating codes are accepted only shortly after they were shown', async t => {
+  const { db, at, key, token, verify } = await kioskDb()
+  t.after(() => db.close())
+  const k = await key()
+  assert.match(k, /^[0-9a-f]{64}$/)
+  const stored = (await db.query('select key_hash, code from attendance_kiosks')).rows[0]
+  assert.notEqual(stored.key_hash, k, 'keys are stored hashed')
+
+  // 03:00:10Z is 10 s into a 30 s slot.
+  const shown = await token(k)
+  assert.match(shown.payload, new RegExp(`^ci_${stored.code}_\\d+_[0-9a-f]{16}$`))
+  assert.equal(shown.ms_left, 20000)
+  assert.ok(shown.payload.length <= 64)
+
+  assert.equal(await verify(shown.payload, '2026-10-15T03:00:10Z'), 'valid')
+  assert.equal(await verify(shown.payload, '2026-10-15T02:59:50Z'), 'valid', 'one slot of clock skew')
+  assert.equal(await verify(shown.payload, '2026-10-15T02:59:29Z'), 'expired')
+  assert.equal(await verify(shown.payload, '2026-10-15T03:02:29Z'), 'valid', 'slow phone: four slots later')
+  assert.equal(await verify(shown.payload, '2026-10-15T03:02:30Z'), 'expired', 'saved link from home')
+  assert.equal(await verify(shown.payload, '2026-10-16T03:00:10Z'), 'expired', 'reused the next day')
+
+  const [, code, slot, sig] = shown.payload.split('_')
+  const flip = sig.slice(0, -1) + (sig.endsWith('0') ? '1' : '0')
+  assert.equal(await verify(`ci_${code}_${slot}_${flip}`, '2026-10-15T03:00:10Z'), 'invalid', 'tampered signature')
+  assert.equal(await verify(`ci_${code}_${Number(slot) + 1}_${sig}`, '2026-10-15T03:00:40Z'), 'invalid', 'forged later slot')
+  assert.equal(await verify(`ci_ffffffff_${slot}_${sig}`, '2026-10-15T03:00:10Z'), 'invalid')
+  assert.equal(await verify('checkin', '2026-10-15T03:00:10Z'), 'invalid')
+  assert.equal(await verify(shown.payload, null), 'invalid')
+
+  // The screen refreshes in the next slot and gets a different code.
+  await at('2026-10-15T03:00:30Z')
+  const next = await token(k)
+  assert.notEqual(next.payload, shown.payload)
+  assert.equal(next.ms_left, 30000)
+  assert.ok((await db.query('select last_seen_at from attendance_kiosks')).rows[0].last_seen_at)
+
+  assert.equal(await token('b'.repeat(64)), null, 'unknown key')
+  assert.equal(await token('not-a-key'), null)
+})
+
+test('a new screen link or turning the screen off kills the old screen and its codes', async t => {
+  const { db, key, token, verify } = await kioskDb()
+  t.after(() => db.close())
+  const first = await key()
+  const firstCode = (await token(first)).payload
+  const second = await key()
+  assert.equal(await token(first), null)
+  assert.equal(await verify(firstCode, '2026-10-15T03:00:10Z'), 'invalid')
+  assert.ok((await token(second)).payload)
+  assert.equal(Number((await db.query('select count(*) n from attendance_kiosks where revoked_at is null')).rows[0].n), 1)
+
+  await db.query('select revoke_attendance_kiosks()')
+  assert.equal(await token(second), null)
+  assert.deepEqual((await db.query('select * from get_attendance_kiosk_status()')).rows, [])
+})
+
+test('only salary managers create screens; the signed-out screen reaches only its token RPC', async t => {
+  const { db, key } = await kioskDb()
+  t.after(() => db.close())
+  await db.query("select set_config('test.can_write', 'off', false)")
+  await assert.rejects(key(), /Forbidden/)
+  await assert.rejects(db.query('select revoke_attendance_kiosks()'), /Forbidden/)
+  await db.query("select set_config('test.can_write', 'on', false)")
+  await key()
+  await db.exec('SET ROLE anon')
+  await assert.rejects(db.query('select * from attendance_kiosks'), /permission denied/)
+  await assert.rejects(db.query("select verify_attendance_checkin_payload('x', now())"), /permission denied/)
+  await assert.rejects(db.query('select create_attendance_kiosk()'), /permission denied/)
+  assert.equal((await db.query("select get_attendance_kiosk_token('x') t")).rows[0].t, null)
+  await db.exec('RESET ROLE')
+})
+
+test('entrance screen hides the key, keeps the screen awake, and never shows a stale code', () => {
+  const kiosk = readFileSync(new URL('../src/pages/AttendanceKiosk.jsx', import.meta.url), 'utf8')
+  const hook = readFileSync(new URL('../src/lib/useRotatingCheckinQr.js', import.meta.url), 'utf8')
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(kiosk, /history\?\.replaceState\(null, '', ATTENDANCE_KIOSK_PATH\)/)
+  assert.match(kiosk, /addEventListener\('hashchange'/)
+  assert.match(kiosk, /navigator\.wakeLock/)
+  assert.match(kiosk, /rpc\('get_attendance_kiosk_token', \{ p_key: key \}\)\.abortSignal\(signal\)/)
+  assert.match(hook, /STALE_AFTER_MS = 60_000/)
+  assert.match(hook, /dataUrl: status === 'active' \? dataUrl : ''/)
+  assert.match(hook, /requestRef\.current\(controller\.signal\)/)
+  assert.match(app, /<Route path="\/checkin-screen" element=\{<AttendanceKiosk \/>\} \/>/)
+  assert.match(app, /<Route path="\/checkin-screen" element=\{<PublicHostAdminRedirect \/>\} \/>/)
+})
+
+test('Dashboard shows the rotating QR only to salary managers', () => {
+  const dashboard = readFileSync(new URL('../src/pages/AdminDashboard.jsx', import.meta.url), 'utf8')
+  const card = readFileSync(new URL('../src/components/CheckinQrCard.jsx', import.meta.url), 'utf8')
+  assert.match(dashboard, /canEditFeature\(profile \|\| \{ role: state\.user\?\.role \}, 'expenses'\)/)
+  assert.match(dashboard, /\{canShowCheckinQr && <CheckinQrCard /)
+  assert.match(card, /rpc\('get_attendance_dashboard_token'\)/)
+  assert.match(card, /\['unavailable', 'disabled', 'no-bot', 'idle'\]\.includes\(status\)/)
+  assert.match(card, /\{ source: 'dashboard' \}/, 'language changes must not restart the token loop')
+})
+
+test('Dashboard codes use their own signer, unaffected by screen links, and need Accounting write', async t => {
+  const { db, key, token, verify } = await kioskDb()
+  t.after(() => db.close())
+  const dash = async () => (await db.query('select get_attendance_dashboard_token() t')).rows[0].t
+  const first = await dash()
+  assert.match(first.payload, /^ci_[0-9a-f]{8}_\d+_[0-9a-f]{16}$/)
+  assert.equal(await verify(first.payload, '2026-10-15T03:00:10Z'), 'valid')
+  assert.equal((await dash()).payload, first.payload, 'same slot, same code; no duplicate signer rows')
+  assert.equal(Number((await db.query("select count(*) n from attendance_kiosks where kind = 'dashboard'")).rows[0].n), 1)
+
+  const screenKey = await key()
+  assert.ok((await token(screenKey)).payload)
+  await db.query('select revoke_attendance_kiosks()')
+  await key()
+  assert.equal(await verify(first.payload, '2026-10-15T03:00:10Z'), 'valid', 'screen changes never revoke the Dashboard signer')
+  assert.equal(await token('0'.repeat(64)), null)
+  assert.deepEqual((await db.query('select count(*)::int n from get_attendance_kiosk_status()')).rows[0], { n: 1 })
+
+  await db.query("select set_config('test.can_write', 'off', false)")
+  await assert.rejects(dash(), /Forbidden/)
+  await db.query("select set_config('test.can_write', 'on', false)")
+  await db.exec('SET ROLE anon')
+  await assert.rejects(dash(), /permission denied/)
+  await db.exec('RESET ROLE')
 })

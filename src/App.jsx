@@ -80,6 +80,7 @@ const EmployeeSalaryHistory = lazy(() => import('./pages/EmployeeSalaryHistory')
 const Reports = lazy(() => import('./pages/Reports'))
 const AdminAudit = lazy(() => import('./pages/AdminAudit'))
 const AdminSettings = lazy(() => import('./pages/AdminSettings'))
+const AttendanceKiosk = lazy(() => import('./pages/AttendanceKiosk'))
 
 function defaultPath(role) {
   return roleDefaultPath(role)
@@ -373,6 +374,7 @@ function PublicCustomerRoutes() {
       <Route path="/receipt/*" element={<PublicHostAdminRedirect />} />
       <Route path="/kitchen" element={<PublicHostAdminRedirect />} />
       <Route path="/kitchen-check/*" element={<PublicHostAdminRedirect />} />
+      <Route path="/checkin-screen" element={<PublicHostAdminRedirect />} />
       <Route path="*" element={<Navigate to="/menu" replace />} />
     </Routes>
   )
@@ -401,6 +403,8 @@ function InternalAppRoutes({ adminHost = false }) {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/pending-approval" element={<PendingApproval />} />
+        {/* Entrance check-in screen: signed out, authorized by its own screen key. */}
+        <Route path="/checkin-screen" element={<AttendanceKiosk />} />
 
         {/* Tables/order flow: visible to profiles with the tables feature. */}
         <Route path="/waiter/tables" element={

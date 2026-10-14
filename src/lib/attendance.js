@@ -1,17 +1,36 @@
-// Daily attendance check-ins (migration 243). Shared by the Telegram webhook
-// and the Employees page so arrival classification stays in one place.
+// Daily attendance check-ins (migrations 243, 245). Shared by the Telegram
+// webhook, the entrance screen and the Employees page so arrival rules and
+// the rotating QR format stay in one place.
 
 import { formatDateOnly, formatTime } from './dateFormat.js'
 
-export const ATTENDANCE_CHECKIN_START_PAYLOAD = 'checkin'
+// The entrance screen shows t.me/<bot>?start=<payload>; the payload rotates
+// every 30 seconds (ci_<code>_<slot>_<sig>) and is verified by the database.
+const ROTATING_PAYLOAD = /^ci_[0-9a-f]{8}_[0-9]{1,12}_[0-9a-f]{16}$/
+export const ATTENDANCE_KIOSK_PATH = '/checkin-screen'
+export const ATTENDANCE_KIOSK_KEY_STORAGE = 'zk-attendance-kiosk-key'
 
-export function buildAttendanceCheckinUrl(botUsername) {
+export function buildAttendanceCheckinUrl(botUsername, payload) {
   const name = String(botUsername || '').trim().replace(/^@/, '')
-  return name ? `https://t.me/${name}?start=${ATTENDANCE_CHECKIN_START_PAYLOAD}` : ''
+  return name && ROTATING_PAYLOAD.test(String(payload || '')) ? `https://t.me/${name}?start=${payload}` : ''
 }
 
-export function isAttendanceCheckinCommand(text) {
-  return /^\/start(?:@\w+)?\s+checkin$/i.test(String(text || '').trim())
+// { kind: 'rotating', payload } | { kind: 'legacy' } | null.
+// 'legacy' is the retired printed QR (/start checkin), which must not check in.
+export function parseAttendanceCheckinCommand(text) {
+  const match = String(text || '').trim().match(/^\/start(?:@\w+)?\s+(\S+)$/i)
+  if (!match) return null
+  if (match[1].toLowerCase() === 'checkin') return { kind: 'legacy' }
+  return ROTATING_PAYLOAD.test(match[1]) ? { kind: 'rotating', payload: match[1] } : null
+}
+
+export function buildAttendanceKioskUrl(origin, key) {
+  return `${String(origin || '').replace(/\/$/, '')}${ATTENDANCE_KIOSK_PATH}#k=${key}`
+}
+
+export function readAttendanceKioskKey(hash) {
+  const match = String(hash || '').match(/(?:^#|&)k=([0-9a-f]{64})(?:&|$)/)
+  return match ? match[1] : ''
 }
 
 export function normalizeWorkStartTime(value) {
@@ -126,4 +145,13 @@ export function buildAttendanceCheckinMessage({ name, checkin, alreadyCheckedIn 
 export function buildAttendanceNotLinkedMessage() {
   return 'Ваш Telegram не привязан к профилю сотрудника. Попросите администратора отправить ссылку для привязки.\n\n'
     + 'Telegram xodim profiliga ulanmagan. Administratordan ulash havolasini so‘rang.'
+}
+
+export function buildAttendanceCodeRejectedMessage(reason) {
+  if (reason === 'legacy') {
+    return '⚠️ Этот QR-код больше не действует. Отсканируйте QR на экране у входа.\n\n'
+      + '⚠️ Bu QR kod endi ishlamaydi. Kirish joyidagi ekrandagi QR kodni skanerlang.'
+  }
+  return '⏱ Срок действия этого QR-кода истёк. Отсканируйте QR на экране у входа ещё раз.\n\n'
+    + '⏱ Bu QR kodning muddati tugadi. Kirish joyidagi ekrandagi QR kodni qayta skanerlang.'
 }

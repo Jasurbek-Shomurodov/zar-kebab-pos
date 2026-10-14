@@ -30,6 +30,8 @@ import AppShell from '../components/AppShell'
 import PageShimmer from '../components/PageShimmer'
 import BusyHoursCard from '../components/BusyHoursCard'
 import ProductContributionCard from '../components/ProductContributionCard'
+import CheckinQrCard from '../components/CheckinQrCard'
+import { canEditFeature } from '../lib/permissions'
 import { loadPaidOrdersForRange, mergePaidOrderHistory } from '../lib/orderHistory'
 import { getOrdersNetProfit, getSaleProfitSummary } from '../lib/profit'
 import { RollingValue } from '../components/RollingNumber'
@@ -285,6 +287,10 @@ export default function AdminDashboard() {
   const l    = L[lang] || L.en
 
   const displayName = profile?.full_name || state.user?.name || 'Admin'
+  // Only salary managers may show a valid check-in code (RPC enforces it too).
+  const canShowCheckinQr = canEditFeature(profile || { role: state.user?.role }, 'expenses')
+  const [checkinQrHidden, setCheckinQrHidden] = useState(false)
+  const showCheckinQr = canShowCheckinQr && !checkinQrHidden
 
   const [yesterdayHistoryOrders, setYesterdayHistoryOrders] = useState([])
   const [historyError, setHistoryError] = useState('')
@@ -494,7 +500,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-12 gap-4 min-w-0">
 
           {/* Revenue Statistics — left 2 cols */}
-          <div className="ws-panel col-span-12 xl:col-span-8 min-w-0">
+          <div className={`ws-panel col-span-12 min-w-0 ${showCheckinQr ? 'xl:col-span-6' : 'xl:col-span-8'}`}>
             <div className="mb-4">
               <h3 className="ws-heading">{l.revenueStats}</h3>
             </div>
@@ -539,7 +545,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Payment Methods */}
-          <div className="ws-panel col-span-12 xl:col-span-4 min-w-0">
+          <div className={`ws-panel col-span-12 min-w-0 ${showCheckinQr ? 'md:col-span-6 xl:col-span-3' : 'xl:col-span-4'}`}>
             <h3 className="ws-heading mb-4">{l.paymentMethods}</h3>
             {paymentMethods.length === 0 ? (
               <p className="ws-empty !py-6">{l.noData}</p>
@@ -563,6 +569,8 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+
+          {canShowCheckinQr && <CheckinQrCard lang={lang} onHiddenChange={setCheckinQrHidden} className="col-span-12 md:col-span-6 xl:col-span-3" />}
         </div>
 
         <OrderTypePerformanceCard rows={orderTypePerformance} lang={lang} />

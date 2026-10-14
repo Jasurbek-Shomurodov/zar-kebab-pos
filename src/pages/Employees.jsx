@@ -1,7 +1,7 @@
 import CalendarPicker from '../components/CalendarPicker'
 import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
 import React, { useEffect, useMemo, useState } from 'react'
-import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, Download, History, Loader2, Pencil, Power, Printer, QrCode, ScanLine, UserRound, Users, WalletCards, X } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, Copy, ExternalLink, History, Loader2, MonitorSmartphone, Pencil, Power, ScanLine, UserRound, Users, WalletCards, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import TimePicker24 from '../components/TimePicker24'
@@ -9,7 +9,7 @@ import PageShimmer from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
 import { supabase } from '../lib/supabase'
 import { formatCurrency } from '../lib/formatCurrency'
-import { formatLongDate } from '../lib/dateFormat'
+import { formatLongDate, formatTime } from '../lib/dateFormat'
 import { useAuth } from '../contexts/AuthContext'
 import { canEditFeature, normalizeRole } from '../lib/permissions'
 import { compareSalaryAbsencesNewestFirst } from '../lib/salaryTransactions'
@@ -28,7 +28,7 @@ import {
   todayExpenseDate,
 } from '../lib/expenses'
 import { RollingValue } from '../components/RollingNumber'
-import { buildAttendanceCheckinUrl, formatArrivalSummary, normalizeWorkStartTime } from '../lib/attendance'
+import { buildAttendanceKioskUrl, formatArrivalSummary, normalizeWorkStartTime } from '../lib/attendance'
 
 function isMissingSalaryMigration(error) {
   const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
@@ -132,12 +132,24 @@ export default function Employees() {
       confirm: 'Tasdiqlash',
       empty: 'Xodimlar hali qo‘shilmagan',
       migration: 'Maosh jadvallari yangilanmagan. Supabase SQL editorida employee_salary migratsiyalarini ishga tushiring.',
-      checkinQr: 'Kelish QR kodi',
-      checkinQrHelp: 'Bu QR kodni chop etib, kirish joyiga osib qo‘ying. Xodim ishga kelganda telefoni bilan skanerlaydi va Telegram botda «Start» tugmasini bosadi. Telegrami maosh profiliga ulangan bo‘lishi kerak.',
-      checkinPrint: 'Chop etish',
-      checkinDownload: 'PNG yuklab olish',
-      checkinPrintTitle: 'Ishga keldingizmi? Skanerlang',
-      checkinPrintSub: 'Telefon kamerasi bilan skanerlang va botda «Start» ni bosing',
+      checkinQr: 'Kelish ekrani',
+      checkinScreenHelp: 'Bu havolani kirish joyidagi planshet yoki telefonda oching va yoqiq qoldiring. Ekranda har 30 soniyada o‘zgaradigan QR chiqadi, shuning uchun saqlangan yoki yuborilgan kod taxminan 2 daqiqada ishlamay qoladi. Xodim telefon kamerasi bilan skanerlaydi va botda «Start» ni bosadi.',
+      screenNone: 'Ekran havolasi hali yaratilmagan.',
+      screenOnline: 'Ekran ishlayapti',
+      screenOffline: 'Ekran aloqada emas',
+      screenNeverOpened: 'Havola yaratilgan, ekran hali ochilmagan',
+      screenLastSeen: 'oxirgi aloqa',
+      createScreenLink: 'Ekran havolasini yaratish',
+      replaceScreenLink: 'Yangi havola yaratish',
+      replaceScreenWarning: 'Hozirgi ekran yangi havola ochilmaguncha ishlamaydi.',
+      screenLinkOnce: 'Havolani hozir nusxalang — u faqat bir marta ko‘rsatiladi. Uni kirish joyidagi qurilmada oching.',
+      copyLink: 'Nusxalash',
+      linkCopied: 'Nusxalandi',
+      openHere: 'Shu qurilmada ochish',
+      turnOffScreen: 'Ekranni o‘chirish',
+      turnOffWarning: 'Yangi ekran havolasi ochilmaguncha xodimlar kelganini belgilay olmaydi.',
+      screenLoadFailed: 'Ekran holatini yuklab bo‘lmadi.',
+      retry: 'Qayta urinish',
       checkinBotMissing: 'VITE_TELEGRAM_BOT_USERNAME sozlanmagan.',
       checkedInToday: 'Bugun kelganlar',
       notCheckedIn: 'Kelmagan',
@@ -210,12 +222,24 @@ export default function Employees() {
       confirm: 'Подтвердить',
       empty: 'Сотрудники еще не добавлены',
       migration: 'Таблицы зарплат не обновлены. Запустите миграции employee_salary в Supabase SQL Editor.',
-      checkinQr: 'QR для отметки',
-      checkinQrHelp: 'Распечатайте этот QR и повесьте у входа. Придя на работу, сотрудник сканирует его телефоном и нажимает «Start» в Telegram-боте. Его Telegram должен быть привязан к профилю зарплаты.',
-      checkinPrint: 'Печать',
-      checkinDownload: 'Скачать PNG',
-      checkinPrintTitle: 'Пришли на работу? Отсканируйте',
-      checkinPrintSub: 'Наведите камеру телефона и нажмите «Start» в боте',
+      checkinQr: 'Экран отметки',
+      checkinScreenHelp: 'Откройте эту ссылку на планшете или телефоне у входа и оставьте включённым. Экран показывает QR, который меняется каждые 30 секунд, поэтому сохранённый или пересланный код перестаёт работать примерно через 2 минуты. Сотрудник сканирует его камерой телефона и нажимает «Start» в боте.',
+      screenNone: 'Ссылка экрана ещё не создана.',
+      screenOnline: 'Экран работает',
+      screenOffline: 'Экран не на связи',
+      screenNeverOpened: 'Ссылка создана, экран ещё не открыт',
+      screenLastSeen: 'последняя связь',
+      createScreenLink: 'Создать ссылку экрана',
+      replaceScreenLink: 'Создать новую ссылку',
+      replaceScreenWarning: 'Текущий экран перестанет работать, пока на нём не откроют новую ссылку.',
+      screenLinkOnce: 'Скопируйте ссылку сейчас — она показывается только один раз. Откройте её на устройстве у входа.',
+      copyLink: 'Копировать',
+      linkCopied: 'Скопировано',
+      openHere: 'Открыть на этом устройстве',
+      turnOffScreen: 'Отключить экран',
+      turnOffWarning: 'Сотрудники не смогут отмечаться, пока не откроют новую ссылку экрана.',
+      screenLoadFailed: 'Не удалось загрузить состояние экрана.',
+      retry: 'Повторить',
       checkinBotMissing: 'VITE_TELEGRAM_BOT_USERNAME не настроен.',
       checkedInToday: 'Отметились сегодня',
       notCheckedIn: 'Не отметился',
@@ -288,12 +312,24 @@ export default function Employees() {
       confirm: 'Confirm',
       empty: 'No employees added yet',
       migration: 'Salary tables are not up to date. Run the employee_salary migrations in Supabase SQL Editor.',
-      checkinQr: 'Check-in QR',
-      checkinQrHelp: 'Print this QR and post it at the entrance. When employees arrive they scan it with their phone and tap “Start” in the Telegram bot. Their Telegram must be linked to their salary profile.',
-      checkinPrint: 'Print',
-      checkinDownload: 'Download PNG',
-      checkinPrintTitle: 'Arrived at work? Scan to check in',
-      checkinPrintSub: 'Point your phone camera here, then tap “Start” in the bot',
+      checkinQr: 'Check-in screen',
+      checkinScreenHelp: 'Open this link on a tablet or phone at the entrance and leave it on. It shows a QR that changes every 30 seconds, so a saved or forwarded code stops working within about 2 minutes. Employees scan it with their phone camera and tap “Start” in the bot.',
+      screenNone: 'No screen link yet.',
+      screenOnline: 'Screen online',
+      screenOffline: 'Screen offline',
+      screenNeverOpened: 'Link created, screen not opened yet',
+      screenLastSeen: 'last seen',
+      createScreenLink: 'Create screen link',
+      replaceScreenLink: 'Create new link',
+      replaceScreenWarning: 'The current screen stops working until the new link is opened on it.',
+      screenLinkOnce: 'Copy this link now — it is shown only once. Open it on the entrance device.',
+      copyLink: 'Copy',
+      linkCopied: 'Copied',
+      openHere: 'Open on this device',
+      turnOffScreen: 'Turn off screen',
+      turnOffWarning: 'Employees cannot check in until a new screen link is opened.',
+      screenLoadFailed: 'Could not load the screen status.',
+      retry: 'Retry',
       checkinBotMissing: 'VITE_TELEGRAM_BOT_USERNAME is not configured.',
       checkedInToday: 'Checked in today',
       notCheckedIn: 'Not checked in',
@@ -326,8 +362,12 @@ export default function Employees() {
   const [editingWorkStart, setEditingWorkStart] = useState('')
   const [checkins, setCheckins] = useState(() => new Map())
   const [attendanceAvailable, setAttendanceAvailable] = useState(false)
-  const [qrDataUrl, setQrDataUrl] = useState('')
-  const [qrOpen, setQrOpen] = useState(false)
+  const [screenOpen, setScreenOpen] = useState(false)
+  const [screenState, setScreenState] = useState({ loading: false, active: null, error: '' })
+  const [screenLink, setScreenLink] = useState('')
+  const [screenConfirm, setScreenConfirm] = useState('')
+  const [screenBusy, setScreenBusy] = useState(false)
+  const [screenCopied, setScreenCopied] = useState(false)
   const [error, setError] = useState('')
 
   async function loadEmployees() {
@@ -392,44 +432,65 @@ export default function Employees() {
     }
   }, [today])
 
-  const checkinUrl = buildAttendanceCheckinUrl(import.meta.env.VITE_TELEGRAM_BOT_USERNAME)
+  const botConfigured = Boolean(String(import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim())
 
-  async function openCheckinQr() {
-    setQrOpen(true)
-    if (qrDataUrl || !checkinUrl) return
-    try {
-      const QRCode = (await import('qrcode')).default
-      setQrDataUrl(await QRCode.toDataURL(checkinUrl, { width: 720, margin: 2, errorCorrectionLevel: 'M' }))
-    } catch (qrError) {
-      setError(qrError?.message || String(qrError))
-    }
+  async function loadScreenStatus() {
+    setScreenState(current => ({ ...current, loading: true, error: '' }))
+    const { data, error: statusError } = await supabase.rpc('get_attendance_kiosk_status')
+    setScreenState({ loading: false, active: statusError ? null : data?.[0] || null, error: statusError ? statusError.message : '' })
   }
 
-  function printCheckinQr() {
-    if (!qrDataUrl) return
-    const win = window.open('', '_blank', 'width=720,height=900')
-    if (!win) return
-    const doc = win.document
-    doc.title = 'Zar Kebab check-in'
-    doc.body.style.cssText = 'margin:0;font-family:system-ui,sans-serif;text-align:center;color:#111'
-    const wrap = doc.createElement('div')
-    wrap.style.cssText = 'padding:48px 24px'
-    const brand = doc.createElement('div')
-    brand.textContent = 'ZAR KEBAB'
-    brand.style.cssText = 'font-size:20px;font-weight:800;letter-spacing:.2em;color:#ff5a00'
-    const title = doc.createElement('h1')
-    title.textContent = l.checkinPrintTitle
-    title.style.cssText = 'font-size:34px;margin:16px 0 8px'
-    const sub = doc.createElement('p')
-    sub.textContent = l.checkinPrintSub
-    sub.style.cssText = 'font-size:18px;margin:0 0 24px;color:#444'
-    const img = doc.createElement('img')
-    img.src = qrDataUrl
-    img.alt = 'QR'
-    img.style.cssText = 'width:420px;height:420px'
-    img.onload = () => { win.focus(); win.print() }
-    wrap.append(brand, title, sub, img)
-    doc.body.append(wrap)
+  function openScreenDialog() {
+    setScreenOpen(true)
+    setScreenLink('')
+    setScreenConfirm('')
+    setScreenCopied(false)
+    loadScreenStatus()
+  }
+
+  // A new link revokes the old screen, so replacing or turning off asks twice.
+  async function createScreenLink() {
+    if (screenState.active && screenConfirm !== 'replace') {
+      setScreenConfirm('replace')
+      return
+    }
+    setScreenBusy(true)
+    setScreenConfirm('')
+    const { data: key, error: createError } = await supabase.rpc('create_attendance_kiosk')
+    setScreenBusy(false)
+    if (createError || !key) {
+      setScreenState(current => ({ ...current, error: createError?.message || l.screenLoadFailed }))
+      return
+    }
+    setScreenLink(buildAttendanceKioskUrl(window.location.origin, key))
+    setScreenCopied(false)
+    loadScreenStatus()
+  }
+
+  async function turnOffScreen() {
+    if (screenConfirm !== 'off') {
+      setScreenConfirm('off')
+      return
+    }
+    setScreenBusy(true)
+    setScreenConfirm('')
+    const { error: revokeError } = await supabase.rpc('revoke_attendance_kiosks')
+    setScreenBusy(false)
+    if (revokeError) {
+      setScreenState(current => ({ ...current, error: revokeError.message }))
+      return
+    }
+    setScreenLink('')
+    loadScreenStatus()
+  }
+
+  async function copyScreenLink() {
+    try {
+      await navigator.clipboard.writeText(screenLink)
+      setScreenCopied(true)
+    } catch {
+      setScreenCopied(false)
+    }
   }
 
   const activeEmployees = useMemo(() => employees.filter(item => item.is_active !== false), [employees])
@@ -666,8 +727,8 @@ export default function Employees() {
               <button type="button" onClick={() => { setRoleFilter('all'); setSortBy('default') }} className="ws-btn ws-btn-ghost h-11">{l.resetFilters}</button>
             )}
             {canManage && attendanceAvailable && (
-              <button type="button" onClick={openCheckinQr} className="ws-btn ws-btn-outline h-11 sm:ml-auto">
-                <QrCode size={16} />{l.checkinQr}
+              <button type="button" onClick={openScreenDialog} className="ws-btn ws-btn-outline h-11 sm:ml-auto">
+                <MonitorSmartphone size={16} />{l.checkinQr}
               </button>
             )}
           </div>
@@ -963,37 +1024,71 @@ export default function Employees() {
           )}
         </div>
       </div>
-      {qrOpen && (
+      {screenOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
-          <button type="button" aria-label={l.cancel} onClick={() => setQrOpen(false)}
+          <button type="button" aria-label={l.cancel} onClick={() => setScreenOpen(false)}
             className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
-          <div role="dialog" aria-modal="true" aria-labelledby="checkin-qr-title"
-            onKeyDown={event => { if (event.key === 'Escape') setQrOpen(false) }}
-            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto p-6">
+          <div role="dialog" aria-modal="true" aria-labelledby="checkin-screen-title"
+            onKeyDown={event => { if (event.key === 'Escape') setScreenOpen(false) }}
+            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6">
             <div className="mb-3 flex items-start justify-between gap-3">
-              <h2 id="checkin-qr-title" className="ws-display !text-[24px]">{l.checkinQr}</h2>
-              <button type="button" onClick={() => setQrOpen(false)} aria-label={l.cancel} autoFocus className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
+              <h2 id="checkin-screen-title" className="ws-display !text-[24px]">{l.checkinQr}</h2>
+              <button type="button" onClick={() => setScreenOpen(false)} aria-label={l.cancel} autoFocus className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
             </div>
-            <p className="ws-muted">{l.checkinQrHelp}</p>
-            {!checkinUrl ? (
-              <p role="alert" className="ws-notice ws-tone-negative mt-4">{l.checkinBotMissing}</p>
-            ) : (
-              <>
-                <div className="mx-auto mt-4 flex aspect-square w-full max-w-[280px] items-center justify-center rounded-xl bg-white p-2">
-                  {qrDataUrl ? <img src={qrDataUrl} alt={l.checkinQr} className="h-full w-full" /> : <Loader2 size={24} className="animate-spin text-[#68655f]" />}
-                </div>
-                <p className="ws-caption mt-2 break-all text-center font-mono">{checkinUrl}</p>
-                <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <a href={qrDataUrl || undefined} download="zar-kebab-checkin-qr.png" aria-disabled={!qrDataUrl}
-                    className={`ws-btn ws-btn-outline ${qrDataUrl ? '' : 'pointer-events-none opacity-50'}`}>
-                    <Download size={16} />{l.checkinDownload}
-                  </a>
-                  <button type="button" onClick={printCheckinQr} disabled={!qrDataUrl} className="ws-btn ws-btn-primary disabled:opacity-50">
-                    <Printer size={16} />{l.checkinPrint}
-                  </button>
-                </div>
-              </>
+            <p className="ws-muted">{l.checkinScreenHelp}</p>
+            {!botConfigured && <p role="alert" className="ws-notice ws-tone-negative mt-4">{l.checkinBotMissing}</p>}
+
+            <div className="mt-4 flex min-h-11 items-center gap-2">
+              {screenState.loading ? (
+                <Loader2 size={16} className="animate-spin text-[#68655f]" />
+              ) : screenState.active ? (
+                <ScreenStatus active={screenState.active} l={l} />
+              ) : !screenState.error && (
+                <span className="ws-status">{l.screenNone}</span>
+              )}
+            </div>
+
+            {screenState.error && (
+              <div role="alert" className="ws-notice ws-tone-negative mt-3 flex flex-wrap items-center justify-between gap-2">
+                <span>{screenState.error}</span>
+                <button type="button" onClick={loadScreenStatus} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button>
+              </div>
             )}
+
+            {screenLink && (
+              <div className="ws-notice ws-tone-positive mt-3">
+                <p className="text-[13px] font-medium">{l.screenLinkOnce}</p>
+                <input readOnly value={screenLink} onFocus={event => event.target.select()} className="ws-input mt-2 w-full font-mono !text-xs" />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" onClick={copyScreenLink} className="ws-btn ws-btn-outline ws-btn-sm">
+                    {screenCopied ? <Check size={14} /> : <Copy size={14} />}{screenCopied ? l.linkCopied : l.copyLink}
+                  </button>
+                  <a href={screenLink} target="_blank" rel="noopener noreferrer" className="ws-btn ws-btn-outline ws-btn-sm">
+                    <ExternalLink size={14} />{l.openHere}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {screenConfirm && (
+              <p role="alert" className="ws-notice ws-tone-caution mt-3 text-[13px]">
+                {screenConfirm === 'off' ? l.turnOffWarning : l.replaceScreenWarning}
+              </p>
+            )}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              {screenState.active && (
+                <button type="button" onClick={turnOffScreen} disabled={screenBusy || screenState.loading}
+                  className={`ws-btn ${screenConfirm === 'off' ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'}`}>
+                  <Power size={16} />{screenConfirm === 'off' ? l.confirm : l.turnOffScreen}
+                </button>
+              )}
+              <button type="button" onClick={createScreenLink} disabled={screenBusy || screenState.loading || !botConfigured}
+                className="ws-btn ws-btn-primary disabled:opacity-50">
+                {screenBusy ? <Loader2 size={16} className="animate-spin" /> : <MonitorSmartphone size={16} />}
+                {screenConfirm === 'replace' ? l.confirm : screenState.active ? l.replaceScreenLink : l.createScreenLink}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1083,4 +1178,15 @@ function EmployeeKpiRow({
 
 function DateInput(props) {
   return <CalendarPicker {...props} />
+}
+
+// The entrance screen reports in every ~30 s; over 90 s of silence = offline.
+function ScreenStatus({ active, l }) {
+  if (!active.last_seen_at) return <span className="ws-status ws-tone-caution">{l.screenNeverOpened}</span>
+  const online = Date.now() - new Date(active.last_seen_at).getTime() < 90_000
+  return (
+    <span className={`ws-status ${online ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
+      {online ? l.screenOnline : `${l.screenOffline} · ${l.screenLastSeen} ${formatTime(active.last_seen_at)}`}
+    </span>
+  )
 }

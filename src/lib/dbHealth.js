@@ -132,6 +132,8 @@ const MIGRATION_HINTS = {
   get_bazaar_ingredient_tech_card_usage: 'Run migrations/242_bazaar_ingredient_tech_card_usage.sql',
   current_staff_can_manage_bazaar_ingredients: 'Run migrations/162_owner_only_bazaar_ingredient_management.sql',
   create_employee_salary_telegram_link: 'Run migrations/107_employee_salary_telegram_notifications.sql',
+  create_attendance_kiosk: 'Run migrations/245_attendance_kiosk_rotating_qr.sql',
+  get_attendance_kiosk_token: 'Run migrations/245_attendance_kiosk_rotating_qr.sql',
   generate_daily_kpi_bonuses: 'Run migrations/129_daily_kpi_bonuses.sql',
   generate_employee_daily_meal_expense: 'Run migrations/147_financial_report_history_snapshots.sql',
   get_pending_daily_kpi_dates: 'Run migrations/147_financial_report_history_snapshots.sql',

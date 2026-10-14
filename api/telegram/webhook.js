@@ -12,8 +12,9 @@ import { getEmployeePaymentConfirmationCopy } from './_lib/paymentMessages.js'
 import {
   buildAttendanceCheckinMessage,
   buildAttendanceCheckinRow,
+  buildAttendanceCodeRejectedMessage,
   buildAttendanceNotLinkedMessage,
-  isAttendanceCheckinCommand,
+  parseAttendanceCheckinCommand,
 } from '../../src/lib/attendance.js'
 
 const LANGUAGES = {
@@ -97,9 +98,26 @@ async function linkEmployee(supabase, message, token) {
   }
 }
 
-// Restaurant QR check-in: identity comes from the employee's linked Telegram
-// account; the first scan per Tashkent date wins and later scans only echo it.
-async function checkInEmployee(supabase, message) {
+// Entrance-screen check-in. The rotating QR proves presence (verified in the
+// database against Telegram's message time, so a delayed webhook is judged by
+// when Start was pressed); the linked Telegram account proves identity. The
+// first scan per Tashkent date wins and later scans only echo it.
+async function checkInEmployee(supabase, message, command) {
+  if (command.kind !== 'rotating') {
+    await sendTelegramMessage(message.chat.id, buildAttendanceCodeRejectedMessage('legacy'))
+    return
+  }
+  const scannedAt = Number.isFinite(message.date) ? new Date(message.date * 1000) : new Date()
+  const { data: verdict, error: verifyError } = await supabase.rpc('verify_attendance_checkin_payload', {
+    p_payload: command.payload,
+    p_at: scannedAt.toISOString(),
+  })
+  if (verifyError) throw verifyError
+  if (verdict !== 'valid') {
+    await sendTelegramMessage(message.chat.id, buildAttendanceCodeRejectedMessage(verdict))
+    return
+  }
+
   const { data: link, error: linkError } = await supabase
     .from('employee_salary_telegram_links')
     .select('salary_profile_id, preferred_language')
@@ -123,7 +141,7 @@ async function checkInEmployee(supabase, message) {
     return
   }
 
-  const row = buildAttendanceCheckinRow(salaryProfile, message.from.id)
+  const row = buildAttendanceCheckinRow(salaryProfile, message.from.id, scannedAt)
   const { data: inserted, error: insertError } = await supabase
     .from('employee_attendance_checkins')
     .upsert(row, { onConflict: 'salary_profile_id,business_date', ignoreDuplicates: true })
@@ -309,12 +327,13 @@ export default async function handler(req, res) {
     const supabase = getSupabaseAdmin()
     const message = update?.message
     const token = parseEmployeeStartToken(message?.text)
+    const attendanceCommand = parseAttendanceCheckinCommand(message?.text)
     const isPrivateChat = message?.chat?.type === 'private'
     const isLanguageCommand = /^\/(?:start|language)(?:@\w+)?(?:\s|$)/i.test(message?.text || '')
     if (message?.chat?.id && /^\/chatid(?:@\w+)?(?:\s|$)/i.test(message?.text || '')) {
       await sendChatIdMessage(message)
-    } else if (message?.chat?.id && message?.from?.id && isPrivateChat && isAttendanceCheckinCommand(message?.text)) {
-      await checkInEmployee(supabase, message)
+    } else if (message?.chat?.id && message?.from?.id && isPrivateChat && attendanceCommand) {
+      await checkInEmployee(supabase, message, attendanceCommand)
     } else if (message?.chat?.id && message?.from?.id && token && isPrivateChat) {
       await linkEmployee(supabase, message, token)
     } else if (message?.chat?.id && token) {
