@@ -245,6 +245,7 @@ test('AdminDashboard shows today order type performance', () => {
   assert.match(card, /row\.items/)
   assert.match(card, /row\.avgOrder/)
   assert.match(card, /row\.pct/)
+  assert.match(card, /grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3/)
 })
 
 test('AdminDashboard category sales use the available card height before scrolling', () => {

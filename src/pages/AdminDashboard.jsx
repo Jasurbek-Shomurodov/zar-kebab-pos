@@ -231,7 +231,8 @@ function OrderTypePerformanceCard({ rows, lang }) {
           </span>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Four order types: one row on wide screens, 2x2 below, never a lone orphan card. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {rows.map(row => {
           const visual = ORDER_TYPE_PERFORMANCE_STYLE[row.key] || ORDER_TYPE_PERFORMANCE_STYLE.dine_in
           const Icon = visual.Icon
