@@ -1,7 +1,7 @@
 import CalendarPicker from '../components/CalendarPicker'
 import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
 import React, { useEffect, useMemo, useState } from 'react'
-import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, Copy, ExternalLink, History, Loader2, MonitorSmartphone, Pencil, Power, ScanLine, UserRound, Users, WalletCards, X } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, Copy, ExternalLink, History, Loader2, MonitorSmartphone, Pencil, Percent, Power, Save, ScanLine, UserRound, Users, WalletCards, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import TimePicker24 from '../components/TimePicker24'
@@ -14,8 +14,25 @@ import { useAuth } from '../contexts/AuthContext'
 import { canEditFeature, normalizeRole } from '../lib/permissions'
 import { compareSalaryAbsencesNewestFirst } from '../lib/salaryTransactions'
 import { loadSalaryRows } from '../lib/salaryData'
-import { formatKpiRatePercent, formatKpiSalesBasis, formatKpiStartTime, getEffectiveKpiRule } from '../lib/dailyKpi'
-import { notifyTelegramAbsenceUndo, notifyTelegramEmployeeLifecycle } from '../lib/telegramNotifications'
+import {
+  formatKpiRatePercent,
+  formatKpiSalesBasis,
+  formatKpiStartTime,
+  getActiveKpiAccounts,
+  getEffectiveKpiRule,
+  getKpiAccountLinks,
+} from '../lib/dailyKpi'
+import {
+  buildEmployeeKpiForm,
+  buildEmployeeKpiRulePayload,
+  buildEmployeeSalaryForm,
+  buildSalaryRatePayload,
+  getEmployeeKpiFormError,
+  isEmployeeKpiChanged,
+  isEmployeeSalaryChanged,
+  isKpiRulePayloadChanged,
+} from '../lib/employeeSettings'
+import { notifyTelegramAbsenceUndo, notifyTelegramEmployeeLifecycle, notifyTelegramEmployeeRate, notifyTelegramKpiRuleChange } from '../lib/telegramNotifications'
 import {
   getDailySalaryAmount,
   getSalaryAbsenceForDate,
@@ -23,11 +40,16 @@ import {
   getSalaryActiveUntil,
   getSalaryBalance,
   getTotalSalaryDue,
+  getExpenseEntryMinDate,
+  isExpenseEntryDateAllowed,
+  normalizeExpenseAmount,
+  SALARY_RATE_UNITS,
   buildSalaryReactivationAbsenceRows,
   normalizeSalaryEndDate,
   todayExpenseDate,
 } from '../lib/expenses'
 import { RollingValue } from '../components/RollingNumber'
+import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { buildAttendanceKioskUrl, formatArrivalSummary, normalizeWorkStartTime } from '../lib/attendance'
 
 function isMissingSalaryMigration(error) {
@@ -161,6 +183,34 @@ export default function Employees() {
       hour: 'Soat',
       minute: 'Daqiqa',
       done: 'Tayyor',
+      profileSection: 'Xodim',
+      salarySection: 'Maosh',
+      salaryAmount: 'Maosh summasi',
+      salaryUnit: 'Maosh turi',
+      unitDaily: 'Kunlik',
+      unitMonthly: 'Oylik',
+      effectiveDate: 'Qachondan',
+      salaryDateLimit: 'Ish haqi sanasi bugundan uch kundan ortiq oldin bo‘lishi mumkin emas.',
+      salaryAmountRequired: 'Maosh summasini kiriting.',
+      kpiOn: 'KPI faol',
+      kpiOff: 'KPI o‘chirilgan',
+      kpiRate: 'KPI foizi',
+      kpiBasis: 'Hisoblash asosi',
+      kpiOwnOrders: 'O‘zi ochgan buyurtmalar',
+      kpiAllDineIn: 'Zaldagi barcha to‘langan buyurtmalar',
+      kpiAccount: 'Xodimning kassadagi akkaunti',
+      kpiSelectAccount: 'Faol xodim akkauntini tanlang',
+      kpiAccountUnavailable: 'Tanlangan akkaunt faol emas yoki mavjud emas.',
+      kpiStartTime: 'KPI boshlanish vaqti (Toshkent)',
+      kpiAccountRequired: 'O‘z buyurtmalari uchun Faol xodim akkauntini tanlang.',
+      kpiAccountTaken: 'Bu akkaunt allaqachon boshqa xodimga bog‘langan. Bitta akkaunt faqat bitta xodimga KPI beradi:',
+      kpiStartRequired: 'KPI boshlanish vaqtini kiriting.',
+      kpiRateRequired: 'KPI foizini kiriting.',
+      kpiDateInvalid: 'KPI sanasi bugundan oldin bo‘lishi mumkin emas.',
+      rateTelegramFailed: 'Maosh stavkasi saqlandi, lekin Telegram xabarlari yuborilmadi.',
+      kpiTelegramFailed: 'KPI sozlamasi saqlandi, lekin Maosh guruhiga Telegram xabari yuborilmadi.',
+      profileOwnerOnly: 'Ism va lavozimni faqat egasi o‘zgartira oladi.',
+      inactiveSettingsHint: 'Maosh va KPI faqat faol xodimlar uchun o‘zgartiriladi.',
       lifecycleNotificationFailed: 'Xodim holati saqlandi, lekin ZarKebab Investor guruhiga xabar yuborilmadi.',
     },
     ru: {
@@ -251,6 +301,34 @@ export default function Employees() {
       hour: 'Час',
       minute: 'Минута',
       done: 'Готово',
+      profileSection: 'Сотрудник',
+      salarySection: 'Зарплата',
+      salaryAmount: 'Сумма зарплаты',
+      salaryUnit: 'Тип зарплаты',
+      unitDaily: 'Дневная',
+      unitMonthly: 'Месячная',
+      effectiveDate: 'Действует с',
+      salaryDateLimit: 'Дата зарплаты не может быть раньше, чем три дня назад.',
+      salaryAmountRequired: 'Введите сумму зарплаты.',
+      kpiOn: 'KPI включён',
+      kpiOff: 'KPI выключен',
+      kpiRate: 'Процент KPI',
+      kpiBasis: 'База расчёта',
+      kpiOwnOrders: 'Свои открытые заказы',
+      kpiAllDineIn: 'Все оплаченные заказы в зале',
+      kpiAccount: 'Учётная запись сотрудника',
+      kpiSelectAccount: 'Выберите активного сотрудника',
+      kpiAccountUnavailable: 'Выбранная учётная запись неактивна или недоступна.',
+      kpiStartTime: 'Начало KPI (Ташкент)',
+      kpiAccountRequired: 'Для расчёта по своим заказам выберите учётную запись сотрудника.',
+      kpiAccountTaken: 'Эта учётная запись уже привязана к другому сотруднику. Одна запись начисляет KPI только одному сотруднику:',
+      kpiStartRequired: 'Укажите время начала KPI.',
+      kpiRateRequired: 'Укажите процент KPI.',
+      kpiDateInvalid: 'Дата KPI не может быть в прошлом.',
+      rateTelegramFailed: 'Ставка зарплаты сохранена, но сообщения в Telegram не отправлены.',
+      kpiTelegramFailed: 'Настройка KPI сохранена, но сообщение в группу зарплат не отправлено.',
+      profileOwnerOnly: 'Имя и должность может менять только владелец.',
+      inactiveSettingsHint: 'Зарплату и KPI можно менять только у активных сотрудников.',
       lifecycleNotificationFailed: 'Статус сотрудника сохранён, но сообщение в группу ZarKebab Investor не отправлено.',
     },
     en: {
@@ -341,6 +419,34 @@ export default function Employees() {
       hour: 'Hour',
       minute: 'Minute',
       done: 'Done',
+      profileSection: 'Employee',
+      salarySection: 'Salary',
+      salaryAmount: 'Salary amount',
+      salaryUnit: 'Salary type',
+      unitDaily: 'Daily',
+      unitMonthly: 'Monthly',
+      effectiveDate: 'Effective from',
+      salaryDateLimit: 'Salary dates cannot be more than three days before today.',
+      salaryAmountRequired: 'Enter the salary amount.',
+      kpiOn: 'KPI enabled',
+      kpiOff: 'KPI disabled',
+      kpiRate: 'KPI percentage',
+      kpiBasis: 'Calculation basis',
+      kpiOwnOrders: 'Own opened orders',
+      kpiAllDineIn: 'All paid dine-in orders',
+      kpiAccount: 'Employee POS account',
+      kpiSelectAccount: 'Select an active employee account',
+      kpiAccountUnavailable: 'Selected account is inactive or unavailable.',
+      kpiStartTime: 'KPI start time (Tashkent)',
+      kpiAccountRequired: 'Select an active employee account for own-order KPI.',
+      kpiAccountTaken: 'This account is already linked to another employee. One account earns KPI for one employee only:',
+      kpiStartRequired: 'Enter a KPI start time.',
+      kpiRateRequired: 'Enter a KPI percentage.',
+      kpiDateInvalid: 'The KPI date cannot be in the past.',
+      rateTelegramFailed: 'The salary rate was saved, but Telegram messages were not sent.',
+      kpiTelegramFailed: 'The KPI setting was saved, but the Salary group message was not sent.',
+      profileOwnerOnly: 'Only the owner can change the name and role.',
+      inactiveSettingsHint: 'Salary and KPI can only be changed for active employees.',
       lifecycleNotificationFailed: 'The employee status was saved, but the ZarKebab Investor group notification was not sent.',
     },
   }
@@ -349,6 +455,7 @@ export default function Employees() {
   const [employees, setEmployees] = useState([])
   const [kpiRules, setKpiRules] = useState([])
   const [kpiRulesAvailable, setKpiRulesAvailable] = useState(true)
+  const [kpiAccounts, setKpiAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
   const [confirmActionKey, setConfirmActionKey] = useState('')
@@ -360,6 +467,9 @@ export default function Employees() {
   const [editingName, setEditingName] = useState('')
   const [editingJobFunction, setEditingJobFunction] = useState('')
   const [editingWorkStart, setEditingWorkStart] = useState('')
+  const [salaryForm, setSalaryForm] = useState(null)
+  const [kpiForm, setKpiForm] = useState(null)
+  const [editError, setEditError] = useState('')
   const [checkins, setCheckins] = useState(() => new Map())
   const [attendanceAvailable, setAttendanceAvailable] = useState(false)
   const [screenOpen, setScreenOpen] = useState(false)
@@ -382,7 +492,7 @@ export default function Employees() {
       loadSalaryRows(() => supabase.from('employee_salary_fines').select('*')),
       loadSalaryRows(() => supabase.from('employee_salary_absences').select('*')),
       supabase.from('employee_kpi_rules')
-        .select('id, salary_profile_id, effective_from, rate_bps, is_enabled, sales_basis, start_time, created_at, updated_at')
+        .select('id, salary_profile_id, effective_from, rate_bps, is_enabled, sales_basis, order_opener_profile_id, start_time, created_at, updated_at')
         .lte('effective_from', today)
         .order('effective_from', { ascending: false })
         .order('updated_at', { ascending: false }),
@@ -390,6 +500,7 @@ export default function Employees() {
 
     setKpiRules(kpiRuleRes.error ? [] : kpiRuleRes.data || [])
     setKpiRulesAvailable(!kpiRuleRes.error)
+    setKpiAccounts(teamRes.error ? [] : getActiveKpiAccounts(teamRes.data || []))
 
     const salaryError = profileRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error
     if (salaryError) {
@@ -643,14 +754,22 @@ export default function Employees() {
     if (!notification?.ok) setError(l.undoAbsenceNotificationFailed)
     await loadEmployees()
   }
-  function startNameEdit(employee) {
-    if (!canEditName || !employee?.id) return
+  // Tapping a card opens one dialog for profile, salary and KPI changes.
+  function openEmployeeEditor(employee) {
+    if (!canManage || !employee?.id) return
     setEditingNameId(employee.id)
     setEditingName(employeeName(employee))
     setEditingJobFunction(employee.job_function || '')
     setEditingWorkStart(normalizeWorkStartTime(employee.work_start_time))
+    setSalaryForm(buildEmployeeSalaryForm(employee, today))
+    setKpiForm(buildEmployeeKpiForm(kpiRules, employee, today))
     setConfirmActionKey('')
-    setError('')
+    setEditError('')
+  }
+
+  function startNameEdit(employee) {
+    if (!canEditName || !employee?.id) return
+    openEmployeeEditor(employee)
   }
 
   function cancelNameEdit() {
@@ -658,19 +777,25 @@ export default function Employees() {
     setEditingName('')
     setEditingJobFunction('')
     setEditingWorkStart('')
+    setSalaryForm(null)
+    setKpiForm(null)
+    setEditError('')
+  }
+
+  function isEmployeeProfileChanged(employee) {
+    return editingName.trim() !== employeeName(employee)
+      || (editingJobFunction || '') !== (employee.job_function || '')
+      || editingWorkStart !== normalizeWorkStartTime(employee.work_start_time)
   }
 
   async function saveEmployeeName(employee) {
-    if (!canEditName || !employee?.id || editingNameId !== employee.id) return
+    if (!canEditName || !employee?.id || editingNameId !== employee.id) return false
     const nextName = editingName.trim()
     if (!nextName) {
-      setError(l.nameRequired)
-      return
+      setEditError(l.nameRequired)
+      return false
     }
 
-    const key = `employee-name-${employee.id}`
-    setSaving(key)
-    setError('')
     let { error: updateError } = await supabase
       .from('employee_salary_profiles')
       .update({ employee_name: nextName, job_function: editingJobFunction || null })
@@ -682,14 +807,132 @@ export default function Employees() {
         .update({ work_start_time: editingWorkStart || null })
         .eq('id', employee.id))
     }
-    setSaving('')
     if (updateError) {
-      setError(updateError.message)
+      setEditError(updateError.message)
+      return false
+    }
+    return true
+  }
+
+  // Background delivery: a failed message never blocks or undoes the saved change.
+  function notifySalaryChangeInBackground(send, eventId, failureMessage) {
+    if (!eventId) return
+    void send(eventId)
+      .then(result => {
+        const delivered = ['sent', 'confirmed'].includes(result?.employee?.status)
+          || result?.employeeIncludedInDailySummary === true
+          || result?.group?.status === 'sent'
+        if (!delivered) setError(failureMessage)
+      })
+      .catch(() => setError(failureMessage))
+  }
+
+  async function saveEmployeeSalary(employee) {
+    const amount = normalizeExpenseAmount(salaryForm.salary_amount)
+    if (amount <= 0) {
+      setEditError(l.salaryAmountRequired)
+      return false
+    }
+    if (!isExpenseEntryDateAllowed(salaryForm.effective_from, today)) {
+      setEditError(l.salaryDateLimit)
+      return false
+    }
+    const isInitialRate = (employee.rates || []).length === 0
+    const { data: savedRate, error: rateError } = await supabase
+      .from('employee_salary_rates')
+      .insert(buildSalaryRatePayload({
+        salaryProfileId: employee.id,
+        effectiveFrom: salaryForm.effective_from,
+        amount,
+        salaryUnit: salaryForm.salary_unit,
+        createdBy: profile?.id || null,
+      }))
+      .select('id')
+      .single()
+    if (rateError) {
+      setEditError(rateError.message)
+      return false
+    }
+    if (!isInitialRate) notifySalaryChangeInBackground(notifyTelegramEmployeeRate, savedRate?.id, l.rateTelegramFailed)
+    return true
+  }
+
+  async function saveEmployeeKpi(employee) {
+    const formError = getEmployeeKpiFormError({
+      form: kpiForm,
+      salaryProfileId: employee.id,
+      today,
+      kpiAccounts,
+      kpiAccountLinks: getKpiAccountLinks(kpiRules, activeEmployees, today),
+    })
+    if (formError) {
+      setEditError(formError.code === 'account_taken'
+        ? `${l.kpiAccountTaken} ${formError.conflicts.map(employeeName).join(', ')}`
+        : {
+          date: l.kpiDateInvalid,
+          rate: l.kpiRateRequired,
+          start_required: l.kpiStartRequired,
+          account_required: l.kpiAccountRequired,
+        }[formError.code])
+      return false
+    }
+    const payload = buildEmployeeKpiRulePayload({
+      form: kpiForm,
+      salaryProfileId: employee.id,
+      createdBy: profile?.id || null,
+      createdByName: profile?.full_name || profile?.email || state.user?.name || '',
+    })
+    const configurationChanged = isKpiRulePayloadChanged(kpiRules, payload)
+    const { data: savedRule, error: saveError } = await supabase
+      .from('employee_kpi_rules')
+      .upsert(payload, { onConflict: 'salary_profile_id,effective_from' })
+      .select('id, last_change_event_id')
+      .single()
+    if (saveError) {
+      setEditError(saveError.message)
+      return false
+    }
+    if (configurationChanged) {
+      notifySalaryChangeInBackground(notifyTelegramKpiRuleChange, savedRule?.last_change_event_id, l.kpiTelegramFailed)
+    }
+    return true
+  }
+
+  // Each part is saved only when it changed. After a partial failure the reload
+  // refreshes the baselines, so a retry skips what was already stored.
+  async function saveEmployeeEdits() {
+    const employee = employees.find(item => item.id === editingNameId)
+    if (!canManage || !employee) return
+    const editable = employee.is_active !== false
+    const profileChanged = canEditName && isEmployeeProfileChanged(employee)
+    const salaryChanged = editable && salaryForm && isEmployeeSalaryChanged(employee, salaryForm, today)
+    const kpiChanged = editable && kpiRulesAvailable && kpiForm && isEmployeeKpiChanged(kpiRules, employee, kpiForm, today)
+    if (!profileChanged && !salaryChanged && !kpiChanged) {
+      cancelNameEdit()
       return
     }
-    cancelNameEdit()
-    await loadEmployees()
+
+    setSaving(`employee-edit-${employee.id}`)
+    setEditError('')
+    setError('')
+    let ok = true
+    let wroteAny = false
+    for (const [changed, save] of [
+      [profileChanged, saveEmployeeName],
+      [salaryChanged, saveEmployeeSalary],
+      [kpiChanged, saveEmployeeKpi],
+    ]) {
+      if (!changed) continue
+      ok = await save(employee)
+      if (!ok) break
+      wroteAny = true
+    }
+    setSaving('')
+    if (ok) cancelNameEdit()
+    if (wroteAny) await loadEmployees()
   }
+
+  const editingEmployee = canManage ? employees.find(item => item.id === editingNameId) || null : null
 
   const back = { label: l.back, onClick: () => navigate('/admin/accounting/salaries') }
 
@@ -780,8 +1023,6 @@ export default function Employees() {
                 const confirmToggle = confirmActionKey === toggleKey
                 const undoAbsenceKey = `absence-undo-${employee.id}`
                 const confirmUndoAbsence = confirmActionKey === undoAbsenceKey
-                const editingEmployeeName = editingNameId === employee.id
-                const nameSavingKey = `employee-name-${employee.id}`
                 const joinedDate = String(employee.joined_at || '').slice(0, 10)
                 const deactivateDate = normalizeSalaryEndDate(employee, deactivateDates[employee.id], today)
                 const effectiveKpiRule = getEffectiveKpiRule(kpiRules, employee.id, today)
@@ -789,7 +1030,11 @@ export default function Employees() {
                 const workStart = normalizeWorkStartTime(employee.work_start_time)
                 const showAttendance = attendanceAvailable && !inactive && !absentToday
                 return (
-                  <section key={employee.id} className={`ws-panel group flex flex-col ${
+                  <section key={employee.id} onClick={event => {
+                    // Buttons and fields inside the card keep their own actions.
+                    if (event.target.closest('button, a, input, select, textarea, label')) return
+                    openEmployeeEditor(employee)
+                  }} className={`ws-panel group flex flex-col ${canManage ? 'cursor-pointer transition-shadow hover:shadow-md' : ''} ${
                     inactive
                       ? 'ws-inactive-card'
                       : absentToday
@@ -808,76 +1053,21 @@ export default function Employees() {
                           {absentToday ? <CalendarX2 size={17} /> : (employeeName(employee).trim().charAt(0).toUpperCase() || <UserRound size={17} />)}
                         </div>
                         <div className="min-w-0 flex-1">
-                          {editingEmployeeName ? (
-                            <div className="flex min-w-0 items-center gap-1.5">
-                              <input
-                                type="text"
-                                value={editingName}
-                                onChange={event => setEditingName(event.target.value)}
-                                onKeyDown={event => {
-                                  if (event.key === 'Enter') saveEmployeeName(employee)
-                                  if (event.key === 'Escape') cancelNameEdit()
-                                }}
-                                maxLength={120}
-                                autoFocus
-                                aria-label={l.employeeName}
-                                className="ws-input !h-9 flex-1 !px-2.5 !py-0 font-semibold"
-                              />
+                          <div className="flex min-w-0 items-center gap-1">
+                            <h2 className={`truncate text-[15px] font-semibold text-[#22201d]`}>{employeeName(employee)}</h2>
+                            {canEditName && (
                               <button
                                 type="button"
-                                onClick={() => saveEmployeeName(employee)}
-                                disabled={saving === nameSavingKey}
-                                title={l.saveName}
-                                aria-label={l.saveName}
-                                className="ws-btn ws-btn-primary ws-btn-sm ws-btn-icon"
+                                onClick={() => startNameEdit(employee)}
+                                title={l.editName}
+                                aria-label={`${l.editName}: ${employeeName(employee)}`}
+                                className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon text-[#9b978f] transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                               >
-                                {saving === nameSavingKey ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                                <Pencil size={13} />
                               </button>
-                              <button
-                                type="button"
-                                onClick={cancelNameEdit}
-                                disabled={saving === nameSavingKey}
-                                title={l.cancel}
-                                aria-label={l.cancel}
-                                className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
-                              >
-                                <X size={15} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex min-w-0 items-center gap-1">
-                              <h2 className={`truncate text-[15px] font-semibold text-[#22201d]`}>{employeeName(employee)}</h2>
-                              {canEditName && (
-                                <button
-                                  type="button"
-                                  onClick={() => startNameEdit(employee)}
-                                  title={l.editName}
-                                  aria-label={`${l.editName}: ${employeeName(employee)}`}
-                                  className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon text-[#9b978f] transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
-                                >
-                                  <Pencil size={13} />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          {editingEmployeeName ? (
-                            <label className="ws-caption mt-2 block font-medium">
-                              {l.jobFunction}
-                              <select
-                                value={editingJobFunction}
-                                onChange={event => setEditingJobFunction(event.target.value)}
-                                disabled={saving === nameSavingKey}
-                                className="ws-input mt-1 !h-9 !py-0"
-                              >
-                                <option value="">{l.noJobFunction}</option>
-                                {EMPLOYEE_JOB_FUNCTIONS.map(job => (
-                                  <option key={job.value} value={job.value}>{employeeJobFunctionLabel(job.value, lang)}</option>
-                                ))}
-                              </select>
-                            </label>
-                          ) : (
-                            <p className="ws-caption">{employeeJobFunctionLabel(employee.job_function, lang) || l.noJobFunction}</p>
-                          )}
+                            )}
+                          </div>
+                          <p className="ws-caption">{employeeJobFunctionLabel(employee.job_function, lang) || l.noJobFunction}</p>
                         </div>
                       </div>
                       {/* Active is the normal state; only call out exceptions. */}
@@ -912,30 +1102,7 @@ export default function Employees() {
                       <Row label={l.joined} value={formatLongDate(employee.joined_at, lang, employee.joined_at)} />
                       {inactive && employee.ended_at && <Row label={l.ended} value={formatLongDate(employee.ended_at, lang, employee.ended_at)} />}
                       {attendanceAvailable && !inactive && (
-                        editingEmployeeName ? (
-                          <div className="flex items-end gap-2 py-2">
-                            {editingWorkStart ? (
-                              <>
-                                <div className="min-w-0 flex-1">
-                                  <TimePicker24 value={editingWorkStart} label={l.workStart}
-                                    hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
-                                    className="ws-input !h-9 !py-0" disabled={saving === nameSavingKey}
-                                    onChange={setEditingWorkStart} />
-                                </div>
-                                <button type="button" onClick={() => setEditingWorkStart('')} disabled={saving === nameSavingKey}
-                                  title={l.clearWorkStart} aria-label={l.clearWorkStart} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon">
-                                  <X size={15} />
-                                </button>
-                              </>
-                            ) : (
-                              <button type="button" onClick={() => setEditingWorkStart('09:00')} disabled={saving === nameSavingKey} className="ws-btn ws-btn-outline ws-btn-sm">
-                                {l.workStart}: {l.setWorkStart}
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <Row label={l.workStart} value={workStart || l.workStartNotSet} />
-                        )
+                        <Row label={l.workStart} value={workStart || l.workStartNotSet} />
                       )}
                       {showAttendance && todayCheckin && (
                         <Row label={l.present} value={formatArrivalSummary(todayCheckin, lang)} hot={todayCheckin.arrival_status === 'late'} />
@@ -1024,6 +1191,33 @@ export default function Employees() {
           )}
         </div>
       </div>
+      {editingEmployee && (
+        <EmployeeEditDialog
+          employee={editingEmployee}
+          l={l}
+          lang={lang}
+          today={today}
+          canEditProfile={canEditName}
+          showWorkStart={attendanceAvailable}
+          kpiAvailable={kpiRulesAvailable}
+          kpiAccounts={kpiAccounts}
+          name={editingName}
+          onNameChange={setEditingName}
+          jobFunction={editingJobFunction}
+          onJobFunctionChange={setEditingJobFunction}
+          workStart={editingWorkStart}
+          onWorkStartChange={setEditingWorkStart}
+          salaryForm={salaryForm}
+          onSalaryFormChange={setSalaryForm}
+          kpiForm={kpiForm}
+          onKpiFormChange={setKpiForm}
+          error={editError}
+          saving={saving === `employee-edit-${editingEmployee.id}`}
+          onSave={saveEmployeeEdits}
+          onClose={cancelNameEdit}
+        />
+      )}
+
       {screenOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
           <button type="button" aria-label={l.cancel} onClick={() => setScreenOpen(false)}
@@ -1172,6 +1366,222 @@ function EmployeeKpiRow({
           {formatKpiSalesBasis(rule.sales_basis, lang)} · {formatKpiStartTime(rule.start_time, lang)}
         </p>
       )}
+    </div>
+  )
+}
+
+const DIALOG_FIELD = 'ws-input !h-11 min-w-0 w-full font-medium disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
+
+function DialogField({ label, children, className = '' }) {
+  return (
+    <label className={`ws-caption flex min-w-0 flex-col gap-1.5 font-medium ${className}`}>
+      {label}
+      {children}
+    </label>
+  )
+}
+
+function EmployeeEditDialog({
+  employee,
+  l,
+  lang,
+  today,
+  canEditProfile,
+  showWorkStart,
+  kpiAvailable,
+  kpiAccounts,
+  name,
+  onNameChange,
+  jobFunction,
+  onJobFunctionChange,
+  workStart,
+  onWorkStartChange,
+  salaryForm,
+  onSalaryFormChange,
+  kpiForm,
+  onKpiFormChange,
+  error,
+  saving,
+  onSave,
+  onClose,
+}) {
+  const active = employee.is_active !== false
+  const close = () => { if (!saving) onClose() }
+  const setSalary = patch => onSalaryFormChange(current => ({ ...current, ...patch }))
+  const setKpi = patch => onKpiFormChange(current => ({ ...current, ...patch }))
+  const ownOrders = kpiForm?.sales_basis === 'employee_opened_orders'
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+      <button type="button" aria-label={l.cancel} onClick={close}
+        className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
+      <div role="dialog" aria-modal="true" aria-labelledby="employee-edit-title"
+        onKeyDown={event => { if (event.key === 'Escape') close() }}
+        className="ws-dialog relative flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden">
+        <div className="flex items-start justify-between gap-3 border-b border-[#e4e1de] px-6 pb-4 pt-6">
+          <div className="min-w-0">
+            <h2 id="employee-edit-title" className="ws-display truncate !text-[22px]">{employeeName(employee)}</h2>
+            <p className="ws-caption mt-0.5">{l.editName}</p>
+          </div>
+          <button type="button" onClick={close} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+          <section className="space-y-3">
+            <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#22201d]"><UserRound size={15} />{l.profileSection}</h3>
+            {!canEditProfile && <p className="ws-caption">{l.profileOwnerOnly}</p>}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <DialogField label={l.employeeName}>
+                <input type="text" value={name} maxLength={120} autoFocus={canEditProfile}
+                  onChange={event => onNameChange(event.target.value)}
+                  disabled={!canEditProfile || saving} className={DIALOG_FIELD} />
+              </DialogField>
+              <DialogField label={l.jobFunction}>
+                <select value={jobFunction} onChange={event => onJobFunctionChange(event.target.value)}
+                  disabled={!canEditProfile || saving} className={DIALOG_FIELD}>
+                  <option value="">{l.noJobFunction}</option>
+                  {EMPLOYEE_JOB_FUNCTIONS.map(job => (
+                    <option key={job.value} value={job.value}>{employeeJobFunctionLabel(job.value, lang)}</option>
+                  ))}
+                </select>
+              </DialogField>
+            </div>
+            {showWorkStart && active && (
+              <div className="flex items-end gap-2">
+                {workStart ? (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <TimePicker24 value={workStart} label={l.workStart}
+                        hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
+                        className={DIALOG_FIELD} disabled={!canEditProfile || saving}
+                        onChange={onWorkStartChange} />
+                    </div>
+                    <button type="button" onClick={() => onWorkStartChange('')} disabled={!canEditProfile || saving}
+                      title={l.clearWorkStart} aria-label={l.clearWorkStart} className="ws-btn ws-btn-ghost ws-btn-icon !h-11">
+                      <X size={15} />
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => onWorkStartChange('09:00')} disabled={!canEditProfile || saving} className="ws-btn ws-btn-outline ws-btn-sm">
+                    {l.workStart}: {l.setWorkStart}
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+
+          {!active ? (
+            <p className="ws-notice">{l.inactiveSettingsHint}</p>
+          ) : (
+            <>
+              <section className="space-y-3 border-t border-[#e4e1de] pt-5">
+                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#22201d]"><WalletCards size={15} />{l.salarySection}</h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <DialogField label={l.salaryAmount} className="sm:col-span-1">
+                    <div className="relative min-w-0">
+                      <input type="text" inputMode="numeric" value={formatMoneyInput(salaryForm.salary_amount)}
+                        onChange={event => setSalary({ salary_amount: normalizeMoneyInput(event.target.value) })}
+                        disabled={saving} className={`${DIALOG_FIELD} pr-12 tabular-nums`} />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-[#68655f]">UZS</span>
+                    </div>
+                  </DialogField>
+                  <DialogField label={l.salaryUnit}>
+                    <select value={salaryForm.salary_unit} onChange={event => setSalary({ salary_unit: event.target.value })}
+                      disabled={saving} className={DIALOG_FIELD}>
+                      {SALARY_RATE_UNITS.map(unit => (
+                        <option key={unit} value={unit}>{unit === 'monthly' ? l.unitMonthly : l.unitDaily}</option>
+                      ))}
+                    </select>
+                  </DialogField>
+                  <DialogField label={l.effectiveDate}>
+                    <DateInput value={salaryForm.effective_from} lang={lang} min={getExpenseEntryMinDate(today)}
+                      onChange={value => setSalary({ effective_from: value })} disabled={saving} />
+                  </DialogField>
+                </div>
+              </section>
+
+              {kpiAvailable && kpiForm && (
+                <section className="space-y-3 border-t border-[#e4e1de] pt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#22201d]"><Percent size={15} />{l.kpi}</h3>
+                    <button type="button" role="switch" aria-checked={kpiForm.is_enabled} disabled={saving}
+                      onClick={() => setKpi({ is_enabled: !kpiForm.is_enabled })}
+                      className={`inline-flex h-10 shrink-0 items-center gap-3 rounded-lg border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                        kpiForm.is_enabled ? 'ws-tone-positive' : 'border-[#e4e1de] bg-[#efece9] text-[#68655f]'
+                      }`}>
+                      <span>{kpiForm.is_enabled ? l.kpiOn : l.kpiOff}</span>
+                      <span className={`relative h-6 w-11 rounded-full transition-colors ${kpiForm.is_enabled ? 'bg-[#1d7a52]' : 'bg-[#dcd9d6]'}`} aria-hidden="true">
+                        <span className={`absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${kpiForm.is_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </span>
+                    </button>
+                  </div>
+                  {kpiForm.is_enabled && (
+                    <>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
+                        <DialogField label={l.kpiBasis}>
+                          <select value={kpiForm.sales_basis} onChange={event => setKpi({ sales_basis: event.target.value })}
+                            disabled={saving} className={DIALOG_FIELD}>
+                            <option value="employee_opened_orders">{l.kpiOwnOrders}</option>
+                            <option value="restaurant">{l.kpiAllDineIn}</option>
+                          </select>
+                        </DialogField>
+                        <DialogField label={l.kpiRate}>
+                          <div className="relative min-w-0">
+                            <input type="text" inputMode="decimal" value={kpiForm.rate_percentage}
+                              onChange={event => {
+                                const value = event.target.value.replace(',', '.').replace(/[^\d.]/g, '')
+                                if (/^\d{0,3}(?:\.\d{0,2})?$/.test(value)) setKpi({ rate_percentage: value })
+                              }}
+                              disabled={saving} className={`${DIALOG_FIELD} pr-9 tabular-nums`} />
+                            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-[#68655f]">%</span>
+                          </div>
+                        </DialogField>
+                      </div>
+                      {ownOrders && (
+                        <DialogField label={l.kpiAccount}>
+                          <select value={kpiForm.order_opener_profile_id} onChange={event => setKpi({ order_opener_profile_id: event.target.value })}
+                            disabled={saving} className={DIALOG_FIELD}>
+                            <option value="">{l.kpiSelectAccount}</option>
+                            {kpiForm.order_opener_profile_id && !kpiAccounts.some(account => account.id === kpiForm.order_opener_profile_id) && (
+                              <option value={kpiForm.order_opener_profile_id} disabled>{l.kpiAccountUnavailable}</option>
+                            )}
+                            {kpiAccounts.map(account => (
+                              <option key={account.id} value={account.id}>{account.full_name || account.email}</option>
+                            ))}
+                          </select>
+                        </DialogField>
+                      )}
+                    </>
+                  )}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {kpiForm.is_enabled && (
+                      <TimePicker24 value={kpiForm.start_time} label={l.kpiStartTime}
+                        hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
+                        className={DIALOG_FIELD} disabled={saving}
+                        onChange={value => setKpi({ start_time: value })} />
+                    )}
+                    <DialogField label={l.effectiveDate}>
+                      <DateInput value={kpiForm.effective_from} lang={lang} min={today}
+                        onChange={value => setKpi({ effective_from: value })} disabled={saving} />
+                    </DialogField>
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="border-t border-[#e4e1de] px-6 py-4">
+          {error && <p role="alert" className="ws-notice ws-tone-negative mb-3">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={close} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
+            <button type="button" onClick={onSave} disabled={saving} className="ws-btn ws-btn-primary">
+              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+              {l.saveName}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

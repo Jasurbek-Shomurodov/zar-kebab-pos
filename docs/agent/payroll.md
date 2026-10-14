@@ -18,6 +18,8 @@
 
 - `208`: rate insert/update/delete audits; history labels creator/deleter, insert audits before live names. `209`: owner-only rate deletion; refresh balances/history, keep audits. Test: `tests/salaryRateHistory.test.js`.
 
+- Card edit dialog: `tests/employeeEditDialog.test.js`.
+
 ## Ledger
 
 - Separate payments, bonuses, fines, absences, rates.

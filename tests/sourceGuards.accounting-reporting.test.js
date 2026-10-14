@@ -297,7 +297,8 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(salaries, /effectiveFrom: form\.joined_at/)
   assert.match(salaries, /effectiveDate: 'Effective date'/)
   assert.match(salaries, /label=\{l\.effectiveDate\}/)
-  assert.match(salaries, /daily_amount:/)
+  // The shared rate builder keeps the compatibility daily_amount in sync.
+  assert.match(readSource('src/lib/employeeSettings.js'), /daily_amount: convertSalaryAmountToDaily\(amount, salaryUnit\)/)
   assert.match(salaries, /l\.bonus/)
   assert.match(salaries, /const \[changeForm, setChangeForm\]/)
   assert.match(salaries, /SALARY_RATE_UNITS/)

@@ -56,6 +56,7 @@ import {
   notifyTelegramKpiRuleChange,
 } from '../lib/telegramNotifications'
 import { RollingValue } from '../components/RollingNumber'
+import { buildSalaryRatePayload } from '../lib/employeeSettings'
 
 const FIELD = 'ws-input !h-11 min-w-0 max-w-full font-medium disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 // Notes and reasons are free text, so they always get a multi-line field.
@@ -131,18 +132,6 @@ function formatAmountInput(value) {
 
 function parseAmountInput(value) {
   return String(value || '').replace(/\D+/g, '')
-}
-
-function buildSalaryRatePayload({ salaryProfileId, effectiveFrom, amount, salaryUnit, note = '', createdBy = null }) {
-  return {
-    salary_profile_id: salaryProfileId,
-    effective_from: effectiveFrom,
-    amount,
-    rate_unit: salaryUnit,
-    daily_amount: convertSalaryAmountToDaily(amount, salaryUnit),
-    note,
-    created_by: createdBy,
-  }
 }
 
 export default function Salaries() {
