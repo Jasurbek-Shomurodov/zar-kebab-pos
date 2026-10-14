@@ -82,9 +82,8 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(expenses, /const canDelete = canEditFeature\(profile \|\| \{ role \}, 'expenses'\)/)
   assert.match(expenses, /getAccountingPageSummaryFromOrderSummary\([\s\S]*paidOrderSummary,[\s\S]*filteredExpenses,[\s\S]*dateFrom,[\s\S]*dateTo/)
   assert.match(accountingLib, /summarizeExpenseCashflowFromIncome\([\s\S]*normalizedOrderSummary\.paymentMethodIncome/)
-  assert.match(expenses, /<MethodBalances rows=\{cashflow\.rows\} lang=\{lang\} labels=\{l\} \/>/)
-  // Payment-method balances are always visible; no collapse toggle.
-  assert.doesNotMatch(functionBody(expenses, 'MethodBalances'), /useState|aria-expanded|labels\.showLess/)
+  // The per-payment-method balance panel was removed from Accounting on purpose.
+  assert.doesNotMatch(expenses, /MethodBalances|methodBalances/)
   assert.doesNotMatch(expenses, /exportExpensesCsv|downloadCsv|<Download|l\.export/)
   assert.match(analysis, /label=\{l\.cafeIncome\} value=\{loading \? '—' : formatCurrency\(cafeIncome\)\}/)
   assert.match(accountingLib, /getCafeIncomeForRange\(orders, dateFrom, dateTo\)/)
@@ -103,7 +102,9 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(accountingLib, /otherIncomeTotal: Math\.max\(0, incomeSummary\.total - investorSupportTotal\)/)
   assert.match(expenses, /grid gap-3 sm:grid-cols-2 lg:grid-cols-4/)
   assert.doesNotMatch(expenses, /xl:grid-cols-7/)
-  assert.match(expenses, /const ACCOUNTING_SECTION_GRID = 'grid items-start gap-5 lg:grid-cols-2'/)
+  // Record spans the page; wide screens lay the form out in four columns instead of a half-width column.
+  assert.doesNotMatch(expenses, /ACCOUNTING_SECTION_GRID|lg:max-w-\[calc\(50%/)
+  assert.match(expenses, /<form onSubmit=\{saveExpense\} className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">/)
   assert.match(expenses, /const HISTORY_SECTION_GRID = 'grid items-stretch gap-5 lg:grid-cols-2'/)
   assert.match(expenses, /aria-labelledby="accounting-period-heading"/)
   assert.match(expenses, /aria-labelledby="accounting-overview-heading"/)
@@ -167,7 +168,7 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(salaries, /item\.is_active === false[\s\S]*formatCurrency\(getSalaryBalance/)
   assert.match(salaries, /monthlyPayroll:/)
   assert.match(salaries, /const monthlyPayrollTotal = useMemo\(\(\) => getTotalMonthlySalaryCommitment\(salaryProfiles, today\), \[salaryProfiles, today\]\)/)
-  assert.match(salaries, /value=\{loading \? '—' : formatCurrency\(monthlyPayrollTotal\)\}/)
+  assert.match(salaries, /value=\{loading \? <Shimmer [^>]*\/> : formatCurrency\(monthlyPayrollTotal\)\}/)
   assert.match(salaries, /l\.quickActions/)
   // Salary setup moved to Employees (Add employee button + edit dialog); only Telegram stays below operations.
   assert.doesNotMatch(salaries, /salary-settings-heading|salarySetupMode/)

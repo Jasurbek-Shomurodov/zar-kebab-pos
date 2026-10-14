@@ -4,7 +4,7 @@ import { BadgeMinus, CalendarX2, ChevronLeft, ChevronRight, Copy, Loader2, Plus,
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { accountingTitle, buildAccountingTabs } from '../lib/accountingTabs'
-import { OperationalLoading } from '../components/OperationalState'
+import { Shimmer } from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -1284,16 +1284,8 @@ export default function Salaries() {
   }
 
 
-  if (loading) {
-    return (
-      <AppShell title={accountingTitle(lang)} tabs={buildAccountingTabs(lang, 'salaries', navigate)}>
-        <div className="min-h-full bg-[#f6f5f3]">
-          <OperationalLoading title={l.loadingTitle} layout="salaries" />
-        </div>
-      </AppShell>
-    )
-  }
-
+  // Static sections (headings, operation forms, Telegram link picker) render at once;
+  // only values that depend on loaded data shimmer.
   return (
     <AppShell title={accountingTitle(lang)} tabs={buildAccountingTabs(lang, 'salaries', navigate)}>
       <div className="min-h-full overflow-x-hidden bg-[#f6f5f3]">
@@ -1303,13 +1295,13 @@ export default function Salaries() {
               icon={BadgeMinus}
               label={l.totalDue}
               description={l.totalDueHelp}
-              value={loading ? '—' : formatCurrency(totalDue)}
+              value={loading ? <Shimmer className="h-6 w-40 max-w-full rounded-md" /> : formatCurrency(totalDue)}
             />
             <MetricCard
               icon={WalletCards}
               label={l.monthlyPayroll}
               description={l.monthlyPayrollHelp}
-              value={loading ? '—' : formatCurrency(monthlyPayrollTotal)}
+              value={loading ? <Shimmer className="h-6 w-40 max-w-full rounded-md" /> : formatCurrency(monthlyPayrollTotal)}
             />
             <button
               type="button"
@@ -1318,7 +1310,7 @@ export default function Salaries() {
             >
               <span className="min-w-0">
                 <span className="ws-caption block">{l.employees}</span>
-                <span className="mt-1 block text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{loading ? '—' : activeSalaryProfiles.length}</span>
+                <span className="mt-1 block text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{loading ? <Shimmer className="h-6 w-10 rounded-md" /> : activeSalaryProfiles.length}</span>
                 <span className="mt-2 block text-sm font-medium text-[#ff5a00] group-hover:underline">{l.openEmployees}</span>
               </span>
               <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
@@ -1626,7 +1618,11 @@ export default function Salaries() {
                       <p className="text-sm font-semibold text-[#22201d]">{l.telegramDeliveryTitle}</p>
                       <p className="ws-caption mt-0.5">{l.telegramDeliveryHelp}</p>
                     </div>
-                    {paymentDeliveriesUnavailable || groupEventDeliveriesUnavailable ? (
+                    {loading ? (
+                      <div className="space-y-2" aria-busy="true" aria-label={l.loadingTitle}>
+                        {Array.from({ length: 3 }, (_, index) => <Shimmer key={index} className="h-12 w-full rounded-[10px]" />)}
+                      </div>
+                    ) : paymentDeliveriesUnavailable || groupEventDeliveriesUnavailable ? (
                       <p className="ws-notice ws-tone-caution">
                         {l.telegramDeliveryMigration}
                       </p>
@@ -1798,7 +1794,7 @@ function MetricCard({ icon: Icon, label, value, description }) {
     <div className="ws-panel flex h-full items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="ws-caption">{label}</p>
-        <p className="mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={value} /></p>
+        <div className="mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={value} /></div>
         {description && <p className="ws-caption mt-2">{description}</p>}
       </div>
       <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">

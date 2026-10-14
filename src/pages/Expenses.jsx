@@ -65,7 +65,6 @@ import { notifyTelegramInvestorExpense } from '../lib/telegramNotifications'
 const SELECT_COLUMNS = 'id, entry_type, expense_date, category, payment_method, amount, vendor, description, created_by, created_by_name, created_at, updated_at'
 const FIELD_INPUT_CLASS = 'ws-input disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 const DATE_INPUT_CLASS = FIELD_INPUT_CLASS
-const ACCOUNTING_SECTION_GRID = 'grid items-start gap-5 lg:grid-cols-2'
 const HISTORY_SECTION_GRID = 'grid items-stretch gap-5 lg:grid-cols-2'
 
 async function notifyInvestorIncome(expenseId) {
@@ -210,7 +209,6 @@ export default function Expenses() {
       title: 'Buxgalteriya',
       sub: 'Daromad, xarajat, investor yordami va maoshlarni kuzatish',
       income: 'Daromad',
-      loyaltyIncome: 'Loyallik daromadi',
       expenses: 'Xarajatlar',
       employeeMeals: 'Xodimlar ovqatining o‘rtacha qiymati',
       employeeMealsSub: 'Davomat bo‘yicha hisoblangan',
@@ -272,12 +270,7 @@ export default function Expenses() {
       weekdays: ['Du', 'Se', 'Cho', 'Pa', 'Ju', 'Sha', 'Ya'],
       from: 'Dan',
       to: 'Gacha',
-      methodBalances: 'To‘lov turi qoldig‘i',
-      methodBalancesHint: 'Kirim minus chiqim',
       incomeSources: 'Qo‘shimcha daromad manbalari',
-      incomeIn: 'Kirdi',
-      spentOut: 'Chiqdi',
-      remaining: 'Qoldi',
       investorHistory: 'Investor yordami',
       history: 'Xarajatlar tarixi',
       more: 'Batafsil',
@@ -309,7 +302,6 @@ export default function Expenses() {
       title: 'Бухгалтерия',
       sub: 'Учёт доходов, расходов, поддержки инвестора и зарплат',
       income: 'Доход',
-      loyaltyIncome: 'Доход по лояльности',
       expenses: 'Расходы',
       employeeMeals: 'Среднее питание сотрудников',
       employeeMealsSub: 'Рассчитано по посещаемости',
@@ -371,12 +363,7 @@ export default function Expenses() {
       weekdays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
       from: 'С',
       to: 'По',
-      methodBalances: 'Остаток по способам оплаты',
-      methodBalancesHint: 'Приход минус расход',
       incomeSources: 'Источники внешнего дохода',
-      incomeIn: 'Приход',
-      spentOut: 'Расход',
-      remaining: 'Остаток',
       investorHistory: 'Поддержка инвестора',
       history: 'История расходов',
       more: 'Подробнее',
@@ -408,7 +395,6 @@ export default function Expenses() {
       title: 'Accounting',
       sub: 'Track income, expenses, investor support, and salaries',
       income: 'Income',
-      loyaltyIncome: 'Loyalty income',
       expenses: 'Expenses',
       employeeMeals: 'Avg employees meal',
       employeeMealsSub: 'Calculated from attendance',
@@ -470,12 +456,7 @@ export default function Expenses() {
       weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       from: 'From',
       to: 'To',
-      methodBalances: 'Left by payment method',
-      methodBalancesHint: 'In minus out',
       incomeSources: 'Other income sources',
-      incomeIn: 'In',
-      spentOut: 'Out',
-      remaining: 'Left',
       investorHistory: 'Investor support',
       history: 'Expense history',
       more: 'More',
@@ -674,7 +655,6 @@ export default function Expenses() {
   const {
     cafeIncome,
     expenseSummary: summary,
-    cashflow,
     netIncome,
     employeeMealExpensesTotal,
     investorSupportTotal,
@@ -890,7 +870,7 @@ export default function Expenses() {
 
               <div aria-labelledby="accounting-salary-heading">
                 <OverviewGroupHeading id="accounting-salary-heading" title={l.overviewSalary} description={l.overviewSalaryHelp} tone="red" />
-                <div className="grid gap-3 sm:grid-cols-2 lg:max-w-[calc(50%-0.375rem)]">
+                <div className="grid gap-3 sm:grid-cols-2">
             <Kpi loading={loading}
               icon={Users}
               label={l.salaryDue}
@@ -925,9 +905,7 @@ export default function Expenses() {
 
           <section aria-labelledby="accounting-operations-heading">
             <SectionHeading id="accounting-operations-heading" title={l.operations} description={l.operationsHelp} />
-            <div className={ACCOUNTING_SECTION_GRID}>
-              <div className="space-y-5">
-                <section className="ws-panel">
+            <section className="ws-panel">
                   <CardHeading
                     title={form.entry_type === 'income' ? l.addIncome : l.add}
                     description={formGuidance}
@@ -935,7 +913,7 @@ export default function Expenses() {
                 {!canAdd ? (
                   <p className="ws-notice ws-tone-caution">{l.readOnly}</p>
                 ) : (
-                  <form onSubmit={saveExpense} className="grid gap-4 sm:grid-cols-2">
+                  <form onSubmit={saveExpense} className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <ChoiceGroup label={l.entryType} className="sm:col-span-2" columns="sm:grid-cols-2">
                       {EXPENSE_ENTRY_TYPES.map(entryType => {
                         const active = form.entry_type === entryType
@@ -1033,16 +1011,13 @@ export default function Expenses() {
                     </div>
                     <button
                       disabled={!canSubmitExpense}
-                      className={`ws-btn ws-btn-primary !h-11 w-full sm:col-span-2 ${form.entry_type === 'income' ? '!bg-[#1d7a52] hover:!bg-[#17633f]' : ''}`}
+                      className={`ws-btn ws-btn-primary !h-11 w-full sm:col-span-2 xl:col-span-4 xl:w-64 xl:justify-self-end ${form.entry_type === 'income' ? '!bg-[#1d7a52] hover:!bg-[#17633f]' : ''}`}
                     >
                       {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{saving ? l.saving : l.save}
                     </button>
                   </form>
                 )}
-                </section>
-              </div>
-              <MethodBalances rows={cashflow.rows} lang={lang} labels={l} />
-            </div>
+            </section>
           </section>
 
           <section aria-labelledby="accounting-activity-heading">
@@ -1227,55 +1202,6 @@ function ExpenseHistorySection({
           })}
         </div>
       )}
-    </section>
-  )
-}
-
-
-function MethodBalances({ rows, lang, labels }) {
-  return (
-    <section className="ws-panel">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="ws-heading">{labels.methodBalances}</h2>
-          <p className="ws-caption mt-0.5">{labels.methodBalancesHint}</p>
-        </div>
-      </div>
-
-      <div id="accounting-method-balances" className="mt-4 space-y-3">
-          {rows.map(row => {
-            const Icon = methodIcon(row.method)
-            const isLoyaltyIncome = row.method === 'loyalty_card'
-            return (
-              <div key={row.method} className="rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#68655f]">
-                      <Icon size={15} />
-                    </span>
-                    <span className="truncate text-sm font-semibold text-[#22201d]">{isLoyaltyIncome ? labels.loyaltyIncome : expensePaymentMethodLabel(row.method, lang)}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="ws-caption block">{isLoyaltyIncome ? labels.loyaltyIncome : labels.remaining}</span>
-                    <span className={`mt-0.5 block text-base font-semibold leading-tight tabular-nums ${isLoyaltyIncome || row.left >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>
-                      {formatCurrency(isLoyaltyIncome ? row.income : row.left)}
-                    </span>
-                  </div>
-                </div>
-                {!isLoyaltyIncome && <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div className="min-w-0 rounded-lg bg-white px-2.5 py-2">
-                    <span className="ws-caption block">{labels.incomeIn}</span>
-                    <span className="mt-0.5 block break-words text-[13px] font-semibold leading-tight tabular-nums text-[#1d7a52]">{formatCurrency(row.income)}</span>
-                  </div>
-                  <div className="min-w-0 rounded-lg bg-white px-2.5 py-2">
-                    <span className="ws-caption block">{labels.spentOut}</span>
-                    <span className="mt-0.5 block break-words text-[13px] font-semibold leading-tight tabular-nums text-[#22201d]">{formatCurrency(row.expenses)}</span>
-                  </div>
-                </div>}
-              </div>
-            )
-          })}
-        </div>
     </section>
   )
 }

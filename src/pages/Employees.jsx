@@ -501,7 +501,9 @@ export default function Employees() {
   const [telegramInvite, setTelegramInvite] = useState(null)
   const [newEmployeeOpen, setNewEmployeeOpen] = useState(false)
   const [checkins, setCheckins] = useState(() => new Map())
-  const [attendanceAvailable, setAttendanceAvailable] = useState(false)
+  // Assume check-ins exist until the query says otherwise, so the KPI row and header
+  // keep their final shape instead of growing a tile once the first poll returns.
+  const [attendanceAvailable, setAttendanceAvailable] = useState(true)
   const [screenOpen, setScreenOpen] = useState(false)
   const [screenState, setScreenState] = useState({ loading: false, active: null, error: '' })
   const [screenLink, setScreenLink] = useState('')
@@ -1074,7 +1076,7 @@ export default function Employees() {
           {error && <div className="ws-notice ws-tone-negative">{error}</div>}
 
           {loading ? (
-            <PageShimmer layout="table" className="!p-0" />
+            <PageShimmer layout="employeeCards" />
           ) : employees.length === 0 ? (
             <div className="ws-panel ws-empty"><Users /><p>{l.empty}</p></div>
           ) : (
@@ -1202,7 +1204,8 @@ export default function Employees() {
                       )}
                       {telegramLinks && (
                         <Fact label={l.telegram} value={
-                          <span className={`ws-badge ${!telegramLinks.has(employee.id) ? 'ws-tone-caution' : telegramLinks.get(employee.id).notifications_enabled === false ? '' : 'ws-tone-positive'}`}>
+                          <span className={`ws-badge inline-flex items-center gap-1 ${!telegramLinks.has(employee.id) ? 'ws-tone-caution' : telegramLinks.get(employee.id).notifications_enabled === false ? '' : 'ws-tone-positive'}`}>
+                            <Send size={11} aria-hidden="true" />
                             {!telegramLinks.has(employee.id)
                               ? l.telegramNotLinked
                               : telegramLinks.get(employee.id).notifications_enabled === false ? l.telegramMuted : l.telegramLinked}

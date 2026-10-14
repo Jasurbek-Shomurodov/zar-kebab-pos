@@ -30,17 +30,20 @@ test('page and tab data loads render page-shaped shimmers, not spinners', () => 
   assert.match(source('src/pages/CashierTables.jsx'), /<OperationalLoading layout="cards"/)
   // Monthly estimate loads in its own full-width layout so the page does not jump when data arrives.
   assert.match(source('src/pages/MonthlyEstimate.jsx'), /<OperationalLoading layout="estimate"/)
-  assert.match(source('src/pages/Salaries.jsx'), /<OperationalLoading title=\{l\.loadingTitle\} layout="salaries" \/>/)
-  assert.match(source('src/components/PageShimmer.jsx'), /PAGE_CONTAINER_LAYOUTS = new Set\(\['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage'\]\)/)
+  // Salaries renders its static operations form immediately; only metric values and the delivery list shimmer.
+  assert.doesNotMatch(source('src/pages/Salaries.jsx'), /<OperationalLoading/)
+  assert.match(source('src/pages/Salaries.jsx'), /\{loading \? \(\s*<div className="space-y-2" aria-busy="true"/)
+  assert.match(source('src/components/PageShimmer.jsx'), /PAGE_CONTAINER_LAYOUTS = new Set\(\['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage', 'employees'\]\)/)
   // Tech Cards and Ingredients shimmer in their own card layouts, not a generic table.
   assert.match(source('src/components/PageShimmer.jsx'), /startsWith\('\/admin\/tech-cards\/'\)\) return 'techCardEditor'\s+if \(pathname\.startsWith\('\/admin\/tech-cards'\)\) return 'techCards'\s+if \(pathname\.startsWith\('\/admin\/ingredients\/usage'\)\) return 'ingredientUsage'\s+if \(pathname\.startsWith\('\/admin\/ingredients'\)\) return 'ingredients'/)
   assert.match(source('src/pages/TechCards.jsx'), /<OperationalLoading title=\{l\.title\} layout=\{menuItemId \? 'techCardEditor' : 'techCards'\} \/>/)
   assert.match(source('src/pages/BazaarIngredients.jsx'), /\{loading \? <OperationalLoading title=\{l\.title\} layout="ingredientCards" \/>/)
   assert.match(source('src/components/IngredientMovement.jsx'), /loading \? <OperationalLoading title=\{l\.loading\} layout="ingredientMovementCards" \/>/)
   assert.match(source('src/components/PageShimmer.jsx'), /startsWith\('\/admin\/financial-analysis\/estimate'\)\) return 'estimate'/)
-  for (const page of ['AdminUsers', 'Employees']) {
-    assert.match(source(`src/pages/${page}.jsx`), /<PageShimmer layout="table"/, page)
-  }
+  assert.match(source('src/pages/AdminUsers.jsx'), /<PageShimmer layout="table"/)
+  // Employees shimmer as employee cards (and KPI tiles before the page code loads), not a table.
+  assert.match(source('src/pages/Employees.jsx'), /<PageShimmer layout="employeeCards" \/>/)
+  assert.match(source('src/components/PageShimmer.jsx'), /pathname === '\/admin\/accounting\/employees'\) return 'employees'/)
 })
 
 test('native dropdowns get a padded chevron that beats Tailwind padding utilities', () => {

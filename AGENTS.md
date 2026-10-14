@@ -63,7 +63,7 @@ Before editing a feature, read its guide completely; read more only when the tas
 - Use shared domain helpers; never duplicate payment, salary, date or reporting math in pages.
 - Prefer focused selector hooks (`src/store/appHooks.js`); keep `AppContext.jsx` stable orchestration.
 - No blocking `alert()`/`window.confirm()` in operational flows; show visible, retryable UI state.
-- Loading content shows content-shaped shimmers (`PageShimmer`/`Shimmer`, `src/components/PageShimmer.jsx`), never spinners or loading text; spinners only mark a pressed button's pending action.
+- Loading data shows content-shaped shimmers (`PageShimmer.jsx`), never spinners/text (spinners only in a pressed button). Static UI (headings, forms) renders at once; only data-driven parts shimmer.
 - Treat timeouts on idempotent writes as unknown outcomes; reconcile the durable record before retrying with the same identity.
 - Never weaken a regression/source-guard test just to pass; understand what it protects.
 - Preserve unrelated changes in a dirty worktree.

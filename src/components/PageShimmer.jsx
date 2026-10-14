@@ -418,6 +418,59 @@ function TechCardEditor() {
 
 // Loading skeleton in the page's own shape: three metric tiles, the operations
 // form (heading, four-way switch, field row, note + button) and the Telegram card.
+// Employees: one card per person — avatar and role, balance/daily strip, facts, actions.
+function EmployeeCards({ cards = 6 }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: cards }, (_, index) => (
+        <div key={index} className="ws-panel flex flex-col">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <Shimmer className="h-10 w-10 flex-shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Shimmer className={`h-3.5 ${index % 3 === 0 ? 'w-2/5' : index % 3 === 1 ? 'w-1/2' : 'w-1/3'}`} />
+                <Shimmer className="h-2.5 w-1/4" />
+              </div>
+            </div>
+            <Shimmer className="h-6 w-28 rounded-full" />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-[#f8f6f3] px-3.5 py-2.5">
+            <div className="space-y-2"><Shimmer className="h-2.5 w-14" /><Shimmer className="h-5 w-28" /></div>
+            <div className="space-y-2"><Shimmer className="h-2.5 w-12" /><Shimmer className="h-4 w-24" /></div>
+          </div>
+          <div className="mb-3 mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+            {Array.from({ length: 3 }, (_, fact) => (
+              <div key={fact} className="space-y-2"><Shimmer className="h-2.5 w-14" /><Shimmer className="h-3.5 w-24" /></div>
+            ))}
+            <div className="col-span-2 space-y-2"><Shimmer className="h-2.5 w-10" /><Shimmer className="h-5 w-3/4 rounded-full" /></div>
+          </div>
+          <div className="mt-auto flex items-center justify-between gap-2 border-t border-[#e4e1de]/60 pt-3">
+            <Shimmer className="h-8 w-24 rounded-[10px]" />
+            <Shimmer className="h-8 w-24 rounded-[10px]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Employees page before its code loads: KPI tiles above the employee cards.
+function EmployeesPage() {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div key={index} className={`ws-panel space-y-3 ${index === 4 ? 'col-span-2 lg:col-span-1' : ''}`}>
+            <Shimmer className="h-3 w-1/2" />
+            <Shimmer className="h-6 w-28 max-w-full rounded-md" />
+          </div>
+        ))}
+      </div>
+      <EmployeeCards />
+    </>
+  )
+}
+
 function SalariesPage() {
   const panel = 'rounded-xl border border-[#e4e1de] bg-white p-5'
   return (
@@ -474,9 +527,9 @@ function SalariesPage() {
 
 // Layouts that render inside the page's own `.ws-page` container, so the
 // skeleton has exactly the loaded page's width, padding and gaps.
-const PAGE_CONTAINER_LAYOUTS = new Set(['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage'])
+const PAGE_CONTAINER_LAYOUTS = new Set(['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage', 'employees'])
 // Result-area layouts placed inside a page panel below its live toolbar: no extra container.
-const INLINE_LAYOUTS = new Set(['ingredientCards', 'ingredientMovementCards'])
+const INLINE_LAYOUTS = new Set(['ingredientCards', 'ingredientMovementCards', 'employeeCards'])
 
 const LAYOUTS = {
   table: () => <><Toolbar /><TableRows /></>,
@@ -511,6 +564,8 @@ const LAYOUTS = {
   ingredientUsage: () => <IngredientUsagePage />,
   ingredientCards: () => <IngredientCards />,
   ingredientMovementCards: () => <IngredientMovementCards />,
+  employees: () => <EmployeesPage />,
+  employeeCards: () => <EmployeeCards />,
 }
 
 /** In-page loading placeholder; `label` is announced to screen readers only. */
@@ -528,6 +583,7 @@ export default function PageShimmer({ layout = 'table', label = '', className = 
 export function layoutForPath(pathname = '') {
   if (pathname === '/admin' || pathname.startsWith('/admin/reports') || pathname === '/admin/accounting' || pathname === '/admin/financial-analysis') return 'dashboard'
   if (pathname.startsWith('/admin/accounting/salaries')) return 'salaries'
+  if (pathname === '/admin/accounting/employees') return 'employees'
   if (pathname.startsWith('/admin/tech-cards/')) return 'techCardEditor'
   if (pathname.startsWith('/admin/tech-cards')) return 'techCards'
   if (pathname.startsWith('/admin/ingredients/usage')) return 'ingredientUsage'

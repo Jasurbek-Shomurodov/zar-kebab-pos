@@ -801,7 +801,9 @@ test('salary loading is visible while Telegram delivery refresh stays non-blocki
   const salariesPage = fs.readFileSync(new URL('../src/pages/Salaries.jsx', import.meta.url), 'utf8')
 
   assert.match(salariesPage, /loadData\(\{ showLoader: true \}\)/)
-  assert.match(salariesPage, /if \(loading\) \{[\s\S]*?<OperationalLoading/)
+  // Only data-driven values shimmer; the static operations form is never hidden behind a loader.
+  assert.match(salariesPage, /value=\{loading \? <Shimmer [^>]*\/> : formatCurrency\(totalDue\)\}/)
+  assert.doesNotMatch(salariesPage, /if \(loading\) \{\s*return/)
   assert.match(salariesPage, /async function loadData\(\{ showLoader = false, refreshTelegram = true \} = \{\}\)/)
   assert.match(salariesPage, /await loadData\(\{ refreshTelegram: false \}\)/)
   assert.match(salariesPage, /\.finally\(\(\) => \{[\s\S]*?void loadTelegramDeliveryData\(\)/)
