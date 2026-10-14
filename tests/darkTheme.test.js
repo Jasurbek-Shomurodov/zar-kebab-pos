@@ -32,6 +32,26 @@ test('dark palette keeps forced overrides and status tints visible', () => {
   assert.doesNotMatch(css, /\\!border-white\\\/25/)
 })
 
+test('pale status tints keep their hue and status inks stay readable on dark', () => {
+  const css = buildDarkThemeCss()
+  const rule = (cls, prop) => {
+    const selector = `html[data-theme="dark"] .${cls.replace(/[^a-zA-Z0-9_-]/g, '\\$&')} { ${prop}: `
+    const at = css.indexOf(selector)
+    return at === -1 ? undefined : css.slice(at + selector.length, at + selector.length + 7)
+  }
+  // Status surfaces must not collapse into the neutral muted card.
+  for (const cls of ['bg-green-50', 'bg-amber-50', 'bg-blue-50', 'bg-violet-100']) {
+    assert.notEqual(rule(cls, 'background-color'), '#151b17', cls)
+  }
+  // Greys written as hex and warm cream paper still remap to neutral greys.
+  assert.equal(rule('border-[#D1D5DB]', 'border-color'), '#3d4a41')
+  assert.equal(rule('bg-[#FAF6EE]', 'background-color'), '#151b17')
+  // Tailwind status inks switch to their light 300 shade; brand orange stays.
+  assert.equal(rule('text-blue-700', 'color'), '#93c5fd')
+  assert.equal(rule('text-red-700', 'color'), '#fca5a5')
+  assert.equal(rule('text-[#ff5a00]', 'color'), undefined)
+})
+
 test('every staff top bar carries the light/dark toggle at the top right', () => {
   assert.match(source('src/components/AppShell.jsx'), /\{headerActions\}\s*<ThemeToggle lang=\{state\.lang\} \/>/)
   assert.match(source('src/components/WorkspaceTopBar.jsx'), /\{children\}\s*<ThemeToggle lang=\{lang\} \/>/)

@@ -62,6 +62,7 @@ const VARIANTS = {
   active: ':active',
   disabled: ':disabled',
   enabled: ':enabled',
+  'read-only': ':read-only',
   'group-hover': null, // needs the .group ancestor; handled below
 }
 
@@ -106,11 +107,55 @@ function resolveColor(token) {
 const clamp = n => Math.max(0, Math.min(255, Math.round(n)))
 const hex = rgb => `#${rgb.map(c => clamp(c).toString(16).padStart(2, '0')).join('')}`
 
-/** A pale tint keeps its hue but sits on a dark base. */
+/** A pale tint keeps its hue but sits on a dark base, never fading to grey. */
 function darkTint(rgb, base, strength = 2.2) {
   const mean = (rgb[0] + rgb[1] + rgb[2]) / 3
+  const spread = Math.max(...rgb.map(c => Math.abs(c - mean)), 1)
+  const scale = Math.max(strength, MIN_TINT / spread)
   const b = hexToRgb(base)
-  return hex(rgb.map((c, i) => b[i] + (c - mean) * strength))
+  return hex(rgb.map((c, i) => b[i] + (c - mean) * scale))
+}
+
+// Smallest channel shift a remapped tint keeps, so a green or amber status
+// surface stays distinguishable from a plain dark card.
+const MIN_TINT = 22
+// Luminance a text colour needs for 4.5:1 contrast on the dark card.
+const MIN_INK_LUMINANCE = 0.23
+const NEUTRAL_FAMILIES = new Set(['slate', 'gray', 'zinc', 'neutral', 'stone'])
+
+function hue(rgb) {
+  const [r, g, b] = rgb
+  const max = Math.max(r, g, b)
+  const d = max - Math.min(r, g, b)
+  if (!d) return 0
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return (h * 60 + 360) % 360
+}
+
+/**
+ * Greys, Tailwind grey families and the warm cream "paper" backgrounds remap
+ * to the neutral dark palette. Pale status tints (green-50, #fdf3f3, ...) sit
+ * almost as close to grey but carry meaning, so they keep their hue.
+ */
+function isNeutral(rgb, token, kind) {
+  const range = Math.max(...rgb) - Math.min(...rgb)
+  if (range <= 6) return true
+  if (range > 24) return false
+  const family = /^[a-z]+-\d/.test(token) ? token.split('-')[0] : null
+  if (family) return NEUTRAL_FAMILIES.has(family)
+  const h = hue(rgb)
+  // Cool greys written as hex (#D1D5DB, #EEF2F6) and warm cream paper.
+  if (h >= 200 && h <= 230 && (range <= 12 || kind === 'border' || rgb.reduce((a, c) => a + c) / 765 < 0.85)) return true
+  return h >= 30 && h <= 55 && (range < 16 || (range <= 22 && h <= 45))
+}
+
+/** WCAG relative luminance, 0 (black) to 1 (white). */
+function luminance(rgb) {
+  const [r, g, b] = rgb.map(c => {
+    const v = c / 255
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
 function mix(rgb, target, weight) {
@@ -119,9 +164,9 @@ function mix(rgb, target, weight) {
 }
 
 /** The dark replacement for a colour, or null when it already reads on dark. */
-function remap(kind, rgb, interactive = false) {
+function remap(kind, rgb, interactive = false, token = '') {
   const avg = (rgb[0] + rgb[1] + rgb[2]) / 765
-  const neutral = Math.max(...rgb) - Math.min(...rgb) <= 24
+  const neutral = kind === 'text' ? Math.max(...rgb) - Math.min(...rgb) <= 24 : isNeutral(rgb, token, kind)
   if (kind === 'bg') {
     if (SEMANTIC_BG[hex(rgb)]) return SEMANTIC_BG[hex(rgb)]
     if (neutral) {
@@ -146,7 +191,11 @@ function remap(kind, rgb, interactive = false) {
       if (avg < 0.9) return DARK.textFaint
       return null
     }
-    return avg < 0.3 ? mix(rgb, DARK.text, 0.35) : null
+    // Status inks under 4.5:1 on a dark card: Tailwind families switch to
+    // their light 300 shade, other hues blend toward the light text colour.
+    if (avg >= 0.3 && luminance(rgb) >= MIN_INK_LUMINANCE) return null
+    const family = /^[a-z]+-\d/.test(token) ? twColors[token.split('-')[0]]?.[300] : null
+    return family || mix(rgb, DARK.text, 0.35)
   }
   if (SEMANTIC_BORDER[hex(rgb)]) return SEMANTIC_BORDER[hex(rgb)]
   if (neutral) {
@@ -185,7 +234,7 @@ export function buildDarkThemeCss() {
     // A forced translucent white/black is a photo overlay, not a light surface.
     if (important && alphaToken && (colorToken === 'white' || colorToken === 'black')) continue
 
-    const mapped = remap(prop.kind, rgb, variants.some(v => v === 'hover' || v === 'active' || v === 'group-hover'))
+    const mapped = remap(prop.kind, rgb, variants.some(v => v === 'hover' || v === 'active' || v === 'group-hover'), colorToken)
     // Variant colours are re-emitted even when unchanged so they still beat a
     // remapped base colour on the same element (e.g. bg-white + hover:bg-orange).
     if (!mapped && variants.length === 0) continue
