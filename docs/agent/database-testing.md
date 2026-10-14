@@ -44,7 +44,7 @@
 - Report reads retry network/502/503/504: 3×15s, 500/1000ms backoff; table GET/HEAD and pending-date RPCs only. No write retries. Tests: `tests/reportReadFetch.test.js`.
 - Atomic RPCs for multi-table writes: kitchen submit, menu item + protected cost, Tech Cards, Daily Bazaar, payment corrections.
 - Enforce UI permissions with RLS/RPCs.
-- Stale errors: `PT409`, never `40001` (PostgREST loops): `246`. A migration that rewrites live function bodies in place must add a matching entry to `inPlaceFunctionRewrites` in `scripts/migrationTools.js`, or `db:health` reports false definition mismatches.
+- Stale errors: `PT409`, never `40001` (PostgREST loops): `246`.
 - Preserve order/cost/category/payroll/notification/audit snapshots.
 - Uncertain writes reuse request/round IDs; reconcile receipts before retrying.
 - Archive referenced catalog records; never hard-delete them.
