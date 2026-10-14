@@ -9,6 +9,12 @@ import {
 import { loadSalaryProfiles } from './_lib/salaryProfileData.js'
 import { callTelegramApi, escapeTelegramHtml, sendTelegramMessage } from './_lib/telegram.js'
 import { getEmployeePaymentConfirmationCopy } from './_lib/paymentMessages.js'
+import {
+  buildAttendanceCheckinMessage,
+  buildAttendanceCheckinRow,
+  buildAttendanceNotLinkedMessage,
+  isAttendanceCheckinCommand,
+} from '../../src/lib/attendance.js'
 
 const LANGUAGES = {
   uz: { label: "O'zbekcha", saved: "Til tanlandi. Menyuni ochishingiz mumkin.", openMenu: "Menyuni ochish" },
@@ -89,6 +95,60 @@ async function linkEmployee(supabase, message, token) {
   } catch (error) {
     console.error('[telegram/webhook] linked status send failed:', error)
   }
+}
+
+// Restaurant QR check-in: identity comes from the employee's linked Telegram
+// account; the first scan per Tashkent date wins and later scans only echo it.
+async function checkInEmployee(supabase, message) {
+  const { data: link, error: linkError } = await supabase
+    .from('employee_salary_telegram_links')
+    .select('salary_profile_id, preferred_language')
+    .eq('telegram_user_id', String(message.from.id))
+    .not('linked_at', 'is', null)
+    .maybeSingle()
+  if (linkError) throw linkError
+  if (!link) {
+    await sendTelegramMessage(message.chat.id, buildAttendanceNotLinkedMessage())
+    return
+  }
+
+  const { data: salaryProfile, error: profileError } = await supabase
+    .from('employee_salary_profiles')
+    .select('id, employee_name, work_start_time, is_active, deleted_at')
+    .eq('id', link.salary_profile_id)
+    .maybeSingle()
+  if (profileError) throw profileError
+  if (!salaryProfile || salaryProfile.is_active === false || salaryProfile.deleted_at) {
+    await sendTelegramMessage(message.chat.id, buildAttendanceNotLinkedMessage())
+    return
+  }
+
+  const row = buildAttendanceCheckinRow(salaryProfile, message.from.id)
+  const { data: inserted, error: insertError } = await supabase
+    .from('employee_attendance_checkins')
+    .upsert(row, { onConflict: 'salary_profile_id,business_date', ignoreDuplicates: true })
+    .select('*')
+  if (insertError) throw insertError
+
+  let checkin = inserted?.[0]
+  const alreadyCheckedIn = !checkin
+  if (alreadyCheckedIn) {
+    const { data: existing, error: existingError } = await supabase
+      .from('employee_attendance_checkins')
+      .select('*')
+      .eq('salary_profile_id', salaryProfile.id)
+      .eq('business_date', row.business_date)
+      .single()
+    if (existingError) throw existingError
+    checkin = existing
+  }
+
+  await sendTelegramMessage(message.chat.id, buildAttendanceCheckinMessage({
+    name: escapeTelegramHtml(salaryProfile.employee_name || ''),
+    checkin,
+    alreadyCheckedIn,
+    lang: link.preferred_language,
+  }))
 }
 
 function languageKeyboard() {
@@ -253,6 +313,8 @@ export default async function handler(req, res) {
     const isLanguageCommand = /^\/(?:start|language)(?:@\w+)?(?:\s|$)/i.test(message?.text || '')
     if (message?.chat?.id && /^\/chatid(?:@\w+)?(?:\s|$)/i.test(message?.text || '')) {
       await sendChatIdMessage(message)
+    } else if (message?.chat?.id && message?.from?.id && isPrivateChat && isAttendanceCheckinCommand(message?.text)) {
+      await checkInEmployee(supabase, message)
     } else if (message?.chat?.id && message?.from?.id && token && isPrivateChat) {
       await linkEmployee(supabase, message, token)
     } else if (message?.chat?.id && token) {

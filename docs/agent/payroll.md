@@ -14,6 +14,8 @@
 
 - Dates: Tashkent.
 
+- `243` attendance: restaurant QR (`?start=checkin`); webhook keeps first scan per Tashkent date by linked Telegram, snapshots `work_start_time`, replies early/on time/late; no payroll writes. Test: `tests/employeeAttendance.test.js`.
+
 - `208`: rate insert/update/delete audit snapshots. History labels creator/deleter; insert audits precede live names. `209`: owner-only rate deletion; refresh balances/history, keep audits. Test: `tests/salaryRateHistory.test.js`.
 
 ## Ledger
@@ -46,7 +48,7 @@
 - Bonuses accrue into salary. Formula/settlement are immutable; payments record cash expense.
 - Deleting a generated bonus marks its result voided; retries never recreate it.
 - Only owners remove KPI rules. Preserve rules/data before the effective date; insert a disabled successor. Delete only unused rules effective at that boundary. Never offer disabled successors for removal: that would reactivate the older rule.
-- Cards show today’s rule. KPI dropdown lists active POS profiles, saves the opener, and shows retryable load errors.
+- Cards show today’s rule. KPI dropdown: active POS profiles, saves the opener, retryable load errors.
 - KPI rate/status/basis/account/time changes snapshot before/after values and queue Salary delivery; no-op saves stay silent. No historical backfill.
 - Salary History separates monthly manual Bonuses from KPI bonuses. Salary + bonuses includes salary and both bonus types once each.
 - Effective dates cannot enter finalized periods. Recovery scans missing older dates in bounded batches.
@@ -54,8 +56,8 @@
 ## Notifications
 
 - Private/Salary rate messages show effective KPI percentage/status.
-- KPI rule additions and changes notify only the dedicated Salary group, with employee, previous/new KPI, effective date, and actor. Employee and Team destinations stay terminally skipped.
-- Private PNG calendars show pre-payment MTD salary, KPI, bonuses, fines and absences. Dated `getSalaryBalance()` shows remaining pay and all-time payments; negative = advance. Private/Salary-group KPI events are skipped; Team gets one daily image (`181`).
+- KPI rule additions/changes notify only the Salary group (employee, previous/new KPI, effective date, actor); Employee/Team stay terminally skipped.
+- Private PNG calendars: telegram.md Payroll privacy. Private/Salary-group KPI events are skipped; Team gets one daily image (`181`).
 - Cron repairs missing KPI delivery rows before Team delivery; `172` restores the queue trigger.
 - A failed KPI finalization defers the daily salary summary.
 - Delivery: `docs/agent/telegram.md`.
@@ -63,11 +65,10 @@
 ## Meals
 
 - `average_daily_employee_meal_uzs` is per present employee per day, not one restaurant total.
-- `employee_daily_meal_expenses` freezes completed-day rate, present count, and total. Reporting uses the snapshot, never today's setting.
-- Absences and employment boundaries determine attendance; exclude future dates.
+- `employee_daily_meal_expenses` freezes completed-day rate, present count, and total; reports use it, never today's setting. Backfill is one-time, never recalculated.
+- Absences and employment boundaries set meal attendance; skip future dates.
 - Cron repairs meal dates independently in bounded batches.
-- Meal rows reduce report remainder without a payment method or cash ledger mutation.
-- Historical backfill is a one-time snapshot, never recalculated.
+- Meal rows reduce report remainder; no payment method or cash ledger mutation.
 
 - `210`: see [salary orders](salary-orders.md).
 

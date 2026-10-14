@@ -1,9 +1,10 @@
 import CalendarPicker from '../components/CalendarPicker'
 import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
 import React, { useEffect, useMemo, useState } from 'react'
-import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, History, Loader2, Pencil, Power, UserRound, Users, WalletCards, X } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, CalendarX2, Check, ChevronDown, ChevronUp, Download, History, Loader2, Pencil, Power, Printer, QrCode, ScanLine, UserRound, Users, WalletCards, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
+import TimePicker24 from '../components/TimePicker24'
 import PageShimmer from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
 import { supabase } from '../lib/supabase'
@@ -27,6 +28,7 @@ import {
   todayExpenseDate,
 } from '../lib/expenses'
 import { RollingValue } from '../components/RollingNumber'
+import { buildAttendanceCheckinUrl, formatArrivalSummary, normalizeWorkStartTime } from '../lib/attendance'
 
 function isMissingSalaryMigration(error) {
   const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
@@ -130,6 +132,23 @@ export default function Employees() {
       confirm: 'Tasdiqlash',
       empty: 'Xodimlar hali qo‘shilmagan',
       migration: 'Maosh jadvallari yangilanmagan. Supabase SQL editorida employee_salary migratsiyalarini ishga tushiring.',
+      checkinQr: 'Kelish QR kodi',
+      checkinQrHelp: 'Bu QR kodni chop etib, kirish joyiga osib qo‘ying. Xodim ishga kelganda telefoni bilan skanerlaydi va Telegram botda «Start» tugmasini bosadi. Telegrami maosh profiliga ulangan bo‘lishi kerak.',
+      checkinPrint: 'Chop etish',
+      checkinDownload: 'PNG yuklab olish',
+      checkinPrintTitle: 'Ishga keldingizmi? Skanerlang',
+      checkinPrintSub: 'Telefon kamerasi bilan skanerlang va botda «Start» ni bosing',
+      checkinBotMissing: 'VITE_TELEGRAM_BOT_USERNAME sozlanmagan.',
+      checkedInToday: 'Bugun kelganlar',
+      notCheckedIn: 'Kelmagan',
+      present: 'Keldi',
+      workStart: 'Ish boshlanishi',
+      workStartNotSet: 'Belgilanmagan',
+      setWorkStart: 'Vaqtni belgilash',
+      clearWorkStart: 'Vaqtni olib tashlash',
+      hour: 'Soat',
+      minute: 'Daqiqa',
+      done: 'Tayyor',
       lifecycleNotificationFailed: 'Xodim holati saqlandi, lekin ZarKebab Investor guruhiga xabar yuborilmadi.',
     },
     ru: {
@@ -191,6 +210,23 @@ export default function Employees() {
       confirm: 'Подтвердить',
       empty: 'Сотрудники еще не добавлены',
       migration: 'Таблицы зарплат не обновлены. Запустите миграции employee_salary в Supabase SQL Editor.',
+      checkinQr: 'QR для отметки',
+      checkinQrHelp: 'Распечатайте этот QR и повесьте у входа. Придя на работу, сотрудник сканирует его телефоном и нажимает «Start» в Telegram-боте. Его Telegram должен быть привязан к профилю зарплаты.',
+      checkinPrint: 'Печать',
+      checkinDownload: 'Скачать PNG',
+      checkinPrintTitle: 'Пришли на работу? Отсканируйте',
+      checkinPrintSub: 'Наведите камеру телефона и нажмите «Start» в боте',
+      checkinBotMissing: 'VITE_TELEGRAM_BOT_USERNAME не настроен.',
+      checkedInToday: 'Отметились сегодня',
+      notCheckedIn: 'Не отметился',
+      present: 'Пришёл',
+      workStart: 'Начало смены',
+      workStartNotSet: 'Не задано',
+      setWorkStart: 'Задать время',
+      clearWorkStart: 'Убрать время',
+      hour: 'Час',
+      minute: 'Минута',
+      done: 'Готово',
       lifecycleNotificationFailed: 'Статус сотрудника сохранён, но сообщение в группу ZarKebab Investor не отправлено.',
     },
     en: {
@@ -252,6 +288,23 @@ export default function Employees() {
       confirm: 'Confirm',
       empty: 'No employees added yet',
       migration: 'Salary tables are not up to date. Run the employee_salary migrations in Supabase SQL Editor.',
+      checkinQr: 'Check-in QR',
+      checkinQrHelp: 'Print this QR and post it at the entrance. When employees arrive they scan it with their phone and tap “Start” in the Telegram bot. Their Telegram must be linked to their salary profile.',
+      checkinPrint: 'Print',
+      checkinDownload: 'Download PNG',
+      checkinPrintTitle: 'Arrived at work? Scan to check in',
+      checkinPrintSub: 'Point your phone camera here, then tap “Start” in the bot',
+      checkinBotMissing: 'VITE_TELEGRAM_BOT_USERNAME is not configured.',
+      checkedInToday: 'Checked in today',
+      notCheckedIn: 'Not checked in',
+      present: 'Arrived',
+      workStart: 'Work starts',
+      workStartNotSet: 'Not set',
+      setWorkStart: 'Set time',
+      clearWorkStart: 'Clear time',
+      hour: 'Hour',
+      minute: 'Minute',
+      done: 'Done',
       lifecycleNotificationFailed: 'The employee status was saved, but the ZarKebab Investor group notification was not sent.',
     },
   }
@@ -270,6 +323,11 @@ export default function Employees() {
   const [editingNameId, setEditingNameId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingJobFunction, setEditingJobFunction] = useState('')
+  const [editingWorkStart, setEditingWorkStart] = useState('')
+  const [checkins, setCheckins] = useState(() => new Map())
+  const [attendanceAvailable, setAttendanceAvailable] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState('')
+  const [qrOpen, setQrOpen] = useState(false)
   const [error, setError] = useState('')
 
   async function loadEmployees() {
@@ -313,6 +371,66 @@ export default function Employees() {
   }
 
   useEffect(() => { loadEmployees() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Arrivals come from the Telegram bot, so poll today's check-ins quietly.
+  useEffect(() => {
+    let cancelled = false
+    async function loadCheckins() {
+      const { data, error: checkinError } = await supabase
+        .from('employee_attendance_checkins')
+        .select('salary_profile_id, business_date, checked_in_at, scheduled_start_time, minutes_late, arrival_status')
+        .eq('business_date', today)
+      if (cancelled) return
+      setAttendanceAvailable(!checkinError)
+      if (!checkinError) setCheckins(new Map((data || []).map(row => [row.salary_profile_id, row])))
+    }
+    loadCheckins()
+    const timer = window.setInterval(loadCheckins, 60_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [today])
+
+  const checkinUrl = buildAttendanceCheckinUrl(import.meta.env.VITE_TELEGRAM_BOT_USERNAME)
+
+  async function openCheckinQr() {
+    setQrOpen(true)
+    if (qrDataUrl || !checkinUrl) return
+    try {
+      const QRCode = (await import('qrcode')).default
+      setQrDataUrl(await QRCode.toDataURL(checkinUrl, { width: 720, margin: 2, errorCorrectionLevel: 'M' }))
+    } catch (qrError) {
+      setError(qrError?.message || String(qrError))
+    }
+  }
+
+  function printCheckinQr() {
+    if (!qrDataUrl) return
+    const win = window.open('', '_blank', 'width=720,height=900')
+    if (!win) return
+    const doc = win.document
+    doc.title = 'Zar Kebab check-in'
+    doc.body.style.cssText = 'margin:0;font-family:system-ui,sans-serif;text-align:center;color:#111'
+    const wrap = doc.createElement('div')
+    wrap.style.cssText = 'padding:48px 24px'
+    const brand = doc.createElement('div')
+    brand.textContent = 'ZAR KEBAB'
+    brand.style.cssText = 'font-size:20px;font-weight:800;letter-spacing:.2em;color:#ff5a00'
+    const title = doc.createElement('h1')
+    title.textContent = l.checkinPrintTitle
+    title.style.cssText = 'font-size:34px;margin:16px 0 8px'
+    const sub = doc.createElement('p')
+    sub.textContent = l.checkinPrintSub
+    sub.style.cssText = 'font-size:18px;margin:0 0 24px;color:#444'
+    const img = doc.createElement('img')
+    img.src = qrDataUrl
+    img.alt = 'QR'
+    img.style.cssText = 'width:420px;height:420px'
+    img.onload = () => { win.focus(); win.print() }
+    wrap.append(brand, title, sub, img)
+    doc.body.append(wrap)
+  }
 
   const activeEmployees = useMemo(() => employees.filter(item => item.is_active !== false), [employees])
   const absentTodayEmployeeIds = useMemo(() => new Set(
@@ -368,6 +486,7 @@ export default function Employees() {
   ]
   const activeCount = activeEmployees.length
   const absentTodayCount = absentTodayEmployeeIds.size
+  const checkedInCount = activeEmployees.filter(employee => checkins.has(employee.id)).length
   const activeDailySalary = useMemo(() => (
     activeEmployees.reduce((sum, item) => sum + getDailySalaryAmount(item, today), 0)
   ), [activeEmployees, today])
@@ -468,6 +587,7 @@ export default function Employees() {
     setEditingNameId(employee.id)
     setEditingName(employeeName(employee))
     setEditingJobFunction(employee.job_function || '')
+    setEditingWorkStart(normalizeWorkStartTime(employee.work_start_time))
     setConfirmActionKey('')
     setError('')
   }
@@ -476,6 +596,7 @@ export default function Employees() {
     setEditingNameId(null)
     setEditingName('')
     setEditingJobFunction('')
+    setEditingWorkStart('')
   }
 
   async function saveEmployeeName(employee) {
@@ -489,10 +610,17 @@ export default function Employees() {
     const key = `employee-name-${employee.id}`
     setSaving(key)
     setError('')
-    const { error: updateError } = await supabase
+    let { error: updateError } = await supabase
       .from('employee_salary_profiles')
       .update({ employee_name: nextName, job_function: editingJobFunction || null })
       .eq('id', employee.id)
+    // Older databases lack work_start_time (migration 243); only send it when it changed.
+    if (!updateError && editingWorkStart !== normalizeWorkStartTime(employee.work_start_time)) {
+      ({ error: updateError } = await supabase
+        .from('employee_salary_profiles')
+        .update({ work_start_time: editingWorkStart || null })
+        .eq('id', employee.id))
+    }
     setSaving('')
     if (updateError) {
       setError(updateError.message)
@@ -508,11 +636,14 @@ export default function Employees() {
     <AppShell title={l.title} back={back}>
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className={`grid grid-cols-2 gap-3 ${attendanceAvailable ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <Kpi icon={Users} label={l.active} value={activeCount} />
+            {attendanceAvailable && <Kpi icon={ScanLine} label={l.checkedInToday} value={`${checkedInCount} / ${activeCount}`} />}
             <Kpi icon={CalendarX2} label={l.absentToday} value={absentTodayCount} danger={absentTodayCount > 0} />
             <Kpi icon={CalendarDays} label={l.activeDaily} value={formatCurrency(activeDailySalary)} />
-            <Kpi icon={WalletCards} label={l.due} value={formatCurrency(totalDue)} hot={totalDue > 0} />
+            <div className={attendanceAvailable ? 'col-span-2 grid lg:col-span-1' : 'grid'}>
+              <Kpi icon={WalletCards} label={l.due} value={formatCurrency(totalDue)} hot={totalDue > 0} />
+            </div>
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
@@ -533,6 +664,11 @@ export default function Employees() {
             </label>
             {(roleFilter !== 'all' || sortBy !== 'default') && (
               <button type="button" onClick={() => { setRoleFilter('all'); setSortBy('default') }} className="ws-btn ws-btn-ghost h-11">{l.resetFilters}</button>
+            )}
+            {canManage && attendanceAvailable && (
+              <button type="button" onClick={openCheckinQr} className="ws-btn ws-btn-outline h-11 sm:ml-auto">
+                <QrCode size={16} />{l.checkinQr}
+              </button>
             )}
           </div>
 
@@ -588,6 +724,9 @@ export default function Employees() {
                 const joinedDate = String(employee.joined_at || '').slice(0, 10)
                 const deactivateDate = normalizeSalaryEndDate(employee, deactivateDates[employee.id], today)
                 const effectiveKpiRule = getEffectiveKpiRule(kpiRules, employee.id, today)
+                const todayCheckin = checkins.get(employee.id)
+                const workStart = normalizeWorkStartTime(employee.work_start_time)
+                const showAttendance = attendanceAvailable && !inactive && !absentToday
                 return (
                   <section key={employee.id} className={`ws-panel group flex flex-col ${
                     inactive
@@ -686,6 +825,15 @@ export default function Employees() {
                           {inactive ? l.inactive : absentToday ? l.absentToday : l.active}
                         </span>
                       )}
+                      {showAttendance && (
+                        <span className={`ws-status ${
+                          !todayCheckin
+                            ? ''
+                            : todayCheckin.arrival_status === 'late' ? 'ws-tone-caution' : 'ws-tone-positive'
+                        }`}>
+                          {todayCheckin ? l.present : l.notCheckedIn}
+                        </span>
+                      )}
                     </div>
 
                     <div className={`mt-4 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-3 ${inactive ? 'ws-inactive-stats' : 'bg-[#f8f6f3]'}`}>
@@ -702,6 +850,35 @@ export default function Employees() {
                     <div className="mt-1 divide-y divide-[#e4e1de]/60">
                       <Row label={l.joined} value={formatLongDate(employee.joined_at, lang, employee.joined_at)} />
                       {inactive && employee.ended_at && <Row label={l.ended} value={formatLongDate(employee.ended_at, lang, employee.ended_at)} />}
+                      {attendanceAvailable && !inactive && (
+                        editingEmployeeName ? (
+                          <div className="flex items-end gap-2 py-2">
+                            {editingWorkStart ? (
+                              <>
+                                <div className="min-w-0 flex-1">
+                                  <TimePicker24 value={editingWorkStart} label={l.workStart}
+                                    hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
+                                    className="ws-input !h-9 !py-0" disabled={saving === nameSavingKey}
+                                    onChange={setEditingWorkStart} />
+                                </div>
+                                <button type="button" onClick={() => setEditingWorkStart('')} disabled={saving === nameSavingKey}
+                                  title={l.clearWorkStart} aria-label={l.clearWorkStart} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon">
+                                  <X size={15} />
+                                </button>
+                              </>
+                            ) : (
+                              <button type="button" onClick={() => setEditingWorkStart('09:00')} disabled={saving === nameSavingKey} className="ws-btn ws-btn-outline ws-btn-sm">
+                                {l.workStart}: {l.setWorkStart}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <Row label={l.workStart} value={workStart || l.workStartNotSet} />
+                        )
+                      )}
+                      {showAttendance && todayCheckin && (
+                        <Row label={l.present} value={formatArrivalSummary(todayCheckin, lang)} hot={todayCheckin.arrival_status === 'late'} />
+                      )}
                       <EmployeeKpiRow
                         label={l.kpi}
                         rule={effectiveKpiRule}
@@ -786,6 +963,40 @@ export default function Employees() {
           )}
         </div>
       </div>
+      {qrOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+          <button type="button" aria-label={l.cancel} onClick={() => setQrOpen(false)}
+            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
+          <div role="dialog" aria-modal="true" aria-labelledby="checkin-qr-title"
+            onKeyDown={event => { if (event.key === 'Escape') setQrOpen(false) }}
+            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto p-6">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <h2 id="checkin-qr-title" className="ws-display !text-[24px]">{l.checkinQr}</h2>
+              <button type="button" onClick={() => setQrOpen(false)} aria-label={l.cancel} autoFocus className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
+            </div>
+            <p className="ws-muted">{l.checkinQrHelp}</p>
+            {!checkinUrl ? (
+              <p role="alert" className="ws-notice ws-tone-negative mt-4">{l.checkinBotMissing}</p>
+            ) : (
+              <>
+                <div className="mx-auto mt-4 flex aspect-square w-full max-w-[280px] items-center justify-center rounded-xl bg-white p-2">
+                  {qrDataUrl ? <img src={qrDataUrl} alt={l.checkinQr} className="h-full w-full" /> : <Loader2 size={24} className="animate-spin text-[#68655f]" />}
+                </div>
+                <p className="ws-caption mt-2 break-all text-center font-mono">{checkinUrl}</p>
+                <div className="mt-5 flex flex-wrap justify-end gap-2">
+                  <a href={qrDataUrl || undefined} download="zar-kebab-checkin-qr.png" aria-disabled={!qrDataUrl}
+                    className={`ws-btn ws-btn-outline ${qrDataUrl ? '' : 'pointer-events-none opacity-50'}`}>
+                    <Download size={16} />{l.checkinDownload}
+                  </a>
+                  <button type="button" onClick={printCheckinQr} disabled={!qrDataUrl} className="ws-btn ws-btn-primary disabled:opacity-50">
+                    <Printer size={16} />{l.checkinPrint}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </AppShell>
   )
 }

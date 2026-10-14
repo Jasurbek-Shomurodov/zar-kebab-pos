@@ -50,6 +50,12 @@
       "symbol": "set_order_actor_tracking_fields"
     },
     {
+      "name": "employee attendance QR check-in",
+      "aliases": ["employee scans QR when arriving", "late or early arrival Telegram message", "work start time", "present or not checked in today"],
+      "path": "src/lib/attendance.js",
+      "symbol": "buildAttendanceCheckinRow"
+    },
+    {
       "name": "employee KPI workday start time",
       "aliases": ["time based KPI", "hostess manager KPI from 14:00", "KPI orders opened after shift begins"],
       "path": "migrations/213_kpi_order_opening_cutoff.sql",
