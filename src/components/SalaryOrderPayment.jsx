@@ -70,7 +70,7 @@ export default function SalaryOrderPayment({ lang, disabled, total, loyaltyUsed,
       const { data, error: saveError } = await withWriteTimeout(() => supabase.rpc('settle_orders_payment', { payload: request.current }))
       if (saveError) {
         // A definitive database rejection rolled back. Transport errors keep identity.
-        if (['22023', '42501', '40001', 'P0001', 'P0002', '23514'].includes(saveError.code)) {
+        if (['22023', '42501', '40001', 'PT409', 'P0001', 'P0002', '23514'].includes(saveError.code)) {
           request.current = null
           sessionStorage.removeItem(storageKey)
         }
