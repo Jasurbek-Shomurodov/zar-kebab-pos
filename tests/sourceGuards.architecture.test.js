@@ -441,6 +441,10 @@ test('AppContext recovers Supabase after browser idle or resume', () => {
   assert.match(appContext, /isRecoverableIdleError\(error\)/)
   assert.match(appContext, /withWriteTimeout\(refreshSupabaseSession\(\), 'REFRESH_SESSION'\)/)
   assert.match(appContext, /function scheduleIdleRecovery/)
+  // A broken channel backs off instead of reloading every second on every device.
+  assert.match(appContext, /if \(reconnectTimer\) return\n\s*scheduleIdleRecovery\(realtimeRecoveryDelay\(realtimeFailures\)\)\n\s*realtimeFailures \+= 1/)
+  assert.match(appContext, /if \(realtimeHealthy\) realtimeFailures = 0/)
+  assert.doesNotMatch(appContext, /scheduleIdleRecovery\(1000\)/)
   assert.match(appContext, /Reconnecting\.\.\./)
   assert.match(appContext, /Back online\./)
   assert.match(appContext, /tone: 'success'/)

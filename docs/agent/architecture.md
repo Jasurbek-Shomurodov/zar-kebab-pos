@@ -46,7 +46,7 @@ Critical invariants:
 - Dashboard, reports, Accounting, and receipts use their own bounded history loaders.
 - `WaiterTables` refreshes operational tables/orders on mount and browser back-forward restoration without clearing the visible grid.
 - The stable `refreshPOSData` callback renews realtime and preserves current cards while reloading.
-- Resume recovery (session refresh + full hydration) runs on `online`, a broken channel, or after 60s away; brief focus switches skip it (`src/lib/resumeRecovery.js`). Log quota: `219` wakes Telegram queue senders from insert/cleanup triggers with a 15-minute retry sweep; browser REST calls use same-origin `/sb/rest/v1` (vercel.json, vite proxy, `src/lib/restProxy.js`) to skip CORS preflights.
+- Resume recovery (session refresh + hydration) runs on `online`, a broken channel (1–60s backoff), or 60s+ away; brief focus switches skip it (`src/lib/resumeRecovery.js`). Log quota: `219` wakes Telegram queue senders from insert/cleanup triggers with a 15-minute retry sweep; browser REST calls use same-origin `/sb/rest/v1` (vercel.json, vite proxy, `src/lib/restProxy.js`) to skip CORS preflights.
 
 ## Compatibility
 

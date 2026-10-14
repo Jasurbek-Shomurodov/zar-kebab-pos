@@ -2,7 +2,7 @@ import { getActiveTableOrders } from '../lib/tableGuestEntry'
 import { useOrderDeletion } from './useOrderDeletion'
 import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback } from 'react'
 import { isRecoverableIdleError, loadOperationalTableData, loadPOSData, refreshSupabaseSession, waitForKitchenRoundSubmission, writeToSupabase, subscribeToRealtime } from '../lib/db'
-import { shouldRecoverOnResume } from '../lib/resumeRecovery'
+import { REALTIME_STABLE_MS, realtimeRecoveryDelay, shouldRecoverOnResume } from '../lib/resumeRecovery'
 import { appMetaReducer } from './appMetaReducer'
 import { cartReducer } from './cartReducer'
 import { menuReducer } from './menuReducer'
@@ -505,6 +505,8 @@ export function AppProvider({ children }) {
     let lastResumeAt = 0
     let awaySince = null
     let realtimeHealthy = false
+    let realtimeFailures = 0
+    let realtimeStableTimer = null
 
     async function restoreSession() {
       const activeSession = await refreshSupabaseSession()
@@ -548,11 +550,25 @@ export function AppProvider({ children }) {
     function connectRealtime() {
       unsubscribe()
       realtimeHealthy = false
+      if (realtimeStableTimer) clearTimeout(realtimeStableTimer)
       unsubscribe = subscribeToRealtime(dispatch, {
-        onSubscribed: () => { realtimeHealthy = true },
+        onSubscribed: () => {
+          realtimeHealthy = true
+          // A channel that subscribes and drops again keeps its backoff.
+          if (realtimeStableTimer) clearTimeout(realtimeStableTimer)
+          realtimeStableTimer = setTimeout(() => {
+            realtimeStableTimer = null
+            if (realtimeHealthy) realtimeFailures = 0
+          }, REALTIME_STABLE_MS)
+        },
         onConnectionIssue: () => {
           realtimeHealthy = false
-          scheduleIdleRecovery(1000)
+          if (realtimeStableTimer) clearTimeout(realtimeStableTimer)
+          realtimeStableTimer = null
+          // Repeated error/timeout events for one outage share one scheduled recovery.
+          if (reconnectTimer) return
+          scheduleIdleRecovery(realtimeRecoveryDelay(realtimeFailures))
+          realtimeFailures += 1
         },
       })
     }
@@ -677,6 +693,7 @@ export function AppProvider({ children }) {
       refreshPOSDataRef.current = () => Promise.resolve()
       if (reconnectTimer) clearTimeout(reconnectTimer)
       if (backOnlineTimer) clearTimeout(backOnlineTimer)
+      if (realtimeStableTimer) clearTimeout(realtimeStableTimer)
       if (typeof window !== 'undefined') {
         window.removeEventListener('online', handleResume)
         window.removeEventListener('focus', handleResume)
