@@ -10,6 +10,7 @@ import AppShell from '../components/AppShell'
 import { runDbHealthChecks } from '../lib/dbHealth'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { canEditFeature } from '../lib/permissions'
+import AttendanceQrAccessSettings from '../components/AttendanceQrAccessSettings'
 import { useTheme, setTheme } from '../lib/theme'
 
 // Settings page group and card labels (sections are shown in one column, grouped).
@@ -645,6 +646,8 @@ export default function AdminSettings() {
               </SettingRow>
               </Section>
             )}
+
+            <AttendanceQrAccessSettings lang={lang} canManage={canManageSettings} />
 
             {(
               <Section title={nav.sections.tables}>

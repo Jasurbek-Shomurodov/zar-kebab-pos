@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Table2, BookOpen,
   Receipt, Users, BarChart2, ShieldCheck, Settings, LogOut,
   BadgeDollarSign, WalletCards, ShoppingBasket, PieChart,
-  ClipboardList, PackagePlus, PanelLeft, ChevronRight,
+  ClipboardList, PackagePlus, PanelLeft, ChevronRight, QrCode,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -12,6 +12,7 @@ import { canViewPage, normalizeRole } from '../lib/permissions'
 import { t } from '../lib/i18n'
 import { useCashierAttentionCount } from '../store/appHooks'
 import AttentionBadge from './AttentionBadge'
+import { useAttendanceQrAccess } from '../lib/attendanceQrAccess'
 
 // ── Nav definition — roles come from PAGE_ACCESS to stay in sync ───────────────
 // Drawer groups, in display order. The overview group has no heading.
@@ -29,6 +30,16 @@ const NAV = [
     labels: { uz: 'Boshqaruv', ru: 'Панель', en: 'Dashboard' },
     path: '/admin',
     group: 'overview',
+  },
+  {
+    // Not a Team feature: shown to accounts selected in Settings, only inside
+    // their time window (migration 247; the database enforces the same rule).
+    key: 'checkin_qr',
+    icon: QrCode,
+    labels: { uz: 'Kelish QR kodi', ru: 'QR для отметки', en: 'Check-in QR' },
+    path: '/checkin-qr',
+    group: 'overview',
+    attendanceQr: true,
   },
   {
     key: 'tables',
@@ -151,6 +162,7 @@ function activeKey(pathname) {
   if (pathname.startsWith('/admin/audit'))      return 'audit'
   if (pathname.startsWith('/admin/settings'))  return 'settings'
   if (pathname === '/admin' || pathname === '/admin/') return 'dashboard'
+  if (pathname.startsWith('/checkin-qr')) return 'checkin_qr'
   return ''
 }
 
@@ -176,7 +188,10 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
   const initial     = (displayName || '?')[0].toUpperCase()
   const roleLabel   = (ROLE_LABELS[role]?.[lang] || ROLE_LABELS[role]?.en) ?? role
 
-  const visibleNav = NAV.filter(item => canViewPage(profile || { role }, item.accessKey || item.key))
+  const { openNow: checkinQrOpen } = useAttendanceQrAccess(profile?.id)
+  const visibleNav = NAV.filter(item => (
+    item.attendanceQr ? checkinQrOpen : canViewPage(profile || { role }, item.accessKey || item.key)
+  ))
   const mainNav = visibleNav.filter(item => item.key !== 'settings')
   const settings = visibleNav.find(item => item.key === 'settings')
   // On phones the drawer's own button closes it; on desktop it folds the rail away.
@@ -224,7 +239,7 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
       <div className="flex flex-shrink-0 items-center justify-between gap-2 pb-3 pl-[18px] pr-[10px] pt-[14px]">
         <button
           type="button"
-          onClick={() => handleNav(mainNav[0] || { path: '/' })}
+          onClick={() => handleNav(mainNav.find(item => !item.attendanceQr) || { path: '/' })}
           disabled={navigationDisabled}
           aria-label="Zar Kebab"
           className="flex min-w-0 items-center gap-2 rounded-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#0f766e]"

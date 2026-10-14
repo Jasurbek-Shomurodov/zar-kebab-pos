@@ -52,6 +52,7 @@ const STAFF_PAGES = {
   Reports: () => import('./pages/Reports'),
   AdminAudit: () => import('./pages/AdminAudit'),
   AdminSettings: () => import('./pages/AdminSettings'),
+  CheckinQr: () => import('./pages/CheckinQr'),
 }
 
 const WaiterTables = lazy(() => import('./pages/WaiterTables'))
@@ -81,6 +82,7 @@ const Reports = lazy(() => import('./pages/Reports'))
 const AdminAudit = lazy(() => import('./pages/AdminAudit'))
 const AdminSettings = lazy(() => import('./pages/AdminSettings'))
 const AttendanceKiosk = lazy(() => import('./pages/AttendanceKiosk'))
+const CheckinQr = lazy(() => import('./pages/CheckinQr'))
 
 function defaultPath(role) {
   return roleDefaultPath(role)
@@ -375,6 +377,7 @@ function PublicCustomerRoutes() {
       <Route path="/kitchen" element={<PublicHostAdminRedirect />} />
       <Route path="/kitchen-check/*" element={<PublicHostAdminRedirect />} />
       <Route path="/checkin-screen" element={<PublicHostAdminRedirect />} />
+      <Route path="/checkin-qr" element={<PublicHostAdminRedirect />} />
       <Route path="*" element={<Navigate to="/menu" replace />} />
     </Routes>
   )
@@ -405,6 +408,10 @@ function InternalAppRoutes({ adminHost = false }) {
         <Route path="/pending-approval" element={<PendingApproval />} />
         {/* Entrance check-in screen: signed out, authorized by its own screen key. */}
         <Route path="/checkin-screen" element={<AttendanceKiosk />} />
+        {/* Any signed-in account; the page and database check the Settings list and time window. */}
+        <Route path="/checkin-qr" element={
+          <LazyProtectedRoute><CheckinQr /></LazyProtectedRoute>
+        } />
 
         {/* Tables/order flow: visible to profiles with the tables feature. */}
         <Route path="/waiter/tables" element={

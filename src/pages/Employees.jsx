@@ -133,7 +133,7 @@ export default function Employees() {
       empty: 'Xodimlar hali qo‘shilmagan',
       migration: 'Maosh jadvallari yangilanmagan. Supabase SQL editorida employee_salary migratsiyalarini ishga tushiring.',
       checkinQr: 'Kelish ekrani',
-      checkinScreenHelp: 'Bu havolani kirish joyidagi planshet yoki telefonda oching va yoqiq qoldiring. Ekranda har 30 soniyada o‘zgaradigan QR chiqadi, shuning uchun saqlangan yoki yuborilgan kod taxminan 2 daqiqada ishlamay qoladi. Xodim telefon kamerasi bilan skanerlaydi va botda «Start» ni bosadi.',
+      checkinScreenHelp: 'Bu havolani kirish joyidagi planshet yoki telefonda oching va yoqiq qoldiring. Ekranda har 15 soniyada o‘zgaradigan QR chiqadi, shuning uchun saqlangan yoki yuborilgan kod taxminan 2 daqiqada ishlamay qoladi. Xodim telefon kamerasi bilan skanerlaydi va botda «Start» ni bosadi.',
       screenNone: 'Ekran havolasi hali yaratilmagan.',
       screenOnline: 'Ekran ishlayapti',
       screenOffline: 'Ekran aloqada emas',
@@ -223,7 +223,7 @@ export default function Employees() {
       empty: 'Сотрудники еще не добавлены',
       migration: 'Таблицы зарплат не обновлены. Запустите миграции employee_salary в Supabase SQL Editor.',
       checkinQr: 'Экран отметки',
-      checkinScreenHelp: 'Откройте эту ссылку на планшете или телефоне у входа и оставьте включённым. Экран показывает QR, который меняется каждые 30 секунд, поэтому сохранённый или пересланный код перестаёт работать примерно через 2 минуты. Сотрудник сканирует его камерой телефона и нажимает «Start» в боте.',
+      checkinScreenHelp: 'Откройте эту ссылку на планшете или телефоне у входа и оставьте включённым. Экран показывает QR, который меняется каждые 15 секунд, поэтому сохранённый или пересланный код перестаёт работать примерно через 2 минуты. Сотрудник сканирует его камерой телефона и нажимает «Start» в боте.',
       screenNone: 'Ссылка экрана ещё не создана.',
       screenOnline: 'Экран работает',
       screenOffline: 'Экран не на связи',
@@ -313,7 +313,7 @@ export default function Employees() {
       empty: 'No employees added yet',
       migration: 'Salary tables are not up to date. Run the employee_salary migrations in Supabase SQL Editor.',
       checkinQr: 'Check-in screen',
-      checkinScreenHelp: 'Open this link on a tablet or phone at the entrance and leave it on. It shows a QR that changes every 30 seconds, so a saved or forwarded code stops working within about 2 minutes. Employees scan it with their phone camera and tap “Start” in the bot.',
+      checkinScreenHelp: 'Open this link on a tablet or phone at the entrance and leave it on. It shows a QR that changes every 15 seconds, so a saved or forwarded code stops working within about 2 minutes. Employees scan it with their phone camera and tap “Start” in the bot.',
       screenNone: 'No screen link yet.',
       screenOnline: 'Screen online',
       screenOffline: 'Screen offline',
@@ -1180,7 +1180,7 @@ function DateInput(props) {
   return <CalendarPicker {...props} />
 }
 
-// The entrance screen reports in every ~30 s; over 90 s of silence = offline.
+// The entrance screen reports in at most every 20 s; over 90 s of silence = offline.
 function ScreenStatus({ active, l }) {
   if (!active.last_seen_at) return <span className="ws-status ws-tone-caution">{l.screenNeverOpened}</span>
   const online = Date.now() - new Date(active.last_seen_at).getTime() < 90_000

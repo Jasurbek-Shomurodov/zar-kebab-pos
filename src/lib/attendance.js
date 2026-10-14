@@ -155,3 +155,22 @@ export function buildAttendanceCodeRejectedMessage(reason) {
   return '⏱ Срок действия этого QR-кода истёк. Отсканируйте QR на экране у входа ещё раз.\n\n'
     + '⏱ Bu QR kodning muddati tugadi. Kirish joyidagi ekrandagi QR kodni qayta skanerlang.'
 }
+
+// Drawer QR windows (migration 247): Tashkent HH:MM, start = end is all day,
+// end < start wraps past midnight. Mirrors attendance_qr_window_open().
+export function isAttendanceQrWindowOpen(startTime, endTime, nowTime) {
+  const start = normalizeWorkStartTime(startTime)
+  const end = normalizeWorkStartTime(endTime)
+  const now = normalizeWorkStartTime(nowTime)
+  if (!start || !end || !now) return false
+  if (start === end) return true
+  return start < end ? now >= start && now < end : now >= start || now < end
+}
+
+export function formatAttendanceQrWindow(startTime, endTime, lang = 'en') {
+  const start = normalizeWorkStartTime(startTime)
+  const end = normalizeWorkStartTime(endTime)
+  if (!start || !end) return ''
+  if (start === end) return { uz: 'Kun bo‘yi', ru: 'Весь день', en: 'All day' }[lang] || 'All day'
+  return `${start}–${end}`
+}

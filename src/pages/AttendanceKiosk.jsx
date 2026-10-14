@@ -7,10 +7,10 @@ import {
   ATTENDANCE_KIOSK_PATH,
   readAttendanceKioskKey,
 } from '../lib/attendance'
-import { useRotatingCheckinQr } from '../lib/useRotatingCheckinQr'
+import { CHECKIN_QR_SLOT_SECONDS, useRotatingCheckinQr, useScreenWakeLock } from '../lib/useRotatingCheckinQr'
 
 // Signed-out entrance screen (migration 245). It trades its screen key for a
-// QR payload that rotates every 30 s; the bot rejects codes older than ~2 min.
+// QR payload that rotates every 15 s; the bot rejects codes older than ~2 min.
 
 function readStoredKey() {
   try { return localStorage.getItem(ATTENDANCE_KIOSK_KEY_STORAGE) || '' } catch { return '' }
@@ -49,26 +49,7 @@ export default function AttendanceKiosk() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  // Keep the screen on; browsers drop the lock when the tab is hidden.
-  useEffect(() => {
-    if (status !== 'active' || !navigator.wakeLock?.request) return undefined
-    let lock = null
-    let released = false
-    const acquire = async () => {
-      try {
-        lock = await navigator.wakeLock.request('screen')
-        if (released) lock.release().catch(() => {})
-      } catch { /* not allowed (battery saver); the screen may dim */ }
-    }
-    const onVisible = () => { if (document.visibilityState === 'visible') acquire() }
-    acquire()
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      released = true
-      document.removeEventListener('visibilitychange', onVisible)
-      lock?.release().catch(() => {})
-    }
-  }, [status])
+  useScreenWakeLock(status === 'active')
 
   const showQr = status === 'active' && dataUrl
 
@@ -93,7 +74,7 @@ export default function AttendanceKiosk() {
           <div className="w-[min(90vw,640px)]">
             <div className="h-1.5 overflow-hidden rounded-full bg-[#e8e4df]">
               <div className="h-full rounded-full bg-[#ff5a00] transition-[width] duration-1000 ease-linear"
-                style={{ width: `${Math.min(100, (secondsLeft / 30) * 100)}%` }} />
+                style={{ width: `${Math.min(100, (secondsLeft / CHECKIN_QR_SLOT_SECONDS) * 100)}%` }} />
             </div>
             <p className="mt-3 text-base font-semibold text-[#55524c]">
               <ScanLine size={18} className="mr-1.5 inline-block align-[-3px]" />

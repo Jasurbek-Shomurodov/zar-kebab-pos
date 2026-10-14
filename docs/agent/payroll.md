@@ -14,7 +14,7 @@
 
 - Dates: Tashkent.
 
-- `243`/`245` attendance check-in: see [attendance](attendance.md).
+- `243`/`245`/`247` attendance check-in: see [attendance](attendance.md).
 
 - `208`: rate insert/update/delete audits; history labels creator/deleter, insert audits before live names. `209`: owner-only rate deletion; refresh balances/history, keep audits. Test: `tests/salaryRateHistory.test.js`.
 

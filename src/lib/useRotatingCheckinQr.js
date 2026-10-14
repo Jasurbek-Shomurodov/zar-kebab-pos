@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { buildAttendanceCheckinUrl } from './attendance'
 
 // Shared rotation loop for the entrance screen and the Dashboard card
-// (migration 245). The bot rejects codes about two minutes after their slot.
+// (migration 245). Codes rotate every 15 s; the bot rejects them about two
+// minutes after their slot.
 const REQUEST_TIMEOUT_MS = 10_000
 const RETRY_MS = 5_000
 // Hide a QR that could not be refreshed: after this long it may be rejected.
@@ -55,8 +56,11 @@ export function useRotatingCheckinQr(requestToken, { source, enabled = true } = 
           return
         }
         if (error?.code === '42501') {
+          // Not allowed now (account removed or outside its window); re-check
+          // later in case the clock or Settings disagree with this device.
           setDataUrl('')
           setStatus('disabled')
+          schedule(30_000)
           return
         }
         if (error) throw error
@@ -73,7 +77,7 @@ export function useRotatingCheckinQr(requestToken, { source, enabled = true } = 
         setDataUrl(nextDataUrl)
         lastOkAt.current = Date.now()
         setStatus('active')
-        // Refresh just after the 30 s slot turns over, judged by the server clock.
+        // Refresh just after the 15 s slot turns over, judged by the server clock.
         schedule(Math.max(1_000, Number(data.ms_left) || 0) + 300)
       } catch {
         if (cancelled) return
@@ -111,9 +115,35 @@ export function useRotatingCheckinQr(requestToken, { source, enabled = true } = 
   }, [])
 
   return {
-    status: botUsername ? status : 'no-bot',
+    status: !enabled ? 'idle' : botUsername ? status : 'no-bot',
     dataUrl: status === 'active' ? dataUrl : '',
     secondsLeft: Math.max(0, Math.ceil((nextRefreshAt.current - now) / 1000)),
     now,
   }
+}
+
+export const CHECKIN_QR_SLOT_SECONDS = 15
+
+// Keep the screen on while a code is shown; browsers drop the lock when the
+// tab is hidden, so it is re-acquired on return.
+export function useScreenWakeLock(active) {
+  useEffect(() => {
+    if (!active || !navigator.wakeLock?.request) return undefined
+    let lock = null
+    let released = false
+    const acquire = async () => {
+      try {
+        lock = await navigator.wakeLock.request('screen')
+        if (released) lock.release().catch(() => {})
+      } catch { /* not allowed (battery saver); the screen may dim */ }
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') acquire() }
+    acquire()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      released = true
+      document.removeEventListener('visibilitychange', onVisible)
+      lock?.release().catch(() => {})
+    }
+  }, [active])
 }

@@ -134,6 +134,8 @@ const MIGRATION_HINTS = {
   create_employee_salary_telegram_link: 'Run migrations/107_employee_salary_telegram_notifications.sql',
   create_attendance_kiosk: 'Run migrations/245_attendance_kiosk_rotating_qr.sql',
   get_attendance_kiosk_token: 'Run migrations/245_attendance_kiosk_rotating_qr.sql',
+  get_attendance_qr_token: 'Run migrations/247_attendance_qr_drawer_access.sql',
+  get_my_attendance_qr_access: 'Run migrations/247_attendance_qr_drawer_access.sql',
   generate_daily_kpi_bonuses: 'Run migrations/129_daily_kpi_bonuses.sql',
   generate_employee_daily_meal_expense: 'Run migrations/147_financial_report_history_snapshots.sql',
   get_pending_daily_kpi_dates: 'Run migrations/147_financial_report_history_snapshots.sql',

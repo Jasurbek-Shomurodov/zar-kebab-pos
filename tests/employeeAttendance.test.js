@@ -12,6 +12,8 @@ import {
   getTashkentClock,
   normalizeWorkStartTime,
   parseAttendanceCheckinCommand,
+  formatAttendanceQrWindow,
+  isAttendanceQrWindowOpen,
   readAttendanceKioskKey,
 } from '../src/lib/attendance.js'
 
@@ -123,66 +125,80 @@ test('migration keeps one check-in per employee per day, read-only for staff', a
 })
 
 const kioskMigration = readFileSync(new URL('../migrations/245_attendance_kiosk_rotating_qr.sql', import.meta.url), 'utf8')
+const drawerMigration = readFileSync(new URL('../migrations/247_attendance_qr_drawer_access.sql', import.meta.url), 'utf8')
+const OWNER = '00000000-0000-0000-0000-0000000000a1'
+const HOSTESS = '00000000-0000-0000-0000-0000000000a2'
+const WAITER = '00000000-0000-0000-0000-0000000000a3'
 
-async function kioskDb() {
+async function kioskDb({ beforeUpgrade } = {}) {
   const { PGlite } = await import('@electric-sql/pglite')
   const db = new PGlite()
   await db.exec(`
     CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
     CREATE SCHEMA auth;
-    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS 'select null::uuid';
+    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS
+      $$select nullif(current_setting('test.uid', true), '')::uuid$$;
     CREATE FUNCTION public.current_staff_can_write(text) RETURNS boolean LANGUAGE sql AS
       $$select coalesce(current_setting('test.can_write', true), 'on') = 'on'$$;
-    CREATE FUNCTION public.current_staff_can_access(text) RETURNS boolean LANGUAGE sql AS 'select true';
+    CREATE FUNCTION public.current_staff_can_access(text) RETURNS boolean LANGUAGE sql AS
+      $$select coalesce(current_setting('test.can_access', true), 'on') = 'on'$$;
     CREATE OR REPLACE FUNCTION pg_catalog.now() RETURNS timestamptz LANGUAGE sql STABLE AS
       $$select current_setting('test.now')::timestamptz$$;
     CREATE OR REPLACE FUNCTION pg_catalog.clock_timestamp() RETURNS timestamptz LANGUAGE sql AS
       $$select current_setting('test.now')::timestamptz$$;
     SELECT set_config('test.now', '2026-10-15T03:00:10Z', false);
+    CREATE TABLE public.profiles (id uuid PRIMARY KEY, full_name text, email text, role text, status text);
+    INSERT INTO public.profiles VALUES
+      ('${OWNER}', 'Owner', 'o@x', 'owner', 'active'),
+      ('${HOSTESS}', 'Hostess', 'h@x', 'admin', 'active'),
+      ('${WAITER}', 'Waiter', 'w@x', 'viewer', 'active');
   `)
   await db.exec(kioskMigration)
+  if (beforeUpgrade) await beforeUpgrade(db)
+  await db.exec(drawerMigration)
   const at = iso => db.query("select set_config('test.now', $1, false)", [iso])
+  const as = uid => db.query("select set_config('test.uid', $1, false)", [uid || ''])
   const key = async () => (await db.query('select create_attendance_kiosk() k')).rows[0].k
   const token = async k => (await db.query('select get_attendance_kiosk_token($1) t', [k])).rows[0].t
+  const staffToken = async () => (await db.query('select get_attendance_qr_token() t')).rows[0].t
   const verify = async (payload, when) => (await db.query('select verify_attendance_checkin_payload($1, $2) v', [payload, when])).rows[0].v
-  return { db, at, key, token, verify }
+  return { db, at, as, key, token, staffToken, verify }
 }
 
-test('rotating codes are accepted only shortly after they were shown', async t => {
+test('rotating codes change every 15 s and are accepted only shortly after they were shown', async t => {
   const { db, at, key, token, verify } = await kioskDb()
   t.after(() => db.close())
   const k = await key()
   assert.match(k, /^[0-9a-f]{64}$/)
-  const stored = (await db.query('select key_hash, code from attendance_kiosks')).rows[0]
+  const stored = (await db.query("select key_hash, code from attendance_kiosks where kind = 'screen'")).rows[0]
   assert.notEqual(stored.key_hash, k, 'keys are stored hashed')
 
-  // 03:00:10Z is 10 s into a 30 s slot.
+  // 03:00:10Z is 10 s into the 03:00:00-03:00:15 slot.
   const shown = await token(k)
   assert.match(shown.payload, new RegExp(`^ci_${stored.code}_\\d+_[0-9a-f]{16}$`))
-  assert.equal(shown.ms_left, 20000)
+  assert.equal(shown.ms_left, 5000)
   assert.ok(shown.payload.length <= 64)
 
   assert.equal(await verify(shown.payload, '2026-10-15T03:00:10Z'), 'valid')
-  assert.equal(await verify(shown.payload, '2026-10-15T02:59:50Z'), 'valid', 'one slot of clock skew')
+  assert.equal(await verify(shown.payload, '2026-10-15T02:59:30Z'), 'valid', 'two slots of clock skew')
   assert.equal(await verify(shown.payload, '2026-10-15T02:59:29Z'), 'expired')
-  assert.equal(await verify(shown.payload, '2026-10-15T03:02:29Z'), 'valid', 'slow phone: four slots later')
-  assert.equal(await verify(shown.payload, '2026-10-15T03:02:30Z'), 'expired', 'saved link from home')
+  assert.equal(await verify(shown.payload, '2026-10-15T03:02:14Z'), 'valid', 'slow phone: eight slots later')
+  assert.equal(await verify(shown.payload, '2026-10-15T03:02:15Z'), 'expired', 'saved link from home')
   assert.equal(await verify(shown.payload, '2026-10-16T03:00:10Z'), 'expired', 'reused the next day')
 
   const [, code, slot, sig] = shown.payload.split('_')
   const flip = sig.slice(0, -1) + (sig.endsWith('0') ? '1' : '0')
   assert.equal(await verify(`ci_${code}_${slot}_${flip}`, '2026-10-15T03:00:10Z'), 'invalid', 'tampered signature')
-  assert.equal(await verify(`ci_${code}_${Number(slot) + 1}_${sig}`, '2026-10-15T03:00:40Z'), 'invalid', 'forged later slot')
+  assert.equal(await verify(`ci_${code}_${Number(slot) + 1}_${sig}`, '2026-10-15T03:00:20Z'), 'invalid', 'forged later slot')
   assert.equal(await verify(`ci_ffffffff_${slot}_${sig}`, '2026-10-15T03:00:10Z'), 'invalid')
   assert.equal(await verify('checkin', '2026-10-15T03:00:10Z'), 'invalid')
   assert.equal(await verify(shown.payload, null), 'invalid')
 
-  // The screen refreshes in the next slot and gets a different code.
-  await at('2026-10-15T03:00:30Z')
+  await at('2026-10-15T03:00:15Z')
   const next = await token(k)
   assert.notEqual(next.payload, shown.payload)
-  assert.equal(next.ms_left, 30000)
-  assert.ok((await db.query('select last_seen_at from attendance_kiosks')).rows[0].last_seen_at)
+  assert.equal(next.ms_left, 15000)
+  assert.ok((await db.query("select last_seen_at from attendance_kiosks where kind = 'screen'")).rows[0].last_seen_at)
 
   assert.equal(await token('b'.repeat(64)), null, 'unknown key')
   assert.equal(await token('not-a-key'), null)
@@ -197,7 +213,7 @@ test('a new screen link or turning the screen off kills the old screen and its c
   assert.equal(await token(first), null)
   assert.equal(await verify(firstCode, '2026-10-15T03:00:10Z'), 'invalid')
   assert.ok((await token(second)).payload)
-  assert.equal(Number((await db.query('select count(*) n from attendance_kiosks where revoked_at is null')).rows[0].n), 1)
+  assert.equal(Number((await db.query("select count(*) n from attendance_kiosks where revoked_at is null and kind = 'screen'")).rows[0].n), 1)
 
   await db.query('select revoke_attendance_kiosks()')
   assert.equal(await token(second), null)
@@ -214,10 +230,102 @@ test('only salary managers create screens; the signed-out screen reaches only it
   await key()
   await db.exec('SET ROLE anon')
   await assert.rejects(db.query('select * from attendance_kiosks'), /permission denied/)
+  await assert.rejects(db.query('select * from attendance_qr_access'), /permission denied/)
   await assert.rejects(db.query("select verify_attendance_checkin_payload('x', now())"), /permission denied/)
   await assert.rejects(db.query('select create_attendance_kiosk()'), /permission denied/)
+  await assert.rejects(db.query('select get_attendance_qr_token()'), /permission denied/)
+  await assert.rejects(db.query('select * from get_my_attendance_qr_access()'), /permission denied/)
   assert.equal((await db.query("select get_attendance_kiosk_token('x') t")).rows[0].t, null)
   await db.exec('RESET ROLE')
+})
+
+test('drawer QR codes go only to selected accounts inside their Tashkent window', async t => {
+  const { db, at, as, staffToken, verify } = await kioskDb()
+  t.after(() => db.close())
+  const mine = async () => (await db.query('select * from get_my_attendance_qr_access()')).rows[0] || null
+
+  // Settings: only settings writers change the list; readers can list it.
+  await as(OWNER)
+  await db.query("select set_config('test.can_write', 'off', false)")
+  await assert.rejects(db.query("select set_attendance_qr_access($1, '08:00', '11:00')", [HOSTESS]), /Forbidden/)
+  await db.query("select set_config('test.can_write', 'on', false)")
+  await db.query("select set_attendance_qr_access($1, '08:00', '11:00')", [HOSTESS])
+  await db.query("select set_attendance_qr_access($1, '22:00', '02:00')", [WAITER]) // wraps midnight
+  await assert.rejects(db.query("select set_attendance_qr_access('00000000-0000-0000-0000-00000000ffff', '08:00', '09:00')"), /Account not found/)
+  const list = (await db.query('select profile_id, selected from get_attendance_qr_access_settings()')).rows
+  assert.deepEqual(list.filter(row => row.selected).map(row => row.profile_id).sort(), [HOSTESS, WAITER].sort())
+  await db.query("select set_config('test.can_access', 'off', false)")
+  await assert.rejects(db.query('select * from get_attendance_qr_access_settings()'), /Forbidden/)
+  await db.query("select set_config('test.can_access', 'on', false)")
+
+  // 03:00:10Z = 08:00:10 Tashkent: inside the hostess window.
+  await as(HOSTESS)
+  assert.equal((await mine()).open_now, true)
+  const code = (await staffToken()).payload
+  assert.equal(await verify(code, '2026-10-15T03:00:10Z'), 'valid')
+  assert.equal(Number((await db.query("select count(*) n from attendance_kiosks where kind = 'staff'")).rows[0].n), 1)
+  assert.equal((await staffToken()).payload, code, 'one shared signer; same slot, same code')
+
+  // 11:00 Tashkent: window closed (end is exclusive).
+  await at('2026-10-15T06:00:00Z')
+  assert.equal((await mine()).open_now, false)
+  await assert.rejects(staffToken(), /not available/)
+
+  // Not selected.
+  await as(OWNER)
+  assert.equal(await mine(), null)
+  await assert.rejects(staffToken(), /not available/)
+
+  // Overnight window: 01:00 Tashkent is inside 22:00-02:00, 03:00 is not.
+  await as(WAITER)
+  await at('2026-10-14T20:00:00Z')
+  assert.ok((await staffToken()).payload)
+  await at('2026-10-14T22:00:00Z')
+  await assert.rejects(staffToken(), /not available/)
+
+  // All day (start = end), disabled account, and removal.
+  await as(OWNER)
+  await db.query("select set_attendance_qr_access($1, '00:00', '00:00')", [WAITER])
+  await as(WAITER)
+  assert.ok((await staffToken()).payload)
+  await db.query("update profiles set status = 'disabled' where id = $1", [WAITER])
+  await assert.rejects(staffToken(), /not available/)
+  assert.equal(await mine(), null)
+  await db.query("update profiles set status = 'active' where id = $1", [WAITER])
+  await as(OWNER)
+  await db.query('select remove_attendance_qr_access($1)', [WAITER])
+  await as(WAITER)
+  await assert.rejects(staffToken(), /not available/)
+
+  // Deleting an account removes its access row.
+  await db.query('delete from profiles where id = $1', [HOSTESS])
+  assert.equal(Number((await db.query('select count(*) n from attendance_qr_access')).rows[0].n), 0)
+})
+
+test('247 retires the 245 Dashboard signer so its codes stop verifying', async t => {
+  let dashboardCode = ''
+  const { db, verify } = await kioskDb({
+    beforeUpgrade: async db => {
+      await db.query(`select set_config('test.uid', '${OWNER}', false)`)
+      dashboardCode = (await db.query('select get_attendance_dashboard_token() t')).rows[0].t.payload
+    },
+  })
+  t.after(() => db.close())
+  assert.ok(dashboardCode)
+  assert.equal(await verify(dashboardCode, '2026-10-15T03:00:10Z'), 'invalid')
+  await assert.rejects(db.query('select get_attendance_dashboard_token()'), /does not exist/)
+})
+
+test('drawer window rules match the database and format for display', () => {
+  assert.equal(isAttendanceQrWindowOpen('08:00:00', '11:00:00', '08:00'), true)
+  assert.equal(isAttendanceQrWindowOpen('08:00', '11:00', '11:00'), false)
+  assert.equal(isAttendanceQrWindowOpen('08:00', '11:00', '07:59'), false)
+  assert.equal(isAttendanceQrWindowOpen('22:00', '02:00', '01:30'), true)
+  assert.equal(isAttendanceQrWindowOpen('22:00', '02:00', '03:00'), false)
+  assert.equal(isAttendanceQrWindowOpen('00:00', '00:00', '15:00'), true)
+  assert.equal(isAttendanceQrWindowOpen(null, '02:00', '01:00'), false)
+  assert.equal(formatAttendanceQrWindow('08:00:00', '11:00:00', 'en'), '08:00–11:00')
+  assert.equal(formatAttendanceQrWindow('09:00', '09:00', 'ru'), 'Весь день')
 })
 
 test('entrance screen hides the key, keeps the screen awake, and never shows a stale code', () => {
@@ -226,47 +334,27 @@ test('entrance screen hides the key, keeps the screen awake, and never shows a s
   const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
   assert.match(kiosk, /history\?\.replaceState\(null, '', ATTENDANCE_KIOSK_PATH\)/)
   assert.match(kiosk, /addEventListener\('hashchange'/)
-  assert.match(kiosk, /navigator\.wakeLock/)
+  assert.match(kiosk, /useScreenWakeLock\(status === 'active'\)/)
   assert.match(kiosk, /rpc\('get_attendance_kiosk_token', \{ p_key: key \}\)\.abortSignal\(signal\)/)
   assert.match(hook, /STALE_AFTER_MS = 60_000/)
+  assert.match(hook, /CHECKIN_QR_SLOT_SECONDS = 15/)
   assert.match(hook, /dataUrl: status === 'active' \? dataUrl : ''/)
   assert.match(hook, /requestRef\.current\(controller\.signal\)/)
   assert.match(app, /<Route path="\/checkin-screen" element=\{<AttendanceKiosk \/>\} \/>/)
   assert.match(app, /<Route path="\/checkin-screen" element=\{<PublicHostAdminRedirect \/>\} \/>/)
 })
 
-test('Dashboard shows the rotating QR only to salary managers', () => {
+test('drawer tab appears only for selected accounts in their window; Dashboard has no QR', () => {
+  const sidebar = readFileSync(new URL('../src/components/UnifiedSidebar.jsx', import.meta.url), 'utf8')
+  const page = readFileSync(new URL('../src/pages/CheckinQr.jsx', import.meta.url), 'utf8')
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const dashboard = readFileSync(new URL('../src/pages/AdminDashboard.jsx', import.meta.url), 'utf8')
-  const card = readFileSync(new URL('../src/components/CheckinQrCard.jsx', import.meta.url), 'utf8')
-  assert.match(dashboard, /canEditFeature\(profile \|\| \{ role: state\.user\?\.role \}, 'expenses'\)/)
-  assert.match(dashboard, /\{canShowCheckinQr && <CheckinQrCard /)
-  assert.match(card, /rpc\('get_attendance_dashboard_token'\)/)
-  assert.match(card, /\['unavailable', 'disabled', 'no-bot', 'idle'\]\.includes\(status\)/)
-  assert.match(card, /\{ source: 'dashboard' \}/, 'language changes must not restart the token loop')
-})
-
-test('Dashboard codes use their own signer, unaffected by screen links, and need Accounting write', async t => {
-  const { db, key, token, verify } = await kioskDb()
-  t.after(() => db.close())
-  const dash = async () => (await db.query('select get_attendance_dashboard_token() t')).rows[0].t
-  const first = await dash()
-  assert.match(first.payload, /^ci_[0-9a-f]{8}_\d+_[0-9a-f]{16}$/)
-  assert.equal(await verify(first.payload, '2026-10-15T03:00:10Z'), 'valid')
-  assert.equal((await dash()).payload, first.payload, 'same slot, same code; no duplicate signer rows')
-  assert.equal(Number((await db.query("select count(*) n from attendance_kiosks where kind = 'dashboard'")).rows[0].n), 1)
-
-  const screenKey = await key()
-  assert.ok((await token(screenKey)).payload)
-  await db.query('select revoke_attendance_kiosks()')
-  await key()
-  assert.equal(await verify(first.payload, '2026-10-15T03:00:10Z'), 'valid', 'screen changes never revoke the Dashboard signer')
-  assert.equal(await token('0'.repeat(64)), null)
-  assert.deepEqual((await db.query('select count(*)::int n from get_attendance_kiosk_status()')).rows[0], { n: 1 })
-
-  await db.query("select set_config('test.can_write', 'off', false)")
-  await assert.rejects(dash(), /Forbidden/)
-  await db.query("select set_config('test.can_write', 'on', false)")
-  await db.exec('SET ROLE anon')
-  await assert.rejects(dash(), /permission denied/)
-  await db.exec('RESET ROLE')
+  const settings = readFileSync(new URL('../src/pages/AdminSettings.jsx', import.meta.url), 'utf8')
+  assert.match(sidebar, /item\.attendanceQr \? checkinQrOpen : canViewPage/)
+  assert.match(sidebar, /path: '\/checkin-qr'/)
+  assert.match(page, /rpc\('get_attendance_qr_token'\)/)
+  assert.match(page, /\{ source: 'staff', enabled: openNow \}/)
+  assert.match(app, /<Route path="\/checkin-qr" element=\{\s*<LazyProtectedRoute><CheckinQr \/><\/LazyProtectedRoute>/)
+  assert.match(settings, /<AttendanceQrAccessSettings lang=\{lang\} canManage=\{canManageSettings\} \/>/)
+  assert.doesNotMatch(dashboard, /CheckinQr/)
 })

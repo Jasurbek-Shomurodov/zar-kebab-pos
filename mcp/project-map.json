@@ -57,9 +57,9 @@
     },
     {
       "name": "employee attendance QR check-in",
-      "aliases": ["employee scans QR when arriving", "late or early arrival Telegram message", "work start time", "present or not checked in today", "entrance check-in screen", "rotating QR code expired"],
-      "path": "migrations/245_attendance_kiosk_rotating_qr.sql",
-      "symbol": "verify_attendance_checkin_payload"
+      "aliases": ["employee scans QR when arriving", "late or early arrival Telegram message", "work start time", "present or not checked in today", "entrance check-in screen", "rotating QR code expired", "check-in QR in the drawer", "which accounts see the QR and when"],
+      "path": "migrations/247_attendance_qr_drawer_access.sql",
+      "symbol": "get_attendance_qr_token"
     },
     {
       "name": "KPI shift ends at 04:00",
