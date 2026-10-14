@@ -126,3 +126,22 @@ test('health expects the 219 queue sweep and ignores functions a later migration
   assert.ok(issues.includes('Missing enabled trigger: employee_order_kpi_notifications.kick_employee_order_kpi_insert'))
   assert.ok(migrationHealthIssues({ functions: [], triggers: [], jobs: [] }, []).includes('Missing active 15-minute schedule: zar-kebab-queue-sweep'))
 })
+
+test('function fingerprints mirror the 214 and 239 in-place save_bazaar_ingredient patches', () => {
+  const md5 = text => createHash('md5').update(text).digest('hex')
+  const file = (filename, sql) => ({ filename, sql, sha256: '' })
+  const body = " ingredient_category := lower(btrim(coalesce(payload ->> 'category', ''))); if ingredient_category not in ('meat', 'dairy') then raise exception 'x'; end if; insert into t (product_key, product_name, category, unit, normal_unit_price, is_active) values (k, n, c, u, ingredient_price::integer, true, now()) on conflict do update set normal_unit_price = excluded.normal_unit_price, updated_at = now(); "
+  const files = [
+    file('182_rename.sql', `create or replace function public.save_bazaar_ingredient(payload jsonb) returns jsonb language plpgsql as $$${body}$$;`),
+    file('214_custom_ingredient_categories.sql', 'select 1;'),
+    file('239_bazaar_ingredient_pieces_per_unit.sql', 'select 1;'),
+  ]
+  const [fingerprint] = recentFunctionFingerprints(files)
+  const live = body
+    .replace("lower(btrim(coalesce(payload ->> 'category', '')))", "public.normalize_bazaar_category(payload ->> 'category')")
+    .replace("ingredient_category not in ('meat', 'dairy')", 'not public.is_valid_bazaar_category(ingredient_category)')
+    .replace('normal_unit_price, is_active', 'normal_unit_price, pieces_per_unit, is_active')
+    .replace('ingredient_price::integer, true,', "ingredient_price::integer, public.bazaar_ingredient_pieces_per_unit(ingredient_unit, payload ->> 'pieces_per_unit'), true,")
+    .replace('normal_unit_price = excluded.normal_unit_price,', 'normal_unit_price = excluded.normal_unit_price,\n      pieces_per_unit = excluded.pieces_per_unit,')
+  assert.equal(fingerprint.md5, md5(live))
+})

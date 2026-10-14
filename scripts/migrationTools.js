@@ -113,6 +113,21 @@ export function migrationStatus(files, receipts) {
 // Migrations that rewrite live function bodies in place instead of restating them.
 // Mirror each rewrite so earlier definitions still fingerprint like the live ones.
 const inPlaceFunctionRewrites = [
+  {
+    filename: '214_custom_ingredient_categories.sql',
+    names: ['save_bazaar_ingredient'],
+    apply: body => body.includes('is_valid_bazaar_category') ? body : body
+      .replace("lower(btrim(coalesce(payload ->> 'category', '')))", "public.normalize_bazaar_category(payload ->> 'category')")
+      .replace(/ingredient_category not in \([^)]*\)/g, 'not public.is_valid_bazaar_category(ingredient_category)'),
+  },
+  {
+    filename: '239_bazaar_ingredient_pieces_per_unit.sql',
+    names: ['save_bazaar_ingredient'],
+    apply: body => body.includes('pieces_per_unit') ? body : body
+      .replace('product_key, product_name, category, unit, normal_unit_price,', 'product_key, product_name, category, unit, normal_unit_price, pieces_per_unit,')
+      .replace('ingredient_price::integer, true,', "ingredient_price::integer, public.bazaar_ingredient_pieces_per_unit(ingredient_unit, payload ->> 'pieces_per_unit'), true,")
+      .replace('normal_unit_price = excluded.normal_unit_price,', 'normal_unit_price = excluded.normal_unit_price,\n      pieces_per_unit = excluded.pieces_per_unit,'),
+  },
   // Same substitution as the migration's regexp_replace over pg_get_functiondef.
   { filename: '246_stale_write_errors_not_serialization_failure.sql', apply: body => body.replace(/errcode\s*=\s*'40001'/g, "errcode = 'PT409'") },
 ]
@@ -132,7 +147,7 @@ export function recentFunctionFingerprints(files = migrationFiles()) {
   return [...latest.values()]
     .filter(f => Number(f.filename.slice(0, 3)) >= 180)
     .map(({ name, filename, body }) => {
-      for (const rewrite of rewrites) if (filename < rewrite.filename) body = rewrite.apply(body)
+      for (const rewrite of rewrites) if (filename < rewrite.filename && (!rewrite.names || rewrite.names.includes(name))) body = rewrite.apply(body)
       return { name, filename, md5: createHash('md5').update(body).digest('hex') }
     })
 }
