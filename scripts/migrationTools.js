@@ -110,14 +110,28 @@ export function migrationStatus(files, receipts) {
   return statuses
 }
 
+// Migrations that rewrite live function bodies in place instead of restating them.
+// Mirror each rewrite so earlier definitions still fingerprint like the live ones.
+const inPlaceFunctionRewrites = [
+  // Same substitution as the migration's regexp_replace over pg_get_functiondef.
+  { filename: '246_stale_write_errors_not_serialization_failure.sql', apply: body => body.replace(/errcode\s*=\s*'40001'/g, "errcode = 'PT409'") },
+]
+
 export function recentFunctionFingerprints(files = migrationFiles()) {
   const latest = new Map()
   for (const file of files) {
     for (const match of file.sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?(\w+)\s*\([^]*?\bas\s+(\$\w*\$)([^]*?)\2/gi)) {
-      latest.set(match[1], { name: match[1], filename: file.filename, md5: createHash('md5').update(match[3]).digest('hex') })
+      latest.set(match[1], { name: match[1], filename: file.filename, body: match[3] })
     }
   }
-  return [...latest.values()].filter(f => Number(f.filename.slice(0, 3)) >= 180)
+  const present = new Set(files.map(file => file.filename))
+  const rewrites = inPlaceFunctionRewrites.filter(rewrite => present.has(rewrite.filename))
+  return [...latest.values()]
+    .filter(f => Number(f.filename.slice(0, 3)) >= 180)
+    .map(({ name, filename, body }) => {
+      for (const rewrite of rewrites) if (filename < rewrite.filename) body = rewrite.apply(body)
+      return { name, filename, md5: createHash('md5').update(body).digest('hex') }
+    })
 }
 
 export function migrationHealthIssues(catalog, expected = recentFunctionFingerprints()) {

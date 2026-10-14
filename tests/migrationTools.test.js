@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PGlite } from '@electric-sql/pglite'
 import { createHash } from 'node:crypto'
-import { migrationFiles, migrationStatus, trackedMigrationSql, sqlStatements, migrationBody, migrationHealthIssues } from '../scripts/migrationTools.js'
+import { migrationFiles, migrationStatus, trackedMigrationSql, sqlStatements, migrationBody, migrationHealthIssues, recentFunctionFingerprints } from '../scripts/migrationTools.js'
 const fixture = (filename, sql) => ({ filename, sql, sha256: createHash('sha256').update(sql).digest('hex') })
 
 test('full filenames distinguish historical duplicate numbers without claiming unknown history', () => {
@@ -99,4 +99,16 @@ test('ten-day repair returns calendar periods and excludes cancelled sales', asy
       {week_start:'2020-02-21',week_end:'2020-02-29',day_count:9,total_income:300},
     ])
   } finally { await db.close() }
+})
+
+test('function fingerprints mirror migration 246 in-place PT409 rewrite', () => {
+  const md5 = text => createHash('md5').update(text).digest('hex')
+  const file = (filename, sql) => ({ filename, sql, sha256: '' })
+  const older = file('220_bill.sql', "create or replace function public.update_bill_item_quantity(payload jsonb) returns jsonb language plpgsql as $$ begin raise exception 'x' using errcode='40001'; end $$;")
+  const rewrite = file('246_stale_write_errors_not_serialization_failure.sql', 'do $$ begin end $$;')
+  const [before] = recentFunctionFingerprints([older])
+  const [after] = recentFunctionFingerprints([older, rewrite])
+  assert.equal(before.md5, md5(" begin raise exception 'x' using errcode='40001'; end "))
+  assert.equal(after.md5, md5(" begin raise exception 'x' using errcode = 'PT409'; end "))
+  assert.equal(after.filename, '220_bill.sql')
 })
