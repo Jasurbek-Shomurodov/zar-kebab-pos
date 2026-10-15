@@ -930,7 +930,7 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, vi
         <button
           {...listeners}
           {...attributes}
-          className="lux-on-photo absolute left-2 top-2 rounded-full p-1.5 cursor-grab active:cursor-grabbing touch-none sm:left-2.5 sm:top-2.5"
+          className="lux-on-photo absolute right-2 top-2 rounded-full p-1.5 cursor-grab active:cursor-grabbing touch-none sm:right-2.5 sm:top-2.5"
           tabIndex={-1}
         >
           <GripVertical size={15} />
