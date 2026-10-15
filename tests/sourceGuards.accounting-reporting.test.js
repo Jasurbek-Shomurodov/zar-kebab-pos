@@ -267,7 +267,13 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(employees, /md:col-span-2 xl:col-span-3/)
   assert.match(employees, /const activeDailySalary = useMemo\(\(\) => \(\s*activeEmployees\.reduce\(\(sum, item\) => sum \+ getDailySalaryAmount\(item, today\), 0\)\s*\), \[activeEmployees, today\]\)/)
   assert.match(employees, /label=\{l\.activeDaily\} value=\{formatCurrency\(activeDailySalary\)\}/)
-  assert.match(employees, /checkins\.has\(item\.id\) \? getDailySalaryAmount\(item, today\) : 0/)
+  assert.match(employees, /checkins\.has\(item\.id\) \|\| item\.works_remotely === true \? getDailySalaryAmount\(item, today\) : 0/)
+  // Remote employees never scan, so they leave the check-in count instead of showing as missing.
+  assert.match(employees, /checkedInCount\} \/ \$\{attendanceTrackedEmployees\.length\}/)
+  assert.match(employees, /const showAttendance = attendanceLive && !inactive && !absentToday && !remote/)
+  // Cards never flash "not checked in" before today's check-ins have loaded.
+  assert.match(employees, /const awaitingCheckin = showAttendance && checkinsLoaded && !todayCheckin/)
+  assert.match(employees, /showAttendance && checkinsLoaded && \(/)
   // The edit dialog's Save stays disabled until a field differs from the saved employee.
   assert.match(employees, /hasChanges=\{Object\.values\(getEmployeeEditChanges\(editingEmployee\)\)\.some\(Boolean\)\}/)
   assert.match(employees, /onClick=\{onSave\} disabled=\{saving \|\| !hasChanges\}/)
@@ -361,7 +367,7 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(employees, /onClick=\{\(\) => startNameEdit\(employee\)\}/)
   assert.match(functionBody(employees, 'startNameEdit'), /if \(!canEditName \|\| !employee\?\.id\) return/)
   assert.match(functionBody(employees, 'saveEmployeeName'), /if \(!canEditName \|\| !employee\?\.id/)
-  assert.match(functionBody(employees, 'saveEmployeeName'), /\.update\(\{ employee_name: nextName, job_function: editingJobFunction \|\| null, work_start_time: editingWorkStart \|\| null \}\)/)
+  assert.match(functionBody(employees, 'saveEmployeeName'), /\.update\(\{\s*employee_name: nextName,\s*job_function: editingJobFunction \|\| null,\s*work_start_time: editingWorkStart \|\| null,[\s\S]*?works_remotely: editingRemote[\s\S]*?\}\)/)
   assert.match(functionBody(employees, 'saveEmployeeName'), /notifyTelegramEmployeeProfileChange\(employee\.id\)/)
   assert.match(functionBody(employees, 'saveEmployeeName'), /\.eq\('id', employee\.id\)/)
   assert.match(employeeHistory, /const isOwner = normalizeRole\(profile\?\.role \|\| state\.user\?\.role\) === 'owner'/)

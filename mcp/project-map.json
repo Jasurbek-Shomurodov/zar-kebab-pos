@@ -74,6 +74,12 @@
       "symbol": "enforce_attendance_start_date"
     },
     {
+      "name": "remote employee attendance exemption",
+      "aliases": ["works remotely no QR scan", "exclude employee from check-in", "remote worker not checked in", "Masofaviy"],
+      "path": "migrations/252_employee_works_remotely.sql",
+      "symbol": "works_remotely"
+    },
+    {
       "name": "KPI shift ends at 04:00",
       "aliases": ["sales after midnight count for previous day", "waiter works until 2am KPI", "KPI business date cutoff", "daily report cron 04:05"],
       "path": "migrations/244_kpi_day_ends_0400.sql",

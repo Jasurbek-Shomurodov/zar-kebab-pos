@@ -176,6 +176,8 @@ export default function Employees() {
       workStartNotSet: 'Belgilanmagan',
       setWorkStart: 'Vaqtni belgilash',
       clearWorkStart: 'Vaqtni olib tashlash',
+      worksRemotely: 'Masofaviy',
+      worksRemotelyHint: 'QR orqali kelish belgilanmaydi',
       hour: 'Soat',
       minute: 'Daqiqa',
       done: 'Tayyor',
@@ -300,6 +302,8 @@ export default function Employees() {
       workStartNotSet: 'Не задано',
       setWorkStart: 'Задать время',
       clearWorkStart: 'Убрать время',
+      worksRemotely: 'Удалённо',
+      worksRemotelyHint: 'Отмечаться по QR не нужно',
       hour: 'Час',
       minute: 'Минута',
       done: 'Готово',
@@ -424,6 +428,8 @@ export default function Employees() {
       workStartNotSet: 'Not set',
       setWorkStart: 'Set time',
       clearWorkStart: 'Clear time',
+      worksRemotely: 'Remote',
+      worksRemotelyHint: 'No QR check-in needed',
       hour: 'Hour',
       minute: 'Minute',
       done: 'Done',
@@ -488,6 +494,7 @@ export default function Employees() {
   const [editingName, setEditingName] = useState('')
   const [editingJobFunction, setEditingJobFunction] = useState('')
   const [editingWorkStart, setEditingWorkStart] = useState('')
+  const [editingRemote, setEditingRemote] = useState(false)
   const [salaryForm, setSalaryForm] = useState(null)
   const [kpiForm, setKpiForm] = useState(null)
   const [editError, setEditError] = useState('')
@@ -501,6 +508,8 @@ export default function Employees() {
   const [telegramInvite, setTelegramInvite] = useState(null)
   const [newEmployeeOpen, setNewEmployeeOpen] = useState(false)
   const [checkins, setCheckins] = useState(() => new Map())
+  // Until today's first check-in read lands, nobody is shown as present or missing.
+  const [checkinsLoaded, setCheckinsLoaded] = useState(false)
   // Assume check-ins exist until the query says otherwise, so the KPI row and header
   // keep their final shape instead of growing a tile once the first poll returns.
   const [attendanceAvailable, setAttendanceAvailable] = useState(true)
@@ -569,7 +578,9 @@ export default function Employees() {
       if (cancelled) return
       setAttendanceAvailable(!checkinError)
       if (!checkinError) setCheckins(new Map((data || []).map(row => [row.salary_profile_id, row])))
+      setCheckinsLoaded(true)
     }
+    setCheckinsLoaded(false)
     loadCheckins()
     const timer = window.setInterval(loadCheckins, 60_000)
     return () => {
@@ -683,13 +694,15 @@ export default function Employees() {
   const absentTodayCount = absentTodayEmployeeIds.size
   // Check-in stats appear from ATTENDANCE_START_DATE; the screen link and work start times can be set up before.
   const attendanceLive = attendanceAvailable && isAttendanceStarted(today)
-  const checkedInCount = activeEmployees.filter(employee => checkins.has(employee.id)).length
+  // Remote employees never scan: they leave the check-in count and their daily pay always counts as present.
+  const attendanceTrackedEmployees = activeEmployees.filter(employee => employee.works_remotely !== true)
+  const checkedInCount = attendanceTrackedEmployees.filter(employee => checkins.has(employee.id)).length
   const activeDailySalary = useMemo(() => (
     activeEmployees.reduce((sum, item) => sum + getDailySalaryAmount(item, today), 0)
   ), [activeEmployees, today])
   // Daily pay of the employees who checked in today, out of the full active daily payroll.
   const checkedInDailySalary = useMemo(() => (
-    activeEmployees.reduce((sum, item) => sum + (checkins.has(item.id) ? getDailySalaryAmount(item, today) : 0), 0)
+    activeEmployees.reduce((sum, item) => sum + (checkins.has(item.id) || item.works_remotely === true ? getDailySalaryAmount(item, today) : 0), 0)
   ), [activeEmployees, checkins, today])
   // Today's pay across the team: daily pay of those not absent, plus today's bonuses, minus today's fines.
   const todaySalary = useMemo(() => employees.reduce((sum, item) => {
@@ -800,6 +813,7 @@ export default function Employees() {
     setEditingName(employeeName(employee))
     setEditingJobFunction(employee.job_function || '')
     setEditingWorkStart(normalizeWorkStartTime(employee.work_start_time))
+    setEditingRemote(employee.works_remotely === true)
     setSalaryForm(buildEmployeeSalaryForm(employee, today))
     setKpiForm(buildEmployeeKpiForm(kpiRules, employee, today))
     setTelegramInvite(null)
@@ -817,6 +831,7 @@ export default function Employees() {
     setEditingName('')
     setEditingJobFunction('')
     setEditingWorkStart('')
+    setEditingRemote(false)
     setSalaryForm(null)
     setKpiForm(null)
     setTelegramInvite(null)
@@ -827,6 +842,7 @@ export default function Employees() {
     return editingName.trim() !== employeeName(employee)
       || (editingJobFunction || '') !== (employee.job_function || '')
       || editingWorkStart !== normalizeWorkStartTime(employee.work_start_time)
+      || editingRemote !== (employee.works_remotely === true)
   }
 
   async function saveEmployeeName(employee) {
@@ -840,7 +856,13 @@ export default function Employees() {
     // One update, so migration 250's trigger records one Investor event per save.
     const { error: updateError } = await supabase
       .from('employee_salary_profiles')
-      .update({ employee_name: nextName, job_function: editingJobFunction || null, work_start_time: editingWorkStart || null })
+      .update({
+        employee_name: nextName,
+        job_function: editingJobFunction || null,
+        work_start_time: editingWorkStart || null,
+        // Sent only once migration 252 added the column, so older databases keep saving.
+        ...('works_remotely' in employee ? { works_remotely: editingRemote } : {}),
+      })
       .eq('id', employee.id)
     if (updateError) {
       setEditError(updateError.message)
@@ -1057,9 +1079,9 @@ export default function Employees() {
             {/* Absences are a subset of the active team, so they share its tile. */}
             <Kpi loading={tilesLoading} icon={Users} label={l.active} value={activeCount}
               note={`${l.absentToday}: ${absentTodayCount}`} noteDanger={absentTodayCount > 0} />
-            {attendanceLive && <Kpi loading={tilesLoading} icon={ScanLine} label={l.checkedInToday} value={`${checkedInCount} / ${activeCount}`} />}
+            {attendanceLive && <Kpi loading={tilesLoading || !checkinsLoaded} icon={ScanLine} label={l.checkedInToday} value={`${checkedInCount} / ${attendanceTrackedEmployees.length}`} />}
             {attendanceLive
-              ? <Kpi loading={tilesLoading} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(checkedInDailySalary)} total={formatCurrency(activeDailySalary)} />
+              ? <Kpi loading={tilesLoading || !checkinsLoaded} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(checkedInDailySalary)} total={formatCurrency(activeDailySalary)} />
               : <Kpi loading={tilesLoading} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(activeDailySalary)} />}
             <Kpi loading={tilesLoading} icon={HandCoins} label={l.todayPay} value={formatCurrency(todaySalary.earned)}
               danger={todaySalary.earned < 0}
@@ -1123,8 +1145,9 @@ export default function Employees() {
                 const effectiveKpiRule = getEffectiveKpiRule(kpiRules, employee.id, today)
                 const todayCheckin = checkins.get(employee.id)
                 const workStart = normalizeWorkStartTime(employee.work_start_time)
-                const showAttendance = attendanceLive && !inactive && !absentToday
-                const awaitingCheckin = showAttendance && !todayCheckin
+                const remote = employee.works_remotely === true
+                const showAttendance = attendanceLive && !inactive && !absentToday && !remote
+                const awaitingCheckin = showAttendance && checkinsLoaded && !todayCheckin
                 return (
                   <section key={employee.id} onClick={event => {
                     // Buttons and fields inside the card keep their own actions.
@@ -1176,7 +1199,11 @@ export default function Employees() {
                           {inactive ? l.inactive : absentToday ? l.absentToday : l.active}
                         </span>
                       )}
-                      {showAttendance && (
+                      {remote && !inactive && !absentToday && (
+                        <span className="ws-status ws-tone-info" title={l.worksRemotelyHint}>{l.worksRemotely}</span>
+                      )}
+                      {showAttendance && !checkinsLoaded && <Shimmer className="h-6 w-16 rounded-full" />}
+                      {showAttendance && checkinsLoaded && (
                         <span className={`ws-status ${
                           !todayCheckin
                             ? 'ws-tone-caution'
@@ -1201,7 +1228,7 @@ export default function Employees() {
                     <dl className="mb-3 mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
                       <Fact label={l.joined} value={formatLongDate(employee.joined_at, lang, employee.joined_at)} />
                       {inactive && employee.ended_at && <Fact label={l.ended} value={formatLongDate(employee.ended_at, lang, employee.ended_at)} />}
-                      {attendanceAvailable && !inactive && (
+                      {attendanceAvailable && !inactive && !remote && (
                         <Fact label={l.workStart} value={workStart || l.workStartNotSet} muted={!workStart} />
                       )}
                       {showAttendance && todayCheckin && (
@@ -1334,6 +1361,9 @@ export default function Employees() {
           onJobFunctionChange={setEditingJobFunction}
           workStart={editingWorkStart}
           onWorkStartChange={setEditingWorkStart}
+          showRemote={'works_remotely' in editingEmployee}
+          remote={editingRemote}
+          onRemoteChange={setEditingRemote}
           salaryForm={salaryForm}
           onSalaryFormChange={setSalaryForm}
           kpiForm={kpiForm}
@@ -1546,6 +1576,9 @@ function EmployeeEditDialog({
   onJobFunctionChange,
   workStart,
   onWorkStartChange,
+  showRemote,
+  remote,
+  onRemoteChange,
   salaryForm,
   onSalaryFormChange,
   kpiForm,
@@ -1597,7 +1630,22 @@ function EmployeeEditDialog({
                 </select>
               </DialogField>
             </div>
-            {showWorkStart && active && (
+            {showWorkStart && active && showRemote && (
+              <button type="button" role="switch" aria-checked={remote} disabled={!canEditProfile || saving}
+                onClick={() => onRemoteChange(!remote)}
+                className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                  remote ? 'ws-tone-info' : 'border-[#e4e1de] bg-[#efece9] text-[#68655f]'
+                }`}>
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{l.worksRemotely}</span>
+                  <span className="block text-xs opacity-80">{l.worksRemotelyHint}</span>
+                </span>
+                <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${remote ? 'bg-[#2a6fdb]' : 'bg-[#dcd9d6]'}`} aria-hidden="true">
+                  <span className={`absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${remote ? 'translate-x-6' : 'translate-x-1'}`} />
+                </span>
+              </button>
+            )}
+            {showWorkStart && active && !remote && (
               <div className="flex items-end gap-2">
                 {workStart ? (
                   <>
