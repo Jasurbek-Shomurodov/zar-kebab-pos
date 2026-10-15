@@ -54,7 +54,7 @@
 
 ## Investor
 
-- Lifecycle (`178`), name/role/start edits (`250`): immutable Russian Investor events.
+- Lifecycle `178`, name/role/start `250`, Remote `253`: immutable Russian Investor events.
 - Ingredient changes (`189`) snapshot before/after values and actor. Unchanged saves and imports stay silent. `ingredient-events` sends to `salary_events`; unknown sends stay held.
 - Order deletes require a reason (`184`); Investor alerts snapshot order, total, actor and tenders. Corrections and splits (`201`) notify Investor once with before/after allocations.
 - New cash expenses (text) and Bazaar purchases (one localized PNG + caption, never also a text receipt) notify Investor via legacy `salary_events`.

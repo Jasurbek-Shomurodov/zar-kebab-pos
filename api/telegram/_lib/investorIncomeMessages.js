@@ -234,9 +234,9 @@ export function buildEmployeeLifecycleInvestorMessage(delivery, language = 'ru')
 export function buildEmployeeProfileChangeInvestorMessage(delivery, language = 'ru') {
   const lang = normalizeLanguage(language)
   const copy = {
-    uz: { title: 'Xodim ma’lumotlari o‘zgartirildi', employee: 'Xodim', name: 'Ism', role: 'Lavozim', workStart: 'Ish boshlanishi', notSet: 'belgilanmagan', actor: 'O‘zgartirgan' },
-    ru: { title: 'Данные сотрудника изменены', employee: 'Сотрудник', name: 'Имя', role: 'Должность', workStart: 'Начало работы', notSet: 'не задано', actor: 'Изменил(а)' },
-    en: { title: 'Employee details changed', employee: 'Employee', name: 'Name', role: 'Role', workStart: 'Work starts', notSet: 'not set', actor: 'Changed by' },
+    uz: { title: 'Xodim ma’lumotlari o‘zgartirildi', employee: 'Xodim', name: 'Ism', role: 'Lavozim', workStart: 'Ish boshlanishi', notSet: 'belgilanmagan', workMode: 'Ish tartibi', remote: 'Masofaviy', onSite: 'Joyida', actor: 'O‘zgartirgan' },
+    ru: { title: 'Данные сотрудника изменены', employee: 'Сотрудник', name: 'Имя', role: 'Должность', workStart: 'Начало работы', notSet: 'не задано', workMode: 'Формат работы', remote: 'Удалённо', onSite: 'На месте', actor: 'Изменил(а)' },
+    en: { title: 'Employee details changed', employee: 'Employee', name: 'Name', role: 'Role', workStart: 'Work starts', notSet: 'not set', workMode: 'Work mode', remote: 'Remote', onSite: 'On site', actor: 'Changed by' },
   }[lang]
   const role = value => employeeJobFunctionLabel(value, lang) || copy.notSet
   const time = value => String(value || '').slice(0, 5) || copy.notSet
@@ -253,6 +253,12 @@ export function buildEmployeeProfileChangeInvestorMessage(delivery, language = '
   }
   if (time(delivery?.work_start_before) !== time(delivery?.work_start_after)) {
     lines.push(change(copy.workStart, time(delivery?.work_start_before), time(delivery?.work_start_after)))
+  }
+  // Events recorded before migration 253 carry no Remote flags and get no line.
+  const workMode = value => (value === true ? copy.remote : copy.onSite)
+  if (typeof delivery?.works_remotely_after === 'boolean'
+    && (delivery?.works_remotely_before === true) !== delivery.works_remotely_after) {
+    lines.push(change(copy.workMode, workMode(delivery?.works_remotely_before), workMode(delivery.works_remotely_after)))
   }
   if (delivery?.actor_name) lines.push(`${copy.actor}: ${escapeTelegramHtml(delivery.actor_name)}`)
   return lines.join('\n')
