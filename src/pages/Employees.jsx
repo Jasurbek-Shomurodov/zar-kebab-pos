@@ -1124,6 +1124,7 @@ export default function Employees() {
                 const todayCheckin = checkins.get(employee.id)
                 const workStart = normalizeWorkStartTime(employee.work_start_time)
                 const showAttendance = attendanceLive && !inactive && !absentToday
+                const awaitingCheckin = showAttendance && !todayCheckin
                 return (
                   <section key={employee.id} onClick={event => {
                     // Buttons and fields inside the card keep their own actions.
@@ -1134,7 +1135,9 @@ export default function Employees() {
                       ? 'ws-inactive-card'
                       : absentToday
                         ? '!border-[#c4262c]/40 ring-2 ring-[#c4262c]/10'
-                        : ''
+                        : awaitingCheckin
+                          ? 'ws-awaiting-card'
+                          : ''
                   }`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -1143,7 +1146,9 @@ export default function Employees() {
                             ? 'ws-inactive-avatar'
                             : absentToday
                               ? 'bg-[#c4262c]/10 text-[#c4262c]'
-                              : 'bg-[#ff5a00]/10 text-[#c24400]'
+                              : awaitingCheckin
+                                ? 'ws-awaiting-avatar'
+                                : 'bg-[#ff5a00]/10 text-[#c24400]'
                         }`}>
                           {absentToday ? <CalendarX2 size={17} /> : (employeeName(employee).trim().charAt(0).toUpperCase() || <UserRound size={17} />)}
                         </div>
@@ -1174,7 +1179,7 @@ export default function Employees() {
                       {showAttendance && (
                         <span className={`ws-status ${
                           !todayCheckin
-                            ? ''
+                            ? 'ws-tone-caution'
                             : todayCheckin.arrival_status === 'late' ? 'ws-tone-caution' : 'ws-tone-positive'
                         }`}>
                           {todayCheckin ? l.present : l.notCheckedIn}
@@ -1182,7 +1187,7 @@ export default function Employees() {
                       )}
                     </div>
 
-                    <div className={`mt-3 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-2.5 ${inactive ? 'ws-inactive-stats' : 'bg-[#f8f6f3]'}`}>
+                    <div className={`mt-3 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-2.5 ${inactive ? 'ws-inactive-stats' : awaitingCheckin ? 'ws-awaiting-dim bg-[var(--ws-card)]' : 'bg-[#f8f6f3]'}`}>
                       <Stat
                         label={l.balance}
                         value={formatCurrency(salaryBalance)}

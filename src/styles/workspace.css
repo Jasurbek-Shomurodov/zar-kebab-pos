@@ -250,6 +250,10 @@ select.ws-input { cursor: pointer; padding-right: 32px; }
 .ws-inactive-avatar { background: color-mix(in srgb, var(--ws-caution) 22%, transparent); color: color-mix(in srgb, var(--ws-caution) 85%, var(--ws-foreground)); }
 .ws-inactive-stats { background: color-mix(in srgb, var(--ws-caution) 11%, var(--ws-card)); }
 .ws-tone-caution-strong { background: var(--ws-caution); color: var(--ws-card); border-color: transparent; font-weight: 600; }
+/* Not checked in yet today: dashed, muted card with a greyed avatar and stats, so who is missing reads at a glance. */
+.ws-awaiting-card { border-style: dashed !important; border-color: color-mix(in srgb, var(--ws-muted-foreground) 45%, transparent) !important; background: var(--ws-muted) !important; box-shadow: none; }
+.ws-awaiting-avatar { background: color-mix(in srgb, var(--ws-muted-foreground) 16%, transparent); color: var(--ws-muted-foreground); }
+.ws-awaiting-dim { filter: grayscale(1); opacity: .6; }
 
 /* Empty state. */
 .ws-empty {
