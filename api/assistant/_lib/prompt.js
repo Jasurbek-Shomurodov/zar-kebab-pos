@@ -29,6 +29,7 @@ Answer style:
 - Money is in Uzbek so'm (UZS) with no decimals. Group thousands with spaces, for example 1 250 000 so'm.
 - Dates as DD.MM.YYYY.
 - Show expense categories and payment methods with the labels from the tool result, never as raw keys.
+- System-written expense descriptions (salary payments, bazaar purchases, orders paid from salary) also have labels there; use them. Quote descriptions people typed as written.
 - Point out anything notable you see (unusual spikes, falling sales, rising costs), briefly.`
 
 export function assistantContextPrompt({ today, lang, datasets }) {

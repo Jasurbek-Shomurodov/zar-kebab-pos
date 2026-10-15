@@ -32,13 +32,20 @@ const toQuery = (dataset, input) => ({
   category: input.category,
 })
 
-/** Stored keys in a table, with their labels in the user's language. */
+/**
+ * Stored keys in a table, with their labels in the user's language. For
+ * descriptions only the system-written ones that translate are listed, so
+ * typed notes are not repeated.
+ */
 function valueLabels(table, labels) {
   const out = {}
   for (const column of table.columns) {
-    if (column.key !== 'category' && column.key !== 'paymentMethod') continue
+    if (!['category', 'paymentMethod', 'description'].includes(column.key)) continue
     const keys = [...new Set(table.rows.map(row => row[column.key]).filter(value => typeof value === 'string'))]
-    if (keys.length) out[column.key] = Object.fromEntries(keys.map(key => [key, labels.value(column.key, key)]))
+    const entries = keys
+      .map(key => [key, labels.value(column.key, key)])
+      .filter(([key, label]) => column.key !== 'description' || (label && label !== key))
+    if (entries.length) out[column.key] = Object.fromEntries(entries)
   }
   return out
 }

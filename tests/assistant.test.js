@@ -131,6 +131,8 @@ test('daily, monthly, category, expense and dish tables', () => {
 
 
 const RENT = { entry_type: 'expense', category: 'rent', amount: 700, expense_date: '2026-10-01', payment_method: 'card' }
+const BAZAAR = { entry_type: 'expense', category: 'products', amount: 300, expense_date: '2026-10-02', payment_method: 'cash', description: 'Daily Bazaar purchase (18 items)' }
+const NOTE = { entry_type: 'expense', category: 'utilities', amount: 100, expense_date: '2026-10-03', payment_method: 'cash', description: 'elektrik - 400' }
 
 test('tools read allowed datasets and turn bad queries into model-visible errors', async () => {
   const table = expensesTable([RENT])
@@ -172,6 +174,22 @@ test('Excel export attaches a translated workbook', async () => {
   assert.equal(sheet.getRow(3).getCell(1).value, 'Дата')
   assert.equal(sheet.getRow(4).getCell(3).value, 700)
   assert.equal(sheet.getRow(4).getCell(4).value, 'Карта')
+})
+
+test('system-written expense descriptions follow the user language; typed notes stay as written', async () => {
+  const loader = { load: async () => ({ table: expensesTable([RENT, BAZAAR, NOTE]), period: { from: '2026-10-01', to: '2026-10-15' } }) }
+  const tools = assistantTools({ datasets: ['expenses'], loader, labels: createAssistantLabels('ru') })
+
+  const result = await tools.get_data.execute({ dataset: 'expenses' }, {})
+  assert.deepEqual(result.labels.description, { 'Daily Bazaar purchase (18 items)': 'Покупка на ежедневном базаре (18 поз.)' })
+
+  const files = []
+  await tools.export_excel.execute({ datasets: ['expenses'] }, { attachFile: file => files.push(file) })
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(files[0].data)
+  const sheet = workbook.worksheets[0]
+  assert.equal(sheet.getRow(5).getCell(6).value, 'Покупка на ежедневном базаре (18 поз.)')
+  assert.equal(sheet.getRow(6).getCell(6).value, 'elektrik - 400')
 })
 
 const OWNER = { id: 'u1', email: 'owner@example.com', role: 'owner', status: 'active', feature_access: null }

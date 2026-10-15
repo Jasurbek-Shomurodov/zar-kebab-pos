@@ -186,6 +186,13 @@ export function expenseDescriptionLabel(value, lang = 'en') {
   }
   if (systemLabels[description]) return systemLabels[description][selectedLang]
 
+  // Orders paid from salary (migration 210): "Order: <numbers>".
+  const orderMatch = description.match(/^Order: (.+)$/)
+  if (orderMatch) {
+    const prefix = { uz: 'Buyurtma', ru: 'Заказ', en: 'Order' }[selectedLang]
+    return `${prefix}: ${orderMatch[1]}`
+  }
+
   const dailyBazaarMatch = description.match(/^Daily Bazaar purchase \((\d+) items?\)$/)
   if (!dailyBazaarMatch) return description
 

@@ -1,4 +1,4 @@
-import { expenseCategoryLabel, expensePaymentMethodLabel } from '../expenses.js'
+import { expenseCategoryLabel, expenseDescriptionLabel, expensePaymentMethodLabel } from '../expenses.js'
 
 // Sheet titles, column headers and metric names for assistant Excel exports.
 const DATASET_LABELS = {
@@ -79,6 +79,8 @@ export function createAssistantLabels(lang) {
     value: (columnKey, value) => {
       if (columnKey === 'category') return expenseCategoryLabel(value, lang)
       if (columnKey === 'paymentMethod') return expensePaymentMethodLabel(value, lang)
+      // System-written descriptions (salary payments, bazaar purchases…); typed notes stay as written.
+      if (columnKey === 'description') return expenseDescriptionLabel(value, lang)
       if (columnKey === 'metric') return pick(METRIC_LABELS[value], lang)
       return null
     },

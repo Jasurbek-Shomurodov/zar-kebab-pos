@@ -18,6 +18,7 @@ Read this guide for the `/admin/assistant` chat page, its data tools, Excel expo
 - Datasets follow the caller's other features (`allowedDatasets`): Accounting gives `summary`, `daily`, `categories`, `expenses`; Financial analysis adds `monthly`; Reports gives `dish_sales`. Payroll ledgers, recipes and per-product costs are never offered.
 - Datasets reuse page loaders and math (`loadReportsAccountingBundle`, `getAccountingPageSummaryFromOrderSummary`, `loadAccountingMonthlyCashflow`, `buildDailySpending`, `getDishSalesAnalysis`). Never add assistant-only money math.
 - Periods resolve against the Tashkent date: at most 366 days, or 92 for order-based `daily` and `dish_sales`.
+- Stored keys are translated through `createAssistantLabels` (`src/lib/assistant/labels.js`): categories, payment methods, metrics and system-written expense descriptions (`expenseDescriptionLabel`: salary payments, bazaar purchases, `Order: …`). Typed notes stay as written.
 - Tools are read-only (no `needsConfirmation`). The browser keeps the chat. The language travels in the `x-assistant-lang` header, not chat context, so switching it never refetches the quota or resets the chat.
 
 ## Providers

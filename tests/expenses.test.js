@@ -78,6 +78,9 @@ test('system-generated expense descriptions follow the selected language', () =>
     'Kunlik bozor xaridi (1 ta mahsulot)'
   )
   assert.equal(expenseDescriptionLabel('Manager-entered note', 'ru'), 'Manager-entered note')
+  assert.equal(expenseDescriptionLabel('Order: TA-7570, o1790853706131', 'ru'), 'Заказ: TA-7570, o1790853706131')
+  assert.equal(expenseDescriptionLabel('Order: TA-7570', 'uz'), 'Buyurtma: TA-7570')
+  assert.equal(expenseDescriptionLabel('Order: TA-7570', 'en'), 'Order: TA-7570')
 })
 
 test('expense summary totals category and payment method spending', () => {
