@@ -72,7 +72,7 @@ Read the feature's guide fully; read more only when a task crosses boundaries.
 
 ## Git publishing
 
-- When the user requests a commit and push, the approved destination for this repository is `origin` (`git@github.com:exampleschool23/zar-kebab-pos.git`), including branch `main`. Do not ask for destination confirmation again while this remote remains unchanged.
+- When the user requests a commit and push, the approved destination for this repository is `origin` (`git@github.com:Jasurbek-Shomurodov/zar-kebab-pos.git`), including branch `main`. Do not ask for destination confirmation again while this remote remains unchanged.
 - This covers ordinary pushes of requested changes, never force pushes, unrelated changes, or secrets.
 
 ## Validation
