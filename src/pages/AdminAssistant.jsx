@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, MessageSquarePlus, SendHorizontal, Sparkles,
 import { AssistantMarkdown, useAssistantChat } from 'hoggish-assistant/react'
 import AppShell from '../components/AppShell'
 import { Shimmer } from '../components/PageShimmer'
+import { RollingLabel } from '../components/RollingNumber'
 import { useApp } from '../store/AppContext'
 import { supabase } from '../lib/supabase'
 
@@ -54,7 +55,7 @@ const L = {
       usedUp: 'Bugungi bepul limit tugadi',
       resetsIn: (hours, minutes) => `${hours} soat ${minutes} daqiqadan keyin yangilanadi`,
     },
-    model: model => `Model: ${model}`,
+    model: 'Model:',
     contextUse: (percent, count) => `Kontekstning ${percent}% ishlatildi · yana ≈${count} ta xabar sig‘adi`,
     contextTokens: tokens => `Kontekstdan ${tokens} token ishlatildi`,
   },
@@ -99,7 +100,7 @@ const L = {
       usedUp: 'Бесплатный лимит на сегодня исчерпан',
       resetsIn: (hours, minutes) => `Обновится через ${hours} ч ${minutes} мин`,
     },
-    model: model => `Модель: ${model}`,
+    model: 'Модель:',
     contextUse: (percent, count) => `Использовано ${percent}% контекста · поместится ещё ≈${count} сообщений`,
     contextTokens: tokens => `Использовано ${tokens} токенов контекста`,
   },
@@ -144,7 +145,7 @@ const L = {
       usedUp: 'Free limit used up for today',
       resetsIn: (hours, minutes) => `Resets in ${hours} h ${minutes} min`,
     },
-    model: model => `Model: ${model}`,
+    model: 'Model:',
     contextUse: (percent, count) => `${percent}% of context used · ≈${count} more messages fit`,
     contextTokens: tokens => `${tokens} tokens of context used`,
   },
@@ -258,7 +259,7 @@ export default function AdminAssistant() {
       title={l.title}
       titleAccessory={model || quota ? (
         <span className="inline-flex flex-wrap items-center gap-2">
-          {model && <span className="ws-badge" title={model.provider}>{l.model(model.model)}</span>}
+          {model && <span className="ws-badge" title={model.provider}>{l.model} <RollingLabel text={model.model} /></span>}
           {quota && <span className={`ws-badge ${quotaTone}`} title={quotaDetail}>{l.quota.questionsLeft(quota.questionsLeft)}</span>}
         </span>
       ) : null}

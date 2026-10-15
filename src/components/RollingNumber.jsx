@@ -77,3 +77,27 @@ export function RollingValue({ value }) {
   if ((typeof value === 'string' || typeof value === 'number') && !isValidElement(value)) return <RollingText text={value} />
   return value ?? null
 }
+
+/** A word or name (not a figure) that rolls up out of view as its replacement rolls in, on the odometer's timing. */
+export function RollingLabel({ text }) {
+  const value = String(text)
+  const [leaving, setLeaving] = useState(null)
+  const shown = useRef(value)
+
+  useLayoutEffect(() => {
+    if (shown.current === value) return undefined
+    const previous = shown.current
+    shown.current = value
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined
+    setLeaving(previous)
+    const timer = setTimeout(() => setLeaving(null), ROLL_MS + 100)
+    return () => clearTimeout(timer)
+  }, [value])
+
+  return (
+    <roll-label>
+      {leaving !== null && <roll-out aria-hidden="true" key={`out-${leaving}`}>{leaving}</roll-out>}
+      <roll-in key={value} data-rolling={leaving !== null ? '' : undefined}>{value}</roll-in>
+    </roll-label>
+  )
+}
