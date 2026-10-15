@@ -18,6 +18,7 @@ import {
   buildAttendanceCheckinMessage,
   buildAttendanceCheckinRow,
   buildAttendanceCodeRejectedMessage,
+  buildAttendanceConnectBotFirstMessage,
   buildAttendanceNotLinkedMessage,
   parseAttendanceCheckinCommand,
   buildAttendanceNotStartedMessage,
@@ -145,7 +146,7 @@ async function checkInEmployee(supabase, message, command) {
     .maybeSingle()
   if (linkError) throw linkError
   if (!link) {
-    await sendTelegramMessage(message.chat.id, buildAttendanceNotLinkedMessage())
+    await sendTelegramMessage(message.chat.id, buildAttendanceConnectBotFirstMessage())
     return
   }
 

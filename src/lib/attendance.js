@@ -163,6 +163,12 @@ export function buildAttendanceCheckinMessage({ name, checkin, alreadyCheckedIn 
   return copy[checkin.arrival_status] || copy.no_schedule
 }
 
+// Scanner's Telegram has never been linked to an employee: connect first, then rescan.
+export function buildAttendanceConnectBotFirstMessage() {
+  return '⚠️ Вы ещё не подключены к боту. Сначала подключитесь к боту по ссылке от администратора, '
+    + 'затем снова отсканируйте QR-код на экране.'
+}
+
 export function buildAttendanceNotLinkedMessage() {
   return 'Ваш Telegram не привязан к профилю сотрудника. Попросите администратора отправить ссылку для привязки.\n\n'
     + 'Telegram xodim profiliga ulanmagan. Administratordan ulash havolasini so‘rang.'

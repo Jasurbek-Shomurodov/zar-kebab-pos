@@ -115,6 +115,7 @@ test('webhook verifies the rotating code by Telegram message time before identit
   assert.match(handler, /message\.date \* 1000/)
   assert.ok(handler.indexOf("rpc('verify_attendance_checkin_payload'") < handler.indexOf('employee_salary_telegram_links'))
   assert.match(handler, /verdict !== 'valid'/)
+  assert.match(handler, /if \(!link\) \{\n\s+await sendTelegramMessage\(message\.chat\.id, buildAttendanceConnectBotFirstMessage\(\)\)/)
   assert.match(handler, /buildAttendanceCheckinRow\(salaryProfile, message\.from\.id, scannedAt\)/)
   assert.match(handler, /ignoreDuplicates: true/)
   assert.doesNotMatch(handler, /employee_salary_(fines|bonuses|absences)/)
