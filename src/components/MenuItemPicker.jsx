@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Search, SlidersHorizontal, UtensilsCrossed } from 'lucide-react'
 import MenuMedia from './MenuMedia'
 import { getMenuItemOptionGroups } from './MenuProductCards'
@@ -27,7 +28,9 @@ export default function MenuItemPicker({
 }) {
   const l = pickerLabels(lang)
   const rootRef = useRef(null)
+  const panelRef = useRef(null)
   const [open, setOpen] = useState(false)
+  const [panelPosition, setPanelPosition] = useState(null)
   const [search, setSearch] = useState('')
   const [activeCategoryId, setActiveCategoryId] = useState('all')
   const [expandedItemId, setExpandedItemId] = useState('')
@@ -80,10 +83,43 @@ export default function MenuItemPicker({
   useEffect(() => {
     if (!open) return undefined
     function closeOnOutsidePointer(event) {
-      if (!rootRef.current?.contains(event.target)) setOpen(false)
+      if (!rootRef.current?.contains(event.target) && !panelRef.current?.contains(event.target)) setOpen(false)
     }
     document.addEventListener('pointerdown', closeOnOutsidePointer)
     return () => document.removeEventListener('pointerdown', closeOnOutsidePointer)
+  }, [open])
+
+  // The panel is portaled to <body> so scroll/overflow containers (e.g. the
+  // rounded Tech Card component list) can never clip it. It opens below the
+  // trigger, or above it when there is more room there.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelPosition(null)
+      return undefined
+    }
+    function place() {
+      const rect = rootRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const gap = 8
+      const margin = 12
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      const width = Math.min(620, viewportWidth - 2 * margin)
+      const left = Math.max(margin, Math.min(rect.left, viewportWidth - width - margin))
+      const spaceBelow = viewportHeight - rect.bottom - gap - margin
+      const spaceAbove = rect.top - gap - margin
+      const openBelow = spaceBelow >= 420 || spaceBelow >= spaceAbove
+      setPanelPosition(openBelow
+        ? { left, width, top: rect.bottom + gap, maxHeight: Math.min(spaceBelow, 520) }
+        : { left, width, bottom: viewportHeight - rect.top + gap, maxHeight: Math.min(spaceAbove, 520) })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
   }, [open])
 
   useEffect(() => {
@@ -118,9 +154,13 @@ export default function MenuItemPicker({
         <ChevronDown size={15} className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-[min(620px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-900/20">
-          <div className="border-b border-gray-100 p-3">
+      {open && panelPosition && createPortal(
+        <div
+          ref={panelRef}
+          style={panelPosition}
+          className="fixed z-[90] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-900/20"
+        >
+          <div className="shrink-0 border-b border-gray-100 p-3">
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -133,8 +173,8 @@ export default function MenuItemPicker({
             </div>
           </div>
 
-          <div className="grid max-h-[440px] min-h-[280px] grid-cols-[minmax(145px,230px)_minmax(0,1fr)] overflow-hidden">
-            <div className="border-r border-gray-100 bg-gray-50/70 p-2">
+          <div className="grid min-h-0 flex-1 grid-cols-[minmax(145px,230px)_minmax(0,1fr)] overflow-hidden">
+            <div className="flex min-h-0 flex-col border-r border-gray-100 bg-gray-50/70 p-2">
               <button
                 type="button"
                 onClick={() => setActiveCategoryId('all')}
@@ -143,7 +183,7 @@ export default function MenuItemPicker({
                 <span className="truncate text-sm font-black">{l.all}</span>
                 <span className={`text-[11px] font-black ${activeCategoryId === 'all' ? 'text-white/85' : 'text-gray-400'}`}>{items.length}</span>
               </button>
-              <div className="max-h-[370px] space-y-1 overflow-y-auto pr-1">
+              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
                 {visibleSections.map(section => (
                   <button
                     key={section.id}
@@ -160,7 +200,7 @@ export default function MenuItemPicker({
               </div>
             </div>
 
-            <div className="max-h-[440px] overflow-y-auto p-2">
+            <div className="min-h-0 overflow-y-auto p-2">
               <div className="sticky top-0 z-10 mb-1 rounded-xl bg-white/95 px-3 py-2 backdrop-blur">
                 <p className="truncate text-xs font-black uppercase tracking-wide text-gray-400">{panelTitle}</p>
               </div>
@@ -245,7 +285,8 @@ export default function MenuItemPicker({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

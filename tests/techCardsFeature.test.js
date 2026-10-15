@@ -169,6 +169,9 @@ test('Tech Card included-item picker is searchable and grouped by menu category'
   assert.match(picker, /group-focus-within:grid-rows-\[1fr\]/)
   assert.match(picker, /selectItem\(item\.id, \{ \[group\.id\]: option\.id \}\)/)
   assert.match(picker, /document\.addEventListener\('pointerdown'/)
+  // Portaled so the rounded overflow-hidden component list cannot clip the panel.
+  assert.match(picker, /createPortal\([\s\S]*document\.body/)
+  assert.match(picker, /panelRef\.current\?\.contains\(event\.target\)/)
 })
 
 test('Tech Card ingredients come from the active Bazaar catalog and lock the normal price', () => {
