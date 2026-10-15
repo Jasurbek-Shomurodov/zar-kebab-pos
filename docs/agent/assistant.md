@@ -1,10 +1,10 @@
 # AI Assistant
 
-Read this guide for the `/admin/assistant` chat page, its data tools, Excel exports, and model providers. It is built on the shared `hoggish-assistant` library (GitHub tag `v0.1.1`), also used by Game Club Finance.
+Read this guide for the `/admin/assistant` chat page, its data tools, Excel exports, and model providers. It is built on the shared `hoggish-assistant` library (latest GitHub release tag, refreshed before every build by `scripts/update-hoggish-assistant.cjs`), also used by Game Club Finance.
 
 ## Entry points
 
-- Page: `src/pages/AdminAssistant.jsx` (library `useAssistantChat` + `AssistantMarkdown`; route in `src/App.jsx`, drawer in `src/components/UnifiedSidebar.jsx`)
+- Page: `src/pages/AdminAssistant.jsx` (library `useAssistantChat` + `AssistantMarkdown`; route in `src/App.jsx`, drawer in `src/components/UnifiedSidebar.jsx`). The header shows the answering model (`chat.model`) and the free quota; the footer adds context-window use (`chat.context`). The question box is an auto-growing textarea.
 - Endpoint: `api/assistant/index.js` — `GET` quota, `POST` streamed answer (NDJSON). One Vercel function on purpose: the Hobby plan allows 12 (`tests/telegramSalaryMessages.test.js` counts them).
 - Handler: `api/assistant/_lib/assistant.js` (`createZarAssistant`: authorize, provider, tools, quota store; dependencies injectable for tests). `api/assistant/_lib/node.js` bridges Node `(req, res)` to the library's Web handler.
 - Tools: `api/assistant/_lib/tools.js`; data: `api/assistant/_lib/loaders.js`; shared, browser-safe: `src/lib/assistant/`
@@ -23,4 +23,4 @@ Read this guide for the `/admin/assistant` chat page, its data tools, Excel expo
 ## Providers
 
 - `providerFromEnv`: `ASSISTANT_PROVIDER=gemini` with Zar Kebab's own `GEMINI_API_KEY` (free chain, own quota), or `anthropic` with `ANTHROPIC_API_KEY`. Keys live in Vercel env and `.env.local` only.
-- The library walks the free Gemini chain on 429/404/5xx. Known issue in `v0.1.1`: there is no per-model timeout, so a model that accepts a request but never responds stalls the answer until `maxDuration` (120 s in `vercel.json`).
+- The library walks the free Gemini chain on 429/404/5xx. There is no per-model timeout, so a model that accepts a request but never responds stalls the answer until `maxDuration` (120 s in `vercel.json`).

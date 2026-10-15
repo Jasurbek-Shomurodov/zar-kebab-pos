@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Download, FileSpreadsheet, MessageSquarePlus, SendHorizontal, Sparkles, Square } from 'lucide-react'
 import { AssistantMarkdown, useAssistantChat } from 'hoggish-assistant/react'
 import AppShell from '../components/AppShell'
@@ -8,6 +8,9 @@ import { supabase } from '../lib/supabase'
 
 const API = '/api/assistant'
 const MAX_MESSAGE_CHARS = 4000
+// The question box grows with its text up to this height, then scrolls.
+const INPUT_MAX_HEIGHT_PX = 240
+const formatCount = value => new Intl.NumberFormat('uz-UZ').format(value)
 
 const L = {
   uz: {
@@ -51,6 +54,9 @@ const L = {
       usedUp: 'Bugungi bepul limit tugadi',
       resetsIn: (hours, minutes) => `${hours} soat ${minutes} daqiqadan keyin yangilanadi`,
     },
+    model: model => `Model: ${model}`,
+    contextUse: (percent, count) => `Kontekstning ${percent}% ishlatildi · yana ≈${count} ta xabar sig‘adi`,
+    contextTokens: tokens => `Kontekstdan ${tokens} token ishlatildi`,
   },
   ru: {
     title: 'ИИ-ассистент',
@@ -93,6 +99,9 @@ const L = {
       usedUp: 'Бесплатный лимит на сегодня исчерпан',
       resetsIn: (hours, minutes) => `Обновится через ${hours} ч ${minutes} мин`,
     },
+    model: model => `Модель: ${model}`,
+    contextUse: (percent, count) => `Использовано ${percent}% контекста · поместится ещё ≈${count} сообщений`,
+    contextTokens: tokens => `Использовано ${tokens} токенов контекста`,
   },
   en: {
     title: 'AI Assistant',
@@ -135,6 +144,9 @@ const L = {
       usedUp: 'Free limit used up for today',
       resetsIn: (hours, minutes) => `Resets in ${hours} h ${minutes} min`,
     },
+    model: model => `Model: ${model}`,
+    contextUse: (percent, count) => `${percent}% of context used · ≈${count} more messages fit`,
+    contextTokens: tokens => `${tokens} tokens of context used`,
   },
 }
 
@@ -191,6 +203,14 @@ export default function AdminAssistant() {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
   }, [chat.messages])
 
+  // Multi-line question box: fit the text, capped so long drafts scroll.
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    input.style.height = 'auto'
+    input.style.height = `${Math.min(input.scrollHeight, INPUT_MAX_HEIGHT_PX)}px`
+  }, [draft])
+
   async function ask(question) {
     if (!question.trim() || chat.busy) return
     setDraft('')
@@ -216,7 +236,7 @@ export default function AdminAssistant() {
     return l.thinking
   }
 
-  const { quota } = chat
+  const { quota, model, context } = chat
   const resetIn = quota ? Math.max(0, Date.parse(quota.resetsAt) - Date.now()) : 0
   const quotaDetail = quota && [
     !quota.currentModel
@@ -226,12 +246,22 @@ export default function AdminAssistant() {
         : l.quota.bestModel(quota.currentModel.remaining, quota.currentModel.limit),
     l.quota.resetsIn(Math.floor(resetIn / 3_600_000), Math.floor((resetIn % 3_600_000) / 60_000)),
   ].join(' · ')
+  // Context-window use of the latest answer; unknown windows show raw tokens.
+  const contextDetail = context && (context.usedShare !== null && context.messagesLeft !== null
+    ? l.contextUse(Math.max(1, Math.round(context.usedShare * 100)), formatCount(context.messagesLeft))
+    : l.contextTokens(formatCount(context.usedTokens)))
+  const footerDetail = [quotaDetail, contextDetail].filter(Boolean).join(' · ')
   const quotaTone = quota && (quota.questionsLeft === 0 ? 'ws-tone-negative' : quota.usingFallback ? 'ws-tone-caution' : 'ws-tone-positive')
 
   return (
     <AppShell
       title={l.title}
-      titleAccessory={quota ? <span className={`ws-badge ${quotaTone}`} title={quotaDetail}>{l.quota.questionsLeft(quota.questionsLeft)}</span> : null}
+      titleAccessory={model || quota ? (
+        <span className="inline-flex flex-wrap items-center gap-2">
+          {model && <span className="ws-badge" title={model.provider}>{l.model(model.model)}</span>}
+          {quota && <span className={`ws-badge ${quotaTone}`} title={quotaDetail}>{l.quota.questionsLeft(quota.questionsLeft)}</span>}
+        </span>
+      ) : null}
       headerActions={chat.messages.length > 0 ? (
         <button type="button" className="ws-btn ws-btn-outline ws-btn-sm" onClick={chat.newChat}>
           <MessageSquarePlus size={16} aria-hidden="true" />
@@ -311,8 +341,8 @@ export default function AdminAssistant() {
               placeholder={l.placeholder}
               aria-label={l.placeholder}
               maxLength={MAX_MESSAGE_CHARS}
-              rows={2}
-              className="ws-input min-h-11 flex-1 resize-none"
+              rows={3}
+              className="ws-input min-h-20 flex-1 resize-none overflow-y-auto"
             />
             {chat.busy ? (
               <button type="button" className="ws-btn ws-btn-outline ws-btn-icon h-11 w-11" aria-label={l.stop} title={l.stop} onClick={chat.stop}>
@@ -324,7 +354,7 @@ export default function AdminAssistant() {
               </button>
             )}
           </div>
-          {quotaDetail && <p className="text-center text-xs text-[#68655f]">{quotaDetail}</p>}
+          {footerDetail && <p className="text-center text-xs text-[#68655f]">{footerDetail}</p>}
           <p className="text-center text-xs text-[#8a867f]">{l.disclaimer}</p>
         </form>
       </div>
