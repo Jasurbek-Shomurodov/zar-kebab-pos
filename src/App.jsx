@@ -50,6 +50,7 @@ const STAFF_PAGES = {
   Employees: () => import('./pages/Employees'),
   EmployeeSalaryHistory: () => import('./pages/EmployeeSalaryHistory'),
   Reports: () => import('./pages/Reports'),
+  AdminAssistant: () => import('./pages/AdminAssistant'),
   AdminAudit: () => import('./pages/AdminAudit'),
   AdminSettings: () => import('./pages/AdminSettings'),
   CheckinQr: () => import('./pages/CheckinQr'),
@@ -79,6 +80,7 @@ const MonthlyEstimate = lazy(() => import('./pages/MonthlyEstimate'))
 const Employees = lazy(() => import('./pages/Employees'))
 const EmployeeSalaryHistory = lazy(() => import('./pages/EmployeeSalaryHistory'))
 const Reports = lazy(() => import('./pages/Reports'))
+const AdminAssistant = lazy(() => import('./pages/AdminAssistant'))
 const AdminAudit = lazy(() => import('./pages/AdminAudit'))
 const AdminSettings = lazy(() => import('./pages/AdminSettings'))
 const AttendanceKiosk = lazy(() => import('./pages/AttendanceKiosk'))
@@ -514,6 +516,9 @@ function InternalAppRoutes({ adminHost = false }) {
         <Route path="/admin/discount-cards" element={<Navigate to="/admin/loyalty" replace />} />
         <Route path="/admin/reports" element={
           <LazyProtectedRoute page="reports"><Reports /></LazyProtectedRoute>
+        } />
+        <Route path="/admin/assistant" element={
+          <LazyProtectedRoute page="assistant"><AdminAssistant /></LazyProtectedRoute>
         } />
         <Route path="/admin/audit" element={
           <LazyProtectedRoute page="audit"><AdminAudit /></LazyProtectedRoute>

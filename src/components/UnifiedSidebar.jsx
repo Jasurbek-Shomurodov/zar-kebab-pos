@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Table2, BookOpen,
   Receipt, Users, BarChart2, ShieldCheck, Settings, LogOut,
   BadgeDollarSign, WalletCards, ShoppingBasket, PieChart,
-  ClipboardList, PackagePlus, PanelLeft, ChevronRight, QrCode,
+  ClipboardList, PackagePlus, PanelLeft, ChevronRight, QrCode, Sparkles,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -121,6 +121,13 @@ const NAV = [
     group: 'business',
   },
   {
+    key: 'assistant',
+    icon: Sparkles,
+    labels: { uz: 'AI yordamchi', ru: 'ИИ-ассистент', en: 'AI Assistant' },
+    path: '/admin/assistant',
+    group: 'business',
+  },
+  {
     key: 'audit',
     icon: ShieldCheck,
     labels: { uz: 'Audit', ru: 'Аудит', en: 'Audit' },
@@ -159,6 +166,7 @@ function activeKey(pathname) {
   if (pathname.startsWith('/admin/tables'))   return 'settings'
   if (pathname.startsWith('/admin/users'))    return 'team'
   if (pathname.startsWith('/admin/reports'))   return 'reports'
+  if (pathname.startsWith('/admin/assistant')) return 'assistant'
   if (pathname.startsWith('/admin/audit'))      return 'audit'
   if (pathname.startsWith('/admin/settings'))  return 'settings'
   if (pathname === '/admin' || pathname === '/admin/') return 'dashboard'

@@ -6,11 +6,14 @@ import uploadMenuImage from './api/menu-image/upload.js'
 import deleteMenuImage from './api/menu-image/delete.js'
 import notifyTelegramEmployee from './api/telegram/employee-notification.js'
 import notifyTelegramOrderStatus from './api/telegram/order-status.js'
+import assistant from './api/assistant/index.js'
 import { darkThemePlugin } from './scripts/build-dark-theme.mjs'
 
 const SERVER_ENV_KEYS = [
   'VITE_SUPABASE_URL',
   'SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY',
+  'SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'R2_ACCOUNT_ID',
   'R2_ACCESS_KEY_ID',
@@ -26,6 +29,10 @@ const SERVER_ENV_KEYS = [
   'TELEGRAM_TEAM_CHAT_ID',
   'TELEGRAM_TEAM_LANGUAGE',
   'TELEGRAM_SESSION_SECRET',
+  'ASSISTANT_PROVIDER',
+  'ASSISTANT_MODEL',
+  'ANTHROPIC_API_KEY',
+  'GEMINI_API_KEY',
 ]
 
 function loadServerEnv(mode) {
@@ -45,6 +52,7 @@ function localApiRoutes() {
       server.middlewares.use('/api/menu-image/delete', (req, res) => deleteMenuImage(req, res))
       server.middlewares.use('/api/telegram/employee-notification', (req, res) => notifyTelegramEmployee(req, res))
       server.middlewares.use('/api/telegram/order-status', (req, res) => notifyTelegramOrderStatus(req, res))
+      server.middlewares.use('/api/assistant', (req, res) => assistant(req, res))
     },
   }
 }

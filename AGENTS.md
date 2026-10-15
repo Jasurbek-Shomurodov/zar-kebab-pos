@@ -25,18 +25,18 @@ npm run build
 npm run db:health
 ```
 
-Use `npm run db:health` first for endless loading or missing migration/RPC warnings.
+Run `npm run db:health` first for endless loading or missing migration/RPC warnings.
 
 For repository navigation:
 
 - If the symbol or filename is known, use `rg` and read only the matching range.
 - For an unfamiliar feature, use `repo_nav` to find the feature map, declarations, and focused tests before opening source.
-- Do not begin by reading an entire large page, `src/lib/db.js`, or a complete source-guard suite.
-- `README.md` is an operator runbook; read it only for Telegram setup or deployment.
+- Never start by reading a whole large page, `src/lib/db.js`, or a full source-guard suite.
+- `README.md` is an operator runbook: read it only for Telegram setup or deploys.
 
 ## Read only the relevant guide
 
-Before editing a feature, read its guide completely; read more only when the task crosses boundaries.
+Read the feature's guide fully; read more only when a task crosses boundaries.
 
 | Task area | Required guide |
 | --- | --- |
@@ -49,9 +49,10 @@ Before editing a feature, read its guide completely; read more only when the tas
 | Attendance check-in screen and rotating QR | `docs/agent/attendance.md` |
 | Telegram targets, messages, delivery tracking, cron notifications | `docs/agent/telegram.md` |
 | Dashboard, reports, historical snapshots, profit and date ranges | `docs/agent/reporting.md` |
+| AI assistant chat and datasets | `docs/agent/assistant.md` |
 | Migrations, database compatibility, tests, source guards, deployment checks | `docs/agent/database-testing.md` |
 
-`docs/agent/legacy-context.md` keeps the former 58 KB guide; read it only for older regressions or migrations absent from focused guides.
+`docs/agent/legacy-context.md` is the former guide; read it only for regressions absent from focused guides.
 
 ## Universal invariants
 

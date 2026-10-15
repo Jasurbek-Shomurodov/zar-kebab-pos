@@ -92,6 +92,13 @@ export const FEATURE_DEFINITIONS = [
     description: { uz: 'Savdo va operatsion hisobotlar', ru: 'Продажи и операционные отчёты', en: 'Sales and operational reports' },
   },
   {
+    // Read-only AI chat; it only offers data the holder's other features allow.
+    key: 'assistant',
+    kind: 'page',
+    labels: { uz: 'AI yordamchi', ru: 'ИИ-ассистент', en: 'AI Assistant' },
+    description: { uz: 'Savdo va xarajatlar haqida savollar, Excel fayllar', ru: 'Вопросы о продажах и расходах, файлы Excel', en: 'Questions about sales and expenses, Excel files' },
+  },
+  {
     key: 'audit',
     kind: 'page',
     labels: { uz: 'Audit', ru: 'Аудит', en: 'Audit' },
@@ -302,6 +309,7 @@ export function defaultPath(role) {
   if (canViewPage(profile, 'tech_cards')) return '/admin/tech-cards'
   if (canViewPage(profile, 'team')) return '/admin/users'
   if (canViewPage(profile, 'reports')) return '/admin/reports'
+  if (canViewPage(profile, 'assistant')) return '/admin/assistant'
   if (canViewPage(profile, 'audit')) return '/admin/audit'
   if (canViewPage(profile, 'settings')) return '/admin/settings'
   if (canViewPage(profile, 'menu')) return '/admin/menu'

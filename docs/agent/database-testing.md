@@ -7,12 +7,12 @@
 - SQL migrations: `migrations/`
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
-- `194`/`206`/`237`: display roles; `238` Tourist; `243`/5/7/`249` checkin; `244` KPI 4am; `248` hire `250` edit. Test: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237`: display roles; `238` Tourist; `243`/5/7/`249` checkin; `244` KPI 4am; `248` hire `250` edit `251` AI. Test: `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 
 - Use full filenames; keep legacy `073`/`108`/`157` duplicates distinct.
-- `199`: checksum receipts; service-only drift checks. `node migrations/migrate.js --status`, `--sql <filename>`, `--apply <filename>`; No bulk legacy replay. Atomic receipts: matching checksums skip, changed checksums fail. Reconcile lost responses.
+- `199`: checksum receipts; service-only drift checks. `node migrations/migrate.js --status`, `--sql <filename>`, `--apply <filename>`; No bulk legacy replay. Receipts: same checksum skips, changed fails. Reconcile lost responses.
 - Migrations:
   - settings, payments, kitchen submit, tables/reservations: `011`, `012`, `018`–`020`
   - kitchen idempotency and durable receipts: `096`, `128`

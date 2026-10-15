@@ -256,6 +256,12 @@
       "tests": ["tests/tableManagement.test.js", "tests/tableActivity.test.js", "tests/tableZoneColors.test.js", "tests/operationalFlows.test.js", "tests/sourceGuards.ordering.test.js"]
     },
     {
+      "name": "ai-assistant",
+      "keywords": ["AI assistant", "hoggish-assistant", "ask about sales", "chat with data", "Gemini", "Claude", "free quota", "Excel export from chat", "assistant datasets", "assistant access"],
+      "files": ["src/pages/AdminAssistant.jsx", "api/assistant/index.js", "api/assistant/_lib/assistant.js", "api/assistant/_lib/node.js", "api/assistant/_lib/loaders.js", "api/assistant/_lib/tools.js", "api/assistant/_lib/prompt.js", "src/lib/assistant/datasets.js", "src/lib/assistant/labels.js", "src/lib/assistant/ranges.js", "migrations/251_ai_assistant.sql", "docs/agent/assistant.md"],
+      "tests": ["tests/assistant.test.js", "tests/permissions.test.js"]
+    },
+    {
       "name": "database-migrations-verification",
       "keywords": ["migration", "schema", "RPC", "RLS", "health", "source guard", "deployment", "backup", "restore"],
       "files": ["src/lib/db.js", "src/lib/dbHealth.js", "migrations/migrate.js", "migrations/199_migration_tracking.sql", "scripts/migrationTools.js", "scripts/check-db-health.js", "scripts/db-backup.sh", "scripts/db-restore.sh", ".github/workflows/db-backup.yml", "mcp/repo-navigator.js"],
