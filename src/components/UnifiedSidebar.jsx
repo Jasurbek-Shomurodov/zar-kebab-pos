@@ -32,6 +32,13 @@ const NAV = [
     group: 'overview',
   },
   {
+    key: 'assistant',
+    icon: Sparkles,
+    labels: { uz: 'AI yordamchi', ru: 'ИИ-ассистент', en: 'AI Assistant' },
+    path: '/admin/assistant',
+    group: 'overview',
+  },
+  {
     // Not a Team feature: shown to accounts selected in Settings, only inside
     // their hours (migration 247; the database refuses codes outside them).
     key: 'checkin_qr',
@@ -118,13 +125,6 @@ const NAV = [
     icon: BarChart2,
     labels: { uz: 'Hisobotlar', ru: 'Отчёты', en: 'Reports' },
     path: '/admin/reports',
-    group: 'business',
-  },
-  {
-    key: 'assistant',
-    icon: Sparkles,
-    labels: { uz: 'AI yordamchi', ru: 'ИИ-ассистент', en: 'AI Assistant' },
-    path: '/admin/assistant',
     group: 'business',
   },
   {
