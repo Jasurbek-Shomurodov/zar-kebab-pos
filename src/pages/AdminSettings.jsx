@@ -177,6 +177,21 @@ export default function AdminSettings() {
     return result
   }
 
+  // Save stays disabled until a saved setting differs (the sound toggle is device-local and never saved).
+  const moneyChanged = (value, saved) => Number(normalizeMoneyInput(value) || 0) !== Number(saved || 0)
+  const hasChanges = restaurantName !== settings.restaurantName
+    || serviceRate !== settings.serviceRate
+    || touristServiceRate !== settings.touristServiceRate
+    || moneyChanged(monthlyRentUzs, settings.monthlyRentUzs)
+    || moneyChanged(monthlyUtilitiesUzs, settings.monthlyUtilitiesUzs)
+    || moneyChanged(averageDailyEmployeeMealUzs, settings.averageDailyEmployeeMealUzs)
+    || moneyChanged(averageDailyBreakEvenIncomeUzs, settings.averageDailyBreakEvenIncomeUzs)
+    || autoPrint !== settings.autoPrint
+    || autoPrintKitchenCheck !== !!settings.autoPrintKitchenCheck
+    || touristMenuEnabled !== (settings.touristMenuEnabled !== false)
+    || publicTouristPrices !== (settings.publicTouristPrices === true)
+    || receiptMarketing !== (settings.receiptMarketing || 'compactFooter')
+
   async function handleSave() {
     await saveSettings()
   }
@@ -745,7 +760,7 @@ export default function AdminSettings() {
             {/* Save button */}
             <button
               onClick={handleSave}
-              disabled={saving || !canManageSettings}
+              disabled={saving || !canManageSettings || (!hasChanges && !saved)}
               className={`ws-btn ws-btn-primary !h-11 w-full ${saved ? '!bg-[#1d7a52]' : ''}`}
             >
               {saved ? <Check size={16} /> : <Shield size={16} />}
