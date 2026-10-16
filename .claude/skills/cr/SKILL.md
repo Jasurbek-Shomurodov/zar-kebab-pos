@@ -1,6 +1,6 @@
 ---
 name: cr
-description: Deep code review of the uncommitted diff, a commit range, a branch or a PR in Zar Kebab POS. Checks correctness, payment and payroll math, historical snapshots, permissions/RLS, migrations, translations, formatting, loading states, realtime, network and data fetching, performance, cleanup, DRY and SOLID. Use when the user types /cr.
+description: Deep code review of the uncommitted diff, a commit range, a branch or a PR in Zar Kebab POS. Checks correctness, payment and payroll math, historical snapshots, permissions/RLS, migrations, translations, formatting, loading states, realtime, network and data fetching, performance, running cost, Supabase/database optimization and schema unification, cleanup, DRY and SOLID. Use when the user types /cr.
 argument-hint: "[empty = uncommitted diff | commit | A..B | branch | PR number] [fix]"
 disable-model-invocation: true
 ---
@@ -177,6 +177,78 @@ Every finding here needs a concrete cost (bug risk, duplicated maintenance, a
 measurable slowdown, or blocked testing) plus the smallest refactor that
 removes it. Skip pure taste.
 
+### 9. Supabase, database and running cost
+
+Review every migration, RPC, trigger, policy and query the change adds or
+touches. The project's Supabase MCP server (`.mcp.json`) is read-only: use it
+for `list_tables`, `execute_sql` with `EXPLAIN` on read queries, and
+`get_advisors` (performance and security) to back findings with real plans and
+sizes. Never run writes or DDL through it.
+
+**Running cost** (Supabase, Vercel, Telegram, AI, R2): name the multiplier
+(per order, per table tile, per minute, per open tab) and the estimated volume.
+- Egress and row reads: wide selects, refetch-after-write when the write
+  already returns the row, full reloads on every realtime event, data that
+  could be cached for the session (menu, settings, employees).
+- Realtime: subscriptions on high-churn tables without a filter, one channel
+  per component instead of one shared, events that trigger a full refetch.
+- Polling with `setInterval` where realtime or a cron already covers it;
+  intervals shorter than the data actually changes.
+- Cron and queues: `pg_cron` jobs running every minute that could run less
+  often or only when work exists; dispatchers that scan whole tables instead of
+  an indexed "pending" slice; Telegram sends that could be batched.
+- Serverless (`api/`): cold-start-heavy imports, one invocation per item where
+  one batch call works, retries that multiply calls.
+- AI assistant: model choice (cheapest model that does the job), prompt and
+  dataset size, missing caching, unbounded history.
+- Storage: images uploaded without resizing (`optimize:menu-images`), unused
+  objects never deleted, duplicated media.
+
+**Query and database performance**
+- Indexes: every new `where`, `order by`, join or FK column on a growing table
+  (orders, order items, payments, salary, attendance, notification queues) has a
+  matching index; composite order matches the filter. Flag unused or duplicate
+  indexes the change adds.
+- `EXPLAIN` new or changed hot queries and RPCs: seq scans on large tables,
+  sorts without an index, nested loops over big sets.
+- RLS cost: wrap `auth.uid()` and permission helpers as `(select ...)` so they
+  run once per query, keep policy helpers `stable` and `security definer` with a
+  fixed `search_path`, index the columns policies filter on.
+- Paging: keyset by `id` for big reads instead of large `offset`; aggregate in
+  SQL instead of sending rows to the browser to sum.
+- Writes: batch inserts and upserts instead of row-by-row calls; triggers that
+  do heavy work or call `net.http_post` per row; long transactions holding locks
+  on orders during payment.
+- Snapshots: heavy reports read stored snapshots rather than recomputing years
+  of history on every page view, without rewriting historical values.
+- Types and constraints: `numeric` for money (never `float`), `timestamptz`
+  for instants and `date` for business days, `not null`, FKs, `check` and
+  unique constraints that make bad data impossible instead of UI-only checks.
+
+**Schema unification (reuse before adding)**
+Before accepting a new table, column, enum, RPC or trigger, search `migrations/`
+and `src/lib/db.js` for an existing model of the same concept and prefer it:
+- Similar concepts share one model: notification and Telegram delivery queues,
+  Investor alerts, audit logs, financial snapshots, settings, status enums and
+  feature flags follow the existing table and column pattern (or one generic
+  table with a `kind` column) rather than a new parallel table per feature.
+- Near-identical RPCs or triggers (same body, different table or filter) become
+  one function with a parameter.
+- Consistent naming and shapes: `created_at`/`created_by`, status values,
+  snapshot column names, money and date types match the neighbouring tables, so
+  shared helpers and reports work on all of them.
+- New columns that duplicate data already derivable from an existing table are
+  a finding unless they are a deliberate historical snapshot.
+- Report existing duplication the change makes worse, and propose the
+  consolidation with a safe path: a new migration, backfill, compatibility
+  view or fallback, then drop the old shape later, never in one breaking step.
+- Do not unify things that only look alike but have different lifecycles,
+  permissions or retention (for example immutable payment history vs editable
+  settings).
+
+Each finding names the cost or risk (rows/requests per day, query time, extra
+maintenance) and the smallest change that removes it.
+
 ## Report
 
 ```
@@ -187,7 +259,7 @@ Findings (most severe first)
    Scenario: <inputs or state → wrong result>
    Fix: <concrete change>
 
-Checked and fine: <risky areas verified, incl. network, performance, DRY/SOLID>
+Checked and fine: <risky areas verified, incl. network, performance, cost, DB/schema, DRY/SOLID>
 Checks run: <commands and results>
 ```
 
