@@ -1,20 +1,30 @@
 ---
 name: cr
 description: Deep code review of the uncommitted diff, a commit range, a branch or a PR in Zar Kebab POS. Checks correctness, payment and payroll math, historical snapshots, permissions/RLS, migrations, translations, formatting, loading states, realtime, network and data fetching, performance, running cost, Supabase/database optimization and schema unification, cleanup, DRY and SOLID. Use when the user types /cr.
-argument-hint: "[empty = uncommitted diff | commit | A..B | branch | PR number] [fix]"
+argument-hint: "[empty = full | diff | commit | A..B | branch | PR number | path | area] [fix]"
 disable-model-invocation: true
 ---
 
 # /cr: code review
 
-Target: `$ARGUMENTS`.
+> **Shared contract.** Load the `review-core` skill first (`~/.claude/skills/review-core/SKILL.md`). Its ground rules, argument
+> grammar, S0/S1/S2 severity scale, report skeleton, fix mode and fan-out
+> apply here. This file adds only what is specific to Zar Kebab POS.
 
-- Empty: uncommitted changes (`git diff HEAD` plus untracked files).
+Target: `$ARGUMENTS` (grammar in `review-core` section 1).
+
+- Empty or `full`: the whole codebase. Fan out per `review-core` section 5
+  with these groups: ordering and kitchen; cashier, payments and accounting;
+  payroll, KPI and reporting; menu, Tech Cards and Bazaar; Telegram, bots and
+  `api/`; database, migrations and `src/lib/db.js`. Each group runs every
+  pass below over its area; the parent merges and re-verifies.
+- `diff`: uncommitted changes (`git diff HEAD` plus untracked files).
   If the tree is clean, review the last commit.
 - A commit, `A..B` range, or branch: `git diff` against it.
 - A number: the GitHub PR (`gh pr view <n>`, `gh pr diff <n>`).
-- If the arguments contain `fix`, apply the confirmed fixes after the review.
-  Otherwise review only.
+- A path or glob: those files plus their direct imports and callers.
+- If the arguments contain `fix`, apply the confirmed fixes after the review
+  (`review-core` section 4). Otherwise review only.
 
 Read every changed file in full, not just the hunks, plus the callers and
 callees of every changed function. Large files (`src/lib/db.js`, big pages,
@@ -251,19 +261,16 @@ maintenance) and the smallest change that removes it.
 
 ## Report
 
-```
-CR: <target>   Verdict: APPROVE | APPROVE WITH NITS | CHANGES REQUESTED
+Use the skeleton from `review-core` section 3 (`CR: <target>`, commit,
+checks, findings as `[S0|S1|S2]` with Scenario, Fix and Verified, then
+Suggestions, Checked not a finding, Not run). Under "Checked, not a finding"
+name the risky areas you verified: network, performance, cost, DB/schema,
+DRY/SOLID.
 
-Findings (most severe first)
-1. [Blocker|Major|Minor|Nit] file:line: <defect in one sentence>
-   Scenario: <inputs or state → wrong result>
-   Fix: <concrete change>
-
-Checked and fine: <risky areas verified, incl. network, performance, cost, DB/schema, DRY/SOLID>
-Checks run: <commands and results>
-```
-
-**Blocker** = wrong money/payroll/data, a rewritten historical snapshot, a
-permission or protected-data leak, data loss, a double charge or duplicate
-kitchen round, or a broken build. With `fix`: apply the fixes, re-run the
-checks, then report what changed. Do not commit unless asked.
+Severity here: **S0** = wrong money, payroll or data, a rewritten historical
+snapshot, a permission or protected-data leak, data loss, a double charge or
+duplicate kitchen round, or a broken build or check. **S1** = an `AGENTS.md`
+invariant or a convention above broken, or a real risk (race, unbounded read,
+realtime leak, duplicated financial rule). **S2** = cleanup and
+maintainability. With `fix`: `review-core` section 4, re-run the checks,
+then report what changed. Do not commit unless asked.

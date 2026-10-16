@@ -1,14 +1,21 @@
 ---
 name: qa
 description: Thorough functional QA of a feature, page, request or recent change in Zar Kebab POS. Tests the real app end to end (ordering, kitchen, cashier payments, totals, payroll, permissions, locales, themes, edge cases) and reports pass/fail with evidence. Use when the user types /qa.
-argument-hint: "[feature, page, request text, commit/PR, or empty for the uncommitted diff]"
+argument-hint: "[empty = full | diff | feature, page or request text | commit | PR | smoke | retest] [fix]"
 disable-model-invocation: true
 ---
 
 # /qa: functional QA
 
-Target: `$ARGUMENTS`. If empty, QA whatever the uncommitted diff (or else the
-last commit) changed.
+> **Shared contract.** Load the `review-core` skill first (`~/.claude/skills/review-core/SKILL.md`). Its ground rules, argument
+> grammar, S0/S1/S2 severity scale, report skeleton, fix mode and fan-out
+> apply here. This file adds only what is specific to Zar Kebab POS.
+
+Target: `$ARGUMENTS` (grammar in `review-core` section 1). Empty or `full`
+means every page and the whole checklist below; `diff` means whatever the
+uncommitted diff (or else the last commit) changed; a feature, page or
+request text means that flow end to end; `smoke` runs only the S0 scenarios
+(send to kitchen, mark paid, totals, protected data in public payloads).
 
 Your job is to prove the feature works for real restaurant staff (owner, admin,
 waiter, cashier, viewer, guest), or to find exactly where it does not. Do not
@@ -16,8 +23,8 @@ stop at "tests pass". Investigate until every item in the checklist below is
 either verified with evidence or explicitly marked as not testable, with the
 reason.
 
-Default to **report only**. Fix bugs only if the user's request says "fix", or
-after asking at the end.
+Default to **report only**. Fix bugs only if the arguments contain `fix`
+(`review-core` section 4), or after asking at the end.
 
 ## 1. Understand what "correct" means
 
@@ -129,25 +136,26 @@ screenshots for anything visual.
 
 Reply in this shape:
 
+Use the skeleton from `review-core` section 3:
+
 ```
-QA: <target>        Verdict: PASS | PASS WITH ISSUES | FAIL
+QA: <target>   Commit: <sha>   Verdict: PASS | PASS WITH ISSUES | FAIL
+Environment: <URL, role, browser, widths, themes, locales>
+Checks: node --test X/Y, build, docs:check: <results>
 
-Bugs (most severe first)
-1. [High] <what is wrong> (where: page / file:line)
-   Steps: ...  Expected: ...  Actual: ...  Evidence: screenshot / value / log
+Findings (most severe first)
+1. [S0|S1|S2] <page / file:line>: <what is wrong>
+   Scenario: Steps ... Expected ... Actual ...   Evidence: screenshot / value / log
+   Fix: <concrete change>
+   Verified: <reproduced twice; how>
 
-Verified
-- <scenario>: OK (how it was checked)
-
-Not tested
-- <scenario>: <why>, e.g. needs a waiter account
-
-Writes made (each approved): <page, record, Telegram messages sent> or none
-
-Automated: node --test X/Y, build, docs:check: <results>
+Verified: <scenario>: OK (how it was checked), one line each
+Checked, not a finding: ...
+Not run: <scenario>: <why>, e.g. needs a waiter account
+Data left behind (each approved): <page, record, Telegram messages sent> or none
 ```
 
-Severity: **High** = wrong money/payroll/data, a changed historical record, a
-protected-data leak, a duplicate charge or kitchen round, or a crash.
-**Medium** = a broken flow or a misleading UI. **Low** = cosmetic. Finish by
-offering to fix the bugs found.
+Severity here: **S0** = wrong money, payroll or data, a changed historical
+record, a protected-data leak, a duplicate charge or kitchen round, or a
+crash. **S1** = a broken flow or a misleading UI. **S2** = cosmetic. Finish
+by offering to fix the bugs found.
