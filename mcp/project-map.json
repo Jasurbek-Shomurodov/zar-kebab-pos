@@ -86,6 +86,12 @@
       "symbol": "kpi_business_date"
     },
     {
+      "name": "KPI starts at QR check-in",
+      "aliases": ["KPI from attendance scan", "no check-in no KPI", "remove KPI start time", "KPI window start"],
+      "path": "migrations/254_kpi_starts_at_checkin.sql",
+      "symbol": "employee_kpi_start_time"
+    },
+    {
       "name": "employee KPI workday start time",
       "aliases": ["time based KPI", "hostess manager KPI from 14:00", "KPI orders opened after shift begins"],
       "path": "migrations/213_kpi_order_opening_cutoff.sql",

@@ -9,7 +9,6 @@ import {
   getEffectiveKpiRule,
   getKpiAccountConflicts,
   getKpiRuleEditDate,
-  normalizeKpiStartTime,
   parseKpiPercentToBps,
 } from './dailyKpi.js'
 
@@ -64,7 +63,6 @@ export function buildEmployeeKpiForm(rules, employee, today) {
     rate_percentage: rule ? formatKpiRateInput(rule.rate_bps) : '1',
     sales_basis: rule?.sales_basis || 'employee_opened_orders',
     order_opener_profile_id: rule?.order_opener_profile_id || employee?.profile_id || '',
-    start_time: normalizeKpiStartTime(rule?.start_time),
     is_enabled: rule ? rule.is_enabled !== false : false,
   }
 }
@@ -80,7 +78,6 @@ export function isEmployeeKpiChanged(rules, employee, form, today) {
   return Number(rule.rate_bps) !== parseKpiPercentToBps(form.rate_percentage)
     || rule.sales_basis !== form.sales_basis
     || (rule.order_opener_profile_id || null) !== kpiOpenerId(form)
-    || normalizeKpiStartTime(rule.start_time) !== normalizeKpiStartTime(form.start_time)
     || (rule.is_enabled !== false) !== Boolean(form.is_enabled)
     || form.effective_from !== getKpiRuleEditDate(null, today)
 }
@@ -89,7 +86,6 @@ export function isEmployeeKpiChanged(rules, employee, form, today) {
 export function getEmployeeKpiFormError({ form, salaryProfileId, today, kpiAccounts = [], kpiAccountLinks }) {
   if (!salaryProfileId || !form?.effective_from || form.effective_from < today) return { code: 'date' }
   if (parseKpiPercentToBps(form.rate_percentage) <= 0) return { code: 'rate' }
-  if (!normalizeKpiStartTime(form.start_time)) return { code: 'start_required' }
   if (form.is_enabled && form.sales_basis === 'employee_opened_orders') {
     if (!kpiAccounts.some(account => account.id === form.order_opener_profile_id)) return { code: 'account_required' }
     const conflicts = getKpiAccountConflicts(kpiAccountLinks, form.order_opener_profile_id, salaryProfileId)
@@ -105,7 +101,6 @@ export function buildEmployeeKpiRulePayload({ form, salaryProfileId, createdBy =
     rate_bps: parseKpiPercentToBps(form.rate_percentage),
     sales_basis: form.sales_basis,
     order_opener_profile_id: kpiOpenerId(form),
-    start_time: normalizeKpiStartTime(form.start_time),
     is_enabled: Boolean(form.is_enabled),
     created_by: createdBy,
     created_by_name: createdByName,
@@ -119,7 +114,6 @@ export function isKpiRulePayloadChanged(rules = [], payload) {
     && String(rule.effective_from || '').slice(0, 10) === payload.effective_from
   ))
   return !existing
-    || normalizeKpiStartTime(existing.start_time) !== payload.start_time
     || existing.sales_basis !== payload.sales_basis
     || (existing.order_opener_profile_id || null) !== payload.order_opener_profile_id
     || Number(existing.rate_bps) !== payload.rate_bps

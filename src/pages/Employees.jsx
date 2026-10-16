@@ -19,7 +19,6 @@ import { loadSalaryRows } from '../lib/salaryData'
 import {
   formatKpiRatePercent,
   formatKpiSalesBasis,
-  formatKpiStartTime,
   getActiveKpiAccounts,
   getEffectiveKpiRule,
   getKpiAccountLinks,
@@ -210,10 +209,10 @@ export default function Employees() {
       kpiAccount: 'Xodimning kassadagi akkaunti',
       kpiSelectAccount: 'Faol xodim akkauntini tanlang',
       kpiAccountUnavailable: 'Tanlangan akkaunt faol emas yoki mavjud emas.',
-      kpiStartTime: 'KPI boshlanish vaqti (Toshkent)',
+      kpiFromCheckin: 'QR orqali kelgandan',
       kpiAccountRequired: 'O‘z buyurtmalari uchun Faol xodim akkauntini tanlang.',
       kpiAccountTaken: 'Bu akkaunt allaqachon boshqa xodimga bog‘langan. Bitta akkaunt faqat bitta xodimga KPI beradi:',
-      kpiStartRequired: 'KPI boshlanish vaqtini kiriting.',
+      kpiCheckinHelp: 'KPI xodim kelishda QR kodni skanerlagan paytdan ertasi kuni soat 04:00 gacha hisoblanadi. Skanerlamagan kuni KPI berilmaydi; masofaviy xodimlarda butun smena hisoblanadi.',
       kpiRateRequired: 'KPI foizini kiriting.',
       kpiDateInvalid: 'KPI sanasi bugundan oldin bo‘lishi mumkin emas.',
       employeeSaved: 'O‘zgarishlar saqlandi',
@@ -336,10 +335,10 @@ export default function Employees() {
       kpiAccount: 'Учётная запись сотрудника',
       kpiSelectAccount: 'Выберите активного сотрудника',
       kpiAccountUnavailable: 'Выбранная учётная запись неактивна или недоступна.',
-      kpiStartTime: 'Начало KPI (Ташкент)',
+      kpiFromCheckin: 'С отметки по QR',
       kpiAccountRequired: 'Для расчёта по своим заказам выберите учётную запись сотрудника.',
       kpiAccountTaken: 'Эта учётная запись уже привязана к другому сотруднику. Одна запись начисляет KPI только одному сотруднику:',
-      kpiStartRequired: 'Укажите время начала KPI.',
+      kpiCheckinHelp: 'KPI считается с момента сканирования QR при приходе до 04:00 следующего утра. Без отметки KPI за день не начисляется; удалённым сотрудникам считается вся смена.',
       kpiRateRequired: 'Укажите процент KPI.',
       kpiDateInvalid: 'Дата KPI не может быть в прошлом.',
       employeeSaved: 'Изменения сохранены',
@@ -462,10 +461,10 @@ export default function Employees() {
       kpiAccount: 'Employee POS account',
       kpiSelectAccount: 'Select an active employee account',
       kpiAccountUnavailable: 'Selected account is inactive or unavailable.',
-      kpiStartTime: 'KPI start time (Tashkent)',
+      kpiFromCheckin: 'From QR check-in',
       kpiAccountRequired: 'Select an active employee account for own-order KPI.',
       kpiAccountTaken: 'This account is already linked to another employee. One account earns KPI for one employee only:',
-      kpiStartRequired: 'Enter a KPI start time.',
+      kpiCheckinHelp: 'KPI counts from the arrival QR scan until 04:00 the next morning. No check-in means no KPI that day; remote employees get the whole shift.',
       kpiRateRequired: 'Enter a KPI percentage.',
       kpiDateInvalid: 'The KPI date cannot be in the past.',
       employeeSaved: 'Changes saved',
@@ -930,7 +929,6 @@ export default function Employees() {
         : {
           date: l.kpiDateInvalid,
           rate: l.kpiRateRequired,
-          start_required: l.kpiStartRequired,
           account_required: l.kpiAccountRequired,
         }[formError.code])
       return false
@@ -1538,7 +1536,7 @@ function EmployeeKpiRow({
         </span>
         {configured && available && (
           <span className="min-w-0 text-[12px] leading-snug text-[#68655f]">
-            {formatKpiSalesBasis(rule.sales_basis, lang)} · {formatKpiStartTime(rule.start_time, lang)}
+            {formatKpiSalesBasis(rule.sales_basis, lang)} · {l.kpiFromCheckin}
           </span>
         )}
       </dd>
@@ -1791,13 +1789,10 @@ function EmployeeEditDialog({
                       )}
                     </>
                   )}
+                  {kpiForm.is_enabled && (
+                    <p className="text-[12px] leading-snug text-[#68655f]">{l.kpiCheckinHelp}</p>
+                  )}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {kpiForm.is_enabled && (
-                      <TimePicker24 value={kpiForm.start_time} label={l.kpiStartTime}
-                        hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
-                        className={DIALOG_FIELD} disabled={saving}
-                        onChange={value => setKpi({ start_time: value })} />
-                    )}
                     <DialogField label={l.effectiveDate}>
                       <DateInput value={kpiForm.effective_from} lang={lang} min={today}
                         onChange={value => setKpi({ effective_from: value })} disabled={saving} />

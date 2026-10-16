@@ -6,6 +6,15 @@ export function normalizeKpiStartTime(value = '00:00') {
   return /^([01]\d|2[0-3]):[0-5]\d(?::00)?$/.test(time) ? time.slice(0, 5) : ''
 }
 
+// From this KPI date the window starts at the attendance QR check-in (254);
+// a rule's start_time only describes earlier dates.
+export const KPI_CHECKIN_START_DATE = '2026-10-16'
+
+export function kpiRuleStartTimeApplies(effectiveFrom) {
+  const date = effectiveFrom instanceof Date ? effectiveFrom.toISOString() : String(effectiveFrom || '')
+  return date.slice(0, 10) < KPI_CHECKIN_START_DATE
+}
+
 export function formatKpiStartTime(value, lang = 'en') {
   const time = normalizeKpiStartTime(value)
   if (!time) return ''

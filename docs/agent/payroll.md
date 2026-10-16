@@ -42,17 +42,18 @@
 
 ## KPI
 
-- `195`/`196`: from `2026-09-16`, rules choose own opened orders or all restaurant dine-in sales. Base: paid subtotal + service per KPI shift, no loyalty. Own rules need `order_opener_profile_id` or payroll `profile_id`; restaurant rules need no account. Earlier dates use all sales.
-- `203`/`226`: `start_time` gates `paid_at`; `226` drops the `213` opening cutoff (closed orders count on their paid shift). Shared `employee_kpi_sales_base`; snapshots immutable. Tests: `tests/timeBasedKpi.test.js`, `tests/closedOrderKpiDay.test.js`.
-- `215`/`217`: same-day table rows inherit the opener for own KPI.
+- `195`/`196`: from `2026-09-16` rules use own opened orders or all dine-in sales. Base: paid subtotal + service, no loyalty. Own rules need `order_opener_profile_id` or payroll `profile_id`.
+- `203`/`226`: rule `start_time` gated `paid_at` (before 2026-10-16); `226` drops `213`. Shared `employee_kpi_sales_base`. Tests: `tests/timeBasedKpi.test.js`, `tests/closedOrderKpiDay.test.js`.
+- `215`/`217`: same-day table rows inherit the opener.
 - `226`: absences no longer skip KPI. Employment boundaries still do.
 - `244`: from 2026-10-14 shifts end 04:00 (`kpi_business_date`); cron 04:05; finalized shifts block bill deletes. Test: `tests/kpiDayCutoff.test.js`.
+- `254`: from 2026-10-16 KPI starts at QR check-in (`employee_kpi_start_time`); none = `skipped_absent`; remote = whole shift. Test: `tests/kpiCheckinStart.test.js`.
 - Runs/results are immutable; only service-role finalization creates `daily_kpi` bonuses (`200`: creator repair). `202` forbids deleting previous-day orders (`232`: owners may delete unpaid ones); today's deletions reduce bases before finalization.
 - Bonuses accrue into salary; formula/settlement immutable; payments record cash expense.
 - Deleting a generated bonus marks its result voided; retries never recreate it.
 - KPI changes only via the Employees dialog (upsert by date; stop = disabled rule). `removeKpiRulePreservingHistory` has no UI now.
 - Cards show today’s rule. KPI dropdown: active POS profiles, saves the opener, retryable load errors.
-- KPI rate/status/basis/account/time changes snapshot before/after values and queue Salary delivery; no-op saves stay silent. No historical backfill.
+- KPI rate/status/basis/account changes snapshot before/after values and queue Salary delivery; no-op saves stay silent. No historical backfill.
 - Salary History separates monthly manual Bonuses from KPI bonuses. Salary + bonuses includes salary and both bonus types once each.
 - Effective dates cannot enter finalized periods. Recovery scans missing older dates in bounded batches.
 

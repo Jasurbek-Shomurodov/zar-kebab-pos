@@ -1,4 +1,4 @@
-import { formatKpiStartTime, normalizeKpiStartTime } from '../../../src/lib/dailyKpi.js'
+import { formatKpiStartTime, kpiRuleStartTimeApplies } from '../../../src/lib/dailyKpi.js'
 import { expensePaymentMethodLabel } from '../../../src/lib/expenses.js'
 import { formatLongDate } from '../../../src/lib/dateFormat.js'
 import { escapeTelegramHtml } from './telegram.js'
@@ -308,9 +308,6 @@ function appendSalaryRateDetails(lines, rate, copy, lang) {
           : formatKpiRate(rate.kpi_rule.rate_bps)
     )}`
   )
-  if (rate?.kpi_rule?.is_enabled && rate.kpi_rule.start_time != null && normalizeKpiStartTime(rate.kpi_rule.start_time) !== '00:00') {
-    lines.push(escapeTelegramHtml(formatKpiStartTime(rate.kpi_rule.start_time, lang)))
-  }
   if (String(rate?.note || '').trim()) {
     lines.push(`<b>${copy.note}:</b> ${escapeTelegramHtml(rate.note)}`)
   }
@@ -370,7 +367,7 @@ export function buildKpiRuleGroupMessage(event, language = 'ru') {
     const before = event.previous_sales_basis ? `${basisLabel(event.previous_sales_basis)} → ` : ''
     lines.push(`<b>${basisCopy[0]}:</b> ${escapeTelegramHtml(before + basisLabel(event.new_sales_basis))}`)
   }
-  if (event?.new_start_time != null) {
+  if (event?.new_start_time != null && kpiRuleStartTimeApplies(event.effective_from)) {
     const before = event.previous_start_time != null ? `${formatKpiStartTime(event.previous_start_time, lang)} → ` : ''
     lines.push(`<b>KPI:</b> ${escapeTelegramHtml(before + formatKpiStartTime(event.new_start_time, lang))}`)
   }

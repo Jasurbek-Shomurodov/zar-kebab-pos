@@ -15,6 +15,7 @@ import {
   formatKpiRatePercent,
   formatKpiSalesBasis,
   formatKpiStartTime,
+  kpiRuleStartTimeApplies,
 } from '../lib/dailyKpi'
 import { canEditFeature } from '../lib/permissions'
 import {
@@ -942,8 +943,10 @@ export default function Salaries() {
         newKpiEnabled: event?.new_is_enabled ?? null,
         previousKpiBasis: event?.previous_sales_basis,
         newKpiBasis: event?.new_sales_basis,
-        previousKpiStartTime: event?.previous_start_time,
-        newKpiStartTime: event?.new_start_time,
+        ...(kpiRuleStartTimeApplies(event?.effective_from) ? {
+          previousKpiStartTime: event?.previous_start_time,
+          newKpiStartTime: event?.new_start_time,
+        } : {}),
         sortAt: [delivery.attempted_at, delivery.employee_attempted_at, delivery.team_attempted_at]
           .filter(Boolean)
           .sort()

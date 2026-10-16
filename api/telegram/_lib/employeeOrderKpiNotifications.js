@@ -10,6 +10,7 @@ export function buildEmployeeOrderKpiMessage(snapshot) {
     `✅ Заказ №${escapeTelegramHtml(snapshot.order_number)} оплачен — ${money(snapshot.total)} сум`,
     snapshot.cut > 0 ? '🎉 Спасибо за вашу работу!' : '🙌 Спасибо за вашу работу!',
     `💰 Бонус с заказа: ≈ ${money(snapshot.cut)} сум`,
+    ...(snapshot.checked_in === false ? ['⚠️ Вы не отметились по QR при приходе — KPI за эту смену не начисляется'] : []),
     ...(snapshot.daily_cut != null ? [`📈 Ваш KPI за смену${timeWindow}: ≈ ${money(snapshot.daily_cut)} сум`] : []),
   ].join('\n')
 }

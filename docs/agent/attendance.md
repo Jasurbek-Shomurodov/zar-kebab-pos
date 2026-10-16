@@ -28,5 +28,5 @@
 
 - One row per employee per Tashkent date; the first scan wins (`ignoreDuplicates`), later scans echo the stored time.
 - Rows snapshot `work_start_time` and arrival status (`early`, `on_time`, `late`, `no_schedule`) in whole minutes; editing the start time never rewrites history.
-- Tracking only: no fines, bonuses, absences or KPI effects. Staff read via `expenses` RLS; only the service role writes.
+- No fines, bonuses or absences. From 2026-10-16 the check-in starts the employee's KPI window (`254`, see payroll.md); no check-in means no KPI that day. Staff read via `expenses` RLS; only the service role writes.
 - Deploy migrations before the frontend/webhook: the old webhook ignores rotating payloads.

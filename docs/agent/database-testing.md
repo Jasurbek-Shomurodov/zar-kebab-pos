@@ -7,7 +7,7 @@
 - SQL migrations: `migrations/`
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
-- `194`/`206`/`237`: display roles; `238` Tourist; `243`/5/7/9 checkin; `244` KPI 4am `248` hire `250` edit `251` AI `252`/253 remote Test: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237` roles; `238` Tourist `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254` KPI QR, test: `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 

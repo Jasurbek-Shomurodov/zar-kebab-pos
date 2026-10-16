@@ -35,7 +35,7 @@ test('salary form starts from the current rate and only writes real changes once
 
 test('KPI form mirrors the effective rule and validates accounts', () => {
   const form = buildEmployeeKpiForm([rule], employee, today)
-  assert.deepEqual(form, { effective_from: today, rate_percentage: '3', sales_basis: 'employee_opened_orders', order_opener_profile_id: 'acc1', start_time: '13:00', is_enabled: true })
+  assert.deepEqual(form, { effective_from: today, rate_percentage: '3', sales_basis: 'employee_opened_orders', order_opener_profile_id: 'acc1', is_enabled: true })
   assert.equal(isEmployeeKpiChanged([rule], employee, form, today), false)
   assert.equal(isEmployeeKpiChanged([rule], employee, { ...form, rate_percentage: '4' }, today), true)
   assert.equal(isEmployeeKpiChanged([], employee, buildEmployeeKpiForm([], employee, today), today), false)
