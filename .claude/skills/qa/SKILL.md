@@ -1,7 +1,7 @@
 ---
 name: qa
-description: Thorough functional QA of a feature, page, request or recent change in Zar Kebab POS. Tests the real app end to end (ordering, kitchen, cashier payments, totals, payroll, permissions, locales, themes, edge cases) and reports pass/fail with evidence. Use when the user types /qa.
-argument-hint: "[empty = full | diff | feature, page or request text | commit | PR | smoke | retest] [fix]"
+description: Thorough functional QA of a feature, page, request or recent change in Zar Kebab POS. Tests the real app end to end (ordering, kitchen, cashier payments, totals, payroll, permissions, locales, themes, edge cases) and reports pass/fail with evidence. Arguments: empty or "full", "diff", a feature, page or request text, a commit, a PR, "smoke", "retest", or an area code (ORD, KIT, CASH, PAY, SAL, ATT, MENU, PUB, REP, ADMIN, TG, I18N, UI, RT, NET). Use when the user types /qa.
+argument-hint: "[empty = full | diff | feature, page or request text | commit | PR | smoke | retest | area code (ORD, KIT, CASH, PAY, SAL, ATT, MENU, PUB, REP, ADMIN, TG, I18N, UI, RT, NET)] [fix]"
 disable-model-invocation: true
 ---
 
@@ -16,6 +16,12 @@ means every page and the whole checklist below; `diff` means whatever the
 uncommitted diff (or else the last commit) changed; a feature, page or
 request text means that flow end to end; `smoke` runs only the S0 scenarios
 (send to kitchen, mark paid, totals, protected data in public payloads).
+
+Sources of truth: `AGENTS.md` (the invariants), the `docs/agent/*.md` guide
+for the area, and `references/cases.md`, the QA regression catalog. An area
+code as the target runs that area's cases; `smoke` runs every S0 case;
+`retest` starts from the top row of the catalog run log. Keep the catalog
+alive per `review-core` section 6.
 
 Your job is to prove the feature works for real restaurant staff (owner, admin,
 waiter, cashier, viewer, guest), or to find exactly where it does not. Do not

@@ -1,7 +1,7 @@
 ---
 name: cr
-description: Deep code review of the uncommitted diff, a commit range, a branch or a PR in Zar Kebab POS. Checks correctness, payment and payroll math, historical snapshots, permissions/RLS, migrations, translations, formatting, loading states, realtime, network and data fetching, performance, running cost, Supabase/database optimization and schema unification, cleanup, DRY and SOLID. Use when the user types /cr.
-argument-hint: "[empty = full | diff | commit | A..B | branch | PR number | path | area] [fix]"
+description: Deep code review of the uncommitted diff, a commit range, a branch or a PR in Zar Kebab POS. Checks correctness, payment and payroll math, historical snapshots, permissions/RLS, migrations, translations, formatting, loading states, realtime, network and data fetching, performance, running cost, Supabase/database optimization and schema unification, cleanup, DRY and SOLID. Arguments: empty or "full", "diff", a commit, "A..B", a branch, a PR number, a path, or an area code (HIST, ARCH, PROT, MATH, PERM, RPC, PAGE, I18N, STORE, MIG, SEC, DOCS, UI, NET, RT, PERF, DRY, COST, DB, TEST). Use when the user types /cr.
+argument-hint: "[empty = full | diff | commit | A..B | branch | PR number | path | area code (HIST, ARCH, PROT, MATH, PERM, RPC, PAGE, I18N, STORE, MIG, SEC, DOCS, UI, NET, RT, PERF, DRY, COST, DB, TEST)] [fix]"
 disable-model-invocation: true
 ---
 
@@ -12,6 +12,12 @@ disable-model-invocation: true
 > apply here. This file adds only what is specific to Zar Kebab POS.
 
 Target: `$ARGUMENTS` (grammar in `review-core` section 1).
+
+Sources of truth, read before every review: `AGENTS.md` (the invariants), the
+`docs/agent/*.md` guide for each area the target touches, and
+`references/cases.md`, the code regression catalog. Every case there has a
+Check and an Expect; an area code as the target runs that area's cases across
+the whole codebase. Keep the catalog alive per `review-core` section 6.
 
 - Empty or `full`: the whole codebase. Fan out per `review-core` section 5
   with these groups: ordering and kitchen; cashier, payments and accounting;

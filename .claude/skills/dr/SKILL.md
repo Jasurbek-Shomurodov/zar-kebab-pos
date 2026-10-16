@@ -1,7 +1,7 @@
 ---
 name: dr
-description: Thorough design and UX review of a page, component, screenshot or Figma frame in Zar Kebab POS. Checks layout, spacing, empty space, colours and dark/light themes, typography, touch ergonomics for waiters and cashiers, loading/empty/error states, responsiveness, locales, print formats and consistency across pages. Use when the user types /dr.
-argument-hint: "[empty = full | diff | page/route | component | screenshot | Figma URL] [fix]"
+description: Thorough design and UX review of a page, component, screenshot or Figma frame in Zar Kebab POS. Checks layout, spacing, empty space, colours and dark/light themes, typography, touch ergonomics for waiters and cashiers, loading/empty/error states, responsiveness, locales, print formats and consistency across pages. Arguments: empty or "full", "diff", a page or route, a component, a screenshot, a Figma URL, or an area code (LAY, COL, TYPE, TOUCH, STATE, RULE, REUSE, PERF, RESP, PRINT, PUB). Use when the user types /dr.
+argument-hint: "[empty = full | diff | page/route | component | screenshot | Figma URL | area code (LAY, COL, TYPE, TOUCH, STATE, RULE, REUSE, PERF, RESP, PRINT, PUB)] [fix]"
 disable-model-invocation: true
 ---
 
@@ -19,6 +19,11 @@ the pages into groups (public menu + Telegram, waiter + kitchen, cashier +
 receipts, admin/accounting/payroll) for parallel review, and compare siblings
 across groups for reuse. If the arguments contain `fix`, implement the agreed
 improvements afterwards. Otherwise review and propose only.
+
+Sources of truth: `AGENTS.md`, `PRINTING.md`, the shared components in
+`src/components` and `references/cases.md`, the design regression catalog. An
+area code as the target runs that area's cases on every screen. Keep the
+catalog alive per `review-core` section 6.
 
 Judge it like a senior product designer looking at a restaurant POS used during
 a lunch rush: can a waiter with one free hand find the table and send the
