@@ -4,7 +4,7 @@ Read this before changing code; then load only the feature guide relevant to the
 
 ## Project essentials
 
-Zar Kebab POS is a Vite/React 18 app on Supabase: public and Telegram menus, waiter ordering, kitchen checks, cashier billing, admin, reporting, accounting, payroll and Telegram notifications.
+Zar Kebab POS is a Vite/React 18 app on Supabase: menus, ordering, kitchen checks, billing, admin, reporting, accounting, payroll and Telegram notifications.
 
 Core locations:
 
@@ -20,8 +20,6 @@ Run from the repository root:
 
 ```bash
 npm run dev
-npm test
-npm run build
 npm run db:health
 ```
 
@@ -57,7 +55,6 @@ Read the feature's guide fully; read more only when a task crosses boundaries.
 ## Universal invariants
 
 - Language changes update presentation only: never reload, remount pages, reset forms/filters, or refetch language-independent data. Keep translations out of data-loader dependencies; translate stored error codes at render time.
-
 - Preserve historical financial data: paid order prices, costs, service rates, payments and reporting snapshots are immutable.
 - Catalog deletion is archival; never physically delete products or categories referenced by history.
 - Keep protected costs, recipes, payroll and accounting data out of public, waiter, cashier and Telegram-menu payloads.
@@ -77,13 +74,8 @@ Read the feature's guide fully; read more only when a task crosses boundaries.
 
 ## Validation
 
-For code changes, run the smallest relevant tests during development, then normally run:
+Run the smallest relevant tests while developing, then `npm test` and `npm run build`. CI (`.github/workflows/checks.yml`) adds the audit, docs check and coverage floor; see `docs/ci.md`.
 
-```bash
-npm test
-npm run build
-```
-
-The known Vite large-chunk warning is not a build failure. Protected pages require an authenticated profile for browser verification.
+The Vite large-chunk warning is not a build failure. Protected pages need an authenticated profile for browser verification.
 
 When a change alters a documented invariant, route, RPC contract, historical-data rule, or focused test path, update the corresponding `docs/agent/` guide and `mcp/project-map.json` in the same change.

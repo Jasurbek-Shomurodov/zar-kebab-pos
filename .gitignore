@@ -7,3 +7,4 @@ dist
 migration-reports
 src/styles/dark-theme.css
 .env*
+coverage
