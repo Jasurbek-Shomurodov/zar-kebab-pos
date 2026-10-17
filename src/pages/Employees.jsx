@@ -1251,6 +1251,7 @@ export default function Employees() {
                         disabledLabel={l.kpiDisabled}
                         notConfiguredLabel={l.kpiNotConfigured}
                         unavailableLabel={l.kpiUnavailable}
+                        checkinLabel={l.kpiFromCheckin}
                       />
                     </dl>
 
@@ -1511,6 +1512,7 @@ function EmployeeKpiRow({
   disabledLabel,
   notConfiguredLabel,
   unavailableLabel,
+  checkinLabel,
 }) {
   const configured = Boolean(rule)
   const enabled = configured && rule.is_enabled !== false
@@ -1536,7 +1538,7 @@ function EmployeeKpiRow({
         </span>
         {configured && available && (
           <span className="min-w-0 text-[12px] leading-snug text-[#68655f]">
-            {formatKpiSalesBasis(rule.sales_basis, lang)} · {l.kpiFromCheckin}
+            {formatKpiSalesBasis(rule.sales_basis, lang)} · {checkinLabel}
           </span>
         )}
       </dd>
