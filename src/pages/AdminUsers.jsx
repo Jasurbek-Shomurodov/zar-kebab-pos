@@ -16,7 +16,7 @@ import {
   featureAccessForProfile,
   updateFeatureAccessSelection,
 } from '../lib/permissions'
-import { Search, RefreshCw, UserCircle2, Loader2, Eye, Trash2, X, Check, ShieldCheck, ChevronDown, Pencil } from 'lucide-react'
+import { Search, RefreshCw, UserCircle2, Loader2, Eye, Trash2, X, Check, ShieldCheck, ChevronRight } from 'lucide-react'
 
 const STATUSES = ['pending', 'active', 'disabled']
 const ROLES = APP_ROLES
@@ -75,6 +75,10 @@ const L = {
     nameRequired: 'Ism bo‘sh bo‘lishi mumkin emas',
     nameSaved:   'Xodim ismi saqlandi',
     nameError:   'Xodim ismini saqlab bo‘lmadi',
+    name:        'Ism',
+    roleAndStatus: 'Rol va holat',
+    close:       'Yopish',
+    openMember:  'A’zoni ochish',
   },
   ru: {
     title:       'Команда',
@@ -116,6 +120,10 @@ const L = {
     nameRequired: 'Имя не может быть пустым',
     nameSaved:   'Имя сотрудника сохранено',
     nameError:   'Не удалось сохранить имя сотрудника',
+    name:        'Имя',
+    roleAndStatus: 'Роль и статус',
+    close:       'Закрыть',
+    openMember:  'Открыть участника',
   },
   en: {
     title:       'Team Members',
@@ -157,6 +165,10 @@ const L = {
     nameRequired: 'Name cannot be empty',
     nameSaved:   'Employee name saved',
     nameError:   'Could not save employee name',
+    name:        'Name',
+    roleAndStatus: 'Role and status',
+    close:       'Close',
+    openMember:  'Open member',
   },
 }
 
@@ -178,7 +190,7 @@ export default function AdminUsers() {
   const [confirmRemoveAllPending, setConfirmRemoveAllPending] = useState(false)
   const [removingAllPending, setRemovingAllPending] = useState(false)
   const [notice, setNotice]             = useState(null)
-  const [expandedAccessId, setExpandedAccessId] = useState(null)
+  const [openUserId, setOpenUserId] = useState(null)
   const [editingNameId, setEditingNameId] = useState(null)
   const [nameDraft, setNameDraft] = useState('')
 
@@ -190,6 +202,28 @@ export default function AdminUsers() {
   }
 
   useEffect(() => { loadUsers() }, [])
+
+  useEffect(() => {
+    if (!openUserId) return undefined
+    const onKeyDown = event => { if (event.key === 'Escape') closeMember() }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [openUserId])
+
+  function openMember(user) {
+    if (removingAllPending || !user?.id) return
+    setOpenUserId(user.id)
+    setConfirmDeleteId(null)
+    setNotice(null)
+    if (myRole === 'owner') startNameEdit(user)
+    else cancelNameEdit()
+  }
+
+  function closeMember() {
+    setOpenUserId(null)
+    setConfirmDeleteId(null)
+    cancelNameEdit()
+  }
 
   async function handleChange(userId, field, value) {
     if (removingAllPending) return
@@ -261,10 +295,7 @@ export default function AdminUsers() {
       setNotice({ tone: 'error', message: l.nameRequired })
       return
     }
-    if (fullName === String(user.full_name || '').trim()) {
-      cancelNameEdit()
-      return
-    }
+    if (fullName === String(user.full_name || '').trim()) return
 
     setSaving(user.id)
     setNotice(null)
@@ -276,7 +307,7 @@ export default function AdminUsers() {
     }
     setUsers(list => list.map(row => row.id === user.id ? { ...row, full_name: fullName } : row))
     setSaving(null)
-    cancelNameEdit()
+    setNameDraft(fullName)
     setNotice({ tone: 'success', message: l.nameSaved })
     refreshPOSData().catch(error => console.warn('[team] waiter name refresh failed:', error))
   }
@@ -293,6 +324,7 @@ export default function AdminUsers() {
     }
     setUsers(list => list.filter(row => row.id !== user.id))
     setConfirmDeleteId(null)
+    closeMember()
     setDeleting(null)
     setNotice({ tone: 'success', message: l.deleted })
   }
@@ -338,6 +370,237 @@ export default function AdminUsers() {
   const { members, pendingRequests } = groupTeamProfiles(users, search, statusFilter)
   const allPendingRequests = users.filter(user => user.status === 'pending')
   const displayedUsers = [...members, ...pendingRequests]
+  const openUser = users.find(user => user.id === openUserId) || null
+  const pageFeatures = FEATURE_DEFINITIONS.filter(feature => feature.kind === 'page')
+  const statusLabelFor = status => (STATUS_LABELS[status]?.[lang] || STATUS_LABELS[status]?.en) ?? status
+  const roleLabelFor = role => (ROLE_LABELS[role]?.[lang] || ROLE_LABELS[role]?.en) ?? role
+
+  function renderFeatureToggles(user, features, featureAccess, disabled) {
+    return (
+      <div className="grid gap-2 sm:grid-cols-2">
+        {features.map(feature => {
+          const enabled = featureAccess.includes(feature.key)
+          return (
+            <label
+              key={feature.key}
+              className={`flex cursor-pointer items-start gap-2.5 rounded-xl border bg-white p-3 transition-colors ${
+                enabled ? 'border-orange-200 ring-1 ring-orange-100' : 'border-gray-100 hover:border-gray-200'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={enabled}
+                disabled={disabled}
+                onChange={event => handleFeatureAccessChange(user, feature.key, event.target.checked)}
+                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-[#ff5a00] focus:ring-[#ff5a00]"
+              />
+              <span className="min-w-0">
+                <span className="block text-xs font-black text-gray-900">
+                  {feature.labels[lang] || feature.labels.en}
+                </span>
+                <span className="block text-[11px] font-medium leading-snug text-gray-400">
+                  {feature.description[lang] || feature.description.en}
+                </span>
+              </span>
+            </label>
+          )
+        })}
+      </div>
+    )
+  }
+
+  function renderMemberDialog(user) {
+    const isMe       = user.id === myProfile?.id
+    const isSaving   = saving === user.id
+    const canEditRoleStatus = !isMe && canEditTeamMember(myRole, user.role)
+    const canDelete  = canDeleteTeamMember(myProfile, user, isMe)
+    const isDeleting = deleting === user.id
+    const isConfirmingDelete = confirmDeleteId === user.id
+    const isEditingName = editingNameId === user.id
+    const busy = isSaving || isDeleting || removingAllPending
+    const statusOptions = user.status === 'pending' ? STATUSES : ['active', 'disabled']
+    const roleOptions = assignableRoles(myRole)
+    const featureAccess = featureAccessForProfile(user)
+    const actionFeatures = FEATURE_DEFINITIONS.filter(feature => {
+      if (!['owner', 'admin'].includes(user.role)) return false
+      if (feature.kind !== 'action') return false
+      const hasRequired = (feature.requires || []).every(key => featureAccess.includes(key))
+      const hasRequiredAny = !feature.requiresAny?.length || feature.requiresAny.some(key => featureAccess.includes(key))
+      return hasRequired && hasRequiredAny
+    })
+    const nameChanged = nameDraft.trim().replace(/\s+/g, ' ') !== String(user.full_name || '').trim()
+
+    return (
+      <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center sm:p-6">
+        <button type="button" aria-label={l.close} onClick={closeMember}
+          className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
+        <div role="dialog" aria-modal="true" aria-labelledby="team-member-title"
+          className="ws-dialog relative flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-b-none sm:max-h-[calc(100dvh-3rem)] sm:rounded-b-2xl">
+          <div className="flex items-start gap-3 border-b border-gray-100 px-5 pb-4 pt-5 sm:px-6">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#1a1a1a]">
+              <span className="text-sm font-black text-white">
+                {(user.full_name || user.email || '?')[0].toUpperCase()}
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 id="team-member-title" className="truncate text-lg font-black text-gray-900">
+                {user.full_name || '—'} {isMe && <span className="text-xs font-bold text-[#ff5a00]">{l.you}</span>}
+              </h2>
+              <p className="truncate text-xs text-gray-400">{user.email}</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <StatusBadge status={user.status} />
+                <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{roleLabelFor(user.role)}</span>
+              </div>
+            </div>
+            {isSaving && <Loader2 size={16} className="mt-2 animate-spin text-[#ff5a00]" />}
+            <button type="button" onClick={closeMember} aria-label={l.close}
+              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+            {notice?.tone === 'error' && notice.userId === user.id && (
+              <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
+                {notice.message}
+              </p>
+            )}
+            {notice && !notice.userId && (
+              <p role={notice.tone === 'error' ? 'alert' : 'status'} className={`rounded-xl p-3 text-sm font-semibold ${
+                notice.tone === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+              }`}>
+                {notice.message}
+              </p>
+            )}
+
+            {myRole === 'owner' && isEditingName && (
+              <section>
+                <label htmlFor="team-member-name" className="mb-1.5 block text-xs font-black text-gray-700">{l.name}</label>
+                <div className="flex gap-2">
+                  <input
+                    id="team-member-name"
+                    type="text"
+                    value={nameDraft}
+                    onChange={event => setNameDraft(event.target.value)}
+                    onKeyDown={event => { if (event.key === 'Enter') saveName(user) }}
+                    autoComplete="off"
+                    maxLength={120}
+                    disabled={busy}
+                    className="h-11 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-base font-semibold text-gray-900 focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:opacity-60 sm:text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveName(user)}
+                    disabled={busy || !nameDraft.trim() || !nameChanged}
+                    className="inline-flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl bg-[#ff5a00] px-4 text-sm font-black text-white transition-opacity disabled:opacity-40"
+                  >
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                    {l.saveName}
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {canEditRoleStatus && (
+              <section>
+                <p className="mb-1.5 text-xs font-black text-gray-700">{l.roleAndStatus}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={ROLES.includes(user.role) ? user.role : 'guest'}
+                    disabled={busy}
+                    onChange={e => handleChange(user.id, 'role', e.target.value)}
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={l.role}
+                  >
+                    {roleOptions.map(role => (
+                      <option key={role} value={role}>{roleLabelFor(role)}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={user.status || 'pending'}
+                    disabled={busy}
+                    onChange={e => handleChange(user.id, 'status', e.target.value)}
+                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={l.accountStatus}
+                  >
+                    {statusOptions.map(s => (
+                      <option key={s} value={s}>{statusLabelFor(s)}</option>
+                    ))}
+                  </select>
+                </div>
+              </section>
+            )}
+
+            {canEditAccess && !isMe && (
+              <section>
+                <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-gray-600">
+                  <ShieldCheck size={14} className="text-[#ff5a00]" />
+                  {l.access}
+                  <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{featureAccess.length}</span>
+                </p>
+                <div className="mb-2 mt-3">
+                  <p className="text-xs font-black text-gray-700">{l.pageAccess}</p>
+                  <p className="text-[11px] font-medium text-gray-400">{l.pageAccessHelp}</p>
+                </div>
+                {renderFeatureToggles(user, pageFeatures, featureAccess, busy)}
+                {actionFeatures.length > 0 && (
+                  <div className="mt-4 border-t border-gray-100 pt-4">
+                    <div className="mb-2">
+                      <p className="text-xs font-black text-gray-700">{l.extraActions}</p>
+                      <p className="text-[11px] font-medium text-gray-400">{l.extraActionsHelp}</p>
+                    </div>
+                    {renderFeatureToggles(user, actionFeatures, featureAccess, busy)}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          {canDelete && (
+            <div className="border-t border-gray-100 px-5 py-4 sm:px-6">
+              {isConfirmingDelete ? (
+                <div className="space-y-3">
+                  <p className="text-xs font-medium leading-snug text-red-500">{l.deleteHint}</p>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(null)}
+                      disabled={busy}
+                      className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-black text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {l.cancel}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(user)}
+                      disabled={busy}
+                      className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-red-600 px-4 text-sm font-black text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                      {l.confirmDelete}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDeleteId(user.id)
+                    setNotice(null)
+                  }}
+                  disabled={busy}
+                  className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-4 text-sm font-black text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
+                >
+                  <Trash2 size={16} />
+                  {l.delete}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <AppShell title={l.title}>
@@ -355,7 +618,7 @@ export default function AdminUsers() {
           </div>
         )}
 
-        {notice && (
+        {notice && !openUserId && (
           <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
             notice.tone === 'error'
               ? 'border-red-100 bg-red-50 text-red-700'
@@ -412,11 +675,12 @@ export default function AdminUsers() {
         ) : (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {/* Table header */}
-            <div className="hidden xl:grid xl:grid-cols-[48px_minmax(240px,1fr)_100px_minmax(540px,580px)] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-100">
+            <div className="hidden md:grid md:grid-cols-[40px_minmax(0,1fr)_120px_96px_20px] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">#</p>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{l.nameEmail}</p>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{l.status}</p>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{l.actions}</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{canEditAccess ? l.access : ''}</p>
+              <span />
             </div>
 
             {/* Rows */}
@@ -425,26 +689,8 @@ export default function AdminUsers() {
                 const startsPendingSection = pendingRequests.length > 0 && index === members.length
                 const isMe       = user.id === myProfile?.id
                 const isSaving   = saving === user.id
-                const canEditRoleStatus = !isMe && canEditTeamMember(myRole, user.role)
-                const canDelete  = canDeleteTeamMember(myProfile, user, isMe)
-                const isDeleting = deleting === user.id
-                const isConfirmingDelete = confirmDeleteId === user.id
-                const isAccessExpanded = expandedAccessId === user.id
-                const isEditingName = editingNameId === user.id
-                const statusLabel = (STATUS_LABELS[user.status]?.[lang] || STATUS_LABELS[user.status]?.en) ?? user.status
-                const statusOptions = user.status === 'pending' ? STATUSES : ['active', 'disabled']
-                const roleLabel = (ROLE_LABELS[user.role]?.[lang] || ROLE_LABELS[user.role]?.en) ?? user.role
-                const roleOptions = assignableRoles(myRole)
-                const featureAccess = featureAccessForProfile(user)
-                const pageFeatures = FEATURE_DEFINITIONS.filter(feature => feature.kind === 'page')
-                const actionFeatures = FEATURE_DEFINITIONS.filter(feature => {
-                  if (!['owner', 'admin'].includes(user.role)) return false
-                  if (feature.kind !== 'action') return false
-                  const hasRequired = (feature.requires || []).every(key => featureAccess.includes(key))
-                  const hasRequiredAny = !feature.requiresAny?.length || feature.requiresAny.some(key => featureAccess.includes(key))
-                  return hasRequired && hasRequiredAny
-                })
-                const accessCount = featureAccess.length
+                const isOpen     = openUserId === user.id
+                const accessCount = featureAccessForProfile(user).length
 
                 return (
                   <React.Fragment key={user.id}>
@@ -502,273 +748,55 @@ export default function AdminUsers() {
                         </div>
                       </div>
                     )}
-                  <div
-                    className={`grid grid-cols-1 xl:grid-cols-[48px_minmax(240px,1fr)_100px_minmax(540px,580px)] gap-3 xl:gap-4 items-center px-4 py-4 sm:px-5 transition-colors ${
-                      isSaving ? 'bg-orange-50/50' : 'hover:bg-gray-50/50'
+                  <button
+                    type="button"
+                    onClick={() => openMember(user)}
+                    disabled={removingAllPending}
+                    aria-haspopup="dialog"
+                    aria-expanded={isOpen}
+                    aria-label={`${l.openMember}: ${user.full_name || user.email}`}
+                    className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors sm:px-5 md:grid md:grid-cols-[40px_minmax(0,1fr)_120px_96px_20px] md:gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ff5a00]/40 disabled:cursor-not-allowed ${
+                      isSaving || isOpen ? 'bg-orange-50/50' : 'hover:bg-gray-50 active:bg-gray-100'
                     }`}
                   >
-                    <div className="hidden xl:flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-black text-gray-500">
+                    <span className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-black text-gray-500">
                       {index + 1}
-                    </div>
+                    </span>
                     {/* Name / Email */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="flex h-7 min-w-7 items-center justify-center rounded-lg bg-gray-100 px-1.5 text-[11px] font-black text-gray-500 xl:hidden">
-                        {index + 1}
-                      </span>
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#1a1a1a]">
+                    <span className="flex min-w-0 flex-1 items-center gap-3">
+                      <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#1a1a1a]">
                         <span className="text-white text-xs font-black">
                           {(user.full_name || user.email || '?')[0].toUpperCase()}
                         </span>
-                      </div>
-                      <div className="min-w-0">
-                        {isEditingName ? (
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <input
-                              type="text"
-                              value={nameDraft}
-                              onChange={event => setNameDraft(event.target.value)}
-                              onKeyDown={event => {
-                                if (event.key === 'Enter') saveName(user)
-                                if (event.key === 'Escape') cancelNameEdit()
-                              }}
-                              autoFocus
-                              autoComplete="off"
-                              className="h-8 min-w-0 flex-1 rounded-lg border border-orange-300 bg-white px-2 text-sm font-bold text-gray-900 outline-none ring-2 ring-orange-100"
-                              aria-label={l.editName}
-                              disabled={isSaving}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => saveName(user)}
-                              disabled={isSaving || !nameDraft.trim()}
-                              title={l.saveName}
-                              className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#ff5a00] text-white disabled:opacity-50"
-                            >
-                              {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={cancelNameEdit}
-                              disabled={isSaving}
-                              title={l.cancel}
-                              className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 disabled:opacity-50"
-                            >
-                              <X size={13} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="font-bold text-sm text-gray-900 truncate">
-                              {user.full_name || '—'}
-                            </p>
-                            {isMe && <span className="text-[10px] text-[#ff5a00] font-bold">{l.you}</span>}
-                            {myRole === 'owner' && (
-                              <button
-                                type="button"
-                                onClick={() => startNameEdit(user)}
-                                disabled={isSaving || removingAllPending}
-                                title={l.editName}
-                                aria-label={`${l.editName}: ${user.full_name || user.email}`}
-                                className="inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-orange-50 hover:text-[#ff5a00] disabled:opacity-50"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                        <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">{roleLabel}</p>
-                      </div>
-                    </div>
+                      </span>
+                      <span className="min-w-0">
+                        <span className="flex items-baseline gap-1.5">
+                          <span className="truncate text-sm font-bold text-gray-900">{user.full_name || '—'}</span>
+                          {isMe && <span className="flex-shrink-0 text-[10px] font-bold text-[#ff5a00]">{l.you}</span>}
+                        </span>
+                        <span className="block truncate text-xs text-gray-400">{user.email}</span>
+                        <span className="mt-0.5 block text-[11px] font-bold uppercase tracking-wide text-gray-400">{roleLabelFor(user.role)}</span>
+                      </span>
+                    </span>
 
                     {/* Current status badge */}
-                    <div>
+                    <span className="flex-shrink-0">
                       <StatusBadge status={user.status} />
-                    </div>
+                    </span>
 
-                    {/* Actions */}
-                    <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 xl:flex-nowrap">
-                      {isSaving && <Loader2 size={15} className="animate-spin text-[#ff5a00]" />}
-                      {canEditRoleStatus && (
-                        <select
-                          value={ROLES.includes(user.role) ? user.role : 'guest'}
-                          disabled={isSaving || removingAllPending}
-                          onChange={e => handleChange(user.id, 'role', e.target.value)}
-                          className="h-10 w-[124px] flex-shrink-0 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:opacity-50"
-                          title={l.role}
-                        >
-                          {roleOptions.map(role => (
-                            <option key={role} value={role}>{(ROLE_LABELS[role]?.[lang] || ROLE_LABELS[role]?.en) ?? role}</option>
-                          ))}
-                        </select>
-                      )}
-                      {canEditRoleStatus ? (
-                        <select
-                          value={user.status || 'pending'}
-                          disabled={isSaving || removingAllPending}
-                          onChange={e => handleChange(user.id, 'status', e.target.value)}
-                          className="h-10 w-[124px] flex-shrink-0 rounded-xl border border-gray-200 bg-white px-3 text-xs font-semibold focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:opacity-50"
-                          title={l.accountStatus}
-                        >
-                          {statusOptions.map(s => (
-                            <option key={s} value={s}>{(STATUS_LABELS[s]?.[lang] || STATUS_LABELS[s]?.en) ?? s}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="inline-flex h-10 flex-shrink-0 items-center rounded-xl border border-gray-200 bg-gray-100 px-3 text-xs font-semibold text-gray-600">
-                          {statusLabel}
-                        </span>
-                      )}
+                    <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-bold text-gray-500">
                       {canEditAccess && !isMe && (
-                        <button
-                          type="button"
-                          onClick={() => setExpandedAccessId(current => current === user.id ? null : user.id)}
-                          disabled={removingAllPending}
-                          className={`inline-flex h-10 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-xs font-black transition-colors ${
-                            isAccessExpanded
-                              ? 'border-orange-200 bg-orange-50 text-[#ff5a00]'
-                              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          <ShieldCheck size={14} />
-                          <span>{l.manageAccess}</span>
-                          <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{accessCount}</span>
-                          <ChevronDown size={14} className={`transition-transform ${isAccessExpanded ? 'rotate-180' : ''}`} />
-                        </button>
+                        <>
+                          <ShieldCheck size={14} className="text-gray-400" />
+                          {accessCount}
+                        </>
                       )}
-                      {canDelete && !isConfirmingDelete && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConfirmDeleteId(user.id)
-                            setNotice(null)
-                          }}
-                          disabled={isDeleting || removingAllPending}
-                          title={l.delete}
-                          className="inline-flex h-10 flex-shrink-0 items-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-3 text-xs font-black text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                          <span>{l.delete}</span>
-                        </button>
-                      )}
-                      {canDelete && isConfirmingDelete && (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(user)}
-                            disabled={isDeleting || removingAllPending}
-                            title={l.confirmDelete}
-                            className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-600 px-2.5 py-2 text-xs font-black text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                            {l.confirmDelete}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(null)}
-                            disabled={isDeleting || removingAllPending}
-                            title={l.cancel}
-                            className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-black text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    {canDelete && isConfirmingDelete && (
-                      <p className="xl:col-start-4 text-xs font-medium leading-snug text-red-500">
-                        {l.deleteHint}
-                      </p>
-                    )}
-                    {notice?.tone === 'error' && notice.userId === user.id && (
-                      <p role="alert" className="xl:col-span-4 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
-                        {notice.message}
-                      </p>
-                    )}
-                    {canEditAccess && !isMe && isAccessExpanded && (
-                      <div className="xl:col-span-4 rounded-2xl border border-gray-100 bg-gray-50/70 p-3">
-                        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-gray-600">
-                              <ShieldCheck size={14} className="text-[#ff5a00]" />
-                              {l.access}
-                            </p>
-                            <p className="mt-0.5 text-xs font-medium leading-snug text-gray-400">{l.accessHelp}</p>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <p className="text-xs font-black text-gray-700">{l.pageAccess}</p>
-                          <p className="text-[11px] font-medium text-gray-400">{l.pageAccessHelp}</p>
-                        </div>
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                          {pageFeatures.map(feature => {
-                            const enabled = featureAccessForProfile(user).includes(feature.key)
-                            return (
-                              <label
-                                key={feature.key}
-                                className={`flex cursor-pointer items-start gap-2 rounded-xl border bg-white p-3 transition-colors ${
-                                  enabled ? 'border-orange-200 ring-1 ring-orange-100' : 'border-gray-100'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={enabled}
-                                  disabled={isSaving || removingAllPending}
-                                  onChange={event => handleFeatureAccessChange(user, feature.key, event.target.checked)}
-                                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#ff5a00] focus:ring-[#ff5a00]"
-                                />
-                                <span className="min-w-0">
-                                  <span className="block text-xs font-black text-gray-900">
-                                    {feature.labels[lang] || feature.labels.en}
-                                  </span>
-                                  <span className="block text-[11px] font-medium leading-snug text-gray-400">
-                                    {feature.description[lang] || feature.description.en}
-                                  </span>
-                                </span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                        {actionFeatures.length > 0 && (
-                          <div className="mt-4 border-t border-gray-200 pt-4">
-                            <div className="mb-2">
-                              <p className="text-xs font-black text-gray-700">{l.extraActions}</p>
-                              <p className="text-[11px] font-medium text-gray-400">{l.extraActionsHelp}</p>
-                            </div>
-                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                              {actionFeatures.map(feature => {
-                                const enabled = featureAccess.includes(feature.key)
-                                return (
-                                  <label
-                                    key={feature.key}
-                                    className={`flex cursor-pointer items-start gap-2 rounded-xl border bg-white p-3 transition-colors ${
-                                      enabled ? 'border-orange-200 ring-1 ring-orange-100' : 'border-gray-100'
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={enabled}
-                                      disabled={isSaving || removingAllPending}
-                                      onChange={event => handleFeatureAccessChange(user, feature.key, event.target.checked)}
-                                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#ff5a00] focus:ring-[#ff5a00]"
-                                    />
-                                    <span className="min-w-0">
-                                      <span className="block text-xs font-black text-gray-900">
-                                        {feature.labels[lang] || feature.labels.en}
-                                      </span>
-                                      <span className="block text-[11px] font-medium leading-snug text-gray-400">
-                                        {feature.description[lang] || feature.description.en}
-                                      </span>
-                                    </span>
-                                  </label>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                    </span>
+
+                    {isSaving
+                      ? <Loader2 size={16} className="flex-shrink-0 animate-spin text-[#ff5a00]" />
+                      : <ChevronRight size={18} className="flex-shrink-0 text-gray-300" />}
+                  </button>
                   </React.Fragment>
                 )
               })}
@@ -776,6 +804,7 @@ export default function AdminUsers() {
           </div>
         )}
       </div>
+      {openUser && renderMemberDialog(openUser)}
     </AppShell>
   )
 }

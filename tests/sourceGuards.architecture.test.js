@@ -258,23 +258,24 @@ test('AdminUsers lets owners rename employees without changing historical order 
 
   assert.match(adminUsers, /const \[editingNameId, setEditingNameId\] = useState\(null\)/)
   assert.match(adminUsers, /myRole === 'owner'/)
-  assert.match(adminUsers, /onClick=\{\(\) => startNameEdit\(user\)\}/)
+  assert.match(functionBody(adminUsers, 'openMember'), /if \(myRole === 'owner'\) startNameEdit\(user\)/)
+  assert.doesNotMatch(adminUsers, /Pencil/)
   assert.match(saveNameBody, /updateProfile\(user\.id, \{ full_name: fullName \}\)/)
   assert.doesNotMatch(saveNameBody, /orders/)
 })
 
-test('AdminUsers team table keeps action controls inside the page layout', () => {
+test('AdminUsers rows open a member dialog instead of cramming actions into the table', () => {
   const adminUsers = readSource('src/pages/AdminUsers.jsx')
 
   assert.match(adminUsers, /className="w-full px-4 py-5 sm:px-5 lg:px-6"/)
-  assert.match(adminUsers, /xl:grid-cols-\[48px_minmax\(240px,1fr\)_100px_minmax\(540px,580px\)\]/)
-  assert.match(adminUsers, /className="flex min-w-0 flex-wrap items-center justify-start gap-2 xl:flex-nowrap"/)
-  assert.match(adminUsers, /className="h-10 w-\[124px\] flex-shrink-0/)
-  assert.match(adminUsers, /xl:col-start-4/)
-  assert.match(adminUsers, /xl:col-span-4/)
+  assert.match(adminUsers, /md:grid-cols-\[40px_minmax\(0,1fr\)_120px_96px_20px\]/)
+  assert.match(adminUsers, /onClick=\{\(\) => openMember\(user\)\}/)
+  assert.match(adminUsers, /aria-haspopup="dialog"/)
+  assert.match(adminUsers, /\{openUser && renderMemberDialog\(openUser\)\}/)
+  assert.match(adminUsers, /role="dialog" aria-modal="true" aria-labelledby="team-member-title"/)
+  assert.doesNotMatch(adminUsers, /minmax\(540px,580px\)/)
   assert.doesNotMatch(adminUsers, /max-w-5xl/)
   assert.doesNotMatch(adminUsers, /grid-cols-\[1fr_110px_480px\]/)
-  assert.doesNotMatch(adminUsers, /sm:col-span-3/)
 })
 
 test('Supabase browser reads bypass HTTP cache for live POS data', () => {
@@ -356,7 +357,7 @@ test('Team member rows show ordered numbers', () => {
 
   assert.match(adminUsers, />#<\/p>/)
   assert.match(adminUsers, /\{index \+ 1\}/)
-  assert.match(adminUsers, /xl:grid-cols-\[48px_minmax\(240px,1fr\)_100px_minmax\(540px,580px\)\]/)
+  assert.match(adminUsers, /md:grid-cols-\[40px_minmax\(0,1fr\)_120px_96px_20px\]/)
 })
 
 test('AdminUsers can safely remove every still-pending request', () => {
