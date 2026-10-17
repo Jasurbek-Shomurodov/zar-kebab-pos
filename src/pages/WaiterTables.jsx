@@ -377,8 +377,8 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
         )}
       </div>
 
+      {/* The status is already the section heading and the card edge colour. */}
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <span className={`ws-status ${cfg.tone}`}>{statusLabel(lang, status)}</span>
         <span className="ws-badge min-w-0">
           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${zone.dot}`} aria-hidden="true" />
           <span className="truncate">{zoneName}</span>
