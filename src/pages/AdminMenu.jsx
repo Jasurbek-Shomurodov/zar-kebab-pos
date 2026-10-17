@@ -236,20 +236,36 @@ function MoneyField({ label, value, onChange, placeholder, className = '', label
   )
 }
 
+function formatProfitPct(value, lang) {
+  if (value == null) return '—'
+  const locale = lang === 'ru' ? 'ru-RU' : lang === 'en' ? 'en-US' : 'uz-UZ'
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value)}%`
+}
+
+function ItemMarginBadge({ item, lang }) {
+  if (item.cost_price == null || String(item.cost_price).trim() === '') return null
+  const summary = getSaleProfitSummary(item.price, item.cost_price)
+  if (!summary) return null
+  const label = lang === 'uz' ? 'Marja' : lang === 'ru' ? 'Маржа' : 'Margin'
+  return (
+    <span className={`ws-badge tabular-nums ${summary.profit >= 0 ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
+      {label}: {formatProfitPct(summary.marginPct, lang)}
+    </span>
+  )
+}
+
 function ProfitMarginPreview({ price, cost, lang, inheritedCost = false }) {
   if (String(price ?? '').trim() === '' || String(cost ?? '').trim() === '') return null
   const summary = getSaleProfitSummary(numberFromMoneyInput(price), numberFromMoneyInput(cost))
   if (!summary) return null
 
   const labels = lang === 'uz'
-    ? { profit: 'Sotuv foydasi', markup: 'Ustama', inherited: 'Asosiy tannarx' }
+    ? { profit: 'Sotuv foydasi', margin: 'Marja', markup: 'Ustama', inherited: 'Asosiy tannarx' }
     : lang === 'ru'
-      ? { profit: 'Прибыль с продажи', markup: 'Наценка', inherited: 'Себестоимость товара' }
-      : { profit: 'Profit per sale', markup: 'Markup', inherited: 'Parent cost' }
-  const locale = lang === 'ru' ? 'ru-RU' : lang === 'en' ? 'en-US' : 'uz-UZ'
-  const markup = summary.markupPct == null
-    ? '—'
-    : `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(summary.markupPct)}%`
+      ? { profit: 'Прибыль с продажи', margin: 'Маржа', markup: 'Наценка', inherited: 'Себестоимость товара' }
+      : { profit: 'Profit per sale', margin: 'Margin', markup: 'Markup', inherited: 'Parent cost' }
+  const margin = formatProfitPct(summary.marginPct, lang)
+  const markup = formatProfitPct(summary.markupPct, lang)
   const positive = summary.profit >= 0
 
   return (
@@ -260,7 +276,8 @@ function ProfitMarginPreview({ price, cost, lang, inheritedCost = false }) {
       </div>
       <div className={`flex items-center gap-2 text-sm font-semibold tabular-nums ${positive ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>
         <span>{formatCurrency(summary.profit)}</span>
-        <span className={`ws-badge ${positive ? 'ws-tone-positive' : 'ws-tone-negative'}`}>{labels.markup}: {markup}</span>
+        <span className={`ws-badge ${positive ? 'ws-tone-positive' : 'ws-tone-negative'}`}>{labels.margin}: {margin}</span>
+        <span className="ws-badge">{labels.markup}: {markup}</span>
       </div>
     </div>
   )
@@ -943,6 +960,7 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, vi
             {itemVisibilityStatusLabel(lang, item.available)}
           </span>
           <ExternalIdBadge item={item} />
+          <ItemMarginBadge item={item} lang={lang} />
           <span className="ws-badge">
             <Clock3 size={12} />
             {menuPrepTimeLabel(item, lang)}
