@@ -58,9 +58,9 @@
 - Ingredient changes (`189`) snapshot before/after values and actor. Unchanged saves and imports stay silent. `ingredient-events` sends to `salary_events`; unknown sends stay held.
 - Order deletes require a reason (`184`); Investor alerts snapshot order, total, actor and tenders. Corrections and splits (`201`) notify Investor once with before/after allocations.
 - New cash expenses (text) and Bazaar purchases (one localized PNG + caption, never also a text receipt) notify Investor via legacy `salary_events`.
-- Investor daily album: yesterday’s financial/payroll plus live unpaid/non-cancelled orders (place/id/time/status/total/items); Russian labels/catalog names, saved-name fallback; renderer filters paid/cancelled. Never daily Bazaar totals or Tech Card images, even on retry/manual send. Keep historical ledgers.
+- Investor daily album: yesterday’s financial/payroll, sales mix, live unpaid/non-cancelled orders (place/id/time/status/total/items); Russian labels/catalog names, saved-name fallback; renderer filters paid/cancelled. Never daily Bazaar totals or Tech Card images, even on retry/manual send. Keep historical ledgers.
 - Bazaar PNGs group numbered items by saved RU category: paid/normal prices, signed variance (red above, green below), total variance. Missing normal prices stay unset; rows never truncate.
-- Investor: image-only, retryable render errors, no text fallback; the ledger dedupes the two-image album, marking sent only after each photo’s message id.
+- Investor: image-only, retryable render errors, no text fallback; the ledger dedupes the album, marking sent only after each photo’s message id.
 - Employee meal daily aggregate also goes to Investor, with the employee-count formula.
 - Edits/deletes and calculated salary/bonus rows never announce new cash expenses.
 

@@ -38,6 +38,7 @@ import { getGameClubRevenue } from '../../src/lib/gameClubRevenue.js'
 import { inferOrderType, isDineInOrderType } from '../../src/lib/orderTypes.js'
 import { PRICE_MODE_TOURIST } from '../../src/lib/priceModes.js'
 import { formatLongDate } from '../../src/lib/dateFormat.js'
+import { getDailySalesMix } from '../../src/lib/salesMix.js'
 
 const KPI_RETRY_LOOKBACK_DAYS = 7
 const KPI_MISSING_DATE_BATCH_SIZE = 31
@@ -571,7 +572,7 @@ export async function loadDailyPayrollGroupSummary(supabase, businessDate, kpiRe
       : Promise.resolve(emptyRelatedResult),
     supabase
       .from('orders')
-      .select('status, payment_status, payment_method, order_type, price_mode, subtotal, service_fee, total, loyalty_used_amount, loyalty_redeem_amount, loyalty_discount_amount, items:order_items(quantity, sale_unit, price, unit_price, base_price, item_type, is_counter_item, cost_price, status), payments:order_payments(method, amount)')
+      .select('status, payment_status, payment_method, order_type, price_mode, subtotal, service_fee, total, loyalty_used_amount, loyalty_redeem_amount, loyalty_discount_amount, id, items:order_items(menu_item_id, name, category_id_snapshot, quantity, sale_unit, price, unit_price, base_price, item_type, is_counter_item, cost_price, status), payments:order_payments(method, amount)')
       .eq('payment_status', 'paid')
       .gte('paid_at', `${businessDate}T00:00:00+05:00`)
       .lt('paid_at', `${addSalaryDateDays(businessDate, 1)}T00:00:00+05:00`),
@@ -618,6 +619,21 @@ export async function loadDailyPayrollGroupSummary(supabase, businessDate, kpiRe
       order.items = (order.items || []).map(item => ({ ...item, menu_item: menuById.get(item.menu_item_id) }))
     }
   }
+  const paidOrdersForMix = (salesResult.data || []).filter(order => order?.status !== 'cancelled')
+  const soldMenuIds = [...new Set(paidOrdersForMix.flatMap(order => (order.items || [])
+    .filter(item => item.status !== 'cancelled').map(item => item.menu_item_id)).filter(Boolean))]
+  const [soldMenuResult, categoriesResult] = await Promise.all([
+    soldMenuIds.length > 0
+      ? supabase.from('menu_items').select('id, name_ru, name_en, category_id, sale_unit').in('id', soldMenuIds)
+      : Promise.resolve(emptyRelatedResult),
+    supabase.from('menu_categories').select('id, name_ru, name_en, name_uz'),
+  ])
+  if (soldMenuResult.error) throw soldMenuResult.error
+  if (categoriesResult.error) throw categoriesResult.error
+  const salesMix = getDailySalesMix(paidOrdersForMix, {
+    menuItems: soldMenuResult.data || [],
+    categories: categoriesResult.data || [],
+  })
   if (!employeeMealResult.data) throw new Error(`Employee meal expense was not finalized for ${businessDate}`)
 
   const salaryProfiles = eligibleProfiles.map(profile => ({
@@ -678,6 +694,7 @@ export async function loadDailyPayrollGroupSummary(supabase, businessDate, kpiRe
   return {
     ...summary,
     openOrders,
+    salesMix,
   }
 }
 
@@ -806,6 +823,12 @@ async function sendDailyInvestorReportAlbum(supabase, businessDate, kpiResults) 
         kind: 'openOrders',
         photo: await operationsModule.buildOpenOrdersReportPng(summary.openOrders),
         filename: `zar-kebab-open-orders-${businessDate}.png`,
+        caption: '',
+      },
+      {
+        kind: 'salesMix',
+        photo: await operationsModule.buildDailySalesMixReportPng(summary.salesMix, businessDate),
+        filename: `zar-kebab-sales-mix-${businessDate}.png`,
         caption: '',
       },
     ]

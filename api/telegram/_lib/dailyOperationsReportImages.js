@@ -272,6 +272,98 @@ export function buildOpenOrdersReportSvg(orders = []) {
   </svg>`
 }
 
+const SALES_MIX_TOP_ROWS = 10
+
+function salesMixQuantity(row) {
+  return row.byWeight ? `${quantity(row.quantity)} кг` : `${quantity(row.quantity)} шт`
+}
+
+function salesMixPercent(value) {
+  return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(Number(value) || 0)}%`
+}
+
+function profitColor(value, darkBackground = false) {
+  if ((Number(value) || 0) < 0) return darkBackground ? '#FCA5A5' : '#DC2626'
+  return darkBackground ? '#86EFAC' : '#15803D'
+}
+
+function salesMixRow({ y, rank, row, detail, maxShare, fill, accent }) {
+  const barWidth = Math.max(4, Math.round(((Number(row.share) || 0) / (maxShare || 100)) * 470))
+  const name = `${row.name}${row.missingCost ? ' *' : ''}`
+  return `<g>
+    <rect x="64" y="${y}" width="1072" height="100" rx="16" fill="${fill}"/>
+    <circle cx="104" cy="${y + 50}" r="22" fill="${rank <= 3 ? accent : '#E2E8E6'}"/>
+    <text x="104" y="${y + 58}" text-anchor="middle" font-size="21" font-weight="800" fill="${rank <= 3 ? '#FFFFFF' : '#526461'}">${rank}</text>
+    <text x="144" y="${y + 36}" font-size="24" font-weight="700" fill="#173B3F">${escapeSvg(name)}</text>
+    <rect x="144" y="${y + 50}" width="470" height="10" rx="5" fill="#E2E8E6"/>
+    <rect x="144" y="${y + 50}" width="${barWidth}" height="10" rx="5" fill="${accent}"/>
+    <text x="144" y="${y + 86}" font-size="18" fill="#74827F">${escapeSvg(detail)}</text>
+    <text x="850" y="${y + 40}" text-anchor="end" font-size="24" font-weight="800" fill="#173B3F">${escapeSvg(formatCurrency(Math.round(row.revenue)))}</text>
+    <text x="850" y="${y + 74}" text-anchor="end" font-size="20" font-weight="700" fill="${accent}">${escapeSvg(`доля ${salesMixPercent(row.share)}`)}</text>
+    <text x="1110" y="${y + 40}" text-anchor="end" font-size="24" font-weight="800" fill="${profitColor(row.profit)}">${escapeSvg(formatCurrency(row.profit))}</text>
+    <text x="1110" y="${y + 74}" text-anchor="end" font-size="20" font-weight="700" fill="${profitColor(row.profit)}">${escapeSvg(`маржа ${salesMixPercent(row.margin)}`)}</text>
+  </g>`
+}
+
+export function buildDailySalesMixReportSvg(mix = {}, date = '') {
+  const categories = (mix.categories || []).slice(0, SALES_MIX_TOP_ROWS)
+  const dishes = (mix.dishes || []).slice(0, SALES_MIX_TOP_ROWS)
+  const rowStep = 110
+  const sectionHeader = 64
+  let cursorY = 310
+  const section = (title, rows, accent, fill, detailFor) => {
+    const headerY = cursorY
+    cursorY += sectionHeader
+    const maxShare = Math.max(...rows.map(row => Number(row.share) || 0), 1)
+    const markup = rows.map((row, index) => {
+      const y = cursorY
+      cursorY += rowStep
+      return salesMixRow({ y, rank: index + 1, row, detail: detailFor(row), maxShare, accent, fill: index % 2 ? '#F8FAF9' : fill })
+    }).join('')
+    cursorY += 20
+    return `<text x="72" y="${headerY + 38}" font-size="21" font-weight="800" letter-spacing="1.4" fill="${accent}">${escapeSvg(title)}</text>
+      <text x="850" y="${headerY + 38}" text-anchor="end" font-size="17" font-weight="700" letter-spacing="1" fill="#879592">ВЫРУЧКА</text>
+      <text x="1110" y="${headerY + 38}" text-anchor="end" font-size="17" font-weight="700" letter-spacing="1" fill="#879592">ПРИБЫЛЬ</text>
+      ${markup}`
+  }
+  const hasSales = dishes.length > 0
+  const body = hasSales
+    ? section(`ТОП-${categories.length} КАТЕГОРИЙ`, categories, '#0D9488', '#F0FAF8',
+        row => `${row.dishCount} поз. · ${quantity(row.quantity)} шт`)
+      + section(`ТОП-${dishes.length} БЛЮД`, dishes, '#F97316', '#FFF7F0',
+        row => `${salesMixQuantity(row)} · ${row.orderCount} зак.`)
+    : ''
+  if (!hasSales) cursorY += 120
+  const hasMissingCost = [...categories, ...dishes].some(row => row.missingCost)
+  const footerLines = [
+    'Доля — от суммы проданных позиций; прибыль — выручка минус себестоимость, без обслуживания и скидок',
+    ...(hasMissingCost ? ['* есть позиции без себестоимости — их прибыль завышена'] : []),
+  ]
+  const height = cursorY + 40 + footerLines.length * 30
+  const totalProfit = Number(mix.totalProfit) || 0
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+  <svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}">
+    <rect width="${WIDTH}" height="${height}" rx="48" fill="#EAF0EE"/>
+    <rect x="28" y="28" width="1144" height="${height - 56}" rx="38" fill="#FFFFFF"/>
+    <g font-family="Noto Sans">
+      <circle cx="92" cy="93" r="34" fill="#FFF1E8"/>
+      <circle cx="92" cy="93" r="12" fill="#F97316"/>
+      <text x="146" y="87" font-size="34" font-weight="800" fill="#173B3F">Продажи и прибыль по блюдам</text>
+      <text x="146" y="121" font-size="21" fill="#74827F">${escapeSvg(formatLongDate(date, 'ru', date))} · оплаченные заказы</text>
+      <rect x="64" y="158" width="1072" height="128" rx="24" fill="#173B3F"/>
+      <text x="92" y="199" font-size="18" font-weight="700" letter-spacing="1.4" fill="#A8D7D0">ВЫРУЧКА ПО ПОЗИЦИЯМ</text>
+      <text x="92" y="243" font-size="34" font-weight="800" fill="#FFFFFF">${escapeSvg(formatCurrency(Math.round(Number(mix.totalRevenue) || 0)))}</text>
+      <text x="92" y="271" font-size="18" fill="#D7E5E2">${escapeSvg(`${quantity(mix.totalPieces)} шт · ${(mix.dishes || []).length} блюд · ${(mix.categories || []).length} категорий`)}</text>
+      <text x="1110" y="199" text-anchor="end" font-size="18" font-weight="700" letter-spacing="1.4" fill="#A8D7D0">ПРИБЫЛЬ</text>
+      <text x="1110" y="243" text-anchor="end" font-size="34" font-weight="800" fill="${profitColor(totalProfit, true)}">${escapeSvg(formatCurrency(totalProfit))}</text>
+      <text x="1110" y="271" text-anchor="end" font-size="18" fill="#D7E5E2">${escapeSvg(`маржа ${salesMixPercent(mix.totalMargin)} · себестоимость ${formatCurrency(Number(mix.totalCost) || 0)}`)}</text>
+      ${hasSales ? body : '<text x="600" y="380" text-anchor="middle" font-size="28" fill="#879592">Нет продаж за этот день</text>'}
+      ${footerLines.map((line, index) => `<text x="600" y="${cursorY + 24 + index * 30}" text-anchor="middle" font-size="18" fill="#879592">${escapeSvg(line)}</text>`).join('')}
+    </g>
+  </svg>`
+}
+
 export function buildDailyBazaarReportCaption(date) {
   return `🧺 <b>Ежедневный базар</b>\n📅 ${escapeSvg(formatLongDate(date, 'ru', date))}`
 }
@@ -301,4 +393,9 @@ export async function buildDailyIngredientConsumptionReportPng(summary, date) {
 export async function buildOpenOrdersReportPng(orders) {
   configureFonts()
   return sharp(Buffer.from(buildOpenOrdersReportSvg(orders))).png({ compressionLevel: 9 }).toBuffer()
+}
+
+export async function buildDailySalesMixReportPng(mix, date) {
+  configureFonts()
+  return sharp(Buffer.from(buildDailySalesMixReportSvg(mix, date))).png({ compressionLevel: 9 }).toBuffer()
 }
