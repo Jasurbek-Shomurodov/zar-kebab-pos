@@ -101,7 +101,7 @@ test('reports closeout localizes labels and date while filter controls stay alig
   const exportCloseout = functionBody(reports, 'exportCloseout')
 
   assert.match(reports, /cash: 'Наличные'/)
-  assert.match(reports, /<SummaryRow label=\{l\.cash\}/)
+  assert.match(reports, /<SummaryRow [^>]*?label=\{l\.cash\}/)
   assert.match(reports, /getDailyCloseout\(reportOrders,\s*dateFrom,\s*dateTo,\s*\{/)
   assert.match(reports, /tableId:\s*tableFilter/)
   assert.match(reports, /waiterName:\s*waiterFilter/)
@@ -772,4 +772,12 @@ test('owner and admin Cashier access includes moving bills back to tables', () =
   assert.match(migration, /not public\.current_staff_can_write\('cashier'\)/)
   assert.doesNotMatch(migration, /current_staff_can_access\('move_back_to_table'\)/)
   assert.match(cashierTables, /onRecall=\{canEditCashier && canRecallTable \? handleRecallTable : null\}/)
+})
+
+test('report figures roll after a reload instead of finishing behind the shimmer', () => {
+  const reports = readFileSync(new URL('../src/pages/Reports.jsx', import.meta.url), 'utf8')
+  const rolling = readFileSync(new URL('../src/components/RollingNumber.jsx', import.meta.url), 'utf8')
+  assert.match(reports, /<RollingHold hold=\{reportsLoading\}>\s*<div hidden=\{reportsLoading/)
+  assert.match(reports, /\{roll \? <RollingValue value=\{value\} \/> : value\}/)
+  assert.match(rolling, /if \(hold\) return undefined/)
 })

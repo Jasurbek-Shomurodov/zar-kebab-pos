@@ -37,8 +37,10 @@ import {
   Search, SlidersHorizontal, CreditCard,
   Monitor, Banknote, UtensilsCrossed,
   BarChart2, Clock, Tag, Users, ListOrdered, HelpCircle, Trash2, Truck, Pencil, Globe2, UserRound,
+  FileSpreadsheet, Wallet, Scale, Receipt, Gift, RotateCcw, XCircle,
 } from 'lucide-react'
-import { closeoutToCsv, downloadCsv, getDailyCloseout } from '../lib/closeout'
+import { getDailyCloseout } from '../lib/closeout'
+import { buildDailyReceiptRows, downloadPeriodReportWorkbook, periodReportFilename } from '../lib/periodReportExport'
 import { ALL_DISHES_KEY, getDishSalesAnalysis } from '../lib/dishSales'
 import { buildDishSalesExportRows, dishSalesExportFilename, downloadDishSalesWorkbook } from '../lib/dishSalesExport'
 import { ORDER_TYPE_KEYS, ORDER_TYPE_LABELS, inferOrderType, orderTypeLabel } from '../lib/orderTypes'
@@ -61,7 +63,7 @@ import { canChangeCompletedOrderPaymentMethod, canDeleteOrderToday, canViewPage 
 import { collectPagedRows, loadOrdersForRange, mergeOrderHistory } from '../lib/orderHistory'
 import { loadReportsAccountingBundle } from '../lib/accountingSummary'
 import { getAccountingQuickRange } from '../lib/accounting'
-import { RollingValue } from '../components/RollingNumber'
+import { RollingHold, RollingValue } from '../components/RollingNumber'
 
 /** Payment method with fallback */
 function getPaymentMethod(o) {
@@ -217,8 +219,17 @@ function PaymentMethodBadges({ order, lang, showAmounts = false }) {
   )
 }
 
-function ReportGroupTitle({ title }) {
-  return <h2 className="-mb-2 pt-1 text-xs font-semibold uppercase tracking-[.06em] text-[#68655f]">{title}</h2>
+function ReportGroupTitle({ title, icon: Icon }) {
+  return (
+    <h2 className="-mb-2 flex items-center gap-2 pt-1 text-xs font-semibold uppercase tracking-[.06em] text-[#68655f]">
+      {Icon && (
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#fff1e8] text-[#ff5a00]">
+          <Icon size={13} />
+        </span>
+      )}
+      {title}
+    </h2>
+  )
 }
 
 function KpiCard({ icon: Icon, iconCls, label, value, sub }) {
@@ -273,12 +284,15 @@ function PageBtn({ children, onClick, disabled, active }) {
   )
 }
 
-function SummaryRow({ label, value, bold, valueClass }) {
+function SummaryRow({ label, value, bold, valueClass, icon: Icon, roll }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className={`text-sm ${bold ? 'font-semibold text-[#22201d]' : 'text-[#68655f]'}`}>{label}</span>
+    <div className="flex justify-between items-center gap-3">
+      <span className={`flex min-w-0 items-center gap-2 text-sm ${bold ? 'font-semibold text-[#22201d]' : 'text-[#68655f]'}`}>
+        {Icon && <Icon size={15} className="flex-shrink-0 text-[#a8a49e]" />}
+        {label}
+      </span>
       <span className={`text-sm tabular-nums ${bold ? `font-semibold ${valueClass || 'text-[#22201d]'}` : `font-medium text-[#22201d] ${valueClass || ''}`}`}>
-        {value}
+        {roll ? <RollingValue value={value} /> : value}
       </span>
     </div>
   )
@@ -330,11 +344,11 @@ function ExpenseBreakdownDialog({ rows, expenseSummary, expenseCashflow, cashflo
           <div className="ws-panel mb-4">
             <h3 className="ws-heading mb-3">{labels.leftAfterExpenses}</h3>
             <div className="grid gap-3 text-sm sm:grid-cols-2">
-              <SummaryRow label={labels.cash} value={formatCurrency(expenseCashflow.byMethod.cash.left)} />
-              <SummaryRow label={labels.card} value={formatCurrency(expenseCashflow.byMethod.card.left)} />
-              <SummaryRow label={labels.terminal} value={formatCurrency(expenseCashflow.byMethod.terminal.left)} />
-              <SummaryRow label={labels.employeeMeals} value={formatCurrency(expenseSummary.byCategory.employee_meals || 0)} />
-              <SummaryRow label={labels.totalLeft} value={formatCurrency(cashflowLeft)} bold valueClass={cashflowLeft < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'} />
+              <SummaryRow roll icon={Banknote} label={labels.cash} value={formatCurrency(expenseCashflow.byMethod.cash.left)} />
+              <SummaryRow roll icon={CreditCard} label={labels.card} value={formatCurrency(expenseCashflow.byMethod.card.left)} />
+              <SummaryRow roll icon={Monitor} label={labels.terminal} value={formatCurrency(expenseCashflow.byMethod.terminal.left)} />
+              <SummaryRow roll icon={UtensilsCrossed} label={labels.employeeMeals} value={formatCurrency(expenseSummary.byCategory.employee_meals || 0)} />
+              <SummaryRow roll icon={Wallet} label={labels.totalLeft} value={formatCurrency(cashflowLeft)} bold valueClass={cashflowLeft < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'} />
             </div>
           </div>
 
@@ -343,7 +357,7 @@ function ExpenseBreakdownDialog({ rows, expenseSummary, expenseCashflow, cashflo
               <h3 className="ws-heading">{labels.periodExpenses}</h3>
               <p className="ws-caption">{rows.length} {labels.entries}</p>
             </div>
-            <p className="text-lg font-semibold tracking-[-.02em] tabular-nums text-[#c4262c]">{formatCurrency(expenseSummary.total)}</p>
+            <p className="text-lg font-semibold tracking-[-.02em] tabular-nums text-[#c4262c]"><RollingValue value={formatCurrency(expenseSummary.total)} /></p>
           </div>
 
           {rows.length === 0 ? (
@@ -527,8 +541,8 @@ function BestSellingTab({ orders, menuItemMap, categories, lang }) {
             </div>
 
             <span className="ws-caption truncate">{dishCategoryLabel({ category_id: item.categoryId }, categories, lang)}</span>
-            <span className="text-center text-sm font-semibold tabular-nums text-[#22201d]">{item.quantity}</span>
-            <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(item.revenue)}</span>
+            <span className="text-center text-sm font-semibold tabular-nums text-[#22201d]"><RollingValue value={item.quantity} /></span>
+            <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]"><RollingValue value={formatCurrency(item.revenue)} /></span>
           </div>
         ))}
         </div>
@@ -889,7 +903,7 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
           {selectedDishKey !== ALL_DISHES_KEY && (
             <div className="mb-4 flex items-center justify-between gap-3 rounded-[10px] bg-[#f6f5f3] px-4 py-3">
               <span className="text-sm font-medium text-[#22201d]">{s.overall[lang] || s.overall.en}</span>
-              <span className="text-xl font-semibold tracking-[-.02em] tabular-nums text-[#22201d]">{formatQuantity(analysis.totals.quantity)}</span>
+              <span className="text-xl font-semibold tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={formatQuantity(analysis.totals.quantity)} /></span>
             </div>
           )}
           {mostSoldMeals.length === 0 ? (
@@ -983,7 +997,7 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
                   <span className={`text-right text-sm font-semibold tabular-nums ${dish.quantity === 0 ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>
                     {dish.quantity === 0 ? '0' : formatQuantity(dish.quantity)}
                   </span>
-                  <span className="text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(dish.revenue)}</span>
+                  <span className="text-right text-sm font-semibold tabular-nums text-[#22201d]"><RollingValue value={formatCurrency(dish.revenue)} /></span>
                 </div>
               ))}
             </div>
@@ -1085,7 +1099,7 @@ function ByCategoryTab({ orders, categories, menuItemMap, lang }) {
               <p className="font-medium text-sm text-[#22201d]">{d.label}</p>
               <div className="flex items-center gap-3">
                 <span className="ws-caption tabular-nums">{d.qty} {lang === 'uz' ? 'dona' : lang === 'ru' ? 'шт.' : 'items'} · {d.pct}%</span>
-                <span className="font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(d.revenue)}</span>
+                <span className="font-semibold tabular-nums text-sm text-[#22201d]"><RollingValue value={formatCurrency(d.revenue)} /></span>
               </div>
             </div>
             <ProgressBar pct={Math.round(d.revenue / maxRev * 100)} />
@@ -1218,7 +1232,7 @@ function PaymentMethodsTab({ orders, lang }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="ws-caption">{cfg.label[lang] || cfg.label.en}</p>
-                  <p className="mt-1 break-words text-xl font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(d.revenue)}</p>
+                  <p className="mt-1 break-words text-xl font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={formatCurrency(d.revenue)} /></p>
                 </div>
                 <span className="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center bg-[#efece9] text-[#68655f]">
                   <Icon size={16} />
@@ -1247,7 +1261,7 @@ function PaymentMethodsTab({ orders, lang }) {
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between mb-1">
                   <p className="font-medium text-sm text-[#22201d]">{cfg.label[lang] || cfg.label.en}</p>
-                  <p className="font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(d.revenue)}</p>
+                  <p className="font-semibold tabular-nums text-sm text-[#22201d]"><RollingValue value={formatCurrency(d.revenue)} /></p>
                 </div>
                 <ProgressBar pct={d.pct} color={cfg.bar} />
               </div>
@@ -1264,7 +1278,7 @@ function PaymentMethodsTab({ orders, lang }) {
             {lang === 'uz' ? 'Daromad' : lang === 'ru' ? 'Доход' : 'Income'}
           </span>
           <span className="text-right">
-            <span className="block font-semibold text-lg tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(totalRevenue)}</span>
+            <span className="block font-semibold text-lg tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={formatCurrency(totalRevenue)} /></span>
             <span className="ws-badge ws-tone-caution mt-1">
               {lang === 'uz' ? 'Loyallik daromadi' : lang === 'ru' ? 'Доход по лояльности' : 'Loyalty income'}: {formatCurrency(loyaltyIncome)}
             </span>
@@ -1321,7 +1335,7 @@ function OrderTypesTab({ orders, lang }) {
               <p className="ws-caption">{row.label}</p>
               <span className="ws-count">{row.pct}%</span>
             </div>
-            <p className="break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
+            <p className="break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={formatCurrency(row.revenue)} /></p>
             <p className="ws-caption mt-1 tabular-nums">
               {row.orders} {lang === 'uz' ? 'buyurtma' : lang === 'ru' ? 'заказов' : 'orders'} · {row.items} {lang === 'uz' ? 'dona' : lang === 'ru' ? 'поз.' : 'items'}
             </p>
@@ -1337,7 +1351,7 @@ function OrderTypesTab({ orders, lang }) {
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-[#22201d]">{row.label}</p>
-                <p className="text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
+                <p className="text-sm font-semibold tabular-nums text-[#22201d]"><RollingValue value={formatCurrency(row.revenue)} /></p>
               </div>
               <ProgressBar pct={total > 0 ? row.pct : 0} color={colors[row.type]} />
             </div>
@@ -1407,10 +1421,10 @@ function WaiterPerformanceTab({ orders, lang }) {
               <ProgressBar pct={Math.round(d.revenue / maxRev * 100)} />
             </div>
 
-            <span className="text-center text-sm font-semibold tabular-nums text-[#22201d]">{d.orders}</span>
-            <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(d.revenue)}</span>
-            <span className="text-right text-sm tabular-nums text-[#68655f]">{formatCurrency(d.avg)}</span>
-            <span className="text-center text-sm tabular-nums text-[#68655f]">{d.items}</span>
+            <span className="text-center text-sm font-semibold tabular-nums text-[#22201d]"><RollingValue value={d.orders} /></span>
+            <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]"><RollingValue value={formatCurrency(d.revenue)} /></span>
+            <span className="text-right text-sm tabular-nums text-[#68655f]"><RollingValue value={formatCurrency(d.avg)} /></span>
+            <span className="text-center text-sm tabular-nums text-[#68655f]"><RollingValue value={d.items} /></span>
           </div>
 
           {/* Mobile card */}
@@ -1422,7 +1436,7 @@ function WaiterPerformanceTab({ orders, lang }) {
                 }`}>{i + 1}</span>
                 <p className="font-medium text-[14px] text-[#22201d]">{d.name}</p>
               </div>
-              <p className="font-semibold tabular-nums text-[#22201d]">{formatCurrency(d.revenue)}</p>
+              <p className="font-semibold tabular-nums text-[#22201d]"><RollingValue value={formatCurrency(d.revenue)} /></p>
             </div>
             <div className="ws-caption flex gap-4">
               <span>{d.orders} {lang === 'uz' ? 'brt.' : lang === 'ru' ? 'зак.' : 'orders'}</span>
@@ -1957,6 +1971,7 @@ export default function Reports() {
   const canViewExpenses = canViewPage(profile || { role: state.user?.role }, 'expenses')
 
   const [activeTab,     setActiveTab]     = useState('overview')
+  const [exportState,   setExportState]   = useState('idle')
   const [dateFrom, setDateFrom] = useState(todayStr())
   const [dateTo,   setDateTo]   = useState(todayStr())
   const [activeRangeKey, setActiveRangeKey] = useState('today')
@@ -2202,12 +2217,52 @@ export default function Reports() {
     setDateTo(from <= to ? to : from)
   }
 
-  function exportCloseout() {
-    if (reportsLoading || ordersError) return
-    const dateSuffix = closeout.dateFrom === closeout.dateTo
-      ? closeout.dateTo
-      : `${closeout.dateFrom}-to-${closeout.dateTo}`
-    downloadCsv(`zar-kebab-closeout-${dateSuffix}.csv`, closeoutToCsv(closeout))
+  async function exportCloseout() {
+    if (reportsLoading || ordersError || exportState === 'busy') return
+    setExportState('busy')
+    try {
+      const expenseRows = expenseBreakdownRows.map(expense => ({
+        date: formatLongDate(expense.expense_date, lang, expense.expense_date),
+        type: expense.is_salary_payment
+          ? l.salaryPayment
+          : expense.is_salary_bonus
+            ? l.salaryBonus
+            : expenseCategoryLabel(expense.category, lang),
+        details: [expense.vendor, expenseDescriptionLabel(expense.description, lang)].filter(Boolean).join(' · '),
+        method: expensePaymentMethodLabel(expense.payment_method, lang),
+        amount: normalizeExpenseAmount(expense.amount),
+      }))
+      await downloadPeriodReportWorkbook({
+        filename: periodReportFilename(closeout.dateFrom, closeout.dateTo),
+        lang,
+        periodLabel: closeout.dateFrom === closeout.dateTo
+          ? formatLongDate(closeout.dateTo, lang, closeout.dateTo)
+          : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`,
+        filterLabel: dishExportFilterLabel,
+        revenue: kpiRevenue,
+        orders: kpiOrders,
+        averageOrder: kpiAvg,
+        priceModes: priceModeBreakdown,
+        closeout,
+        daily: buildDailyReceiptRows(reportOrders, closeout.dateFrom, closeout.dateTo, { tableId: tableFilter, waiterName: waiterFilter }),
+        // Expense data stays out of the file for people who cannot see it on the page.
+        expenses: canViewExpenses && !expensesError ? {
+          total: expenseSummary.total,
+          employeeMeals: employeeMealTotal,
+          net: netIncome,
+          leftByMethod: {
+            cash: expenseCashflow.byMethod.cash.left,
+            card: expenseCashflow.byMethod.card.left,
+            terminal: expenseCashflow.byMethod.terminal.left,
+          },
+          rows: expenseRows,
+        } : null,
+      })
+      setExportState('idle')
+    } catch (error) {
+      console.error('Period report export failed', error)
+      setExportState('error')
+    }
   }
 
   async function deleteOrder(order) {
@@ -2301,9 +2356,9 @@ export default function Reports() {
   const showDrawer = !!selectedOrder
 
   const L = {
-    uz: { title: 'Hisobotlar', sub: 'Savdo ko\'rsatkichlari va tahlil', totalRev: 'Daromad', loyaltyIncome: 'Loyallik daromadi', numOrders: 'Buyurtmalar', avgOrder: 'O\'rtacha buyurtma', expenses: 'Xarajatlar', employeeMeals: 'Xodimlar ovqati', employeeMealsSub: 'Davomat bo‘yicha hisoblangan', netIncome: 'Barcha xarajatlardan keyin', allTables: 'Barcha stollar', allWaiters: 'Barcha ofitsiantlar', export: 'Eksport', today: 'Bugun', yesterday: 'Kecha', week: '7 kun', month: 'Oy', previousMonth: 'O‘tgan oy', previousWeek: 'O‘tgan hafta', previousCurrentWeek: 'O‘tgan va joriy hafta', currentWeek: 'Joriy hafta', currentNextWeek: 'Joriy va keyingi hafta', nextWeek: 'Keyingi hafta', nextMonth: 'Keyingi oy', presets: 'Tayyor davrlar', applyRange: 'Davrni qo‘llash', cancel: 'Bekor qilish', selectDateRange: 'Sana oralig‘ini tanlash', weekdays: ['Du', 'Se', 'Cho', 'Pa', 'Ju', 'Sha', 'Ya'], from: 'Dan', to: 'Gacha', closeout: 'Davr tushumlari', leftAfterExpenses: 'Xarajatlardan keyin qolgan', totalLeft: 'Xarajatlar va ovqatdan keyin', cash: 'Naqd', card: 'Karta', terminal: 'Terminal', cashbackIssued: 'Cashback berildi', cancelled: 'Bekor qilingan', variance: 'Farq', tapForDetails: 'Xarajatlarni ko‘rish', expenseDetails: 'Xarajatlar tafsiloti', periodExpenses: 'Davr xarajatlari', entries: 'ta yozuv', noExpenses: 'Bu davrda xarajatlar yo‘q', salaryPayment: 'Maosh to‘lovi', salaryBonus: 'Maosh bonusi', close: 'Yopish' , salesGroup: 'Savdo', receivedGroup: 'Kelgan pul', resultGroup: 'Xarajatlar va natija' },
-    ru: { title: 'Отчёты',     sub: 'Обзор продаж и аналитика',         totalRev: 'Доход', loyaltyIncome: 'Доход по лояльности', numOrders: 'Заказов',     avgOrder: 'Средний чек',      expenses: 'Расходы', employeeMeals: 'Питание сотрудников', employeeMealsSub: 'Рассчитано по посещаемости', netIncome: 'После всех расходов',   allTables: 'Все столы',         allWaiters: 'Все официанты',       export: 'Экспорт', today: 'Сегодня', yesterday: 'Вчера', week: '7 дней', month: 'Месяц', previousMonth: 'Прошлый месяц', previousWeek: 'Прошлая неделя', previousCurrentWeek: 'Прошлая и текущая неделя', currentWeek: 'Текущая неделя', currentNextWeek: 'Текущая и следующая неделя', nextWeek: 'Следующая неделя', nextMonth: 'Следующий месяц', presets: 'Готовые периоды', applyRange: 'Применить период', cancel: 'Отмена', selectDateRange: 'Выбрать период', weekdays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], from: 'С', to: 'По', closeout: 'Поступления за период', leftAfterExpenses: 'Остаток после расходов', totalLeft: 'После расходов и питания', cash: 'Наличные', card: 'Карта', terminal: 'Терминал', cashbackIssued: 'Кешбэк выдан', cancelled: 'Отменено', variance: 'Расхождение', tapForDetails: 'Показать расходы', expenseDetails: 'Детализация расходов', periodExpenses: 'Расходы за период', entries: 'записей', noExpenses: 'За этот период расходов нет', salaryPayment: 'Выплата зарплаты', salaryBonus: 'Бонус к зарплате', close: 'Закрыть' , salesGroup: 'Продажи', receivedGroup: 'Поступившие деньги', resultGroup: 'Расходы и итог' },
-    en: { title: 'Reports',    sub: 'Sales overview and analytics',      totalRev: 'Income', loyaltyIncome: 'Loyalty income', numOrders: 'Orders',      avgOrder: 'Avg Order Value',  expenses: 'Expenses', employeeMeals: 'Employees meal', employeeMealsSub: 'Calculated from attendance', netIncome: 'After all expenses', allTables: 'All Tables',        allWaiters: 'All Waiters',         export: 'Export',  today: 'Today', yesterday: 'Yesterday', week: '7 Days', month: 'Month', previousMonth: 'Previous month', previousWeek: 'Previous week', previousCurrentWeek: 'Previous & current week', currentWeek: 'Current week', currentNextWeek: 'Current & next week', nextWeek: 'Next week', nextMonth: 'Next month', presets: 'Presets', applyRange: 'Apply range', cancel: 'Cancel', selectDateRange: 'Select date range', weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], from: 'From', to: 'To', closeout: 'Period receipts', leftAfterExpenses: 'Left after expenses', totalLeft: 'After expenses and meals', cash: 'Cash', card: 'Card', terminal: 'Terminal', cashbackIssued: 'Cashback issued', cancelled: 'Cancelled', variance: 'Variance', tapForDetails: 'View expenses', expenseDetails: 'Expense breakdown', periodExpenses: 'Expenses for the period', entries: 'entries', noExpenses: 'No expenses were recorded for this period', salaryPayment: 'Salary payment', salaryBonus: 'Salary bonus', close: 'Close' , salesGroup: 'Sales', receivedGroup: 'Money received', resultGroup: 'Expenses and result' },
+    uz: { title: 'Hisobotlar', sub: 'Savdo ko\'rsatkichlari va tahlil', totalRev: 'Daromad', loyaltyIncome: 'Loyallik daromadi', numOrders: 'Buyurtmalar', avgOrder: 'O\'rtacha buyurtma', expenses: 'Xarajatlar', employeeMeals: 'Xodimlar ovqati', employeeMealsSub: 'Davomat bo‘yicha hisoblangan', netIncome: 'Barcha xarajatlardan keyin', allTables: 'Barcha stollar', allWaiters: 'Barcha ofitsiantlar', export: 'Eksport', today: 'Bugun', yesterday: 'Kecha', week: '7 kun', month: 'Oy', previousMonth: 'O‘tgan oy', previousWeek: 'O‘tgan hafta', previousCurrentWeek: 'O‘tgan va joriy hafta', currentWeek: 'Joriy hafta', currentNextWeek: 'Joriy va keyingi hafta', nextWeek: 'Keyingi hafta', nextMonth: 'Keyingi oy', presets: 'Tayyor davrlar', applyRange: 'Davrni qo‘llash', cancel: 'Bekor qilish', selectDateRange: 'Sana oralig‘ini tanlash', weekdays: ['Du', 'Se', 'Cho', 'Pa', 'Ju', 'Sha', 'Ya'], from: 'Dan', to: 'Gacha', closeout: 'Davr tushumlari', leftAfterExpenses: 'Xarajatlardan keyin qolgan', totalLeft: 'Xarajatlar va ovqatdan keyin', cash: 'Naqd', card: 'Karta', terminal: 'Terminal', cashbackIssued: 'Cashback berildi', cancelled: 'Bekor qilingan', variance: 'Farq', tapForDetails: 'Xarajatlarni ko‘rish', expenseDetails: 'Xarajatlar tafsiloti', periodExpenses: 'Davr xarajatlari', entries: 'ta yozuv', noExpenses: 'Bu davrda xarajatlar yo‘q', salaryPayment: 'Maosh to‘lovi', salaryBonus: 'Maosh bonusi', close: 'Yopish' , exportExcel: 'Excel', exportReportTitle: 'Umumiy hisobot, kunlar va xarajatlarni Excelga yuklab olish', exportFailed: 'Excel yaratilmadi. Qayta urining.', retry: 'Qayta urinish', salesGroup: 'Savdo', receivedGroup: 'Kelgan pul', resultGroup: 'Xarajatlar va natija' },
+    ru: { title: 'Отчёты',     sub: 'Обзор продаж и аналитика',         totalRev: 'Доход', loyaltyIncome: 'Доход по лояльности', numOrders: 'Заказов',     avgOrder: 'Средний чек',      expenses: 'Расходы', employeeMeals: 'Питание сотрудников', employeeMealsSub: 'Рассчитано по посещаемости', netIncome: 'После всех расходов',   allTables: 'Все столы',         allWaiters: 'Все официанты',       export: 'Экспорт', today: 'Сегодня', yesterday: 'Вчера', week: '7 дней', month: 'Месяц', previousMonth: 'Прошлый месяц', previousWeek: 'Прошлая неделя', previousCurrentWeek: 'Прошлая и текущая неделя', currentWeek: 'Текущая неделя', currentNextWeek: 'Текущая и следующая неделя', nextWeek: 'Следующая неделя', nextMonth: 'Следующий месяц', presets: 'Готовые периоды', applyRange: 'Применить период', cancel: 'Отмена', selectDateRange: 'Выбрать период', weekdays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], from: 'С', to: 'По', closeout: 'Поступления за период', leftAfterExpenses: 'Остаток после расходов', totalLeft: 'После расходов и питания', cash: 'Наличные', card: 'Карта', terminal: 'Терминал', cashbackIssued: 'Кешбэк выдан', cancelled: 'Отменено', variance: 'Расхождение', tapForDetails: 'Показать расходы', expenseDetails: 'Детализация расходов', periodExpenses: 'Расходы за период', entries: 'записей', noExpenses: 'За этот период расходов нет', salaryPayment: 'Выплата зарплаты', salaryBonus: 'Бонус к зарплате', close: 'Закрыть' , exportExcel: 'Excel', exportReportTitle: 'Скачать обзор, данные по дням и расходы в Excel', exportFailed: 'Не удалось создать Excel. Повторите.', retry: 'Повторить', salesGroup: 'Продажи', receivedGroup: 'Поступившие деньги', resultGroup: 'Расходы и итог' },
+    en: { title: 'Reports',    sub: 'Sales overview and analytics',      totalRev: 'Income', loyaltyIncome: 'Loyalty income', numOrders: 'Orders',      avgOrder: 'Avg Order Value',  expenses: 'Expenses', employeeMeals: 'Employees meal', employeeMealsSub: 'Calculated from attendance', netIncome: 'After all expenses', allTables: 'All Tables',        allWaiters: 'All Waiters',         export: 'Export',  today: 'Today', yesterday: 'Yesterday', week: '7 Days', month: 'Month', previousMonth: 'Previous month', previousWeek: 'Previous week', previousCurrentWeek: 'Previous & current week', currentWeek: 'Current week', currentNextWeek: 'Current & next week', nextWeek: 'Next week', nextMonth: 'Next month', presets: 'Presets', applyRange: 'Apply range', cancel: 'Cancel', selectDateRange: 'Select date range', weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], from: 'From', to: 'To', closeout: 'Period receipts', leftAfterExpenses: 'Left after expenses', totalLeft: 'After expenses and meals', cash: 'Cash', card: 'Card', terminal: 'Terminal', cashbackIssued: 'Cashback issued', cancelled: 'Cancelled', variance: 'Variance', tapForDetails: 'View expenses', expenseDetails: 'Expense breakdown', periodExpenses: 'Expenses for the period', entries: 'entries', noExpenses: 'No expenses were recorded for this period', salaryPayment: 'Salary payment', salaryBonus: 'Salary bonus', close: 'Close' , exportExcel: 'Excel', exportReportTitle: 'Download the overview, daily figures and expenses as Excel', exportFailed: 'Excel export failed. Try again.', retry: 'Try again', salesGroup: 'Sales', receivedGroup: 'Money received', resultGroup: 'Expenses and result' },
   }
   const l = L[lang] || L.en
 
@@ -2333,7 +2388,7 @@ export default function Reports() {
     label: l.title,
     value: activeTab,
     onChange: setActiveTab,
-    items: TABS.map(({ key, group, label, hint }) => ({ key, group, label: label[lang] || label.en, hint: hint[lang] || hint.en })),
+    items: TABS.map(({ key, group, label, hint, Icon }) => ({ key, group, Icon, label: label[lang] || label.en, hint: hint[lang] || hint.en })),
   }
 
   const activeTabItem = reportTabs.items.find(item => item.key === activeTab) || reportTabs.items[0]
@@ -2385,12 +2440,14 @@ export default function Reports() {
           type="button"
           onClick={exportCloseout}
           disabled={reportsLoading || Boolean(ordersError)}
-          aria-label={`${l.export}: ${l.closeout}`}
-          title={`${l.export}: ${l.closeout}`}
+          aria-label={l.exportReportTitle}
+          title={l.exportReportTitle}
           className="ws-btn ws-btn-outline !h-[38px]"
         >
-          <Download size={16} />
-          <span className="hidden sm:inline">{l.export}</span>
+          {exportState === 'busy'
+            ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            : <FileSpreadsheet size={16} className="text-[#1d7a52]" />}
+          <span className="hidden sm:inline">{l.exportExcel}</span>
         </button>
       )}
     >
@@ -2399,16 +2456,17 @@ export default function Reports() {
         {/* ── Main content ── */}
         <div className={`flex-1 min-w-0 overflow-y-auto transition-all ${showDrawer ? 'lg:mr-[380px]' : ''}`}>
           <div className="min-h-full bg-[#f6f5f3]">
-          <div className="ws-page">
+          <div className="ws-page !pt-2">
 
             {/* Report views sit at the top of the page; the filters live in the top bar when it has room. */}
-            <nav aria-label={reportTabs.label} className="ws-page-tabs -mt-2 border-b border-[#e4e1de]">
+            <nav aria-label={reportTabs.label} className="ws-page-tabs border-b border-[#e4e1de]">
               {reportTabs.items.map((item, index) => (
                 <Fragment key={item.key}>
                   {index > 0 && item.group !== reportTabs.items[index - 1].group && (
                     <span aria-hidden="true" className="mx-1 my-2 w-px flex-shrink-0 bg-[#e4e1de]" />
                   )}
-                  <button type="button" aria-pressed={reportTabs.value === item.key} onClick={() => reportTabs.onChange(item.key)}>
+                  <button type="button" aria-pressed={reportTabs.value === item.key} onClick={() => reportTabs.onChange(item.key)} className="inline-flex items-center gap-1.5">
+                    {item.Icon && <item.Icon size={15} aria-hidden="true" />}
                     {item.label}
                   </button>
                 </Fragment>
@@ -2430,6 +2488,12 @@ export default function Reports() {
                 {ordersError}
               </div>
             )}
+            {exportState === 'error' && (
+              <div className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-2" role="alert">
+                <span>{l.exportFailed}</span>
+                <button type="button" onClick={exportCloseout} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button>
+              </div>
+            )}
             {canViewExpenses && expensesError && (
               <div className="ws-notice ws-tone-negative" role="alert">
                 {expensesError}
@@ -2439,10 +2503,11 @@ export default function Reports() {
             {reportsLoading && (
               <ReportsSkeleton canViewExpenses={canViewExpenses} lang={lang} overview={activeTab === 'overview'} />
             )}
+            <RollingHold hold={reportsLoading}>
             <div hidden={reportsLoading || Boolean(ordersError)} className="space-y-5">
             {activeTab === 'overview' && (
               <div className="space-y-5">
-                <ReportGroupTitle title={l.salesGroup} />
+                <ReportGroupTitle icon={TrendingUp} title={l.salesGroup} />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <KpiCard icon={DollarSign}  label={l.totalRev}  value={formatCurrency(kpiRevenue)} sub={`${l.loyaltyIncome}: ${formatCurrency(kpiLoyaltyIncome)}`} />
                   <KpiCard icon={ShoppingBag} label={l.numOrders} value={kpiOrders} />
@@ -2464,13 +2529,13 @@ export default function Reports() {
                           <span className="text-sm font-medium text-[#22201d]">{getPriceModeLabel(row.mode, lang)}</span>
                           <span className="ws-caption tabular-nums">{row.orders} {lang === 'uz' ? 'buyurtma' : lang === 'ru' ? 'заказов' : 'orders'}</span>
                         </div>
-                        <p className="mt-2 text-xl font-semibold tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
+                        <p className="mt-2 text-xl font-semibold tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={formatCurrency(row.revenue)} /></p>
                       </div>
                     ))}
                   </div>
                 </section>
 
-                <ReportGroupTitle title={l.receivedGroup} />
+                <ReportGroupTitle icon={Wallet} title={l.receivedGroup} />
                 <section className="ws-panel">
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div>
@@ -2481,25 +2546,28 @@ export default function Reports() {
                           : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`}
                       </p>
                     </div>
-                    <button type="button" onClick={exportCloseout} className="ws-btn ws-btn-outline ws-btn-sm">
-                      <Download size={14} />{l.export}
+                    <button type="button" onClick={exportCloseout} disabled={exportState === 'busy'} className="ws-btn ws-btn-outline ws-btn-sm">
+                      {exportState === 'busy'
+                        ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        : <FileSpreadsheet size={14} className="text-[#1d7a52]" />}
+                      {l.exportExcel}
                     </button>
                   </div>
                   <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                    <SummaryRow label={l.cash} value={formatCurrency(closeout.totals.cash)} />
-                    <SummaryRow label={l.card} value={formatCurrency(closeout.totals.card)} />
-                    <SummaryRow label={l.terminal} value={formatCurrency(closeout.totals.terminal)} />
-                    {closeout.totals.salary > 0 && <SummaryRow label={expensePaymentMethodLabel('salary', lang)} value={formatCurrency(closeout.totals.salary)} />}
-                    <SummaryRow label={l.loyaltyIncome} value={formatCurrency(closeout.loyaltyIncome)} />
-                    <SummaryRow label={l.cashbackIssued} value={formatCurrency(closeout.cashbackIssued)} />
-                    <SummaryRow label={l.cancelled} value={closeout.cancelledCount} />
-                    <SummaryRow label={l.variance} value={closeout.variance == null ? (lang === 'ru' ? 'Не измерено' : lang === 'uz' ? 'O‘lchanmagan' : 'Not measured') : formatCurrency(closeout.variance)} />
+                    <SummaryRow roll icon={Banknote} label={l.cash} value={formatCurrency(closeout.totals.cash)} />
+                    <SummaryRow roll icon={CreditCard} label={l.card} value={formatCurrency(closeout.totals.card)} />
+                    <SummaryRow roll icon={Monitor} label={l.terminal} value={formatCurrency(closeout.totals.terminal)} />
+                    {closeout.totals.salary > 0 && <SummaryRow roll icon={Users} label={expensePaymentMethodLabel('salary', lang)} value={formatCurrency(closeout.totals.salary)} />}
+                    <SummaryRow roll icon={Gift} label={l.loyaltyIncome} value={formatCurrency(closeout.loyaltyIncome)} />
+                    <SummaryRow roll icon={RotateCcw} label={l.cashbackIssued} value={formatCurrency(closeout.cashbackIssued)} />
+                    <SummaryRow roll icon={XCircle} label={l.cancelled} value={closeout.cancelledCount} />
+                    <SummaryRow roll icon={Scale} label={l.variance} value={closeout.variance == null ? (lang === 'ru' ? 'Не измерено' : lang === 'uz' ? 'O‘lchanmagan' : 'Not measured') : formatCurrency(closeout.variance)} />
                   </div>
                 </section>
 
                 {canViewExpenses && (
                   <>
-                    <ReportGroupTitle title={l.resultGroup} />
+                    <ReportGroupTitle icon={Scale} title={l.resultGroup} />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <KpiCard icon={CreditCard} label={l.expenses} value={expensesError ? '—' : formatCurrency(expenseSummary.total)} sub={expensesError || ''} />
                       <KpiCard icon={UtensilsCrossed} label={l.employeeMeals} value={expensesError ? '—' : formatCurrency(employeeMealTotal)} sub={l.employeeMealsSub} />
@@ -2535,12 +2603,12 @@ export default function Reports() {
                       </span>
                     </div>
                     <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                      <SummaryRow label={l.cash} value={formatCurrency(expenseCashflow.byMethod.cash.left)} />
-                      <SummaryRow label={l.card} value={formatCurrency(expenseCashflow.byMethod.card.left)} />
-                      <SummaryRow label={l.terminal} value={formatCurrency(expenseCashflow.byMethod.terminal.left)} />
-                      <SummaryRow label={l.employeeMeals} value={formatCurrency(employeeMealTotal)} />
-                      <SummaryRow label={l.expenses} value={formatCurrency(expenseSummary.total)} />
-                      <SummaryRow label={l.totalLeft} value={formatCurrency(cashflowLeft)} />
+                      <SummaryRow roll icon={Banknote} label={l.cash} value={formatCurrency(expenseCashflow.byMethod.cash.left)} />
+                      <SummaryRow roll icon={CreditCard} label={l.card} value={formatCurrency(expenseCashflow.byMethod.card.left)} />
+                      <SummaryRow roll icon={Monitor} label={l.terminal} value={formatCurrency(expenseCashflow.byMethod.terminal.left)} />
+                      <SummaryRow roll icon={UtensilsCrossed} label={l.employeeMeals} value={formatCurrency(employeeMealTotal)} />
+                      <SummaryRow roll icon={Receipt} label={l.expenses} value={formatCurrency(expenseSummary.total)} />
+                      <SummaryRow roll icon={Wallet} label={l.totalLeft} value={formatCurrency(cashflowLeft)} />
                       <p className="ws-caption sm:col-span-2 lg:col-span-4">{lang === 'ru' ? 'Движение за выбранный период, без начального остатка. Питание сотрудников уже включено в расходы как расчётная стоимость, без списания с наличных, карты или терминала.' : lang === 'uz' ? 'Tanlangan davr harakati, boshlang‘ich qoldiqsiz. Xodimlar ovqati hisoblangan xarajatga kiritilgan, naqd, karta yoki terminaldan yechilmagan.' : 'Movement for this period, excluding opening balances. Employee meals are already included in expenses as a calculated cost, with no cash, card or terminal deduction.'}</p>
                     </div>
                   </div>
@@ -2589,6 +2657,7 @@ export default function Reports() {
             )}
 
             </div>
+            </RollingHold>
           </div>
           </div>
         </div>

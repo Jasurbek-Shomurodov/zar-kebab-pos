@@ -1,4 +1,4 @@
-import React, { isValidElement, useLayoutEffect, useRef, useState } from 'react'
+import React, { createContext, isValidElement, useContext, useLayoutEffect, useRef, useState } from 'react'
 
 // Odometer figures: each digit is a 0–9 strip that rolls into place, and rolls
 // up or down when the figure changes. Custom tags keep page-wide span rules off
@@ -7,6 +7,14 @@ import React, { isValidElement, useLayoutEffect, useRef, useState } from 'react'
 // How long one roll takes; .roll-strip's transition in index.css uses the same duration.
 const ROLL_MS = 900
 const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+// While held (data loading behind a shimmer), digits keep their old position and
+// roll to the new figure once released, so the change is seen instead of finishing hidden.
+const RollingHoldContext = createContext(false)
+
+export function RollingHold({ hold, children }) {
+  return <RollingHoldContext.Provider value={Boolean(hold)}>{children}</RollingHoldContext.Provider>
+}
 
 // Characters keyed from the right, so a digit keeps its column when the figure grows or shrinks.
 export function rollingColumns(text) {
@@ -20,8 +28,10 @@ function RollingDigit({ digit, column }) {
   const at = useRef(0)
   const strip = useRef(null)
   const delay = Math.min(column, 8) * 35
+  const hold = useContext(RollingHoldContext)
 
   useLayoutEffect(() => {
+    if (hold) return undefined
     setSettled(false)
     let timer
     // Two frames: the strip must be painted where it is before the move can animate.
@@ -36,7 +46,7 @@ function RollingDigit({ digit, column }) {
       })
     })
     return () => { cancelAnimationFrame(frame); clearTimeout(timer) }
-  }, [digit, delay])
+  }, [digit, delay, hold])
 
   // React would listen for "TransitionEnd" on a custom element, so attach the listener directly.
   useLayoutEffect(() => {
