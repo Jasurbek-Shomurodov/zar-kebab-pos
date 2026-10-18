@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import { closeoutToCsv, downloadCsv, getDailyCloseout } from '../lib/closeout'
 import { ALL_DISHES_KEY, getDishSalesAnalysis } from '../lib/dishSales'
+import { buildDishSalesExportRows, dishSalesExportFilename, downloadDishSalesWorkbook } from '../lib/dishSalesExport'
 import { ORDER_TYPE_KEYS, ORDER_TYPE_LABELS, inferOrderType, orderTypeLabel } from '../lib/orderTypes'
 import { formatMenuQuantity, isMenuItemSoldByWeight } from '../lib/menuSaleUnits'
 import {
@@ -533,8 +534,9 @@ function BestSellingTab({ orders, menuItemMap, categories, lang }) {
 // TAB 2 — DISH SALES ANALYSIS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DishSalesTab({ orders, menuItems, categories, lang }) {
+function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, filterLabel }) {
   const [selectedDishKey, setSelectedDishKey] = useState(ALL_DISHES_KEY)
+  const [exportState, setExportState] = useState('idle')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
   const [activeSectionKey, setActiveSectionKey] = useState('')
@@ -647,6 +649,9 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
     current:    { uz: 'Menyuda',          ru: 'В меню',          en: 'On menu' },
     removed:    { uz: 'Olib tashlangan',  ru: 'Удалено',         en: 'Removed' },
     search:     { uz: 'Taom yoki kategoriya', ru: 'Блюдо или категория', en: 'Dish or category' },
+    exportExcel: { uz: 'Excel', ru: 'Excel', en: 'Excel' },
+    exportTitle: { uz: 'Tanlangan davrdagi sotilgan taomlarni Excelga yuklab olish', ru: 'Скачать проданные блюда за выбранный период в Excel', en: 'Download sold dishes for the selected period as Excel' },
+    exportFailed: { uz: 'Excel yaratilmadi. Qayta urining.', ru: 'Не удалось создать Excel. Повторите.', en: 'Excel export failed. Try again.' },
   }
 
   const selectedName = selectedDishKey === ALL_DISHES_KEY
@@ -656,6 +661,37 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
   const maxMealQty = Math.max(...mostSoldMeals.map(row => row.quantity), 1)
   const maxHourlyQty = Math.max(...analysis.hourly.map(row => row.quantity), 1)
   const visibleSales = selectedDishKey === ALL_DISHES_KEY ? analysis.sales.slice(0, 18) : analysis.sales
+
+  async function exportSoldDishes() {
+    if (exportState === 'busy') return
+    setExportState('busy')
+    try {
+      // Always export every dish, independent of the dish picker selection.
+      const allAnalysis = selectedDishKey === ALL_DISHES_KEY
+        ? analysis
+        : getDishSalesAnalysis({ orders, menuItems, selectedDishKey: ALL_DISHES_KEY })
+      const rows = buildDishSalesExportRows(allAnalysis, {
+        dishName: dish => dishDisplayName(dish, lang),
+        categoryName: dish => dishCategoryLabel(dish, categories, lang),
+        dateFrom,
+        dateTo,
+      })
+      const periodLabel = dateFrom === dateTo
+        ? formatLongDate(dateTo, lang, dateTo)
+        : `${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`
+      await downloadDishSalesWorkbook({
+        filename: dishSalesExportFilename(dateFrom, dateTo),
+        rows,
+        lang,
+        periodLabel,
+        filterLabel,
+      })
+      setExportState('idle')
+    } catch (error) {
+      console.error('Dish sales export failed', error)
+      setExportState('error')
+    }
+  }
 
   function selectDish(key) {
     setSelectedDishKey(key)
@@ -675,8 +711,24 @@ function DishSalesTab({ orders, menuItems, categories, lang }) {
             <p className="ws-muted mt-1 whitespace-pre-line">
               {analysis.selectedDish?.[`description_${lang}`] || analysis.selectedDish?.description_en}
             </p>
+            {exportState === 'error' && (
+              <p role="alert" className="mt-1 text-xs font-medium text-[#c2410c]">{s.exportFailed[lang] || s.exportFailed.en}</p>
+            )}
           </div>
           <div ref={pickerRef} className="relative flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+            <button
+              type="button"
+              onClick={exportSoldDishes}
+              disabled={exportState === 'busy'}
+              title={s.exportTitle[lang] || s.exportTitle.en}
+              aria-label={s.exportTitle[lang] || s.exportTitle.en}
+              className="ws-btn ws-btn-outline flex-shrink-0 sm:order-2"
+            >
+              {exportState === 'busy'
+                ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                : <Download size={14} />}
+              {s.exportExcel[lang] || s.exportExcel.en}
+            </button>
             <button
               type="button"
               onClick={() => setPickerOpen(open => !open)}
@@ -1940,6 +1992,13 @@ export default function Reports() {
     return [...s]
   }, [reportOrders])
 
+  const dishExportFilterLabel = useMemo(() => {
+    const parts = []
+    if (tableFilter !== 'all') parts.push(state.tables.find(table => table.id === tableFilter)?.name || tableFilter)
+    if (waiterFilter !== 'all') parts.push(waiterFilter)
+    return parts.join(', ')
+  }, [tableFilter, waiterFilter, state.tables])
+
   // ── Base date-filtered order sets ─────────────────────────────────────────
   //
   // Grouping is applied once here. Both KPI cards and all tabs read from
@@ -2464,7 +2523,7 @@ export default function Reports() {
                 <CompactEmpty label={lang === 'ru' ? 'История продаж не загружена. Обновите страницу, чтобы повторить.' : lang === 'uz' ? 'Sotuv tarixi yuklanmadi. Qayta urinish uchun sahifani yangilang.' : 'Sales history could not load. Refresh the page to retry.'} />
               ) : loadedHistoryRange !== `${dateFrom}:${dateTo}` ? (
                 <CompactEmpty label={lang === 'ru' ? 'Загрузка продаж за выбранный период…' : lang === 'uz' ? 'Tanlangan davr sotuvlari yuklanmoqda…' : 'Loading sales for the selected period…'} />
-              ) : <DishSalesTab orders={filteredForAnalytics} menuItems={state.menuItems} categories={state.categories} lang={lang} />
+              ) : <DishSalesTab orders={filteredForAnalytics} menuItems={state.menuItems} categories={state.categories} lang={lang} dateFrom={dateFrom} dateTo={dateTo} filterLabel={dishExportFilterLabel} />
             )}
             {activeTab === 'by_category'        && (
               <ByCategoryTab  orders={filteredForAnalytics} categories={state.categories} menuItemMap={menuItemMap} lang={lang} />

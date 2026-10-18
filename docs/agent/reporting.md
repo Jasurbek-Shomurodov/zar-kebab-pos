@@ -55,7 +55,7 @@
 
 - Reports: skeletons/disabled export until orders/expenses settle. Ignore cancelled reads.
 
-- Dish Analysis: All dishes ranks 30 direct sellers. Selection shows description, sources, hours/log, hiding global rankings. Add frozen `tech_card_component_snapshot` quantities × parent quantity; deduplicate orders. No inferred recipes/legacy contents or added set revenue. Tests: `tests/dishSales.test.js`.
+- Dish Analysis: All dishes ranks 30 direct sellers. Selection shows description, sources, hours/log, hiding global rankings. Add frozen `tech_card_component_snapshot` quantities × parent quantity; deduplicate orders. No inferred recipes/legacy contents or added set revenue. Tests: `tests/dishSales.test.js`, Excel `dishSalesExport.test.js`.
 
 - Dish sales requires loaded history; loading/errors never mean zero. Low sellers: 15 active products, including unsold; archives retain history.
 
