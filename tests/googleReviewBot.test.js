@@ -7,6 +7,7 @@ import {
 } from '../api/google-reviews/_lib/googleBusiness.js'
 import {
   buildFallbackReply,
+  detectReviewLanguage,
   generateReviewReply,
   originalReviewText,
   sanitizeReply,
@@ -96,6 +97,32 @@ test('reply generation has safe templates and sanitizes model output', async () 
     },
   )
   assert.deepEqual(generated, { reply: 'Спасибо за ваш отзыв!', source: 'gemini' })
+})
+
+test('template replies match the review language or are skipped', async () => {
+  assert.equal(detectReviewLanguage('Очень вкусно'), 'ru')
+  assert.equal(detectReviewLanguage('Жуда мазали, раҳмат'), 'uz-Cyrl')
+  assert.equal(detectReviewLanguage("Juda mazali, zo'r joy"), 'uz-Latn')
+  assert.equal(detectReviewLanguage('Great food'), 'en')
+  assert.equal(detectReviewLanguage('', 'Russian'), 'ru')
+  assert.equal(detectReviewLanguage('Super jedzenie, polecam!'), null)
+  assert.equal(detectReviewLanguage('とても美味しい'), null)
+
+  assert.match(buildFallbackReply({ starRating: 'FIVE', comment: 'Очень вкусно' }), /^Спасибо.*Zar Kebab/)
+  assert.match(buildFallbackReply({ starRating: 'FIVE', comment: 'Juda mazali' }), /^Fikringiz.*Zar Kebab/)
+  assert.match(buildFallbackReply({ starRating: 'ONE', comment: 'Жуда ёмон' }), /^Тажрибангиз.*Zar Kebab/)
+  assert.match(
+    buildFallbackReply({ starRating: 'FIVE', comment: '(Translated by Google) Very tasty\n\n(Original)\nОчень вкусно' }),
+    /^Спасибо/,
+  )
+  assert.equal(buildFallbackReply({ starRating: 'FIVE', comment: 'とても美味しい' }), null)
+
+  const generated = await generateReviewReply({ starRating: 'FIVE', comment: '' })
+  assert.match(generated.reply, /^Спасибо/)
+  await assert.rejects(
+    generateReviewReply({ starRating: 'FIVE', comment: 'とても美味しい' }),
+    /No reply template for this review language/,
+  )
 })
 
 test('replies use the guest original text, not the Google translation', async () => {

@@ -14,15 +14,64 @@ export function sanitizeReply(value) {
     .slice(0, 1000)
 }
 
-export function buildFallbackReply(review, businessName = 'Zar Kebab') {
+const FALLBACK_TEMPLATES = {
+  en: {
+    positive: name => `Thank you for your review! We are delighted that you enjoyed your visit to ${name}, and we hope to welcome you again soon.`,
+    neutral: name => `Thank you for sharing your feedback. We are always working to improve, and we hope your next visit to ${name} will be even better.`,
+    negative: name => `Thank you for letting us know about your experience. We are sorry that your visit did not meet expectations; please contact ${name} directly so our team can understand what happened and help.`,
+  },
+  ru: {
+    positive: name => `Спасибо за ваш отзыв! Мы очень рады, что вам понравилось в ${name}, и будем рады видеть вас снова.`,
+    neutral: name => `Спасибо, что поделились мнением. Мы постоянно работаем над улучшением и надеемся, что следующий визит в ${name} понравится вам ещё больше.`,
+    negative: name => `Спасибо, что рассказали о своём опыте. Нам жаль, что визит не оправдал ваших ожиданий; пожалуйста, свяжитесь с ${name} напрямую, чтобы наша команда разобралась в ситуации и помогла.`,
+  },
+  'uz-Latn': {
+    positive: name => `Fikringiz uchun rahmat! ${name} restoranidagi tashrifingiz sizga yoqqanidan juda xursandmiz va sizni yana kutib qolamiz.`,
+    neutral: name => `Fikringiz bilan bo'lishganingiz uchun rahmat. Biz doimo yaxshilanish ustida ishlaymiz va keyingi safar ${name} restoraniga tashrifingiz yanada yoqimli bo'lishiga umid qilamiz.`,
+    negative: name => `Tajribangiz haqida xabar berganingiz uchun rahmat. Tashrifingiz kutganingizdek o'tmaganidan afsusdamiz; iltimos, ${name} jamoasi bilan bevosita bog'laning, vaziyatni o'rganib, sizga yordam beramiz.`,
+  },
+  'uz-Cyrl': {
+    positive: name => `Фикрингиз учун раҳмат! ${name} ресторанидаги ташрифингиз сизга ёққанидан жуда хурсандмиз ва сизни яна кутиб қоламиз.`,
+    neutral: name => `Фикрингиз билан бўлишганингиз учун раҳмат. Биз доимо яхшиланиш устида ишлаймиз ва кейинги сафар ${name} ресторанига ташрифингиз янада ёқимли бўлишига умид қиламиз.`,
+    negative: name => `Тажрибангиз ҳақида хабар берганингиз учун раҳмат. Ташрифингиз кутганингиздек ўтмаганидан афсусдамиз; илтимос, ${name} жамоаси билан бевосита боғланинг, вазиятни ўрганиб, сизга ёрдам берамиз.`,
+  },
+}
+
+const LANGUAGE_NAMES = {
+  english: 'en',
+  russian: 'ru',
+  uzbek: 'uz-Latn',
+  'uzbek latin': 'uz-Latn',
+  'uzbek cyrillic': 'uz-Cyrl',
+}
+
+const UZBEK_LATIN_WORDS = /\b(juda|rahmat|mazali|yaxshi|zo['ʻ’`]r|ovqat|xizmat|menga|yoqdi|ajoyib|katta|shirin|kabob|osh|lekin|emas|bilan|uchun)\b|[og]['ʻ’`][a-z]/i
+const UZBEK_CYRILLIC_WORDS = /(^|[^\p{L}])(жуда|рахмат|мазали|яхши|ёмон|зур|овкат|хизмат|менга|ёкди|ажойиб|лекин|эмас|билан|учун|ва)(?=$|[^\p{L}])/iu
+const ENGLISH_WORDS = /\b(the|and|was|were|is|very|good|great|nice|food|tasty|delicious|service|place|staff|amazing|best|love|excellent|bad|not|but|with|for)\b/i
+const NON_ENGLISH_LATIN = /[à-ÿąćęłńśźżčďěňřšťůžőűğışăâîșț]/i
+
+// Templates exist only for the languages Zar Kebab guests commonly use. Any
+// other language returns null so the bot never replies in the wrong language.
+export function detectReviewLanguage(text, defaultLanguage = 'English') {
+  const value = String(text || '').trim()
+  if (!value) return LANGUAGE_NAMES[String(defaultLanguage).trim().toLowerCase()] || 'en'
+  const letters = value.replace(/[^\p{L}]/gu, '')
+  if (!letters) return LANGUAGE_NAMES[String(defaultLanguage).trim().toLowerCase()] || 'en'
+  if (/^[\p{Script=Cyrillic}]+$/u.test(letters)) return /[ўқғҳЎҚҒҲ]/.test(value) || UZBEK_CYRILLIC_WORDS.test(value) ? 'uz-Cyrl' : 'ru'
+  if (!/^[\p{Script=Latin}]+$/u.test(letters)) return null
+  if (UZBEK_LATIN_WORDS.test(value)) return 'uz-Latn'
+  if (!NON_ENGLISH_LATIN.test(value) && ENGLISH_WORDS.test(value)) return 'en'
+  return null
+}
+
+export function buildFallbackReply(review, businessName = 'Zar Kebab', defaultLanguage = 'English') {
+  const language = detectReviewLanguage(originalReviewText(review?.comment), defaultLanguage)
+  if (!language) return null
   const rating = numericRating(review?.starRating)
-  if (rating >= 4) {
-    return `Thank you for your review! We are delighted that you enjoyed your visit to ${businessName}, and we hope to welcome you again soon.`
-  }
-  if (rating === 3) {
-    return `Thank you for sharing your feedback. We are always working to improve, and we hope your next visit to ${businessName} will be even better.`
-  }
-  return `Thank you for letting us know about your experience. We are sorry that your visit did not meet expectations; please contact ${businessName} directly so our team can understand what happened and help.`
+  const templates = FALLBACK_TEMPLATES[language]
+  if (rating >= 4) return templates.positive(businessName)
+  if (rating === 3) return templates.neutral(businessName)
+  return templates.negative(businessName)
 }
 
 // Google returns machine-translated reviews as
@@ -45,12 +94,16 @@ function responseText(payload) {
 export async function generateReviewReply(review, options = {}) {
   const apiKey = String(options.apiKey || '').trim()
   const businessName = String(options.businessName || 'Zar Kebab').trim()
-  if (!apiKey) return { reply: buildFallbackReply(review, businessName), source: 'template' }
+  const defaultLanguage = String(options.defaultLanguage || 'Russian').trim()
+  if (!apiKey) {
+    const reply = buildFallbackReply(review, businessName, defaultLanguage)
+    if (!reply) throw new Error('No reply template for this review language; set GEMINI_API_KEY to answer it')
+    return { reply, source: 'template' }
+  }
 
   const fetchImpl = options.fetchImpl || fetch
   const rating = numericRating(review?.starRating)
   const comment = originalReviewText(review?.comment).slice(0, 3000)
-  const defaultLanguage = String(options.defaultLanguage || 'Russian').trim()
   const prompt = [
     `Write a public Google Maps review reply for ${businessName}.`,
     `Rating: ${rating}/5. Review text: ${JSON.stringify(comment || '(no written comment)')}.`,

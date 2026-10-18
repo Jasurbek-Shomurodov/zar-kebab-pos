@@ -177,7 +177,7 @@ The Mini App is a read-only menu with loyalty-balance lookup and restaurant cont
 
 ## Google Maps review bot
 
-The protected `/api/google-reviews/run` endpoint checks the configured Google Business Profile for unanswered reviews and creates a short reply in the review's language. It uses Google Gemini (free tier) when `GEMINI_API_KEY` is present, replying in the guest's original language and script, and a conservative English template when it is not. Supabase Cron (`225_google_review_reply_cron.sql`, reusing the Vault secret from `152`) calls it every day at 13:00 Tashkent, separately from the 08:00 Telegram/payroll job, so review failures cannot block that work. Without the Google variables it returns `mode: "disabled"`.
+The protected `/api/google-reviews/run` endpoint checks the configured Google Business Profile for unanswered reviews and creates a short reply in the review's language. It uses Google Gemini (free tier) when `GEMINI_API_KEY` is present, replying in the guest's original language and script. Without it, a conservative template is used in the review's language (Russian, Uzbek Latin, Uzbek Cyrillic or English, or `GOOGLE_REVIEW_DEFAULT_LANGUAGE` for text-free reviews); reviews in any other language are reported as failed instead of answered in the wrong language. Supabase Cron (`225_google_review_reply_cron.sql`, reusing the Vault secret from `152`) calls it every day at 13:00 Tashkent, separately from the 08:00 Telegram/payroll job, so review failures cannot block that work. Without the Google variables it returns `mode: "disabled"`.
 
 Add these server-only deployment variables:
 
