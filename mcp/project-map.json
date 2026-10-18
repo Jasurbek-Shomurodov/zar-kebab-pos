@@ -276,8 +276,8 @@
     {
       "name": "database-migrations-verification",
       "keywords": ["migration", "schema", "RPC", "RLS", "health", "source guard", "deployment", "backup", "restore"],
-      "files": ["src/lib/db.js", "src/lib/dbHealth.js", "migrations/migrate.js", "migrations/199_migration_tracking.sql", "scripts/migrationTools.js", "scripts/check-db-health.js", "scripts/db-backup.sh", "scripts/db-restore.sh", ".github/workflows/db-backup.yml", "mcp/repo-navigator.js"],
-      "tests": ["tests/dbHealth.test.js", "tests/dbBackup.test.js", "tests/migrationTools.test.js", "tests/rlsPolicyGuards.test.js", "tests/repoNavigatorMcp.test.js", "tests/sourceGuards.architecture.test.js"]
+      "files": ["src/lib/db.js", "src/lib/dbHealth.js", "migrations/migrate.js", "migrations/199_migration_tracking.sql", "migrations/255_owner_migration_health.sql", "src/lib/migrationHealth.js", "scripts/build-migration-manifest.js", "src/generated/migrationManifest.js", "scripts/migrationTools.js", "scripts/check-db-health.js", "scripts/db-backup.sh", "scripts/db-restore.sh", ".github/workflows/db-backup.yml", "mcp/repo-navigator.js"],
+      "tests": ["tests/dbHealth.test.js", "tests/dbBackup.test.js", "tests/migrationTools.test.js", "tests/migrationManifest.test.js", "tests/rlsPolicyGuards.test.js", "tests/repoNavigatorMcp.test.js", "tests/sourceGuards.architecture.test.js"]
     }
   ],
   "rules": [

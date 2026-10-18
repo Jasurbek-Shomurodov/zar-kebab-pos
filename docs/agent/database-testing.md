@@ -12,7 +12,7 @@
 ## Workflow
 
 - Use full filenames; keep legacy `073`/`108`/`157` duplicates distinct.
-- `199`: checksum receipts; service-only drift checks. `node migrations/migrate.js --status`, `--sql <filename>`, `--apply <filename>`; No bulk legacy replay. Receipts: same checksum skips, changed fails. Reconcile lost responses.
+- `199` receipts/drift; `255` Settings check vs `src/generated/migrationManifest.js` (`npm run migrations:manifest`). `migrate.js --status`/`--sql`/`--apply <file>`; no legacy replay; same checksum skips, changed fails.
 - Migrations:
   - settings, payments, kitchen submit, tables/reservations: `011`, `012`, `018`–`020`
   - kitchen idempotency and durable receipts: `096`, `128`

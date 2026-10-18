@@ -2,10 +2,32 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { runDbHealthChecks } from '../src/lib/dbHealth.js'
+import migrationManifest from '../src/generated/migrationManifest.js'
 
 const cliHealthSource = readFileSync(new URL('../scripts/check-db-health.js', import.meta.url), 'utf8')
 
-function makeClient({ missingTable = null, missingColumnTable = null, missingColumn = null, missingRpc = false, permissionDeniedTables = [] } = {}) {
+// Live catalog that matches the committed migration manifest exactly.
+function healthyMigrationCatalog() {
+  return {
+    functions: migrationManifest.functions.map(({ name, md5 }) => ({ name, md5 })),
+    triggers: [
+      ['menu_item_tech_cards', 'tech_cards_mark_costs_dirty'],
+      ['menu_item_tech_card_ingredients', 'tech_card_ingredients_mark_costs_dirty'],
+      ['menu_item_tech_card_components', 'tech_card_components_mark_costs_dirty'],
+      ['bazaar_product_catalog', 'queue_ingredient_investor_notification'],
+      ['game_club_team_notifications', 'kick_game_club_team_queue'],
+      ['ingredient_investor_notifications', 'kick_ingredient_investor_queue'],
+      ['order_status_telegram_messages', 'kick_order_status_cleanup_insert'],
+      ['order_status_telegram_messages', 'kick_order_status_cleanup_update'],
+      ['employee_order_kpi_notifications', 'kick_employee_order_kpi_insert'],
+      ['employee_order_kpi_notifications', 'kick_employee_order_kpi_update'],
+    ].map(([table, name]) => ({ table, name, enabled: 'O' })),
+    jobs: [{ name: 'zar-kebab-queue-sweep', active: true, schedule: '*/15 * * * *' }],
+    receipts: migrationManifest.files.filter(file => Number(file.filename.slice(0, 3)) >= 199),
+  }
+}
+
+function makeClient({ missingTable = null, missingColumnTable = null, missingColumn = null, missingRpc = false, permissionDeniedTables = [], migrationHealth = () => ({ data: healthyMigrationCatalog(), error: null }) } = {}) {
   return {
     from(name) {
       return {
@@ -40,6 +62,7 @@ function makeClient({ missingTable = null, missingColumnTable = null, missingCol
       if (missingRpc) {
         return Promise.resolve({ error: { message: `Could not find the function public.${name}` } })
       }
+      if (name === 'get_app_migration_health') return Promise.resolve(migrationHealth())
       return Promise.resolve({ error: { message: 'order id is required' } })
     },
   }
@@ -374,6 +397,7 @@ test('database health reports missing tables and missing RPC', async () => {
     'get_pending_employee_meal_dates',
     'get_reports_accounting',
     'kitchen_round_receipts_version',
+    'migration_definitions',
     'order_payments',
     'recall_table_from_cashier',
     'save_bazaar_ingredient',
@@ -457,4 +481,45 @@ test('database health requires the menu media gallery column', async () => {
   assert.equal(failed.detail, 'media_urls')
   assert.match(failed.hint, /103_menu_item_media_gallery/)
   assert.match(cliHealthSource, /menu_items', '[^']*media_urls/)
+})
+
+test('settings health fails when a migration only rewrote a function and was never applied', async () => {
+  const catalog = healthyMigrationCatalog()
+  catalog.functions = catalog.functions.filter(fn => fn.name !== 'employee_kpi_start_time')
+  const result = await runDbHealthChecks(makeClient({ migrationHealth: () => ({ data: catalog, error: null }) }))
+  const check = result.checks.find(item => item.name === 'migration_definitions')
+  assert.equal(result.ok, false)
+  assert.equal(check.messageKey, 'migrationIssues')
+  assert.ok(check.items.some(item => /254_kpi_starts_at_checkin\.sql: employee_kpi_start_time/.test(item)))
+})
+
+test('settings health fails for migrations without a receipt', async () => {
+  const catalog = healthyMigrationCatalog()
+  const latest = catalog.receipts.at(-1).filename
+  catalog.receipts = catalog.receipts.slice(0, -1)
+  const result = await runDbHealthChecks(makeClient({ migrationHealth: () => ({ data: catalog, error: null }) }))
+  const check = result.checks.find(item => item.name === 'migration_receipts')
+  assert.equal(result.ok, false)
+  assert.deepEqual(check.items, [`PENDING: ${latest}`])
+})
+
+test('settings health passes migration checks when the live database matches the manifest', async () => {
+  const result = await runDbHealthChecks(makeClient())
+  assert.equal(result.checks.find(item => item.name === 'migration_definitions').ok, true)
+  assert.equal(result.checks.find(item => item.name === 'migration_receipts').ok, true)
+})
+
+test('settings health reports the missing owner migration RPC and treats non-owners as protected', async () => {
+  const missing = await runDbHealthChecks(makeClient({
+    migrationHealth: () => ({ data: null, error: { message: 'Could not find the function public.get_app_migration_health' } }),
+  }))
+  const missingCheck = missing.checks.find(item => item.name === 'migration_definitions')
+  assert.equal(missing.ok, false)
+  assert.match(missingCheck.hint, /255_owner_migration_health\.sql/)
+
+  const admin = await runDbHealthChecks(makeClient({
+    migrationHealth: () => ({ data: null, error: { code: '42501', message: 'Owner access is required' } }),
+  }))
+  assert.equal(admin.checks.find(item => item.name === 'migration_definitions').messageKey, 'ownerOnly')
+  assert.equal(admin.ok, true)
 })

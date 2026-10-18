@@ -87,6 +87,8 @@ function healthMessage(check, labels) {
   if (check.messageKey === 'available') return labels.healthAvailable
   if (check.messageKey === 'protected') return labels.healthProtected
   if (check.messageKey === 'missingColumn') return labels.healthMissingColumn(check.detail)
+  if (check.messageKey === 'ownerOnly') return labels.healthOwnerOnly
+  if (check.messageKey === 'migrationIssues') return labels.healthMigrationIssues(check.items.length)
   return check.detail || labels.healthUnknownError
 }
 
@@ -294,8 +296,12 @@ export default function AdminSettings() {
       healthAvailable:  'Mavjud',
       healthProtected:  'Himoyalangan',
       healthMissingColumn: column => `Ustun yo‘q: ${column}`,
+      healthOwnerOnly: 'Faqat egasi tekshira oladi',
+      healthMigrationIssues: count => `${count} ta muammo`,
       healthUnknownError: 'Noma’lum xatolik',
       healthNames: {
+        migration_definitions: 'Migratsiyalar: funksiyalar va triggerlar',
+        migration_receipts: 'Migratsiyalar: qo‘llanganlik belgilari',
         restaurant_tables: 'Restoran stollari',
         table_zones: 'Stol zonalari',
         orders: 'Buyurtmalar',
@@ -369,8 +375,12 @@ export default function AdminSettings() {
       healthAvailable:  'Доступно',
       healthProtected:  'Защищено',
       healthMissingColumn: column => `Нет колонки: ${column}`,
+      healthOwnerOnly: 'Проверяет только владелец',
+      healthMigrationIssues: count => `Проблем: ${count}`,
       healthUnknownError: 'Неизвестная ошибка',
       healthNames: {
+        migration_definitions: 'Миграции: функции и триггеры',
+        migration_receipts: 'Миграции: отметки применения',
         restaurant_tables: 'Столы ресторана',
         table_zones: 'Зоны столов',
         orders: 'Заказы',
@@ -444,8 +454,12 @@ export default function AdminSettings() {
       healthAvailable:  'Available',
       healthProtected:  'Protected',
       healthMissingColumn: column => `Missing column: ${column}`,
+      healthOwnerOnly: 'Owner-only check',
+      healthMigrationIssues: count => `${count} issue${count === 1 ? '' : 's'}`,
       healthUnknownError: 'Unknown error',
       healthNames: {
+        migration_definitions: 'Migrations: functions & triggers',
+        migration_receipts: 'Migrations: applied receipts',
         restaurant_tables: 'Restaurant tables',
         table_zones: 'Table zones',
         orders: 'Orders',
@@ -739,10 +753,15 @@ export default function AdminSettings() {
                       {health.ok ? l.healthy : l.unhealthy}
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {health.checks.map(check => (
-                        <div key={`${check.type}-${check.name}`} className="rounded-lg border border-[#e4e1de] bg-white px-3 py-2 text-[13px]">
+                      {[...health.checks].sort((a, b) => a.ok - b.ok).map(check => (
+                        <div key={`${check.type}-${check.name}`} className={`rounded-lg border border-[#e4e1de] bg-white px-3 py-2 text-[13px] ${check.items?.length ? 'sm:col-span-2' : ''}`}>
                           <p className="font-semibold text-[#22201d]">{healthCheckName(check, l)}</p>
                           <p className={check.ok ? 'text-[#1d7a52]' : 'text-[#c4262c]'}>{healthMessage(check, l)}</p>
+                          {!check.ok && check.items?.length > 0 && (
+                            <ul className="mt-1 space-y-0.5 font-mono text-[11px] text-[#c4262c]">
+                              {check.items.map(item => <li key={item} className="break-all">{item}</li>)}
+                            </ul>
+                          )}
                           {!check.ok && healthHint(check) && (
                             <p className="mt-1 font-mono text-[11px] text-[#68655f]">{healthHint(check)}</p>
                           )}

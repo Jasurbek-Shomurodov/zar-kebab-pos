@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { migrationHealthIssues, migrationReceiptFailures } from './migrationHealth.js'
 
 const TABLE_CHECKS = [
   { name: 'restaurant_tables', columns: ['id', 'name', 'status', 'capacity', 'sort_order', 'is_active', 'reserved_at'] },
@@ -155,7 +156,11 @@ const MIGRATION_HINTS = {
   get_financial_analysis: 'Run migrations/231_financial_analysis_bundle.sql',
   get_monthly_estimate: 'Run migrations/233_monthly_estimate_bundle.sql',
   get_reports_accounting: 'Run migrations/235_reports_accounting_bundle.sql',
+  get_app_migration_health: 'Run migrations/255_owner_migration_health.sql',
 }
+
+const MIGRATION_DEFINITIONS_HINT = 'Apply the listed migration files with node migrations/migrate.js --sql <file> (records a receipt), then check again'
+const MIGRATION_RECEIPTS_HINT = 'PENDING files have no receipt: apply them with node migrations/migrate.js --sql <file>; if one was already applied by hand, record its receipt instead of re-running it'
 
 function missingColumnMessage(error) {
   const message = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`
@@ -208,7 +213,35 @@ async function checkRpc(dbClient, name, args = { payload: {} }) {
   }
 }
 
-export async function runDbHealthChecks(dbClient = supabase) {
+async function loadMigrationManifest() {
+  return (await import('../generated/migrationManifest.js')).default
+}
+
+// Function bodies, triggers, schedules and receipts versus the deployed migrations/ folder.
+// Catches migrations that only rewrite functions, which table/RPC probes cannot see.
+async function checkMigrations(dbClient, manifestLoader) {
+  const { data, error } = await dbClient.rpc('get_app_migration_health')
+  if (error) {
+    const message = `${error.code || ''} ${error.message || ''}`
+    if (error.code === '42501' || /owner access is required/i.test(message)) {
+      return [{ type: 'migration', name: 'migration_definitions', ok: true, messageKey: 'ownerOnly' }]
+    }
+    return [{ type: 'migration', name: 'migration_definitions', ok: false, messageKey: 'rawError', detail: error.message, hint: MIGRATION_HINTS.get_app_migration_health }]
+  }
+  const manifest = await manifestLoader()
+  const issues = migrationHealthIssues(data || {}, manifest.functions)
+  const receiptFailures = migrationReceiptFailures(manifest.files, data?.receipts || [])
+  return [
+    issues.length
+      ? { type: 'migration', name: 'migration_definitions', ok: false, messageKey: 'migrationIssues', items: issues, detail: issues.join('; '), hint: MIGRATION_DEFINITIONS_HINT }
+      : { type: 'migration', name: 'migration_definitions', ok: true, messageKey: 'ok' },
+    receiptFailures.length
+      ? { type: 'migration', name: 'migration_receipts', ok: false, messageKey: 'migrationIssues', items: receiptFailures.map(row => `${row.status}: ${row.filename}`), detail: receiptFailures.map(row => `${row.status}: ${row.filename}`).join('; '), hint: MIGRATION_RECEIPTS_HINT }
+      : { type: 'migration', name: 'migration_receipts', ok: true, messageKey: 'ok' },
+  ]
+}
+
+export async function runDbHealthChecks(dbClient = supabase, { manifestLoader = loadMigrationManifest } = {}) {
   const startedAt = new Date().toISOString()
   const checks = await Promise.all(TABLE_CHECKS.map(check => checkTable(dbClient, check)))
   checks.push(await checkRpc(dbClient, 'submit_order_to_kitchen'))
@@ -249,6 +282,7 @@ export async function runDbHealthChecks(dbClient = supabase) {
   checks.push(await checkRpc(dbClient, 'get_pending_daily_kpi_dates', { p_limit: 1 }))
   checks.push(await checkRpc(dbClient, 'get_pending_employee_meal_dates', { p_limit: 1 }))
   checks.push(await checkRpc(dbClient, 'get_dashboard_monthly_average_income', { p_month_count: 1 }))
+  checks.push(...await checkMigrations(dbClient, manifestLoader))
   const failed = checks.filter(check => !check.ok)
   return {
     ok: failed.length === 0,

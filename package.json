@@ -7,6 +7,7 @@
     "dev": "vite",
     "bot:telegram": "node bots/telegram-bot.js",
     "db:health": "node scripts/check-db-health.js",
+    "migrations:manifest": "node scripts/build-migration-manifest.js",
     "theme:dark": "node scripts/build-dark-theme.mjs",
     "migrate:menu-images:r2": "node scripts/migrate-menu-images-to-r2.js",
     "optimize:menu-images": "node scripts/optimize-menu-images.js",
@@ -16,7 +17,7 @@
     "docs:check": "node --test tests/agentDocs.test.js tests/repoNavigatorMcp.test.js",
     "test": "node --test",
     "test:coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-include=\"api/**\" --test-coverage-include=\"bots/**\" --test-coverage-include=\"mcp/**\" --test-coverage-include=\"migrations/**\" --test-coverage-include=\"scripts/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info && node scripts/check-coverage-floor.mjs",
-    "prebuild": "node scripts/update-hoggish-assistant.cjs",
+    "prebuild": "node scripts/build-migration-manifest.js && node scripts/update-hoggish-assistant.cjs",
     "build": "vite build",
     "preview": "vite preview"
   },
