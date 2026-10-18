@@ -441,12 +441,12 @@ function BestSellingTab({ orders, menuItemMap, categories, lang }) {
         const key = item.menu_item_id || item.name || 'unknown'
         const mi  = menuItemMap[item.menu_item_id]
         const categoryId = getOrderItemCategoryId(item, mi)
-        const cat = categoryId ? categories.find(c => c.id === categoryId) : null
         if (!map[key]) {
           map[key] = {
             name:     item.name || mi?.name_en || mi?.name_uz || 'Unknown',
+            menuItem: mi || null,
             image:    item.image_url || mi?.image_url || null,
-            category: cat ? getCategoryName(cat, lang) : '—',
+            categoryId,
             quantity: 0,
             revenue:  0,
           }
@@ -458,7 +458,7 @@ function BestSellingTab({ orders, menuItemMap, categories, lang }) {
     return Object.values(map).sort((a, b) =>
       sortBy === 'revenue' ? b.revenue - a.revenue : b.quantity - a.quantity
     )
-  }, [orders, menuItemMap, categories, lang, sortBy])
+  }, [orders, menuItemMap, sortBy])
 
   const maxQty = items[0]?.quantity || 1
   const maxRev = items[0]?.revenue  || 1
@@ -520,13 +520,13 @@ function BestSellingTab({ orders, menuItemMap, categories, lang }) {
             </div>
 
             <div className="min-w-0">
-              <p className="font-medium text-sm text-[#22201d] truncate">{item.name}</p>
+              <p className="font-medium text-sm text-[#22201d] truncate">{item.menuItem ? dishDisplayName(item.menuItem, lang) : item.name}</p>
               <ProgressBar pct={sortBy === 'revenue'
                 ? Math.round(item.revenue  / maxRev  * 100)
                 : Math.round(item.quantity / maxQty * 100)} />
             </div>
 
-            <span className="ws-caption truncate">{item.category}</span>
+            <span className="ws-caption truncate">{dishCategoryLabel({ category_id: item.categoryId }, categories, lang)}</span>
             <span className="text-center text-sm font-semibold tabular-nums text-[#22201d]">{item.quantity}</span>
             <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(item.revenue)}</span>
           </div>
@@ -668,6 +668,8 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
   const maxMealQty = Math.max(...mostSoldMeals.map(row => row.quantity), 1)
   const maxHourlyQty = Math.max(...analysis.hourly.map(row => row.quantity), 1)
   const visibleSales = selectedDishKey === ALL_DISHES_KEY ? analysis.sales.slice(0, 18) : analysis.sales
+  const dishByKey = new Map(analysis.dishes.map(dish => [dish.key, dish]))
+  const saleDishName = (key, fallback) => (dishByKey.has(key) ? dishDisplayName(dishByKey.get(key), lang) : fallback)
 
   async function exportSoldDishes() {
     if (exportState === 'busy') return
@@ -1002,7 +1004,7 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
                   <div className="mb-1 flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-[#22201d]">
-                        {selectedDishKey === ALL_DISHES_KEY ? sale.dishName : `#${String(sale.orderId).slice(-4).toUpperCase()}`}
+                        {selectedDishKey === ALL_DISHES_KEY ? saleDishName(sale.dishKey, sale.dishName) : `#${String(sale.orderId).slice(-4).toUpperCase()}`}
                       </p>
                       <p className="ws-caption">{formatLongDateTime(sale.orderDate, lang, '—')}</p>
                     </div>
@@ -1010,7 +1012,7 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
                   </div>
                   <div className="ws-caption flex flex-wrap items-center gap-2">
                     <span>{s.qty[lang] || s.qty.en}: {formatQuantity(sale.quantity)}</span>
-                    {sale.includedInSet && <span>· {s.included[lang]}: {sale.sourceName}</span>}
+                    {sale.includedInSet && <span>· {s.included[lang]}: {saleDishName(sale.sourceKey, sale.sourceName)}</span>}
                     <span>·</span>
                     <span>{s.order[lang] || s.order.en}: #{String(sale.orderId).slice(-4).toUpperCase()}</span>
                     {sale.waiterName && (
