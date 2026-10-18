@@ -92,14 +92,13 @@ export default function DateRangePicker({ l, lang, rangeKey, dateFrom, dateTo, t
       setSelectingEnd(true)
       return
     }
-    setDraftFrom(date < draftFrom ? date : draftFrom)
-    setDraftTo(date < draftFrom ? draftFrom : date)
+    // The second click completes the range, so it applies at once without a confirm step.
+    const from = date < draftFrom ? date : draftFrom
+    const to = date < draftFrom ? draftFrom : date
+    setDraftFrom(from)
+    setDraftTo(to)
     setSelectingEnd(false)
-  }
-
-  function applyDraft() {
-    if (!draftFrom) return
-    onApply(draftFrom, draftTo || draftFrom)
+    onApply(from, to)
     setOpen(false)
   }
 
@@ -183,21 +182,11 @@ export default function DateRangePicker({ l, lang, rangeKey, dateFrom, dateTo, t
             </aside>
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 border-t border-[#e4e1de] pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="ws-caption min-w-0 tabular-nums">
-              {draftFrom ? formatLongDate(draftFrom, lang, draftFrom) : '—'}
-              <span className="mx-2">–</span>
-              {draftTo ? formatLongDate(draftTo, lang, draftTo) : '…'}
-            </p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setOpen(false)} className="ws-btn ws-btn-outline flex-1 !h-10 sm:flex-none">
-                {l.cancel}
-              </button>
-              <button type="button" disabled={!draftFrom} onClick={applyDraft} className="ws-btn ws-btn-primary flex-1 !h-10 sm:flex-none">
-                {l.applyRange}
-              </button>
-            </div>
-          </div>
+          <p className="ws-caption mt-4 min-w-0 border-t border-[#e4e1de] pt-3 tabular-nums">
+            {draftFrom ? formatLongDate(draftFrom, lang, draftFrom) : '—'}
+            <span className="mx-2">–</span>
+            {draftTo ? formatLongDate(draftTo, lang, draftTo) : '…'}
+          </p>
         </div>
       )}
     </div>
