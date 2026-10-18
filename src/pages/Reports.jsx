@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { Fragment, useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../store/AppContext'
 import { useOrderDeletionDate } from '../store/useOrderDeletionDate'
@@ -121,15 +121,18 @@ function loadPagedResult(loadPage) {
 
 const PAGE_SIZE    = 8
 
+// Every tab owns everything below the tab bar: Overview holds the period totals,
+// the other tabs show only their own report. Groups only add a visual divider.
 const TABS = [
-  { key: 'best_selling',       label: { uz: 'Ko\'p sotiladigan', ru: 'Бестселлеры',    en: 'Best Selling'       }, Icon: TrendingUp  },
-  { key: 'dish_sales',         label: { uz: 'Taom tahlili',      ru: 'Анализ блюд',    en: 'Dish Analysis'      }, Icon: UtensilsCrossed },
-  { key: 'by_category',        label: { uz: 'Kategoriya',         ru: 'По категории',   en: 'Sales by Category'  }, Icon: Tag         },
-  { key: 'by_hour',            label: { uz: 'Soat bo\'yicha',     ru: 'По часам',       en: 'Sales by Hour'      }, Icon: Clock       },
-  { key: 'payment_methods',    label: { uz: 'To\'lov usullari',   ru: 'Методы оплаты',  en: 'Payment Methods'    }, Icon: CreditCard  },
-  { key: 'order_types',        label: { uz: 'Buyurtma turi',      ru: 'Типы заказов',   en: 'Order Types'        }, Icon: Truck       },
-  { key: 'waiter_performance', label: { uz: 'Ofitsiantlar',       ru: 'Официанты',      en: 'Waiter Performance' }, Icon: Users       },
-  { key: 'order_history',      label: { uz: 'Buyurtmalar',        ru: 'История',        en: 'Order History'      }, Icon: ListOrdered },
+  { key: 'overview',           group: 'summary',    label: { uz: 'Umumiy',            ru: 'Обзор',          en: 'Overview'           }, hint: { uz: 'Daromad, tushumlar, xarajatlar va natija', ru: 'Доход, поступления, расходы и итог', en: 'Income, money received, expenses and the result' }, Icon: BarChart2 },
+  { key: 'best_selling',       group: 'sales',      label: { uz: 'Ko\'p sotiladigan', ru: 'Бестселлеры',    en: 'Best Selling'       }, hint: { uz: 'Eng ko‘p sotilgan taomlar', ru: 'Самые продаваемые блюда', en: 'Which dishes sold the most' }, Icon: TrendingUp  },
+  { key: 'dish_sales',         group: 'sales',      label: { uz: 'Taom tahlili',      ru: 'Анализ блюд',    en: 'Dish Analysis'      }, hint: { uz: 'Bitta taom: qachon va qancha sotilgan', ru: 'Одно блюдо: когда и сколько продано', en: 'One dish in detail: when and how much it sold' }, Icon: UtensilsCrossed },
+  { key: 'by_category',        group: 'sales',      label: { uz: 'Kategoriya',         ru: 'По категории',   en: 'Sales by Category'  }, hint: { uz: 'Har bir kategoriya daromadi', ru: 'Доход по каждой категории', en: 'Income from each menu category' }, Icon: Tag         },
+  { key: 'by_hour',            group: 'sales',      label: { uz: 'Soat bo\'yicha',     ru: 'По часам',       en: 'Sales by Hour'      }, hint: { uz: 'Kunning qaysi soatlari band', ru: 'Самые загруженные часы', en: 'The busiest hours of the day' }, Icon: Clock       },
+  { key: 'payment_methods',    group: 'operations', label: { uz: 'To\'lov usullari',   ru: 'Методы оплаты',  en: 'Payment Methods'    }, hint: { uz: 'Mijozlar qanday to‘lagan', ru: 'Как платили гости', en: 'How guests paid' }, Icon: CreditCard  },
+  { key: 'order_types',        group: 'operations', label: { uz: 'Buyurtma turi',      ru: 'Типы заказов',   en: 'Order Types'        }, hint: { uz: 'Zal, olib ketish va yetkazib berish', ru: 'Зал, с собой и доставка', en: 'Dine-in, take-away and delivery' }, Icon: Truck       },
+  { key: 'waiter_performance', group: 'operations', label: { uz: 'Ofitsiantlar',       ru: 'Официанты',      en: 'Waiter Performance' }, hint: { uz: 'Har bir ofitsiant savdosi', ru: 'Продажи каждого официанта', en: 'Sales by each waiter' }, Icon: Users       },
+  { key: 'order_history',      group: 'operations', label: { uz: 'Buyurtmalar',        ru: 'История',        en: 'Order History'      }, hint: { uz: 'Har bir buyurtma va chek', ru: 'Каждый заказ и чек', en: 'Every order and receipt' }, Icon: ListOrdered },
 ]
 
 const STATUS_CFG = {
@@ -214,13 +217,17 @@ function PaymentMethodBadges({ order, lang, showAmounts = false }) {
   )
 }
 
+function ReportGroupTitle({ title }) {
+  return <h2 className="-mb-2 pt-1 text-xs font-semibold uppercase tracking-[.06em] text-[#68655f]">{title}</h2>
+}
+
 function KpiCard({ icon: Icon, iconCls, label, value, sub }) {
   return (
     <div className="ws-panel h-full">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="ws-caption">{label}</p>
-          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${iconCls || 'text-[#22201d]'}`}><RollingValue value={value} /></p>
+          <p className={`mt-1 text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${iconCls || 'text-[#22201d]'}`}><RollingValue value={value} /></p>
         </div>
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
           <Icon size={16} />
@@ -1906,20 +1913,20 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ReportsSkeleton({ canViewExpenses, lang }) {
+function ReportsSkeleton({ canViewExpenses, lang, overview }) {
   return (
     <div role="status" aria-busy="true" className="space-y-5">
       <span className="sr-only">{lang === 'ru' ? 'Загрузка отчётов' : lang === 'uz' ? 'Hisobotlar yuklanmoqda' : 'Loading reports'}</span>
-      <div aria-hidden="true" className={`grid grid-cols-2 lg:grid-cols-3 ${canViewExpenses ? 'xl:grid-cols-6' : 'xl:grid-cols-3'} gap-4`}>
+      {overview && <div aria-hidden="true" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {Array.from({ length: canViewExpenses ? 6 : 3 }, (_, index) => (
           <div key={index} className="ws-panel motion-safe:animate-pulse">
             <div className="mb-3 h-3 w-2/3 rounded bg-[#efece9]" />
             <div className="h-7 w-full rounded bg-[#e4e1de]" />
           </div>
         ))}
-      </div>
+      </div>}
       <div aria-hidden="true" className="space-y-5 motion-safe:animate-pulse">
-        {Array.from({ length: canViewExpenses ? 3 : 2 }, (_, index) => (
+        {overview && Array.from({ length: canViewExpenses ? 3 : 2 }, (_, index) => (
           <div key={index} className="ws-panel">
             <div className="mb-4 h-4 w-40 rounded bg-[#e4e1de]" />
             <div className="grid grid-cols-2 gap-4">
@@ -1947,7 +1954,7 @@ export default function Reports() {
   const canChangePaymentMethod = canChangeCompletedOrderPaymentMethod(profile || { role: state.user?.role })
   const canViewExpenses = canViewPage(profile || { role: state.user?.role }, 'expenses')
 
-  const [activeTab,     setActiveTab]     = useState('order_history')
+  const [activeTab,     setActiveTab]     = useState('overview')
   const [dateFrom, setDateFrom] = useState(todayStr())
   const [dateTo,   setDateTo]   = useState(todayStr())
   const [activeRangeKey, setActiveRangeKey] = useState('today')
@@ -2292,9 +2299,9 @@ export default function Reports() {
   const showDrawer = !!selectedOrder
 
   const L = {
-    uz: { title: 'Hisobotlar', sub: 'Savdo ko\'rsatkichlari va tahlil', totalRev: 'Daromad', loyaltyIncome: 'Loyallik daromadi', numOrders: 'Buyurtmalar', avgOrder: 'O\'rtacha buyurtma', expenses: 'Xarajatlar', employeeMeals: 'Xodimlar ovqati', employeeMealsSub: 'Davomat bo‘yicha hisoblangan', netIncome: 'Barcha xarajatlardan keyin', allTables: 'Barcha stollar', allWaiters: 'Barcha ofitsiantlar', export: 'Eksport', today: 'Bugun', yesterday: 'Kecha', week: '7 kun', month: 'Oy', previousMonth: 'O‘tgan oy', previousWeek: 'O‘tgan hafta', previousCurrentWeek: 'O‘tgan va joriy hafta', currentWeek: 'Joriy hafta', currentNextWeek: 'Joriy va keyingi hafta', nextWeek: 'Keyingi hafta', nextMonth: 'Keyingi oy', presets: 'Tayyor davrlar', applyRange: 'Davrni qo‘llash', cancel: 'Bekor qilish', selectDateRange: 'Sana oralig‘ini tanlash', weekdays: ['Du', 'Se', 'Cho', 'Pa', 'Ju', 'Sha', 'Ya'], from: 'Dan', to: 'Gacha', closeout: 'Davr tushumlari', leftAfterExpenses: 'Xarajatlardan keyin qolgan', totalLeft: 'Xarajatlar va ovqatdan keyin', cash: 'Naqd', card: 'Karta', terminal: 'Terminal', cashbackIssued: 'Cashback berildi', cancelled: 'Bekor qilingan', variance: 'Farq', tapForDetails: 'Xarajatlarni ko‘rish', expenseDetails: 'Xarajatlar tafsiloti', periodExpenses: 'Davr xarajatlari', entries: 'ta yozuv', noExpenses: 'Bu davrda xarajatlar yo‘q', salaryPayment: 'Maosh to‘lovi', salaryBonus: 'Maosh bonusi', close: 'Yopish' },
-    ru: { title: 'Отчёты',     sub: 'Обзор продаж и аналитика',         totalRev: 'Доход', loyaltyIncome: 'Доход по лояльности', numOrders: 'Заказов',     avgOrder: 'Средний чек',      expenses: 'Расходы', employeeMeals: 'Питание сотрудников', employeeMealsSub: 'Рассчитано по посещаемости', netIncome: 'После всех расходов',   allTables: 'Все столы',         allWaiters: 'Все официанты',       export: 'Экспорт', today: 'Сегодня', yesterday: 'Вчера', week: '7 дней', month: 'Месяц', previousMonth: 'Прошлый месяц', previousWeek: 'Прошлая неделя', previousCurrentWeek: 'Прошлая и текущая неделя', currentWeek: 'Текущая неделя', currentNextWeek: 'Текущая и следующая неделя', nextWeek: 'Следующая неделя', nextMonth: 'Следующий месяц', presets: 'Готовые периоды', applyRange: 'Применить период', cancel: 'Отмена', selectDateRange: 'Выбрать период', weekdays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], from: 'С', to: 'По', closeout: 'Поступления за период', leftAfterExpenses: 'Остаток после расходов', totalLeft: 'После расходов и питания', cash: 'Наличные', card: 'Карта', terminal: 'Терминал', cashbackIssued: 'Кешбэк выдан', cancelled: 'Отменено', variance: 'Расхождение', tapForDetails: 'Показать расходы', expenseDetails: 'Детализация расходов', periodExpenses: 'Расходы за период', entries: 'записей', noExpenses: 'За этот период расходов нет', salaryPayment: 'Выплата зарплаты', salaryBonus: 'Бонус к зарплате', close: 'Закрыть' },
-    en: { title: 'Reports',    sub: 'Sales overview and analytics',      totalRev: 'Income', loyaltyIncome: 'Loyalty income', numOrders: 'Orders',      avgOrder: 'Avg Order Value',  expenses: 'Expenses', employeeMeals: 'Employees meal', employeeMealsSub: 'Calculated from attendance', netIncome: 'After all expenses', allTables: 'All Tables',        allWaiters: 'All Waiters',         export: 'Export',  today: 'Today', yesterday: 'Yesterday', week: '7 Days', month: 'Month', previousMonth: 'Previous month', previousWeek: 'Previous week', previousCurrentWeek: 'Previous & current week', currentWeek: 'Current week', currentNextWeek: 'Current & next week', nextWeek: 'Next week', nextMonth: 'Next month', presets: 'Presets', applyRange: 'Apply range', cancel: 'Cancel', selectDateRange: 'Select date range', weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], from: 'From', to: 'To', closeout: 'Period receipts', leftAfterExpenses: 'Left after expenses', totalLeft: 'After expenses and meals', cash: 'Cash', card: 'Card', terminal: 'Terminal', cashbackIssued: 'Cashback issued', cancelled: 'Cancelled', variance: 'Variance', tapForDetails: 'View expenses', expenseDetails: 'Expense breakdown', periodExpenses: 'Expenses for the period', entries: 'entries', noExpenses: 'No expenses were recorded for this period', salaryPayment: 'Salary payment', salaryBonus: 'Salary bonus', close: 'Close' },
+    uz: { title: 'Hisobotlar', sub: 'Savdo ko\'rsatkichlari va tahlil', totalRev: 'Daromad', loyaltyIncome: 'Loyallik daromadi', numOrders: 'Buyurtmalar', avgOrder: 'O\'rtacha buyurtma', expenses: 'Xarajatlar', employeeMeals: 'Xodimlar ovqati', employeeMealsSub: 'Davomat bo‘yicha hisoblangan', netIncome: 'Barcha xarajatlardan keyin', allTables: 'Barcha stollar', allWaiters: 'Barcha ofitsiantlar', export: 'Eksport', today: 'Bugun', yesterday: 'Kecha', week: '7 kun', month: 'Oy', previousMonth: 'O‘tgan oy', previousWeek: 'O‘tgan hafta', previousCurrentWeek: 'O‘tgan va joriy hafta', currentWeek: 'Joriy hafta', currentNextWeek: 'Joriy va keyingi hafta', nextWeek: 'Keyingi hafta', nextMonth: 'Keyingi oy', presets: 'Tayyor davrlar', applyRange: 'Davrni qo‘llash', cancel: 'Bekor qilish', selectDateRange: 'Sana oralig‘ini tanlash', weekdays: ['Du', 'Se', 'Cho', 'Pa', 'Ju', 'Sha', 'Ya'], from: 'Dan', to: 'Gacha', closeout: 'Davr tushumlari', leftAfterExpenses: 'Xarajatlardan keyin qolgan', totalLeft: 'Xarajatlar va ovqatdan keyin', cash: 'Naqd', card: 'Karta', terminal: 'Terminal', cashbackIssued: 'Cashback berildi', cancelled: 'Bekor qilingan', variance: 'Farq', tapForDetails: 'Xarajatlarni ko‘rish', expenseDetails: 'Xarajatlar tafsiloti', periodExpenses: 'Davr xarajatlari', entries: 'ta yozuv', noExpenses: 'Bu davrda xarajatlar yo‘q', salaryPayment: 'Maosh to‘lovi', salaryBonus: 'Maosh bonusi', close: 'Yopish' , salesGroup: 'Savdo', receivedGroup: 'Kelgan pul', resultGroup: 'Xarajatlar va natija' },
+    ru: { title: 'Отчёты',     sub: 'Обзор продаж и аналитика',         totalRev: 'Доход', loyaltyIncome: 'Доход по лояльности', numOrders: 'Заказов',     avgOrder: 'Средний чек',      expenses: 'Расходы', employeeMeals: 'Питание сотрудников', employeeMealsSub: 'Рассчитано по посещаемости', netIncome: 'После всех расходов',   allTables: 'Все столы',         allWaiters: 'Все официанты',       export: 'Экспорт', today: 'Сегодня', yesterday: 'Вчера', week: '7 дней', month: 'Месяц', previousMonth: 'Прошлый месяц', previousWeek: 'Прошлая неделя', previousCurrentWeek: 'Прошлая и текущая неделя', currentWeek: 'Текущая неделя', currentNextWeek: 'Текущая и следующая неделя', nextWeek: 'Следующая неделя', nextMonth: 'Следующий месяц', presets: 'Готовые периоды', applyRange: 'Применить период', cancel: 'Отмена', selectDateRange: 'Выбрать период', weekdays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], from: 'С', to: 'По', closeout: 'Поступления за период', leftAfterExpenses: 'Остаток после расходов', totalLeft: 'После расходов и питания', cash: 'Наличные', card: 'Карта', terminal: 'Терминал', cashbackIssued: 'Кешбэк выдан', cancelled: 'Отменено', variance: 'Расхождение', tapForDetails: 'Показать расходы', expenseDetails: 'Детализация расходов', periodExpenses: 'Расходы за период', entries: 'записей', noExpenses: 'За этот период расходов нет', salaryPayment: 'Выплата зарплаты', salaryBonus: 'Бонус к зарплате', close: 'Закрыть' , salesGroup: 'Продажи', receivedGroup: 'Поступившие деньги', resultGroup: 'Расходы и итог' },
+    en: { title: 'Reports',    sub: 'Sales overview and analytics',      totalRev: 'Income', loyaltyIncome: 'Loyalty income', numOrders: 'Orders',      avgOrder: 'Avg Order Value',  expenses: 'Expenses', employeeMeals: 'Employees meal', employeeMealsSub: 'Calculated from attendance', netIncome: 'After all expenses', allTables: 'All Tables',        allWaiters: 'All Waiters',         export: 'Export',  today: 'Today', yesterday: 'Yesterday', week: '7 Days', month: 'Month', previousMonth: 'Previous month', previousWeek: 'Previous week', previousCurrentWeek: 'Previous & current week', currentWeek: 'Current week', currentNextWeek: 'Current & next week', nextWeek: 'Next week', nextMonth: 'Next month', presets: 'Presets', applyRange: 'Apply range', cancel: 'Cancel', selectDateRange: 'Select date range', weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], from: 'From', to: 'To', closeout: 'Period receipts', leftAfterExpenses: 'Left after expenses', totalLeft: 'After expenses and meals', cash: 'Cash', card: 'Card', terminal: 'Terminal', cashbackIssued: 'Cashback issued', cancelled: 'Cancelled', variance: 'Variance', tapForDetails: 'View expenses', expenseDetails: 'Expense breakdown', periodExpenses: 'Expenses for the period', entries: 'entries', noExpenses: 'No expenses were recorded for this period', salaryPayment: 'Salary payment', salaryBonus: 'Salary bonus', close: 'Close' , salesGroup: 'Sales', receivedGroup: 'Money received', resultGroup: 'Expenses and result' },
   }
   const l = L[lang] || L.en
 
@@ -2324,8 +2331,14 @@ export default function Reports() {
     label: l.title,
     value: activeTab,
     onChange: setActiveTab,
-    items: TABS.map(({ key, label }) => ({ key, label: label[lang] || label.en })),
+    items: TABS.map(({ key, group, label, hint }) => ({ key, group, label: label[lang] || label.en, hint: hint[lang] || hint.en })),
   }
+
+  const activeTabItem = reportTabs.items.find(item => item.key === activeTab) || reportTabs.items[0]
+  const periodLabel = dateFrom === dateTo
+    ? formatLongDate(dateTo, lang, dateTo)
+    : `${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`
+  const filterSummary = dishExportFilterLabel
 
   function renderFilters(compact) {
     const control = compact ? '!h-[38px]' : '!h-11'
@@ -2341,7 +2354,7 @@ export default function Reports() {
           onPreset={selectQuickRange}
           onApply={setCustomRange}
           compact={compact}
-          className={compact ? 'w-[260px]' : 'w-full sm:w-auto sm:min-w-[280px] sm:max-w-[420px] sm:flex-1'}
+          className={compact ? 'w-auto flex-shrink-0' : 'w-full sm:w-auto sm:min-w-[280px] sm:max-w-[420px] sm:flex-1'}
         />
         <div className="flex flex-wrap items-stretch gap-2">
           <select value={tableFilter} onChange={e => setTableFilter(e.target.value)}
@@ -2370,8 +2383,8 @@ export default function Reports() {
           type="button"
           onClick={exportCloseout}
           disabled={reportsLoading || Boolean(ordersError)}
-          aria-label={l.export}
-          title={l.export}
+          aria-label={`${l.export}: ${l.closeout}`}
+          title={`${l.export}: ${l.closeout}`}
           className="ws-btn ws-btn-outline !h-[38px]"
         >
           <Download size={16} />
@@ -2388,12 +2401,24 @@ export default function Reports() {
 
             {/* Report views sit at the top of the page; the filters live in the top bar when it has room. */}
             <nav aria-label={reportTabs.label} className="ws-page-tabs -mt-2 border-b border-[#e4e1de]">
-              {reportTabs.items.map(item => (
-                <button key={item.key} type="button" aria-pressed={reportTabs.value === item.key} onClick={() => reportTabs.onChange(item.key)}>
-                  {item.label}
-                </button>
+              {reportTabs.items.map((item, index) => (
+                <Fragment key={item.key}>
+                  {index > 0 && item.group !== reportTabs.items[index - 1].group && (
+                    <span aria-hidden="true" className="mx-1 my-2 w-px flex-shrink-0 bg-[#e4e1de]" />
+                  )}
+                  <button type="button" aria-pressed={reportTabs.value === item.key} onClick={() => reportTabs.onChange(item.key)}>
+                    {item.label}
+                  </button>
+                </Fragment>
               ))}
             </nav>
+
+            {/* Says what the open tab shows and which period/filters feed it, so nothing reads as belonging to another tab. */}
+            <p className="ws-caption -mt-2">
+              <span className="font-medium text-[#22201d]">{activeTabItem.hint}</span>
+              <span aria-hidden="true"> · </span>
+              {periodLabel}{filterSummary ? ` · ${filterSummary}` : ''}
+            </p>
 
             {/* Filters fall back to the page when the top bar is too narrow (.zk-filters-in-page). */}
             <div className="zk-filters-in-page">{renderFilters(false)}</div>
@@ -2410,111 +2435,119 @@ export default function Reports() {
             )}
 
             {reportsLoading && (
-              <ReportsSkeleton canViewExpenses={canViewExpenses} lang={lang} />
+              <ReportsSkeleton canViewExpenses={canViewExpenses} lang={lang} overview={activeTab === 'overview'} />
             )}
             <div hidden={reportsLoading || Boolean(ordersError)} className="space-y-5">
-            {/* KPI cards */}
-            <div className={`grid grid-cols-2 lg:grid-cols-3 ${canViewExpenses ? 'xl:grid-cols-6' : 'xl:grid-cols-3'} gap-4`}>
-              <KpiCard icon={DollarSign}  label={l.totalRev}  value={formatCurrency(kpiRevenue)} sub={`${l.loyaltyIncome}: ${formatCurrency(kpiLoyaltyIncome)}`} />
-              <KpiCard icon={ShoppingBag} label={l.numOrders} value={kpiOrders} />
-              <KpiCard icon={BarChart2}   label={l.avgOrder}  value={formatCurrency(kpiAvg)} />
-              {canViewExpenses && (
-                <>
-                  <KpiCard icon={CreditCard} label={l.expenses} value={expensesError ? '—' : formatCurrency(expenseSummary.total)} sub={expensesError || ''} />
-                  <KpiCard icon={UtensilsCrossed} label={l.employeeMeals} value={expensesError ? '—' : formatCurrency(employeeMealTotal)} sub={l.employeeMealsSub} />
-                  <KpiCard icon={DollarSign} iconCls={expensesError ? '' : netIncome >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'} label={l.netIncome} value={expensesError ? '—' : formatCurrency(netIncome)} />
-                </>
-              )}
-            </div>
-
-            <section className="ws-panel">
-              <div className="mb-4">
-                <h2 className="ws-heading">
-                  {lang === 'uz' ? 'Menyu turi bo‘yicha savdo' : lang === 'ru' ? 'Продажи по типу меню' : 'Sales by menu type'}
-                </h2>
-                <p className="ws-caption mt-0.5">
-                  {lang === 'uz' ? 'Oddiy va turist narxlari bo‘yicha daromad' : lang === 'ru' ? 'Доход по обычным и туристическим ценам' : 'Income split between regular and tourist pricing'}
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {priceModeBreakdown.map(row => (
-                  <div key={row.mode} className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-[#22201d]">{getPriceModeLabel(row.mode, lang)}</span>
-                      <span className="ws-caption tabular-nums">{row.orders} {lang === 'uz' ? 'buyurtma' : lang === 'ru' ? 'заказов' : 'orders'}</span>
-                    </div>
-                    <p className="mt-2 text-xl font-semibold tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="ws-panel">
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="ws-heading">{l.closeout}</h2>
-                  <p className="ws-caption mt-0.5">
-                    {closeout.dateFrom === closeout.dateTo
-                      ? formatLongDate(closeout.dateTo, lang, closeout.dateTo)
-                      : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`}
-                  </p>
+            {activeTab === 'overview' && (
+              <div className="space-y-5">
+                <ReportGroupTitle title={l.salesGroup} />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <KpiCard icon={DollarSign}  label={l.totalRev}  value={formatCurrency(kpiRevenue)} sub={`${l.loyaltyIncome}: ${formatCurrency(kpiLoyaltyIncome)}`} />
+                  <KpiCard icon={ShoppingBag} label={l.numOrders} value={kpiOrders} />
+                  <KpiCard icon={BarChart2}   label={l.avgOrder}  value={formatCurrency(kpiAvg)} />
                 </div>
-                <button type="button" onClick={exportCloseout} className="ws-btn ws-btn-outline ws-btn-sm">
-                  <Download size={14} />{l.export}
-                </button>
-              </div>
-              <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                <SummaryRow label={l.cash} value={formatCurrency(closeout.totals.cash)} />
-                <SummaryRow label={l.card} value={formatCurrency(closeout.totals.card)} />
-                <SummaryRow label={l.terminal} value={formatCurrency(closeout.totals.terminal)} />
-                {closeout.totals.salary > 0 && <SummaryRow label={expensePaymentMethodLabel('salary', lang)} value={formatCurrency(closeout.totals.salary)} />}
-                <SummaryRow label={l.loyaltyIncome} value={formatCurrency(closeout.loyaltyIncome)} />
-                <SummaryRow label={l.cashbackIssued} value={formatCurrency(closeout.cashbackIssued)} />
-                <SummaryRow label={l.cancelled} value={closeout.cancelledCount} />
-                <SummaryRow label={l.variance} value={closeout.variance == null ? (lang === 'ru' ? 'Не измерено' : lang === 'uz' ? 'O‘lchanmagan' : 'Not measured') : formatCurrency(closeout.variance)} />
-              </div>
-            </section>
-
-            {canViewExpenses && !expensesError && (
-              <div
-                role="button"
-                tabIndex={0}
-                aria-haspopup="dialog"
-                aria-expanded={expenseBreakdownOpen}
-                onClick={() => setExpenseBreakdownOpen(true)}
-                onKeyDown={event => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return
-                  event.preventDefault()
-                  setExpenseBreakdownOpen(true)
-                }}
-                className="ws-panel block w-full cursor-pointer touch-manipulation text-left transition-shadow hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40"
-              >
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="ws-heading">{l.leftAfterExpenses}</h2>
+                <section className="ws-panel">
+                  <div className="mb-4">
+                    <h2 className="ws-heading">
+                      {lang === 'uz' ? 'Menyu turi bo‘yicha savdo' : lang === 'ru' ? 'Продажи по типу меню' : 'Sales by menu type'}
+                    </h2>
                     <p className="ws-caption mt-0.5">
-                      {closeout.dateFrom === closeout.dateTo
-                        ? formatLongDate(closeout.dateTo, lang, closeout.dateTo)
-                        : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`}
+                      {lang === 'uz' ? 'Oddiy va turist narxlari bo‘yicha daromad' : lang === 'ru' ? 'Доход по обычным и туристическим ценам' : 'Income split between regular and tourist pricing'}
                     </p>
                   </div>
-                  <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs font-medium text-[#ff5a00]">
-                    {l.tapForDetails}<ChevronRight size={15} />
-                  </span>
-                </div>
-                <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                  <SummaryRow label={l.cash} value={formatCurrency(expenseCashflow.byMethod.cash.left)} />
-                  <SummaryRow label={l.card} value={formatCurrency(expenseCashflow.byMethod.card.left)} />
-                  <SummaryRow label={l.terminal} value={formatCurrency(expenseCashflow.byMethod.terminal.left)} />
-                  <SummaryRow label={l.employeeMeals} value={formatCurrency(employeeMealTotal)} />
-                  <SummaryRow label={l.expenses} value={formatCurrency(expenseSummary.total)} />
-                  <SummaryRow label={l.totalLeft} value={formatCurrency(cashflowLeft)} />
-                  <p className="ws-caption sm:col-span-2 lg:col-span-4">{lang === 'ru' ? 'Движение за выбранный период, без начального остатка. Питание сотрудников уже включено в расходы как расчётная стоимость, без списания с наличных, карты или терминала.' : lang === 'uz' ? 'Tanlangan davr harakati, boshlang‘ich qoldiqsiz. Xodimlar ovqati hisoblangan xarajatga kiritilgan, naqd, karta yoki terminaldan yechilmagan.' : 'Movement for this period, excluding opening balances. Employee meals are already included in expenses as a calculated cost, with no cash, card or terminal deduction.'}</p>
-                </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {priceModeBreakdown.map(row => (
+                      <div key={row.mode} className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-medium text-[#22201d]">{getPriceModeLabel(row.mode, lang)}</span>
+                          <span className="ws-caption tabular-nums">{row.orders} {lang === 'uz' ? 'buyurtma' : lang === 'ru' ? 'заказов' : 'orders'}</span>
+                        </div>
+                        <p className="mt-2 text-xl font-semibold tracking-[-.02em] tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <ReportGroupTitle title={l.receivedGroup} />
+                <section className="ws-panel">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="ws-heading">{l.closeout}</h2>
+                      <p className="ws-caption mt-0.5">
+                        {closeout.dateFrom === closeout.dateTo
+                          ? formatLongDate(closeout.dateTo, lang, closeout.dateTo)
+                          : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`}
+                      </p>
+                    </div>
+                    <button type="button" onClick={exportCloseout} className="ws-btn ws-btn-outline ws-btn-sm">
+                      <Download size={14} />{l.export}
+                    </button>
+                  </div>
+                  <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <SummaryRow label={l.cash} value={formatCurrency(closeout.totals.cash)} />
+                    <SummaryRow label={l.card} value={formatCurrency(closeout.totals.card)} />
+                    <SummaryRow label={l.terminal} value={formatCurrency(closeout.totals.terminal)} />
+                    {closeout.totals.salary > 0 && <SummaryRow label={expensePaymentMethodLabel('salary', lang)} value={formatCurrency(closeout.totals.salary)} />}
+                    <SummaryRow label={l.loyaltyIncome} value={formatCurrency(closeout.loyaltyIncome)} />
+                    <SummaryRow label={l.cashbackIssued} value={formatCurrency(closeout.cashbackIssued)} />
+                    <SummaryRow label={l.cancelled} value={closeout.cancelledCount} />
+                    <SummaryRow label={l.variance} value={closeout.variance == null ? (lang === 'ru' ? 'Не измерено' : lang === 'uz' ? 'O‘lchanmagan' : 'Not measured') : formatCurrency(closeout.variance)} />
+                  </div>
+                </section>
+
+                {canViewExpenses && (
+                  <>
+                    <ReportGroupTitle title={l.resultGroup} />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <KpiCard icon={CreditCard} label={l.expenses} value={expensesError ? '—' : formatCurrency(expenseSummary.total)} sub={expensesError || ''} />
+                      <KpiCard icon={UtensilsCrossed} label={l.employeeMeals} value={expensesError ? '—' : formatCurrency(employeeMealTotal)} sub={l.employeeMealsSub} />
+                      <KpiCard icon={DollarSign} iconCls={expensesError ? '' : netIncome >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'} label={l.netIncome} value={expensesError ? '—' : formatCurrency(netIncome)} />
+                    </div>
+                  </>
+                )}
+                {canViewExpenses && !expensesError && (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-haspopup="dialog"
+                    aria-expanded={expenseBreakdownOpen}
+                    onClick={() => setExpenseBreakdownOpen(true)}
+                    onKeyDown={event => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      setExpenseBreakdownOpen(true)
+                    }}
+                    className="ws-panel block w-full cursor-pointer touch-manipulation text-left transition-shadow hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40"
+                  >
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="ws-heading">{l.leftAfterExpenses}</h2>
+                        <p className="ws-caption mt-0.5">
+                          {closeout.dateFrom === closeout.dateTo
+                            ? formatLongDate(closeout.dateTo, lang, closeout.dateTo)
+                            : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`}
+                        </p>
+                      </div>
+                      <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs font-medium text-[#ff5a00]">
+                        {l.tapForDetails}<ChevronRight size={15} />
+                      </span>
+                    </div>
+                    <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                      <SummaryRow label={l.cash} value={formatCurrency(expenseCashflow.byMethod.cash.left)} />
+                      <SummaryRow label={l.card} value={formatCurrency(expenseCashflow.byMethod.card.left)} />
+                      <SummaryRow label={l.terminal} value={formatCurrency(expenseCashflow.byMethod.terminal.left)} />
+                      <SummaryRow label={l.employeeMeals} value={formatCurrency(employeeMealTotal)} />
+                      <SummaryRow label={l.expenses} value={formatCurrency(expenseSummary.total)} />
+                      <SummaryRow label={l.totalLeft} value={formatCurrency(cashflowLeft)} />
+                      <p className="ws-caption sm:col-span-2 lg:col-span-4">{lang === 'ru' ? 'Движение за выбранный период, без начального остатка. Питание сотрудников уже включено в расходы как расчётная стоимость, без списания с наличных, карты или терминала.' : lang === 'uz' ? 'Tanlangan davr harakati, boshlang‘ich qoldiqsiz. Xodimlar ovqati hisoblangan xarajatga kiritilgan, naqd, karta yoki terminaldan yechilmagan.' : 'Movement for this period, excluding opening balances. Employee meals are already included in expenses as a calculated cost, with no cash, card or terminal deduction.'}</p>
+                    </div>
+                  </div>
+                )}
+
               </div>
             )}
 
-            {/* Tab content — all use filteredForAnalytics (same as KPI) */}
+            {/* Detail tabs — all use filteredForAnalytics, the same orders as Overview */}
             {activeTab === 'best_selling'       && (
               <BestSellingTab orders={filteredForAnalytics} menuItemMap={menuItemMap} categories={state.categories} lang={lang} />
             )}

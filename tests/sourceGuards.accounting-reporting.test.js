@@ -665,3 +665,15 @@ test('Daily Bazaar filter toolbar uses one responsive range calendar with intern
   assert.doesNotMatch(toolbar, /min-w-\[130px\]/)
   assert.match(dateInput, /<CalendarPicker className=\{INPUT\} \{\.\.\.props\}/)
 })
+
+test('Reports period totals live only in the Overview tab so detail tabs never look like they filter them', () => {
+  const reports = readSource('src/pages/Reports.jsx')
+  assert.match(reports, /const TABS = \[\n[^\n]*key: 'overview'/)
+  assert.match(reports, /useState\('overview'\)/)
+  const overview = reports.slice(reports.indexOf("{activeTab === 'overview' && ("), reports.indexOf('{/* Detail tabs'))
+  for (const marker of ['l.totalRev', 'l.leftAfterExpenses', 'l.netIncome', 'priceModeBreakdown.map', 'l.receivedGroup']) {
+    assert.ok(overview.includes(marker), `${marker} belongs to the Overview tab`)
+    assert.equal(reports.split(marker).length, 2, `${marker} is rendered only in Overview`)
+  }
+  assert.match(reports, /\{activeTabItem\.hint\}/)
+})

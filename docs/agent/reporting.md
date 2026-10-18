@@ -37,7 +37,7 @@
 - Do not invent products/categories. Monthly Busy Hours uses migrations `192`–`193` to return 12 two-hour buckets for the current Tashkent month. It attributes paid demand to `created_at`, scans one indexed month, returns no order details, and highlights tied peaks.
 - Monthly/ten-day income charts live on Financial analysis. Monthly Income shows 12 months, hides zero labels, and plots `business_settings.average_daily_break_even_income_uzs` as a red dotted line. Past months use immutable `dashboard_monthly_income_snapshots`; this month uses completed Tashkent days.
 - `157` backfills history; a daily cron finalizes last month. Completed months are never rescanned.
-- Monthly averages divide paid cafe income by calendar days; current month uses completed days only (zero on day one).
+- Monthly averages: paid cafe income / calendar days; current month uses completed days (zero on day one).
 
 ## Accounting
 
@@ -53,7 +53,7 @@
 
 - Ten-day income (`190`–`191`): latest 20 periods (1–10, 11–20, 21–end) through a selected month. Scans at most eight indexed months, excludes today/future periods, caches, hides empty months, starts choices at the earliest order month, and uses stable month colors. Zero periods in active months remain. Tests: `tests/weeklyIncome.test.js`.
 
-- Reports: skeletons/disabled export until orders/expenses settle. Ignore cancelled reads.
+- Reports: skeletons/disabled export until orders/expenses settle. Ignore cancelled reads. Totals only on Overview tab.
 
 - Dish Analysis: All dishes ranks 30 direct sellers. Selection shows description, sources, hours/log, hiding global rankings. Add frozen `tech_card_component_snapshot` quantities × parent quantity; deduplicate orders. No inferred recipes/legacy contents or added set revenue. Tests: `tests/dishSales.test.js`, Excel `dishSalesExport.test.js`.
 
