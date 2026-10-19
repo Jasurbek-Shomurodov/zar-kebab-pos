@@ -209,6 +209,10 @@ test('daily payroll group image contains the full Russian report and renders as 
   assert.match(svg, /Среднее питание сотрудников/)
   assert.match(svg, /ОБЩИЙ РАСХОД · 2 658 129 UZS/)
   assert.match(svg, /Оценочный soliq \(4%\)/)
+  assert.match(svg, /ДВИЖЕНИЕ ВЫРУЧКИ/)
+  assert.match(svg, />Себестоимость<\/text>/)
+  assert.match(svg, />Чистая прибыль<\/text>/)
+  assert.ok(svg.indexOf('ДВИЖЕНИЕ ВЫРУЧКИ') < svg.indexOf('РАСХОДЫ И НАЧИСЛЕНИЯ'))
   assert.match(svg, /Чистая прибыль за день/i)
   assert.match(svg, /Средняя дневная/i)
   assert.match(svg, /Выручка кафе за месяц/i)
@@ -1046,4 +1050,28 @@ test('private manual bonus notifications use Russian regardless of employee lang
     assert.match(message, /13 сентября 2026/)
     assert.match(message, /Отличная работа/)
   }
+})
+
+test('daily payroll group image shows a loss day as a red shortfall flow and loss tile', () => {
+  const svg = buildDailyPayrollGroupReportSvg({
+    cafeIncomeTotal: 5_250_900,
+    dineInIncomeTotal: 2_365_550,
+    offPremiseIncomeTotal: 322_000,
+    touristIncomeTotal: 2_563_350,
+    cafeNetProfit: 3_630_676,
+    salaryTotal: 3_022_903,
+    kpiBonusTotal: 273_207,
+    rentTotal: 774_194,
+    utilitiesTotal: 483_871,
+    employeeMealTotal: 350_000,
+    estimatedTaxTotal: 210_036,
+    netProfit: -1_483_535,
+  }, '2026-10-19')
+
+  assert.match(svg, /УБЫТОК · 1 483 535 UZS/)
+  assert.match(svg, />Убыток<\/text>/)
+  assert.match(svg, /УБЫТОК ЗА ДЕНЬ/)
+  assert.match(svg, />−1 483 535 UZS<\/text>/)
+  assert.doesNotMatch(svg, />Чистая прибыль<\/text>/)
+  assert.doesNotMatch(svg, /ЧИСТАЯ ПРИБЫЛЬ ЗА ДЕНЬ/)
 })
