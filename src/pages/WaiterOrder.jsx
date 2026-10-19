@@ -852,8 +852,14 @@ export default function WaiterOrder() {
     return () => window.clearInterval(timer)
   }, [guestUnlockOpen])
 
+  // Auto-open the order panel once per order/kitchen round; closing a product
+  // detail must return to the menu, not re-open the cart.
+  const autoOpenedOrderPanelKeyRef = useRef('')
   useEffect(() => {
     if ((!shouldOpenOrderPanel && !pendingKitchenSubmission) || detailItem) return
+    const autoOpenKey = `${shouldOpenOrderPanel}|${activeOrder?.id || ''}|${pendingKitchenSubmission?._kitchenRoundId || ''}`
+    if (autoOpenedOrderPanelKeyRef.current === autoOpenKey) return
+    autoOpenedOrderPanelKeyRef.current = autoOpenKey
     setCartOpen(true)
   }, [shouldOpenOrderPanel, detailItem, activeOrder?.id, pendingKitchenSubmission?._kitchenRoundId])
 

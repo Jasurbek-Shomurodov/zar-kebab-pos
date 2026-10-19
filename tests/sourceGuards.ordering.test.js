@@ -85,6 +85,8 @@ test('WaiterOrder locks menu mutations while order send is pending', () => {
   assert.match(source, /if \(!orderLockedRef\.current\) dispatch\(\{ type: 'CLEAR_CART' \}\)/)
   assert.match(source, /const isManageOrderOnly = [^\n]+&& !pendingKitchenSubmission/)
   assert.match(source, /!shouldOpenOrderPanel && !pendingKitchenSubmission/)
+  // Closing a product detail must not re-open the order panel on ?panel=order tables.
+  assert.match(source, /if \(autoOpenedOrderPanelKeyRef\.current === autoOpenKey\) return\s*autoOpenedOrderPanelKeyRef\.current = autoOpenKey\s*setCartOpen\(true\)/)
   assert.match(readSource('src/store/AppContext.jsx'), /pendingKitchenCartSnapshot\(enriched\)[\s\S]*REPLACE_CART/)
 })
 
