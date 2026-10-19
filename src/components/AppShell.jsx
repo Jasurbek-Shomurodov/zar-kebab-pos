@@ -57,8 +57,9 @@ export default function AppShell({ children, title, contentRef, headerActions, t
     signOut?.()
   }
 
+  // Pinned to the screen: the page itself never scrolls on iOS, only <main> does.
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f6f5f3] text-[#22201d]">
+    <div className="fixed inset-0 flex overflow-hidden bg-[#f6f5f3] text-[#22201d]">
 
       {/* Desktop sidebar */}
       {/* Stays mounted and folds its width so collapsing/expanding animates. */}
@@ -147,8 +148,8 @@ export default function AppShell({ children, title, contentRef, headerActions, t
         </header>
         {tabs && <div className="flex h-11 flex-shrink-0 border-b border-[#e4e1de] px-4 md:hidden"><PageTabs tabs={tabs} /></div>}
 
-        {/* Page content */}
-        <main ref={contentRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        {/* Page content; relative so absolute children (sr-only figure text) stay in this scroll area instead of stretching the page. */}
+        <main ref={contentRef} className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>

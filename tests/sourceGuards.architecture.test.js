@@ -385,6 +385,9 @@ test('global AppShell mobile drawer overlays content consistently', () => {
   const sidebar = readSource('src/components/UnifiedSidebar.jsx')
 
   assert.match(shell, /hidden lg:block/)
+  // Unpositioned, sr-only spans far down a long page escape the scroll area and let iOS scroll the bare body.
+  assert.match(shell, /<div className="fixed inset-0 flex overflow-hidden/)
+  assert.match(shell, /<main ref=\{contentRef\} className="relative flex-1 min-h-0 overflow-y-auto/)
   assert.match(shell, /<MobileDrawer open=\{mobileOpen\} onClose=\{\(\) => setMobileOpen\(false\)\}>/)
   assert.match(drawer, /lg:hidden fixed inset-0 z-50 flex h-\[100dvh\]/)
   assert.match(drawer, /absolute inset-0 bg-black\/40/)

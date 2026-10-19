@@ -604,7 +604,7 @@ export function AppShellShimmer() {
   const { pathname } = useLocation()
   useTheme() // keep the staff dark palette while the skeleton is up
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f6f5f3]">
+    <div className="fixed inset-0 flex overflow-hidden bg-[#f6f5f3]">
       {!readCollapsed() && (
         <div className="hidden h-full w-64 flex-shrink-0 flex-col gap-3 bg-[#f6f5f3] p-3 lg:flex" aria-hidden="true">
           <div className="flex items-center gap-2 px-1 py-2">
