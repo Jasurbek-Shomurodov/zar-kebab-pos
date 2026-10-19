@@ -47,7 +47,7 @@
 
 ## Menu availability
 
-- Authenticated availability changes, creation and archival queue immutable Russian Team events (product/employee snapshots); edits and restoration send nothing.
+- Authenticated availability, creation, archival and variant visibility (`256`) queue immutable Russian Team events; edits/restores send nothing.
 - Unavailable-products snapshot: sent at 04:05; 08:00 retries. 13:00: Google review replies (`225`).
 - Non-empty: one tracked PNG only (`menuAvailabilityImage.js`), no text; failures retry. Empty: short text.
 - Exclude archived products/categories; preserve exact sent snapshots.

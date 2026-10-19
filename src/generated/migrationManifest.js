@@ -1028,6 +1028,10 @@ export default {
   {
    "filename": "255_owner_migration_health.sql",
    "sha256": "2f50ca38e38983c8608630358ced5140da1456538a077ef2f0f663c2362e2b84"
+  },
+  {
+   "filename": "256_menu_variant_visibility_team_notifications.sql",
+   "sha256": "79547f38730169a6ae48dac333750f5e043881e5d91a39510c0cf470f7a23855"
   }
  ],
  "functions": [
@@ -1100,6 +1104,11 @@ export default {
    "name": "save_bazaar_ingredient",
    "filename": "182_rename_bazaar_ingredients.sql",
    "md5": "39096e0237b131289f6e2fdac82aa965"
+  },
+  {
+   "name": "queue_menu_item_team_delivery",
+   "filename": "256_menu_variant_visibility_team_notifications.sql",
+   "md5": "c4cfd2f17abba1d145b3726e83a7856a"
   },
   {
    "name": "stamp_employee_kpi_rule_change_event",
@@ -1495,6 +1504,11 @@ export default {
    "name": "get_app_migration_health",
    "filename": "255_owner_migration_health.sql",
    "md5": "447570ae1e977ec25f26f05025802525"
+  },
+  {
+   "name": "menu_item_variant_visibility",
+   "filename": "256_menu_variant_visibility_team_notifications.sql",
+   "md5": "0b3053a261bf036c9133aa0d4a5b83d8"
   }
  ]
 }

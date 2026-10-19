@@ -51,6 +51,30 @@ export function buildMenuAvailableTeamMessage(event) {
   ].join('\n')
 }
 
+function describeVariantVisibilityChange(change) {
+  const parts = []
+  for (const [field, menuName] of [['waiter_hidden', 'меню официантов'], ['public_hidden', 'публичное меню']]) {
+    const hidden = change?.[field] === true
+    if (hidden === (change?.[`was_${field}`] === true)) continue
+    parts.push(hidden ? `🚫 скрыт: ${menuName}` : `✅ показан: ${menuName}`)
+  }
+  return parts.join(', ')
+}
+
+export function buildMenuVariantVisibilityTeamMessage(event) {
+  const itemName = getRussianMenuItemName(event)
+  const actorName = firstText(event?.actor_name, 'Неизвестный сотрудник')
+  const changes = (Array.isArray(event?.variant_changes) ? event.variant_changes : [])
+    .map(change => ({ name: firstText(change?.name, change?.id, 'Вариант'), summary: describeVariantVisibilityChange(change) }))
+    .filter(change => change.summary)
+
+  return [
+    `👁 <b>Изменена видимость вариантов:</b> ${escapeTelegramHtml(itemName)}`,
+    ...changes.map(change => `• ${escapeTelegramHtml(change.name)} — ${change.summary}`),
+    `👤 ${escapeTelegramHtml(actorName)}`,
+  ].join('\n')
+}
+
 export function buildMenuCreatedTeamMessage(event) {
   const itemName = getRussianMenuItemName(event)
   const actorName = firstText(event?.actor_name, 'Неизвестный сотрудник')

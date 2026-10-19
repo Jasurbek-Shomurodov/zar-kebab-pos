@@ -21,6 +21,7 @@ import {
   notifyTelegramMenuArchived,
   notifyTelegramMenuCreated,
   notifyTelegramMenuUnavailable,
+  notifyTelegramMenuVariantVisibility,
   notifyTelegramInvestorOrderChange,
   notifyTelegramOrderStatus,
 } from './telegramNotifications.js'
@@ -1594,6 +1595,9 @@ export async function writeToSupabase(action, state, options = {}) {
         void notifyTelegramMenuUnavailable(id)
       } else if (normalizedFields.available === true) {
         void notifyTelegramMenuAvailable(id)
+      }
+      if (Object.prototype.hasOwnProperty.call(normalizedFields, 'option_groups')) {
+        void notifyTelegramMenuVariantVisibility(id)
       }
       const { error: costError } = await supabase.from('menu_item_costs').upsert({
         menu_item_id: id,

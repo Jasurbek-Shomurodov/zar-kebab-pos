@@ -7,6 +7,7 @@ import {
   buildMenuAvailableTeamMessage,
   buildMenuCreatedTeamMessage,
   buildMenuUnavailableTeamMessage,
+  buildMenuVariantVisibilityTeamMessage,
 } from '../api/telegram/_lib/menuAvailabilityMessages.js'
 import { buildDailyUnavailableMenuImageSvg } from '../api/telegram/_lib/menuAvailabilityImage.js'
 import { runDbHealthChecks } from '../src/lib/dbHealth.js'
@@ -29,6 +30,10 @@ const availableMigration = readFileSync(
 )
 const catalogMigration = readFileSync(
   new URL('../migrations/168_menu_catalog_team_notifications.sql', import.meta.url),
+  'utf8'
+)
+const variantMigration = readFileSync(
+  new URL('../migrations/256_menu_variant_visibility_team_notifications.sql', import.meta.url),
   'utf8'
 )
 const endpoint = readFileSync(
@@ -304,7 +309,7 @@ test('database health requires daily unavailable-menu snapshots', async () => {
 
 // Execute the actual handler with isolated database/Telegram dependencies so
 // unrelated notification branches cannot introduce runtime failures here.
-for (const availabilityEvent of ['available', 'unavailable', 'created', 'archived']) {
+for (const availabilityEvent of ['available', 'unavailable', 'created', 'archived', 'variant_visibility']) {
   test(`${availabilityEvent} event sends to Team and records delivery once`, async () => {
     let row = {
       id: 'delivery-1', menu_item_id: 'meal-1', actor_id: 'staff-1',
@@ -338,6 +343,7 @@ for (const availabilityEvent of ['available', 'unavailable', 'created', 'archive
       savedMenuUnavailableDeliveryResult: delivery => ({ status: delivery.status }),
       buildMenuAvailableTeamMessage, buildMenuUnavailableTeamMessage,
       buildMenuCreatedTeamMessage, buildMenuArchivedTeamMessage,
+      buildMenuVariantVisibilityTeamMessage,
       sendTelegramMessage: async (chatId, text) => {
         sent.push({ chatId, text })
         return { message_id: 42 }
@@ -361,3 +367,32 @@ for (const availabilityEvent of ['available', 'unavailable', 'created', 'archive
     assert.equal(sent.length, 1, 'a delivered event must not be sent again')
   })
 }
+
+test('variant visibility changes queue one Team event per save', () => {
+  assert.match(variantMigration, /availability_event in \('unavailable', 'available', 'created', 'archived', 'variant_visibility'\)/i)
+  assert.match(variantMigration, /add column if not exists variant_changes jsonb/i)
+  assert.match(variantMigration, /after insert or update of available, deleted_at, option_groups on public\.menu_items/i)
+  assert.match(variantMigration, /old\.option_groups is distinct from new\.option_groups/i)
+  assert.match(variantMigration, /before_state\.public_hidden is distinct from after_state\.public_hidden[\s\S]*before_state\.waiter_hidden is distinct from after_state\.waiter_hidden/i)
+  assert.match(variantMigration, /changed_by uuid := auth\.uid\(\)/i)
+  assert.doesNotMatch(variantMigration, /insert into public\.menu_item_unavailable_notification_deliveries[\s\S]+select[\s\S]+from public\.menu_items/i)
+  assert.match(db, /case 'UPDATE_MENU_ITEM':[\s\S]*'option_groups'[\s\S]*notifyTelegramMenuVariantVisibility\(id\)/)
+  assert.match(notifications, /'menu_variant_visibility'/)
+  assert.match(endpoint, /availabilityEvent === 'variant_visibility'[\s\S]*status: 'no_change'/)
+})
+
+test('variant visibility message lists only the menus that changed', () => {
+  const message = buildMenuVariantVisibilityTeamMessage({
+    menu_item_name: 'Шашлык <особый>',
+    actor_name: 'Али',
+    variant_changes: [
+      { id: 'big', name: 'Большой', waiter_hidden: true, was_waiter_hidden: false, public_hidden: true, was_public_hidden: true },
+      { id: 'small', name: 'Малый', waiter_hidden: false, was_waiter_hidden: false, public_hidden: false, was_public_hidden: true },
+    ],
+  })
+
+  assert.match(message, /Изменена видимость вариантов:<\/b> Шашлык &lt;особый&gt;/)
+  assert.match(message, /• Большой — 🚫 скрыт: меню официантов\n/)
+  assert.match(message, /• Малый — ✅ показан: публичное меню\n/)
+  assert.match(message, /👤 Али/)
+})

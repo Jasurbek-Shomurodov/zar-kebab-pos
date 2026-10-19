@@ -148,7 +148,7 @@ const checks = await Promise.all([
   checkTable('menu_categories', 'id, name_uz, name_ru, name_en, hidden, waiter_hidden, tourist_hidden, visible_from_time, visible_until_time, sort_order, deleted_at'),
   checkTable('menu_category_user_schedule_overrides', 'category_id, profile_id, created_by, created_at'),
   checkTable('menu_items', 'id, category_id, name_uz, name_ru, name_en, price, sale_unit, image_url, media_urls, available, cashier_only, public_hidden, waiter_hidden, visible_from_time, visible_until_time, sort_order, stock_count, option_groups, estimated_prep_minutes, deleted_at'),
-  checkTable('menu_item_unavailable_notification_deliveries', 'id, menu_item_id, menu_item_name, actor_id, actor_name, availability_event, status, telegram_chat_id, telegram_message_id, error_message, attempted_at, sent_at, created_at, updated_at'),
+  checkTable('menu_item_unavailable_notification_deliveries', 'id, menu_item_id, menu_item_name, actor_id, actor_name, availability_event, variant_changes, status, telegram_chat_id, telegram_message_id, error_message, attempted_at, sent_at, created_at, updated_at'),
   checkTable('daily_unavailable_menu_notification_deliveries', 'business_date, target_key, item_count, item_ids, item_names, item_categories, status, telegram_chat_id, telegram_message_id, error_message, attempted_at, sent_at, created_at, updated_at'),
   checkTable('menu_item_costs', 'menu_item_id, cost_price, variant_costs, cost_source, updated_at'),
   checkTable('menu_item_tech_cards', 'menu_item_id, portion_count, batch_output_quantity, batch_output_unit, preparation_steps, notes, updated_by, created_at, updated_at'),

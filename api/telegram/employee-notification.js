@@ -31,6 +31,7 @@ import {
   buildMenuAvailableTeamMessage,
   buildMenuCreatedTeamMessage,
   buildMenuUnavailableTeamMessage,
+  buildMenuVariantVisibilityTeamMessage,
 } from './_lib/menuAvailabilityMessages.js'
 import {
   getSalaryEventRetryTargets,
@@ -428,7 +429,7 @@ async function notifyMenuEvent(supabase, user, menuItemId, availabilityEvent) {
   if (!normalizedMenuItemId) {
     throw Object.assign(new Error('menuItemId is required'), { status: 400 })
   }
-  if (!['unavailable', 'available', 'created', 'archived'].includes(availabilityEvent)) {
+  if (!['unavailable', 'available', 'created', 'archived', 'variant_visibility'].includes(availabilityEvent)) {
     throw Object.assign(new Error('Unsupported menu event'), { status: 400 })
   }
 
@@ -457,6 +458,10 @@ async function notifyMenuEvent(supabase, user, menuItemId, availabilityEvent) {
   }
   const { data: existing, error: existingError } = existingResult
   if (existingError) throw existingError
+  if (!existing && availabilityEvent === 'variant_visibility') {
+    // Product saves without a variant visibility change queue nothing.
+    return { ok: true, status: 'no_change', duplicate: false, deliveryId: null, telegramMessageId: null, errorMessage: '' }
+  }
   if (!existing) {
     const eventLabel = {
       available: 'Available',
@@ -509,6 +514,7 @@ async function notifyMenuEvent(supabase, user, menuItemId, availabilityEvent) {
       unavailable: buildMenuUnavailableTeamMessage,
       created: buildMenuCreatedTeamMessage,
       archived: buildMenuArchivedTeamMessage,
+      variant_visibility: buildMenuVariantVisibilityTeamMessage,
     }
     const text = messageBuilders[availabilityEvent](claimed.data)
     const response = await sendTelegramMessage(target.chatId, text)
@@ -563,6 +569,10 @@ async function notifyMenuCreated(supabase, user, menuItemId) {
 
 async function notifyMenuArchived(supabase, user, menuItemId) {
   return notifyMenuEvent(supabase, user, menuItemId, 'archived')
+}
+
+async function notifyMenuVariantVisibility(supabase, user, menuItemId) {
+  return notifyMenuEvent(supabase, user, menuItemId, 'variant_visibility')
 }
 
 async function deliverSalaryGroupEvent(supabase, type, event, remainingDue) {
@@ -2136,7 +2146,8 @@ export default async function handler(req, res) {
     const isMenuAvailable = notificationType === 'menu_available'
     const isMenuCreated = notificationType === 'menu_created'
     const isMenuArchived = notificationType === 'menu_archived'
-    const isMenuEvent = isMenuUnavailable || isMenuAvailable || isMenuCreated || isMenuArchived
+    const isMenuVariantVisibility = notificationType === 'menu_variant_visibility'
+    const isMenuEvent = isMenuUnavailable || isMenuAvailable || isMenuCreated || isMenuArchived || isMenuVariantVisibility
     const isSalaryRetraction = notificationType === 'retract_salary_event'
     if (!isMenuEvent && !isSalaryRetraction && !['salary_order', 'fine', 'payment', 'bonus', 'absence', 'absence_undo', 'rate', 'kpi_rule', 'expense', 'investor_income', 'order_change', 'employee_lifecycle', 'employee_profile_change'].includes(notificationType)) {
       return json(res, 400, { error: 'Unsupported notification type' })
@@ -2169,6 +2180,8 @@ export default async function handler(req, res) {
       result = await notifyMenuCreated(supabase, user, menuItemId)
     } else if (isMenuArchived) {
       result = await notifyMenuArchived(supabase, user, menuItemId)
+    } else if (isMenuVariantVisibility) {
+      result = await notifyMenuVariantVisibility(supabase, user, menuItemId)
     } else if (isMenuAvailable) {
       result = await notifyMenuAvailable(supabase, user, menuItemId)
     } else if (isMenuUnavailable) {

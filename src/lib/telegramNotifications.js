@@ -236,6 +236,10 @@ export function notifyTelegramMenuArchived(menuItemId) {
   return notifyTelegramMenuEvent(menuItemId, 'menu_archived')
 }
 
+export function notifyTelegramMenuVariantVisibility(menuItemId) {
+  return notifyTelegramMenuEvent(menuItemId, 'menu_variant_visibility')
+}
+
 export async function notifyTelegramSalaryOrderPayment(paymentId) {
   try { return await postAuthenticatedTelegramNotification({ type: 'salary_order', paymentId }) }
   catch { return { ok: false } }
