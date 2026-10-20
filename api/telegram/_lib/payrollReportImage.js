@@ -289,7 +289,7 @@ export function buildDailyPayrollGroupReportSvg(summary, date) {
     : 'Недоступно'
   const isLoss = Number(summary?.netProfit) < 0
   const netProfit = Number.isFinite(Number(summary?.netProfit))
-    ? `${isLoss ? '−' : ''}${formatMoney(Math.abs(Number(summary.netProfit)))}`
+    ? `${isLoss ? '–' : ''}${formatMoney(Math.abs(Number(summary.netProfit)))}`
     : 'Недоступно'
   const employeeMealLabel = `Среднее питание сотрудников (${normalizeAmount(summary?.presentEmployeeCount)} × ${formatSalaryNotificationAmount(summary?.employeeMealPerEmployeeTotal)})`
   const overallExpense = normalizeAmount(summary?.salaryTotal)
@@ -346,17 +346,21 @@ export function buildDailyPayrollGroupReportSvg(summary, date) {
     ${donutPercentageLabel(touristPercentage, firstSegmentLength + secondSegmentLength, chartCenterX, chartCenterY)}
     ${donutPercentageLabel(gameClubPercentage, gameClubOffset, chartCenterX, chartCenterY)}
 
-    <text x="664" y="560" font-size="18" font-weight="700" letter-spacing="1.6" fill="${regularColor}">● ЗАЛ</text>
+    <circle cx="671" cy="553" r="6" fill="${regularColor}"/>
+    <text x="686" y="560" font-size="18" font-weight="700" letter-spacing="1.6" fill="${regularColor}">ЗАЛ</text>
     <text x="1048" y="560" text-anchor="end" font-size="18" font-weight="700" fill="${regularColor}">${escapeSvg(formatMoney(dineInIncome))}</text>
     <text x="664" y="592" font-size="27" font-weight="700" fill="#173B3F">Обычная выручка</text>
-    <text x="664" y="635" font-size="18" font-weight="700" letter-spacing="1.6" fill="${offPremiseColor}">● ВНЕ ЗАЛА</text>
+    <circle cx="671" cy="628" r="6" fill="${offPremiseColor}"/>
+    <text x="686" y="635" font-size="18" font-weight="700" letter-spacing="1.6" fill="${offPremiseColor}">ВНЕ ЗАЛА</text>
     <text x="1048" y="635" text-anchor="end" font-size="18" font-weight="700" fill="${offPremiseColor}">${escapeSvg(formatMoney(offPremiseIncome))}</text>
     <text x="664" y="667" font-size="27" font-weight="700" fill="#173B3F">С собой + доставка</text>
-    <text x="664" y="710" font-size="18" font-weight="700" letter-spacing="1.6" fill="${touristColor}">● ТУРИСТЫ</text>
+    <circle cx="671" cy="703" r="6" fill="${touristColor}"/>
+    <text x="686" y="710" font-size="18" font-weight="700" letter-spacing="1.6" fill="${touristColor}">ТУРИСТЫ</text>
     <text x="1048" y="710" text-anchor="end" font-size="18" font-weight="700" fill="${touristColor}">${escapeSvg(formatMoney(touristIncome))}</text>
     <text x="664" y="742" font-size="27" font-weight="700" fill="#173B3F">Туристическая выручка</text>
 
-    <text x="664" y="785" font-size="18" font-weight="700" fill="#2563EB">● ИГРОВОЙ КЛУБ</text>
+    <circle cx="671" cy="778" r="6" fill="#2563EB"/>
+    <text x="686" y="785" font-size="18" font-weight="700" fill="#2563EB">ИГРОВОЙ КЛУБ</text>
     <text x="1048" y="785" text-anchor="end" font-size="18" font-weight="700" fill="#2563EB">${escapeSvg(formatMoney(gameClubIncome))}</text>
 
     <rect x="646" y="804" width="424" height="90" rx="22" fill="#EAF8F3"/>
