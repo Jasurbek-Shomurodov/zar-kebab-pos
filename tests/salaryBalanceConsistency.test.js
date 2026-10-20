@@ -75,7 +75,7 @@ async function loadPage(page, tables) {
     setEmployees: value => { employees = value },
     setSalaryProfiles: value => { employees = value },
     setEmployee: value => { employees = [value] },
-    setEntries() {}, setLoading() {}, setError: value => { error = value },
+    setEntries() {}, setCheckins() {}, setLoading() {}, setError: value => { error = value },
     getActiveKpiAccounts,
     setKpiAccountsError() {}, setKpiAccounts() {}, setKpiRules() {}, setKpiRulesAvailable() {}, setTelegramLinks() {}, loadTelegramDeliveryData() {},
     isMissingSalaryMigration: () => false, l: {},

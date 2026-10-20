@@ -6,7 +6,9 @@ import {
   CalendarDays,
   CalendarX2,
   ChevronLeft,
+  CheckCircle2,
   ChevronRight,
+  CircleDashed,
   Gift,
   Loader2,
   Percent,
@@ -148,6 +150,8 @@ export default function EmployeeSalaryHistory() {
       kpiBonusTotal: 'KPI bonuslari',
       fineTotal: 'Jarimalar',
       absenceTotal: 'Kelmagan kunlar',
+      worked: 'Ishladi',
+      noCheckin: 'Check-in yo‘q',
       earnedTotal: 'Maosh + bonuslar',
       leftToPay: 'To‘lash qoldi',
       empty: 'Bu davrda yozuvlar yo‘q.',
@@ -203,6 +207,8 @@ export default function EmployeeSalaryHistory() {
       kpiBonusTotal: 'KPI-бонусы',
       fineTotal: 'Штрафы',
       absenceTotal: 'Дни отсутствия',
+      worked: 'Работал',
+      noCheckin: 'Нет отметки',
       earnedTotal: 'Зарплата + бонусы',
       leftToPay: 'Осталось выплатить',
       empty: 'За этот период записей нет.',
@@ -258,6 +264,8 @@ export default function EmployeeSalaryHistory() {
       kpiBonusTotal: 'KPI bonuses',
       fineTotal: 'Fines',
       absenceTotal: 'Absent days',
+      worked: 'Worked',
+      noCheckin: 'No check-in',
       earnedTotal: 'Salary + bonuses',
       leftToPay: 'Left to pay',
       empty: 'There are no records for this period.',
@@ -280,6 +288,7 @@ export default function EmployeeSalaryHistory() {
 
   const [employee, setEmployee] = useState(null)
   const [entries, setEntries] = useState([])
+  const [checkins, setCheckins] = useState(() => new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState('')
@@ -291,7 +300,7 @@ export default function EmployeeSalaryHistory() {
     if (showLoader) setLoading(true)
     setError('')
     try {
-      const [employeeRes, rateRes, paymentRes, bonusRes, fineRes, absenceRes, kpiResultRes] = await Promise.all([
+      const [employeeRes, rateRes, paymentRes, bonusRes, fineRes, absenceRes, kpiResultRes, checkinRes] = await Promise.all([
         supabase.from('employee_salary_profiles').select('*').eq('id', employeeId).maybeSingle(),
         loadSalaryRows(() => supabase.from('employee_salary_rates').select('*').eq('salary_profile_id', employeeId)),
         loadSalaryRows(() => supabase.from('employee_salary_payments').select('*').eq('salary_profile_id', employeeId)),
@@ -300,6 +309,9 @@ export default function EmployeeSalaryHistory() {
         loadSalaryRows(() => supabase.from('employee_salary_absences').select('*').eq('salary_profile_id', employeeId)),
         loadSalaryRows(() => supabase.from('employee_daily_kpi_results')
           .select('id, business_date, salary_profile_id, sales_base_amount, rate_bps, bonus_amount, bonus_id, status, start_time_snapshot')
+          .eq('salary_profile_id', employeeId)),
+        loadSalaryRows(() => supabase.from('employee_attendance_checkins')
+          .select('id, business_date, checked_in_at, minutes_late, arrival_status')
           .eq('salary_profile_id', employeeId)),
       ])
       const loadError = employeeRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error
@@ -319,6 +331,8 @@ export default function EmployeeSalaryHistory() {
         fines: fineRes.error ? [] : fineRes.data || [],
         absences: absenceRes.data || [],
       })
+      // Check-ins are optional before migration 243; the calendar then falls back to absences only.
+      setCheckins(new Map((checkinRes.error ? [] : checkinRes.data || []).map(row => [row.business_date, row])))
       setEntries(buildSalaryHistoryEntries({
         payments: paymentRes.data || [],
         bonuses: bonusRes.data || [],
@@ -339,9 +353,21 @@ export default function EmployeeSalaryHistory() {
   useEffect(() => { loadHistory() }, [employeeId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const calendarDays = useMemo(
-    () => buildSalaryHistoryCalendar(visibleMonth, entries, today),
-    [visibleMonth, entries, today]
+    () => buildSalaryHistoryCalendar(visibleMonth, entries, today, employee ? {
+      joinedAt: employee.joined_at,
+      endedAt: employee.ended_at,
+      worksRemotely: employee.works_remotely === true,
+      checkins,
+    } : null),
+    [visibleMonth, entries, today, employee, checkins]
   )
+  const workStatusCounts = useMemo(() => {
+    const counts = { worked: 0, absent: 0, noCheckin: 0 }
+    for (const day of calendarDays) {
+      if (day.inMonth && day.workStatus) counts[day.workStatus] += 1
+    }
+    return counts
+  }, [calendarDays])
   const monthEntries = useMemo(
     () => filterSalaryHistoryEntries(entries, { month: visibleMonth }),
     [entries, visibleMonth]
@@ -664,6 +690,7 @@ export default function EmployeeSalaryHistory() {
                       }`}
                     >
                       <span className="text-left text-base">{day.day}</span>
+                      {day.inMonth && <CalendarWorkStatus status={day.workStatus} checkin={day.checkin} selected={selected} labels={l} />}
                       <CalendarDaySummary id={`calendar-summary-${day.date}`} entries={day.entries} labels={l} />
                       {day.entries.length > 1 && (
                         <span className={`absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-black ${selected ? 'bg-white/20 text-white' : 'bg-white text-[#6B7280] shadow-sm'}`}>
@@ -681,12 +708,22 @@ export default function EmployeeSalaryHistory() {
                   ['payment', l.payment],
                   ['bonus', l.bonus],
                   ['fine', l.fine],
-                  ['absence', l.absence],
                 ].map(([type, label]) => (
                   <span key={type} className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#6B7280]">
                     <span className={`h-2 w-2 rounded-full ${calendarDotClass(type)}`} />{label}
                   </span>
                 ))}
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700">
+                  <CheckCircle2 size={12} />{l.worked} · {workStatusCounts.worked}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-violet-700">
+                  <CalendarX2 size={12} />{l.absence} · {workStatusCounts.absent}
+                </span>
+                {workStatusCounts.noCheckin > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700">
+                    <CircleDashed size={12} />{l.noCheckin} · {workStatusCounts.noCheckin}
+                  </span>
+                )}
               </div>
             </section>
 
@@ -827,6 +864,27 @@ function HeaderAmount({ label, value, tone }) {
       <span className="whitespace-nowrap text-xs font-black text-[#1F2937] sm:text-sm">{formatCurrency(value)}</span>
     </span>
   )
+}
+
+// Absent days already carry the violet absence chip, so only worked/no check-in get a line here.
+function CalendarWorkStatus({ status, checkin, selected, labels }) {
+  if (status === 'worked') {
+    return (
+      <span className={`-mt-1 flex items-center gap-1 text-left text-[11px] font-extrabold ${selected ? 'text-white' : 'text-emerald-700'}`}>
+        <CheckCircle2 size={12} className="shrink-0" />
+        <span className="truncate">{labels.worked}{checkin?.checked_in_at ? ` · ${formatTime(checkin.checked_in_at)}` : ''}</span>
+      </span>
+    )
+  }
+  if (status === 'noCheckin') {
+    return (
+      <span className={`-mt-1 flex items-center gap-1 text-left text-[11px] font-extrabold ${selected ? 'text-white' : 'text-amber-700'}`}>
+        <CircleDashed size={12} className="shrink-0" />
+        <span className="truncate">{labels.noCheckin}</span>
+      </span>
+    )
+  }
+  return null
 }
 
 function CalendarDaySummary({ id, entries, labels }) {

@@ -55,6 +55,7 @@
 - Cards show today’s rule. KPI dropdown: active POS profiles, saves the opener, retryable load errors.
 - KPI rate/status/basis/account changes snapshot before/after values and queue Salary delivery; no-op saves stay silent. No historical backfill.
 - Salary History separates monthly manual Bonuses from KPI bonuses. Salary + bonuses includes salary and both bonus types once each.
+- Salary History calendar day status (`getSalaryHistoryWorkStatus`): absence = absent; QR check-in = worked (shows time); from `ATTENDANCE_START_DATE` a past on-site day with neither = no check-in; earlier/remote days without absence = worked; outside joined_at..ended_at or future = none. Display only, no payroll effect. Test: `tests/salaryHistory.test.js`.
 - Effective dates cannot enter finalized periods. Recovery scans missing older dates in bounded batches.
 
 ## Notifications

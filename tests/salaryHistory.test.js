@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   buildSalaryHistoryCalendar,
   buildSalaryHistoryEntries,
+  getSalaryHistoryWorkStatus,
   filterSalaryHistoryEntries,
   groupSalaryHistoryEntries,
   normalizeSalaryHistoryMonth,
@@ -143,4 +144,34 @@ test('salary history month navigation crosses years and rejects invalid months',
   assert.equal(shiftSalaryHistoryMonth('2026-12', 1), '2027-01')
   assert.equal(normalizeSalaryHistoryMonth('2026-13', '2026-08'), '2026-08')
   assert.equal(normalizeSalaryHistoryMonth('not-a-month', '2026-08'), '2026-08')
+})
+
+test('salary history calendar marks worked, absent and missing check-in days within employment', () => {
+  const entries = buildSalaryHistoryEntries({
+    absences: [{ id: 'absence-1', absence_date: '2026-10-13', created_at: '2026-10-13T10:00:00Z' }],
+  })
+  const checkins = new Map([['2026-10-16', { business_date: '2026-10-16', checked_in_at: '2026-10-16T04:05:00Z' }]])
+  const days = buildSalaryHistoryCalendar('2026-10', entries, '2026-10-20', {
+    joinedAt: '2026-10-05',
+    endedAt: '',
+    worksRemotely: false,
+    checkins,
+  })
+  const status = date => days.find(day => day.date === date).workStatus
+
+  assert.equal(status('2026-10-04'), null, 'before joining')
+  assert.equal(status('2026-10-12'), 'worked', 'before attendance tracking')
+  assert.equal(status('2026-10-13'), 'absent')
+  assert.equal(status('2026-10-16'), 'worked', 'checked in')
+  assert.equal(days.find(day => day.date === '2026-10-16').checkin, checkins.get('2026-10-16'))
+  assert.equal(status('2026-10-17'), 'noCheckin')
+  assert.equal(status('2026-10-20'), null, 'today without a check-in is still open')
+  assert.equal(status('2026-10-21'), null, 'future')
+})
+
+test('salary history work status trusts remote employees and employment end dates', () => {
+  assert.equal(getSalaryHistoryWorkStatus('2026-10-17', { today: '2026-10-20', worksRemotely: true }), 'worked')
+  assert.equal(getSalaryHistoryWorkStatus('2026-10-18', { today: '2026-10-20', endedAt: '2026-10-17' }), null)
+  assert.equal(getSalaryHistoryWorkStatus('2026-10-18', { today: '2026-10-20', absent: true }), 'absent')
+  assert.equal(buildSalaryHistoryCalendar('2026-10', [], '2026-10-20')[5].workStatus, null)
 })

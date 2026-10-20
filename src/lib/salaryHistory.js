@@ -1,5 +1,6 @@
 import { compareSalaryTransactionsNewestFirst } from './salaryTransactions.js'
 import { indexKpiResultsByBonusId } from './dailyKpi.js'
+import { ATTENDANCE_START_DATE } from './attendance.js'
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const MONTH_PATTERN = /^(\d{4})-(\d{2})$/
@@ -153,7 +154,32 @@ export function summarizeSalaryHistoryMonth(entries = [], month = '') {
   return summary
 }
 
-export function buildSalaryHistoryCalendar(month, entries = [], today = '') {
+// Whether the employee worked a day: an absence record says no; a QR check-in
+// says yes. From the attendance start date an on-site employee with neither is
+// "no check-in" once the day is over. Before that, every employed day without an
+// absence counts as worked. Days outside joined_at..ended_at or after today
+// have no status.
+export function getSalaryHistoryWorkStatus(date, {
+  today = '',
+  joinedAt = '',
+  endedAt = '',
+  absent = false,
+  checkin = null,
+  worksRemotely = false,
+  attendanceStartDate = ATTENDANCE_START_DATE,
+} = {}) {
+  const day = normalizeEntryDate(date)
+  if (!day) return null
+  if (absent) return 'absent'
+  const joined = normalizeEntryDate(joinedAt)
+  const ended = normalizeEntryDate(endedAt)
+  if ((today && day > today) || (joined && day < joined) || (ended && day > ended)) return null
+  if (checkin) return 'worked'
+  if (worksRemotely || !attendanceStartDate || day < attendanceStartDate) return 'worked'
+  return day === today ? null : 'noCheckin'
+}
+
+export function buildSalaryHistoryCalendar(month, entries = [], today = '', employment = null) {
   const normalizedMonth = normalizeSalaryHistoryMonth(month)
   if (!normalizedMonth) return []
   const [year, monthNumber] = normalizedMonth.split('-').map(Number)
@@ -173,6 +199,7 @@ export function buildSalaryHistoryCalendar(month, entries = [], today = '') {
     dateValue.setUTCDate(calendarStart.getUTCDate() + index)
     const date = formatUtcDate(dateValue)
     const dayEntries = entriesByDate.get(date) || []
+    const checkin = employment?.checkins?.get?.(date) || null
     return {
       date,
       day: dateValue.getUTCDate(),
@@ -180,6 +207,15 @@ export function buildSalaryHistoryCalendar(month, entries = [], today = '') {
       isToday: date === today,
       entries: dayEntries,
       entryTypes: [...new Set(dayEntries.map(entry => entry.entryType))],
+      checkin,
+      workStatus: employment
+        ? getSalaryHistoryWorkStatus(date, {
+          ...employment,
+          today,
+          checkin,
+          absent: dayEntries.some(entry => entry.entryType === 'absence'),
+        })
+        : null,
     }
   })
 }
