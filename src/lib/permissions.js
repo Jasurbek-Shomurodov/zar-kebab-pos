@@ -303,7 +303,7 @@ export function defaultPath(role) {
   if (canViewPage(profile, 'cashier')) return '/cashier/tables'
   if (canViewPage(profile, 'tables')) return '/waiter/tables'
   if (canViewPage(profile, 'loyalty')) return '/admin/loyalty'
-  if (canViewPage(profile, 'expenses')) return '/admin/accounting'
+  if (canViewPage(profile, 'expenses')) return '/admin/accounting/salaries'
   if (canViewPage(profile, 'bazaar')) return '/admin/bazaar'
   if (canViewPage(profile, 'ingredients')) return '/admin/ingredients'
   if (canViewPage(profile, 'tech_cards')) return '/admin/tech-cards'

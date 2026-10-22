@@ -53,7 +53,8 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.match(app, /<LazyProtectedRoute page="financial_analysis"><MonthlyEstimate \/><\/LazyProtectedRoute>/)
   assert.match(app, /path="\/admin\/accounting\/employees\/:employeeId\/history"[\s\S]*<LazyProtectedRoute page="expenses"><EmployeeSalaryHistory \/><\/LazyProtectedRoute>/)
   assert.match(sidebar, /key: 'expenses'/)
-  assert.match(sidebar, /path: '\/admin\/accounting'/)
+  // Accounting opens on Salaries so the Overview totals load only when that tab is opened.
+  assert.match(sidebar, /path: '\/admin\/accounting\/salaries'/)
   assert.match(expenses, /\.from\('expenses'\)/)
   assert.match(expenses, /entry_type/)
   assert.match(expenses, /getAccountingPageSummary/)
@@ -138,9 +139,9 @@ test('expenses page is feature-gated, persisted, and included in owner reports n
   assert.doesNotMatch(expenseHistory, /formatTime\(expense\.expense_date/)
   assert.match(expenses, /EXPENSE_CATEGORIES/)
   assert.match(expenses, /EXPENSE_PAYMENT_METHODS/)
-  // Overview, Salaries and Employees are tabs of one Accounting top bar; the period picker sits in the page.
+  // Salaries, Employees and Overview (last) are tabs of one Accounting top bar; the period picker sits in the page.
   const accountingTabs = readSource('src/lib/accountingTabs.js')
-  assert.match(accountingTabs, /salaries: '\/admin\/accounting\/salaries'/)
+  assert.match(accountingTabs, /salaries: '\/admin\/accounting\/salaries',\s*employees: '\/admin\/accounting\/employees',\s*overview: '\/admin\/accounting',/)
   assert.match(expenses, /tabs=\{buildAccountingTabs\(lang, 'overview', navigate\)\}/)
   assert.match(salaries, /tabs=\{buildAccountingTabs\(lang, 'salaries', navigate\)\}/)
   assert.match(readSource('src/pages/Employees.jsx'), /tabs=\{buildAccountingTabs\(lang, 'employees', navigate\)\}/)

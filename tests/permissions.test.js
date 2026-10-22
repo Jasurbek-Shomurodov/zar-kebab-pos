@@ -171,7 +171,7 @@ test('non-primary owner feature_access can be restricted', () => {
 
 test('null feature_access keeps role defaults and default path follows enabled features', () => {
   assert.equal(canViewPage({ role: 'admin', feature_access: null }, 'menu'), true)
-  assert.equal(defaultPath({ role: 'admin', feature_access: ['expenses'] }), '/admin/accounting')
+  assert.equal(defaultPath({ role: 'admin', feature_access: ['expenses'] }), '/admin/accounting/salaries')
   assert.equal(defaultPath({ role: 'viewer', feature_access: ['cashier'] }), '/cashier/tables')
   assert.equal(defaultPath({ role: 'waiter', feature_access: [] }), '/admin/menu')
 })

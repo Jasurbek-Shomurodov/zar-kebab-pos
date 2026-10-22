@@ -101,7 +101,7 @@ const NAV = [
     key: 'expenses',
     icon: WalletCards,
     labels: { uz: 'Buxgalteriya', ru: 'Бухгалтерия', en: 'Accounting' },
-    path: '/admin/accounting',
+    path: '/admin/accounting/salaries',
     group: 'business',
   },
   {

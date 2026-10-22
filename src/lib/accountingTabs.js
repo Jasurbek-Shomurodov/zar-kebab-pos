@@ -1,5 +1,6 @@
 // Accounting, Salaries and Employees share one top-bar title and tab row,
-// like Menu's Menu Items / Categories tabs.
+// like Menu's Menu Items / Categories tabs. Salaries comes first and is where
+// the sidebar lands, so the heavier Overview loads only when opened.
 const LABELS = {
   uz: { title: 'Buxgalteriya', overview: 'Umumiy', salaries: 'Maoshlar', employees: 'Xodimlar' },
   ru: { title: 'Бухгалтерия', overview: 'Обзор', salaries: 'Зарплаты', employees: 'Сотрудники' },
@@ -7,9 +8,9 @@ const LABELS = {
 }
 
 export const ACCOUNTING_TAB_PATHS = {
-  overview: '/admin/accounting',
   salaries: '/admin/accounting/salaries',
   employees: '/admin/accounting/employees',
+  overview: '/admin/accounting',
 }
 
 export function accountingTitle(lang) {
