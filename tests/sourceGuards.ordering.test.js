@@ -840,3 +840,14 @@ test('waiter cart opens as a centred panel that morphs from the cart button', ()
   // The panel closes itself after a successful send even while the order is still locked.
   assert.match(source, /onClose=\{\(\) => closeCart\(\{ force: true \}\)\}/)
 })
+
+test('cart quantity stepper requires Delete completed orders access', () => {
+  const source = readSource('src/components/CartPanel.jsx')
+  const panel = functionBody(source, 'CartPanel')
+  const row = functionBody(source, 'CartItemRow')
+
+  assert.match(panel, /const canChangeQuantity = canDeletePaidOrders\(profile \|\| \{ role: state\.user\?\.role \}\)/)
+  assert.match(panel, /canChangeQuantity=\{canChangeQuantity\}/)
+  assert.match(row, /\{canChangeQuantity && \(\s*<button\s+onClick=\{decrement\}/)
+  assert.match(row, /\{canChangeQuantity && \(\s*<button\s+onClick=\{increment\}/)
+})

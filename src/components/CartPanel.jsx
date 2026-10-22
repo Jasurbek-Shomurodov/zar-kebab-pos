@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { X, ShoppingCart, Minus, Plus, Trash2, UtensilsCrossed, Loader2, CheckCircle2 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../contexts/AuthContext'
 import { t, getItemDesc, getItemName } from '../lib/i18n'
 import { formatCurrency } from '../lib/formatCurrency'
 import { getOrderPaymentSummary } from '../lib/analytics'
@@ -10,6 +11,7 @@ import { DEFAULT_PRICE_MODE, getPriceModeLabel, normalizePriceMode } from '../li
 import { formatWriteError } from '../lib/writeErrorMessage'
 import { isMenuItemOrderable } from '../lib/menuItems'
 import { getConfiguredServiceRatePct } from '../lib/serviceRates'
+import { canDeletePaidOrders } from '../lib/permissions'
 import { getManualOrderNotes, getOrderItemOptionLines } from './MenuProductCards'
 import {
   changeMenuQuantity,
@@ -31,7 +33,7 @@ function getCartItemKey(item) {
   return item?.cart_item_key || item?.cartItemKey || item?.menu_item_id
 }
 
-function CartItemRow({ item, lang, dispatch, menuItem }) {
+function CartItemRow({ item, lang, dispatch, menuItem, canChangeQuantity }) {
   const desc = menuItem ? getItemDesc(menuItem, lang) : null
   const grams = gramsLabel(menuItem, lang)
   const millilitres = millilitresLabel(menuItem, lang)
@@ -103,13 +105,15 @@ function CartItemRow({ item, lang, dispatch, menuItem }) {
         {/* Qty stepper + price */}
         <div className="flex items-center justify-between mt-1">
           <div className="lux-soft flex items-center gap-2 rounded-full p-1">
-            <button
-              onClick={decrement}
-              aria-label={lang === 'ru' ? 'Уменьшить' : lang === 'uz' ? 'Kamaytirish' : 'Decrease'}
-              className="lux-chip lux-chip-static flex h-10 w-12 items-center justify-center rounded-full transition-transform active:scale-95"
-            >
-              <Minus size={17} />
-            </button>
+            {canChangeQuantity && (
+              <button
+                onClick={decrement}
+                aria-label={lang === 'ru' ? 'Уменьшить' : lang === 'uz' ? 'Kamaytirish' : 'Decrease'}
+                className="lux-chip lux-chip-static flex h-10 w-12 items-center justify-center rounded-full transition-transform active:scale-95"
+              >
+                <Minus size={17} />
+              </button>
+            )}
             {soldByWeight ? (
               <label className="flex min-w-[84px] items-center justify-center gap-1">
                 <input
@@ -132,14 +136,16 @@ function CartItemRow({ item, lang, dispatch, menuItem }) {
                 {formatMenuQuantity(item.quantity, quantitySource)}
               </span>
             )}
-            <button
-              onClick={increment}
-              disabled={unavailable}
-              aria-label={lang === 'ru' ? 'Добавить' : lang === 'uz' ? "Qo'shish" : 'Increase'}
-              className="lux-primary flex h-10 w-12 items-center justify-center rounded-full transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Plus size={17} />
-            </button>
+            {canChangeQuantity && (
+              <button
+                onClick={increment}
+                disabled={unavailable}
+                aria-label={lang === 'ru' ? 'Добавить' : lang === 'uz' ? "Qo'shish" : 'Increase'}
+                className="lux-primary flex h-10 w-12 items-center justify-center rounded-full transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Plus size={17} />
+              </button>
+            )}
           </div>
           <span className="lux-title text-[15px] font-semibold tabular-nums">
             {formatCurrency(item.price * item.quantity)}
@@ -181,6 +187,9 @@ export default function CartPanel({
   hasSubmittedItems = false,
 }) {
   const { state, dispatch, pendingKitchenSubmission } = useApp()
+  const { profile } = useAuth()
+  // The cart +/- stepper shares the Delete completed orders feature access.
+  const canChangeQuantity = canDeletePaidOrders(profile || { role: state.user?.role })
   const lang    = langProp || state.lang
   const cart    = state.cart
   const normalizedPriceMode = normalizePriceMode(priceMode)
@@ -356,6 +365,7 @@ export default function CartPanel({
               lang={lang}
               dispatch={cartIsLocked ? () => {} : dispatch}
               menuItem={menuItemMap[item.menu_item_id]}
+              canChangeQuantity={canChangeQuantity}
             />
           ))
         )}
