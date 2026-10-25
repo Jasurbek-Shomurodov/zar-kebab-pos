@@ -1036,6 +1036,14 @@ export default {
   {
    "filename": "257_accounting_month_closes.sql",
    "sha256": "a2df112fb99f70583bd7c1935d521edb780b8392712bacfa47b2df15d5b4569c"
+  },
+  {
+   "filename": "258_owner_profit_expense_categories.sql",
+   "sha256": "bab00db3c76e8b356dfa1bf239b6d0fef30a1b8f6333963068b8efa9e3bea1ad"
+  },
+  {
+   "filename": "259_owner_profit_close_notifications_and_reopen.sql",
+   "sha256": "83b90ece698d95dfeea4bddfba2dfca704566439d92cdcc3a22af9972bb8c18b"
   }
  ],
  "functions": [
@@ -1066,8 +1074,8 @@ export default {
   },
   {
    "name": "capture_accounting_record_audit",
-   "filename": "208_salary_rate_audit.sql",
-   "md5": "287575b7e8d337f67b4d63fb3fe65646"
+   "filename": "259_owner_profit_close_notifications_and_reopen.sql",
+   "md5": "9aa7d8fff06843bf316a6c89094f91ee"
   },
   {
    "name": "record_order_kitchen_round_receipt",
@@ -1521,8 +1529,8 @@ export default {
   },
   {
    "name": "prevent_accounting_month_close_changes",
-   "filename": "257_accounting_month_closes.sql",
-   "md5": "a913ab8303b712e784a4c45f9cce2d84"
+   "filename": "259_owner_profit_close_notifications_and_reopen.sql",
+   "md5": "bc9de2a154e97386ab94df055b2b6893"
   },
   {
    "name": "accounting_month_components",
@@ -1541,8 +1549,8 @@ export default {
   },
   {
    "name": "get_accounting_owner_profit",
-   "filename": "257_accounting_month_closes.sql",
-   "md5": "7d92eae8fa2c26bbd8ea89a0f8749ae2"
+   "filename": "258_owner_profit_expense_categories.sql",
+   "md5": "b41545f7fb3d849d046fe86280f25989"
   },
   {
    "name": "close_accounting_month",
@@ -1558,6 +1566,16 @@ export default {
    "name": "guard_closed_accounting_month",
    "filename": "257_accounting_month_closes.sql",
    "md5": "5cb8c0e83ab4b073f37eb9935e60c5b2"
+  },
+  {
+   "name": "queue_accounting_month_closed_notification",
+   "filename": "259_owner_profit_close_notifications_and_reopen.sql",
+   "md5": "c459b140ffccd4e5b78d6049924bf16d"
+  },
+  {
+   "name": "reopen_accounting_month",
+   "filename": "259_owner_profit_close_notifications_and_reopen.sql",
+   "md5": "f493db68528ef6b08454e3ac11ef40bd"
   }
  ]
 }

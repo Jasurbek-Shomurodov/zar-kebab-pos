@@ -5,6 +5,7 @@ import {
   getSalaryMonthEndDate,
   normalizeExpenseAmount,
 } from './expenses.js'
+import { assignCategoryColors, buildAccountingSankey, getTopExpenseCategories } from './accountingAnalysis.js'
 import { supabase } from './supabase.js'
 import { withReadTimeout, withWriteTimeout } from './writeTimeout.js'
 
@@ -80,12 +81,63 @@ export function normalizeMonthClose(row = {}) {
   }
 }
 
+// Migration 258 adds each month's recorded expenses by category. Before it
+// is applied the key is missing and the Sankey shows one Expenses node.
+function normalizeExpenseCategories(rows) {
+  if (!Array.isArray(rows)) return null
+  const byMonth = {}
+  for (const row of rows) {
+    const monthStart = String(row?.month_start || '').slice(0, 10)
+    const amountValue = amount(row?.amount)
+    if (!/^\d{4}-\d{2}-01$/.test(monthStart) || amountValue <= 0) continue
+    const category = String(row?.category || 'other')
+    byMonth[monthStart] = byMonth[monthStart] || {}
+    byMonth[monthStart][category] = (byMonth[monthStart][category] || 0) + amountValue
+  }
+  return byMonth
+}
+
 export function normalizeOwnerProfitData(data = {}) {
   return {
     today: String(data?.today || '').slice(0, 10),
     firstActiveMonth: data?.first_active_month ? String(data.first_active_month).slice(0, 10) : null,
     closes: (data?.closes || []).map(normalizeMonthClose).filter(row => /^\d{4}-\d{2}-01$/.test(row.monthStart)),
     openMonths: (data?.open_months || []).map(normalizeComponents).filter(row => /^\d{4}-\d{2}-01$/.test(row.monthStart)),
+    expenseCategories: normalizeExpenseCategories(data?.expense_categories),
+  }
+}
+
+export const OWNER_PROFIT_SALARY_NODE = 'salary_earned'
+export const OWNER_PROFIT_LEGACY_BONUS_NODE = 'legacy_paid_bonuses'
+export const OWNER_PROFIT_EXPENSES_NODE = 'recorded_expenses'
+
+// One month as a money flow: cafe and other income into the month, out to
+// expense categories, employee meals and salary earned, with owner profit as
+// what is left, or a loss node on the income side when costs were higher.
+// Investor support is not income here, the same as in owner profit.
+// Categories are used only when they add up to the month's recorded expenses
+// (always true once 257 locks a closed month); otherwise one Expenses node.
+export function buildOwnerProfitSankey(row, monthCategories = null) {
+  if (!row) return null
+  const byCategory = {}
+  const add = (key, value) => {
+    const normalized = Math.max(0, amount(value))
+    if (normalized > 0) byCategory[key] = (byCategory[key] || 0) + normalized
+  }
+  const categoryTotal = Object.values(monthCategories || {}).reduce((sum, value) => sum + value, 0)
+  if (monthCategories && categoryTotal === row.recordedExpenses) {
+    for (const [key, value] of Object.entries(monthCategories)) add(key, value)
+  } else {
+    add(OWNER_PROFIT_EXPENSES_NODE, row.recordedExpenses)
+  }
+  add('employee_meals', row.employeeMeals)
+  add(OWNER_PROFIT_SALARY_NODE, row.salaryEarned)
+  add(OWNER_PROFIT_LEGACY_BONUS_NODE, row.legacyPaidBonuses)
+  const categories = getTopExpenseCategories(byCategory)
+  return {
+    categories,
+    colors: assignCategoryColors(categories),
+    sankey: buildAccountingSankey({ cafeIncome: row.cafeIncome, otherIncome: row.otherIncome, categories }),
   }
 }
 
@@ -154,6 +206,9 @@ export const MONTH_CLOSE_ERROR_CODES = [
   'salary_breakdown_mismatch',
   'kpi_days_pending',
   'meal_days_pending',
+  'reopen_reason_required',
+  'month_not_closed',
+  'later_month_closed',
   'invalid_month_close',
 ]
 
@@ -200,4 +255,21 @@ export async function closeAccountingMonth({ monthStart, salaryEarned, salaryBre
   )
   if (error) throw error
   return normalizeMonthClose(data)
+}
+
+// Owner-only (259): reopens the latest closed month with a reason and tells
+// the Investor channel. Same request-id rule as a close.
+export async function reopenAccountingMonth({ monthStart, reason, requestId }, options = {}) {
+  const dbClient = options.dbClient || supabase
+  const { data, error } = await withWriteTimeout(
+    signal => withAbortSignal(dbClient.rpc('reopen_accounting_month', {
+      p_month_start: monthStart,
+      p_reason: String(reason || '').trim(),
+      p_request_id: requestId,
+    }), signal),
+    'REOPEN_ACCOUNTING_MONTH',
+    options.timeoutMs,
+  )
+  if (error) throw error
+  return data
 }

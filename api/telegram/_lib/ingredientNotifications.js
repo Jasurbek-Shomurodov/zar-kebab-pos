@@ -1,6 +1,7 @@
 import { formatLongDateTime } from '../../../src/lib/dateFormat.js'
 import { bazaarCategoryLabel, bazaarUnitLabel } from '../../../src/lib/bazaar.js'
 import { escapeTelegramHtml, sendTelegramMessage } from './telegram.js'
+import { buildMonthCloseInvestorMessage, isMonthCloseEvent } from './monthCloseMessages.js'
 
 export async function loadIngredientInvestorTarget(supabase, env = process.env) {
   const { data, error } = await supabase.from('telegram_notification_targets')
@@ -38,6 +39,11 @@ export function buildIngredientInvestorMessage(snapshot) {
   return lines.join('\n')
 }
 
+// The queue also carries Owner profit month close/reopen events (259).
+export function buildInvestorQueueMessage(snapshot) {
+  return isMonthCloseEvent(snapshot) ? buildMonthCloseInvestorMessage(snapshot) : buildIngredientInvestorMessage(snapshot)
+}
+
 // A compare-and-set claim prevents parallel workers from sending the same event.
 // An uncertain Telegram result stays processing for review, never blindly resent.
 export async function deliverIngredientNotification(supabase, row, chatId, send = sendTelegramMessage) {
@@ -49,7 +55,7 @@ export async function deliverIngredientNotification(supabase, row, chatId, send 
   if (!claimed) return { status: 'duplicate' }
   const messageIds = []
   try {
-    for (const message of [buildIngredientInvestorMessage(claimed.snapshot)]) {
+    for (const message of [buildInvestorQueueMessage(claimed.snapshot)]) {
       const response = await send(chatId, message)
       const id = response?.result?.message_id
       if (!id) throw new Error('Telegram did not return a message id; delivery outcome is unknown')

@@ -26,7 +26,7 @@
 - Delete completed orders access allows atomic non-loyalty tender fixes.
 - Loyalty rows are visible but immutable without a separate wallet reversal workflow.
 - Method corrections keep amounts. Splits preserve the sum, other payments, items, totals, paid state/time, loyalty, service, stock. Receipts audit/reconcile splits (`tests/paidPaymentSplit.test.js`).
-- Deletes need a reason (`184`) and today's Tashkent date (`202`); owners also delete old unpaid bills (`232`). Empty bills get it after refresh; paid history stays protected. Corrections notify Investor.
+- Deletes need a reason (`184`) and today's Tashkent date (`202`); owners also delete old unpaid bills (`232`), empty ones after refresh; paid history protected. Corrections notify Investor.
 
 ## Receipt printing
 
@@ -41,7 +41,7 @@
 - KPIs use permission-checked aggregates, never full history. The all-time cash remainder excludes unpaid salary liability.
 - Order rows belong to reports, receipts and drilldowns.
 - Accounting: recording, spending/salary KPIs (no method-balance panel). Analysis/Estimate: `financial_analysis` (needs `expenses`; `230`); `229` growth; `231`/`233` bundles.
-- Owner profit `257` (sidebar, `ownerProfit.js`): month at zero, salary when earned; owner closes oldest month from the 4th once KPI/meal days are final; request-id retries; locks its expenses, meals, bonuses, fines; remainder minus `settled_amount`. `tests/ownerProfit.test.js`.
+- Owner profit `257`–`259` (`ownerProfit.js`): month at zero, salary when earned. Owner closes oldest month from the 4th (KPI/meal days final) or reopens latest with reason; alerts Investor. Locks its expenses, meals, bonuses, fines; remainder − `settled_amount`. `tests/ownerProfit.test.js`.
 
 ## Expenses and estimates
 
