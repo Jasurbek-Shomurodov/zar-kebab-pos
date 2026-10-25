@@ -5,9 +5,9 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { formatLongDate, formatLongDateTime } from '../lib/dateFormat'
 
 const labels = {
-  uz: { title: 'Kunlik maqsad tarixi', sub: 'Har bir o‘zgarish o‘zi kiritilgan kundan boshlab grafiklarda qo‘llanadi.', from: 'Amal qiladi', amount: 'Kunlik maqsad', change: 'O‘zgarish', start: 'Boshlang‘ich', current: 'Joriy', saved: 'Saqlandi', empty: 'Hali tarix yo‘q', failed: 'Tarixni yuklab bo‘lmadi', retry: 'Qayta urinish', close: 'Yopish' },
-  ru: { title: 'История дневной цели', sub: 'Каждое изменение действует на графиках со дня, когда оно было сохранено.', from: 'Действует с', amount: 'Дневная цель', change: 'Изменение', start: 'Начальная', current: 'Текущая', saved: 'Сохранено', empty: 'История пока пуста', failed: 'Не удалось загрузить историю', retry: 'Повторить', close: 'Закрыть' },
-  en: { title: 'Daily target history', sub: 'Each change applies on the charts from the day it was saved.', from: 'Applies from', amount: 'Daily target', change: 'Change', start: 'Starting', current: 'Current', saved: 'Saved', empty: 'No history yet', failed: 'Could not load the history', retry: 'Retry', close: 'Close' },
+  uz: { title: 'Kunlik maqsad tarixi', sub: 'Har kunning hisoblangan maqsadi o‘sha kunga tegishli; grafik ustunlari o‘z kunlarining o‘rtachasini oladi.', from: 'Amal qiladi', amount: 'Kunlik maqsad', change: 'O‘zgarish', start: 'Boshlang‘ich', current: 'Joriy', saved: 'Saqlandi', empty: 'Hali tarix yo‘q', failed: 'Tarixni yuklab bo‘lmadi', retry: 'Qayta urinish', close: 'Yopish' },
+  ru: { title: 'История дневной цели', sub: 'Рассчитанная цель каждого дня относится к этому дню; столбцы графиков берут среднее по своим дням.', from: 'Действует с', amount: 'Дневная цель', change: 'Изменение', start: 'Начальная', current: 'Текущая', saved: 'Сохранено', empty: 'История пока пуста', failed: 'Не удалось загрузить историю', retry: 'Повторить', close: 'Закрыть' },
+  en: { title: 'Daily target history', sub: 'Each day’s calculated target belongs to that day; chart bars use the average of their days.', from: 'Applies from', amount: 'Daily target', change: 'Change', start: 'Starting', current: 'Current', saved: 'Saved', empty: 'No history yet', failed: 'Could not load the history', retry: 'Retry', close: 'Close' },
 }
 
 function HistoryShimmer() {

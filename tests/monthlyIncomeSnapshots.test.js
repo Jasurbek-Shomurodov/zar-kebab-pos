@@ -166,7 +166,7 @@ test('Monthly income chart reads snapshots plus only the live current month aggr
   // The dotted line follows the target in effect for each month (260), not today's value.
   assert.match(analysis, /<MonthlyIncomeChart[\s\S]*targetForPeriod=\{targetForPeriod\}/)
   assert.match(monthlyChart, /buildDashboardMonthlyIncomeChartRows\(rows\)/)
-  assert.match(monthlyChart, /targetForPeriod\(lastDayOfMonth\(row\.monthStart\)\)/)
+  assert.match(monthlyChart, /targetForPeriod\(row\.monthStart, lastDayOfMonth\(row\.monthStart\)\)/)
   assert.match(monthlyChart, /row\.target \/ monthlyIncomeScaleMax/)
   // One connected line through the bar centres, not a flat segment per bar.
   assert.match(monthlyChart, /<BreakEvenLine points=\{breakEvenPoints\} \/>/)

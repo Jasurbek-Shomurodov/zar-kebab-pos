@@ -13,8 +13,8 @@ const labels = {
   ru: { title: 'Средний дневной доход по декадам', sub: 'Последние 20 периодов · месяцы без дохода скрыты · 1–10 · 11–20 · 21–конец месяца · только завершённые дни, включая дни без продаж', empty: 'Нет дохода за этот период', month: 'По месяц', retry: 'Повторить', error: 'Не удалось загрузить доход по декадам', loading: 'Загрузка…', days: 'дн.', total: 'Всего', target: 'Дневная цель' },
 }
 
-// targetForPeriod(dateTo) gives the daily break-even target in effect for a
-// period, so the dotted line moves where the target was changed.
+// targetForPeriod(dateFrom, dateTo) gives the average daily break-even target
+// of the period's days, so each bar is judged against its own days.
 export default function WeeklyIncomeChart({ lang, targetForPeriod = null }) {
   const l = labels[lang] || labels.en
   const today = restaurantTodayStr()
@@ -72,7 +72,7 @@ export default function WeeklyIncomeChart({ lang, targetForPeriod = null }) {
       monthGroups.push(group)
     }
     group.count += 1
-    const target = targetForPeriod ? Math.max(0, Math.round(Number(targetForPeriod(row.weekEnd)) || 0)) : 0
+    const target = targetForPeriod ? Math.max(0, Math.round(Number(targetForPeriod(row.weekStart, row.weekEnd)) || 0)) : 0
     return { ...row, target, barColor: group.border, monthStyle: { '--income-hue': group.hue, backgroundColor: group.background, borderLeft: startsMonth ? '2px solid ' + group.border : '2px solid transparent' } }
   })
   const monthOptions = buildIncomeMonthOptions(firstMonth || today.slice(0, 7), today.slice(0, 7))

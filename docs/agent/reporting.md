@@ -35,7 +35,7 @@
 - Sales by Category includes every category sold today.
 - Product Contribution ranks ten products by revenue: quantity, share, snapshot profit, margin. Missing cost snapshots show unavailable profit.
 - Do not invent products/categories. Monthly Busy Hours (`192`–`193`) returns 12 two-hour buckets for the current Tashkent month. It attributes paid demand to `created_at`, scans one indexed month, returns no order details, and highlights tied peaks.
-- Monthly/ten-day income charts (Financial analysis): 12 months, zero labels hidden. Red dotted break-even per bar: period's last-day target from `260` history (`breakEvenTarget.js`). Target is calculated (`263`, `dailyBreakEven.js`): cron saves each day once, applies newest; Settings shows yesterday read-only. Past months: immutable snapshots; this month: completed days.
+- Monthly/ten-day income charts (Financial analysis): 12 months, zero labels hidden. Red dotted break-even per bar: average of its completed days' `260` targets (`breakEvenTarget.js`). Calculated (`263`, `dailyBreakEven.js`): cron saves each day once, dated that day; newest is current; Settings shows yesterday read-only. Past months: immutable snapshots; this month: completed days.
 - `157` backfills history; a daily cron finalizes last month. Completed months are never rescanned.
 - Monthly avg: paid cafe income / calendar days; current month uses completed days (zero on day one).
 

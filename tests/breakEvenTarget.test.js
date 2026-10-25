@@ -8,15 +8,23 @@ const history = normalizeBreakEvenTargetHistory([
   { effective_from: '2026-05-21', amount_uzs: 10000000 },
 ])
 
-test('each period uses the target in effect on its last day', () => {
+test('each day uses its own target and a period averages its completed days', () => {
   assert.deepEqual(history.map(row => row.effectiveFrom), ['2026-05-21', '2026-10-25'])
   assert.equal(breakEvenTargetOn(history, '2026-01-01'), 10_000_000)
   assert.equal(breakEvenTargetOn(history, '2026-10-24'), 10_000_000)
   assert.equal(breakEvenTargetOn(history, '2026-10-25'), 7_500_000)
-  assert.equal(breakEvenTargetForPeriod(history, '2026-09-30', '2026-10-25'), 10_000_000)
-  // An open period uses today's target, not a future day's.
-  assert.equal(breakEvenTargetForPeriod(history, '2026-10-31', '2026-10-25'), 7_500_000)
-  assert.equal(breakEvenTargetForPeriod(history, '2026-10-31', '2026-10-24'), 10_000_000)
+  // A finished month averages all its days.
+  assert.equal(breakEvenTargetForPeriod(history, '2026-09-01', '2026-09-30', '2026-11-02'), 10_000_000)
+  const daily = normalizeBreakEvenTargetHistory([
+    { effective_from: '2026-10-01', amount_uzs: 8_000_000 },
+    { effective_from: '2026-10-02', amount_uzs: 9_000_000 },
+    { effective_from: '2026-10-03', amount_uzs: 7_000_000 },
+  ])
+  assert.equal(breakEvenTargetForPeriod(daily, '2026-10-01', '2026-10-03', '2026-11-01'), 8_000_000)
+  // An open period counts only days before today; today is not finished.
+  assert.equal(breakEvenTargetForPeriod(daily, '2026-10-01', '2026-10-31', '2026-10-03'), 8_500_000)
+  // With no finished day yet it uses today's target.
+  assert.equal(breakEvenTargetForPeriod(daily, '2026-10-03', '2026-10-10', '2026-10-03'), 7_000_000)
 })
 
 test('without history the current settings target applies', () => {

@@ -34,8 +34,8 @@ function ChartShimmer() {
 
 // Monthly rows come from the caller (Financial analysis already loads them for
 // its growth overview), so this card never issues its own request.
-// targetForPeriod(dateTo) gives the daily break-even target in effect for a
-// period, so the dotted line moves where the target was changed.
+// targetForPeriod(dateFrom, dateTo) gives the average daily break-even target
+// of the period's days, so each bar is judged against its own days.
 export default function MonthlyIncomeChart({ rows, status, onRetry, lang, targetForPeriod = null }) {
   const l = labels[lang] || labels.en
   const [plotRef, plotWidth] = useElementWidth()
@@ -46,7 +46,7 @@ export default function MonthlyIncomeChart({ rows, status, onRetry, lang, target
       ...row,
       label: formatMonthYear(row.monthStart, lang, row.monthStart),
       isCurrent: row.monthStart === currentMonthStart,
-      target: targetForPeriod ? Math.max(0, Math.round(Number(targetForPeriod(lastDayOfMonth(row.monthStart))) || 0)) : 0,
+      target: targetForPeriod ? Math.max(0, Math.round(Number(targetForPeriod(row.monthStart, lastDayOfMonth(row.monthStart))) || 0)) : 0,
     }))
   const maxTarget = Math.max(0, ...monthlyIncomeChartRows.map(row => row.target))
   const monthlyIncomeScaleMax = Math.max(

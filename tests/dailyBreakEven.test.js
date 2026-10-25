@@ -45,5 +45,10 @@ test('the daily cron records the snapshot and keeps it immutable', () => {
   assert.match(cron, /upsert\(row, \{ onConflict: 'business_date', ignoreDuplicates: true \}\)/)
   assert.match(cron, /await recordDailyBreakEvenSafely\(supabase, businessDate, summary\)/)
   assert.match(cron, /ensureDailyBreakEven\(supabase, notificationDate\)/)
+  assert.match(cron, /rpc\('apply_daily_break_even', \{ p_business_date: businessDate \}\)/)
+  // Each day's target is dated on that day, not on the morning it was calculated.
+  assert.match(migration, /values \(p_business_date, v_amount, null, now\(\)\)/)
+  assert.match(migration, /current_setting\('zar\.break_even_from_snapshot', true\)/)
+  assert.match(migration, /grant execute on function public\.apply_daily_break_even\(date\) to service_role/)
   assert.match(migration, /revoke insert, update, delete on public\.daily_break_even_snapshots from authenticated/)
 })

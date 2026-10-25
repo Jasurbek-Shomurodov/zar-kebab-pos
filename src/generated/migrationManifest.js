@@ -1059,7 +1059,7 @@ export default {
   },
   {
    "filename": "263_daily_break_even_snapshots.sql",
-   "sha256": "a43f5d4d04d82e20e91b1ccf84d3632f87079969d94521c18ee7759a83968106"
+   "sha256": "3950536551052d66584654ebc688f2f19183be23aa77d019d556c2e47adbbb3c"
   }
  ],
  "functions": [
@@ -1595,13 +1595,18 @@ export default {
   },
   {
    "name": "record_break_even_target_change",
-   "filename": "260_break_even_target_history.sql",
-   "md5": "a5b66b3d970d057226779ccab42a850d"
+   "filename": "263_daily_break_even_snapshots.sql",
+   "md5": "89d1d0074303781167da3ae26c530d71"
   },
   {
    "name": "get_accounting_monthly_breakdown",
    "filename": "261_accounting_monthly_breakdown.sql",
    "md5": "2170758e70c9d1dec7b57359b99b668b"
+  },
+  {
+   "name": "apply_daily_break_even",
+   "filename": "263_daily_break_even_snapshots.sql",
+   "md5": "2e3ef9be807c13d69aa2a4e35aec91b4"
   }
  ]
 }

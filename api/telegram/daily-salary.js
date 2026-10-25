@@ -795,9 +795,9 @@ function isMissingDailyBreakEvenTable(error) {
   return ['42P01', 'PGRST205'].includes(error?.code) || /daily_break_even_snapshots/.test(error?.message || '')
 }
 
-// Saves the finished day's break-even calculation once (rows are immutable)
-// and, when it is the newest day, makes it the current daily target; the
-// business_settings trigger (260) records the change in the target history.
+// Saves the finished day's break-even calculation once (rows are immutable),
+// dates its target on that day in the history and, when it is the newest day,
+// makes it the current Settings value (migration 263).
 export async function recordDailyBreakEven(supabase, businessDate, summary) {
   const row = buildDailyBreakEvenSnapshotRow(summary, businessDate)
   const inserted = await supabase
@@ -807,24 +807,9 @@ export async function recordDailyBreakEven(supabase, businessDate, summary) {
     if (isMissingDailyBreakEvenTable(inserted.error)) return { businessDate, status: 'unavailable' }
     throw inserted.error
   }
-  const latest = await supabase
-    .from('daily_break_even_snapshots')
-    .select('business_date, break_even_income_uzs')
-    .order('business_date', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (latest.error) throw latest.error
-  const amount = latest.data?.break_even_income_uzs
-  if (latest.data?.business_date !== businessDate || amount == null) {
-    return { businessDate, status: 'recorded', breakEven: row.break_even_income_uzs }
-  }
-  const updated = await supabase
-    .from('business_settings')
-    .update({ average_daily_break_even_income_uzs: amount, updated_at: new Date().toISOString() })
-    .eq('id', 'default')
-    .neq('average_daily_break_even_income_uzs', amount)
-  if (updated.error) throw updated.error
-  return { businessDate, status: 'applied', breakEven: amount }
+  const applied = await supabase.rpc('apply_daily_break_even', { p_business_date: businessDate })
+  if (applied.error) throw applied.error
+  return { businessDate, status: applied.data == null ? 'recorded' : 'applied', breakEven: applied.data ?? null }
 }
 
 async function recordDailyBreakEvenSafely(supabase, businessDate, summary) {

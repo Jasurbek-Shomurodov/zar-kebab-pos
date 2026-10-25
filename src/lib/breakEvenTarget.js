@@ -2,8 +2,9 @@ import { supabase } from './supabase.js'
 import { normalizeDailyBreakEvenSnapshot } from './dailyBreakEven.js'
 
 // Daily break-even target history (migration 260). Each row applies from its
-// Tashkent date until the next row; a period uses the target in effect on its
-// last day, or today while the period is still open.
+// Tashkent date until the next row. Since 263 the cron writes one row per
+// finished day, dated that day, from its own figures. A period uses the
+// average of its completed days' targets.
 
 function toNonNegativeInteger(value) {
   return Math.max(0, Math.round(Number(value) || 0))
@@ -31,9 +32,25 @@ export function breakEvenTargetOn(history = [], date = '', fallback = 0) {
   return amount
 }
 
-export function breakEvenTargetForPeriod(history = [], dateTo = '', today = '', fallback = 0) {
-  const date = today && dateTo > today ? today : dateTo
-  return breakEvenTargetOn(history, date, fallback)
+function addDays(date, days) {
+  const ms = Date.parse(`${date}T00:00:00Z`)
+  return Number.isFinite(ms) ? new Date(ms + days * 86400000).toISOString().slice(0, 10) : date
+}
+
+// Average of the daily targets over the period's completed days (before
+// today); a period with no completed day yet uses today's target.
+export function breakEvenTargetForPeriod(history = [], dateFrom = '', dateTo = '', today = '', fallback = 0) {
+  const from = dateFrom || dateTo
+  const lastCompleted = today ? addDays(today, -1) : dateTo
+  const to = dateTo < lastCompleted ? dateTo : lastCompleted
+  if (!from || !to || to < from) return breakEvenTargetOn(history, today || dateTo, fallback)
+  let sum = 0
+  let days = 0
+  for (let date = from; date <= to && days < 400; date = addDays(date, 1)) {
+    sum += breakEvenTargetOn(history, date, fallback)
+    days += 1
+  }
+  return Math.round(sum / days)
 }
 
 export function lastDayOfMonth(monthStart = '') {

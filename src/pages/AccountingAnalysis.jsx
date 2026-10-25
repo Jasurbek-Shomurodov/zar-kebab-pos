@@ -692,7 +692,7 @@ export default function AccountingAnalysis() {
   const investorOverview = useMemo(() => (growth.cashflow ? buildInvestorOverview(growth.cashflow.totals, yearProfitRows) : null), [growth.cashflow, yearProfitRows])
   const periodTotals = useMemo(() => buildPeriodTotals(yearProfitRows), [yearProfitRows])
   const breakEvenTarget = state.settings?.averageDailyBreakEvenIncomeUzs ?? DASHBOARD_DAILY_BREAK_EVEN_INCOME
-  // Each saved target change applies from its own day, so past periods keep the target they had.
+  // Each day's calculated target applies to that day; a period uses the average of its days.
   // Refetched when the setting changes; a failed read falls back to the current target.
   useEffect(() => {
     const controller = new AbortController()
@@ -702,11 +702,11 @@ export default function AccountingAnalysis() {
     return () => controller.abort()
   }, [breakEvenTarget, reloadKey])
   const targetForPeriod = useCallback(
-    dateTo => breakEvenTargetForPeriod(targetHistory, dateTo, todayExpenseDate(), breakEvenTarget),
+    (dateFrom, dateTo) => breakEvenTargetForPeriod(targetHistory, dateFrom, dateTo, todayExpenseDate(), breakEvenTarget),
     [targetHistory, breakEvenTarget],
   )
   const breakEven = useMemo(
-    () => buildBreakEvenSummary(growthOverview, breakEvenTarget, monthStart => targetForPeriod(lastDayOfMonth(monthStart))),
+    () => buildBreakEvenSummary(growthOverview, breakEvenTarget, monthStart => targetForPeriod(monthStart, lastDayOfMonth(monthStart))),
     [growthOverview, breakEvenTarget, targetForPeriod],
   )
 
@@ -2115,9 +2115,9 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
   const seriesLabels = { income: l.moneyIn, spent: l.spent, left: l.left, salaries: l.salaries, bazaar: l.bazaar, meals: l.meals, other: l.otherSpend, breakEven: l.breakEven }
   const series = stacked
     ? [...SPENDING_GROUPS.map(key => ({ key, color: GROUP_COLORS[key] })), { key: 'income', color: '#16a34a', line: true }]
-    : [...TREND_TOTAL_SERIES, ...(breakEvenFor && rows.some(row => breakEvenFor(row.dateTo) > 0) ? [{ key: 'breakEven', color: '#e34948', marker: true }] : [])]
-  // The daily break-even target in effect for each bucket, scaled to its length, as a mark over its bars.
-  const breakEvenOf = row => (breakEvenFor ? breakEvenFor(row.dateTo) * row.days : 0)
+    : [...TREND_TOTAL_SERIES, ...(breakEvenFor && rows.some(row => breakEvenFor(row.dateFrom, row.dateTo) > 0) ? [{ key: 'breakEven', color: '#e34948', marker: true }] : [])]
+  // The average daily break-even target of each bucket's days, scaled to its length, as a mark over its bars.
+  const breakEvenOf = row => (breakEvenFor ? breakEvenFor(row.dateFrom, row.dateTo) * row.days : 0)
   const visible = series.filter(item => !hidden.includes(item.key))
   const bars = visible.filter(item => !item.line && !item.marker)
   const incomeLine = visible.find(item => item.line)
@@ -2243,8 +2243,8 @@ function TrendTable({ rows, interval, breakEvenFor, l, lang }) {
   }), { days: 0, cafeIncome: 0, orderCount: 0, spent: 0, left: 0 })
   const signed = value => (value == null ? '—' : `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCompact(Math.abs(value))}`)
   const tone = value => (value == null || value === 0 ? 'text-[#8a867f]' : value > 0 ? 'text-green-700' : 'text-red-600')
-  // Each row uses the target in effect for it; the total row uses their day-weighted average.
-  const targetOf = row => (breakEvenFor ? breakEvenFor(row.dateTo) : 0)
+  // Each row uses the average target of its days; the total row uses their day-weighted average.
+  const targetOf = row => (breakEvenFor ? breakEvenFor(row.dateFrom, row.dateTo) : 0)
   const totalTarget = totals.days ? rows.reduce((sum, row) => sum + targetOf(row) * row.days, 0) / totals.days : 0
   const belowBreakEven = (value, target) => target > 0 && value < target
   const cell = 'py-2.5 px-3 text-right tabular-nums'
