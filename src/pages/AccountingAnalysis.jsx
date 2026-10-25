@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -93,6 +93,8 @@ const L = {
     close: 'Yopish',
     refresh: 'Yangilash',
     estimate: 'Oylik taxmin',
+    tabMonthly: 'Oylik',
+    tabOverall: 'Umumiy',
     period: 'Hisobot davri',
     comparedWith: 'Taqqoslash',
     moneyIn: 'Kirim',
@@ -166,6 +168,8 @@ const L = {
     close: 'Закрыть',
     refresh: 'Обновить',
     estimate: 'Прогноз на месяц',
+    tabMonthly: 'По месяцу',
+    tabOverall: 'Общий',
     period: 'Отчётный период',
     comparedWith: 'Сравнение с',
     moneyIn: 'Приход',
@@ -239,6 +243,8 @@ const L = {
     close: 'Close',
     refresh: 'Refresh',
     estimate: 'Monthly estimate',
+    tabMonthly: 'Monthly',
+    tabOverall: 'Overall',
     period: 'Reporting period',
     comparedWith: 'Compared with',
     moneyIn: 'Money in',
@@ -344,11 +350,23 @@ function loadPeriodRows(dateFrom, dateTo, fallbackMenuItemMap) {
   }))
 }
 
+const OVERALL_TAB = 'overall'
+
 export default function AccountingAnalysis() {
   const { state } = useApp()
   const navigate = useNavigate()
   const lang = state.lang || 'ru'
   const l = L[lang] || L.en
+  // Monthly (the picked period) first; Overall is the 12-month growth view.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') === OVERALL_TAB ? OVERALL_TAB : 'monthly'
+  const overall = tab === OVERALL_TAB
+  const tabs = {
+    label: l.title,
+    value: tab,
+    items: [{ key: 'monthly', label: l.tabMonthly }, { key: OVERALL_TAB, label: l.tabOverall }],
+    onChange: key => setSearchParams(key === OVERALL_TAB ? { tab: OVERALL_TAB } : {}, { replace: true }),
+  }
   const [dateFrom, setDateFrom] = useState(() => todayExpenseDate().slice(0, 8) + '01')
   const [dateTo, setDateTo] = useState(() => todayExpenseDate())
   const [activeRangeKey, setActiveRangeKey] = useState('month')
@@ -629,7 +647,8 @@ export default function AccountingAnalysis() {
   return (
     <AppShell
       title={l.title}
-      titleAccessory={(
+      tabs={tabs}
+      titleAccessory={overall ? null : (
         <div className="zk-period-in-header w-[clamp(240px,32cqi,340px)]">
           {periodPicker({ compact: true, className: 'w-full' })}
         </div>
@@ -662,6 +681,7 @@ export default function AccountingAnalysis() {
     >
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page">
+          {!overall && (
           <section className="ws-panel zk-period-in-page" aria-labelledby="analysis-period-heading">
             <div className="min-w-0">
               <h2 id="analysis-period-heading" className="ws-heading">{l.period}</h2>
@@ -671,6 +691,7 @@ export default function AccountingAnalysis() {
             </div>
             <div className="mt-4">{periodPicker()}</div>
           </section>
+          )}
 
           {loadFailed && !loading && (
             <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-3">
@@ -679,6 +700,7 @@ export default function AccountingAnalysis() {
             </div>
           )}
 
+          {overall ? (
           <section aria-labelledby="analysis-growth-heading">
             <SectionHeading id="analysis-growth-heading" title={l.growthTitle} description={l.growthSub} />
             <GrowthSection
@@ -701,6 +723,8 @@ export default function AccountingAnalysis() {
               <WeeklyIncomeChart lang={lang} target={state.settings?.averageDailyBreakEvenIncomeUzs ?? DASHBOARD_DAILY_BREAK_EVEN_INCOME} />
             </div>
           </section>
+          ) : (
+          <>
 
           <section aria-labelledby="analysis-income-heading">
             <SectionHeading id="analysis-income-heading" title={l.incomeTitle} description={`${l.incomeHelp} · ${periodLabel}`} />
@@ -825,6 +849,8 @@ export default function AccountingAnalysis() {
                 <PaymentMethodFlow rows={analysis.summary.cashflow.rows} lang={lang} l={l} />
               </ChartCard>
             </section>
+          )}
+          </>
           )}
         </div>
       </div>
