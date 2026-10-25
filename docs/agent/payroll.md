@@ -1,6 +1,6 @@
 # Employees, Payroll, KPI, Absence, and Employee Meals
 
-- `194`/`206`/`237`: display-only job_function; required on creation, owner-editable. EN/RU/UZ labels; no permissions/payroll effects. Test: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237`: display-only job_function (required on create, owner-editable, EN/RU/UZ); no permission/payroll effect. Test: `tests/employeeJobFunctions.test.js`.
 
 ## Entry points
 
@@ -10,7 +10,7 @@
 - Schema: migrations `129`, `169`–`172`, `195`–`203`, `244`.
 - Tests: `tests/salaryTransactions.test.js`, `tests/salaryHistory.test.js`, `tests/dailyKpi.test.js`, `tests/dailyKpiUi.test.js`, `tests/dailyKpiBonuses.test.js`, `tests/dailySalaryWatchdog.test.js`, `tests/telegramSalaryMessages.test.js`
 
-- `207`: salary rates allow dates ≥ Tashkent today − 3 days; older rates cannot be updated. Includes initial. Test: `tests/salaryRateDateWindow.test.js`.
+- `207`: rate dates (incl. initial) ≥ Tashkent today − 3 days; older rates immutable. Test: `tests/salaryRateDateWindow.test.js`.
 
 - Dates: Tashkent.
 - `243`/`245`/`247` attendance check-in: see [attendance](attendance.md).
@@ -23,20 +23,20 @@
 
 - Separate payments, bonuses, fines, absences, rates.
 - `getSalaryBalance()` is the signed ledger: base salary plus accruing manual/KPI bonuses, minus payments and fines. Excess payments/fines carry forward negatively.
-- `getSalaryDue()` is the nonnegative liability for one employee. `getTotalSalaryDue()` sums per-employee liabilities so one advance never hides another employee's due.
+- `getSalaryDue()`: one employee's nonnegative liability. `getTotalSalaryDue()` sums per employee so one advance never hides another's due.
 - Payments allowed at zero/negative balance.
 - History: effective date, then newest `created_at`.
 - Page payroll ledgers via `src/lib/salaryData.js`; include accrued bonuses and remove deleted bonuses from balance state. Coverage: `tests/salaryBalanceConsistency.test.js`.
 
 ## Adjustments
 
-- A fine requires employee, date, positive amount, and non-empty reason. It reduces payroll liability but never becomes an Accounting cash expense.
+- A fine needs employee, date, positive amount and reason; it reduces liability, never an Accounting cash expense.
 - Bonuses created after `169` accrue into salary liability and become cash expense only through a later salary payment. Legacy bonuses remain immutable immediately-paid expenses.
 - Salary writes: Accounting access + audits.
 - Today's absence can be undone only for an active employee with an exact row for the current Tashkent date.
-- Undo absence requires confirmation and an exact delete guarded by absence id, salary profile id, and date. Zero affected rows is an error.
-- History deletion first retracts tracked employee/Salary/Team Telegram messages; failed retraction keeps the source. Deleted bonus/fine/absence/rate events remove delivery records to prevent retries.
-- Deactivation/reactivation boundaries are inclusive; only intervening dates become absences. Archived `deleted_at` is exclusive after the last working date.
+- Undo absence: confirm, then exact delete by absence id + salary profile id + date; zero rows is an error.
+- History deletion first retracts tracked employee/Salary/Team Telegram messages (failure keeps the source); deleted bonus/fine/absence/rate events drop delivery records so nothing retries.
+- Deactivation/reactivation boundaries are inclusive; only dates between become absences. Archived `deleted_at` is exclusive after the last working date.
 - Employee create/activate/deactivate queue immutable Russian Investor events (`216`: created shows salary). Screens retry safely.
 - `248`: hiring needs linked Telegram first (gated RPC, deferred trigger). Test: `tests/employeeTelegramRegistration.test.js`.
 
@@ -51,17 +51,17 @@
 - Runs/results are immutable; only service-role finalization creates `daily_kpi` bonuses (`200`: creator repair). `202` forbids deleting previous-day orders (`232`: owners may delete unpaid ones); today's deletions reduce bases before finalization.
 - Bonuses accrue into salary; formula/settlement immutable; payments record cash expense.
 - Deleting a generated bonus marks its result voided; retries never recreate it.
-- KPI changes only via the Employees dialog (upsert by date; stop = disabled rule). `removeKpiRulePreservingHistory` has no UI now.
+- KPI changes only via the Employees dialog (upsert by date; stop = disabled rule); `removeKpiRulePreservingHistory` has no UI.
 - Cards show today’s rule. KPI dropdown: active POS profiles, saves the opener, retryable load errors.
-- KPI rate/status/basis/account changes snapshot before/after values and queue Salary delivery; no-op saves stay silent. No historical backfill.
-- Salary History separates monthly manual Bonuses from KPI bonuses. Salary + bonuses includes salary and both bonus types once each.
-- Salary History calendar day status (`getSalaryHistoryWorkStatus`): absence = absent; QR check-in = worked (shows time); from `ATTENDANCE_START_DATE` a past on-site day with neither = no check-in; earlier/remote days without absence = worked; outside joined_at..ended_at or future = none. Display only, no payroll effect. Test: `tests/salaryHistory.test.js`.
+- KPI rate/status/basis/account changes snapshot before/after and queue Salary delivery; no-op saves silent; no backfill.
+- Salary History splits manual and KPI bonuses; Salary + bonuses counts each once.
+- History calendar (`getSalaryHistoryWorkStatus`, display only): absence = absent; QR check-in = worked + time; past on-site day with neither from `ATTENDANCE_START_DATE` = no check-in; earlier/remote = worked; outside employment or future = none.
 - Effective dates cannot enter finalized periods. Recovery scans missing older dates in bounded batches.
 
 ## Notifications
 
 - Private/Salary rate messages show effective KPI percentage/status.
-- KPI rule additions/changes notify only the Salary group (employee, previous/new KPI, effective date, actor); Employee/Team stay terminally skipped.
+- KPI rule changes notify only the Salary group (employee, old/new KPI, effective date, actor); Employee/Team terminally skipped.
 - Private PNG calendars: telegram.md Payroll privacy. Private/Salary-group KPI events skipped; Team gets one daily image (`181`).
 - Cron repairs missing KPI delivery rows before Team delivery; `172` restores the queue trigger.
 - A failed KPI finalization defers the daily salary summary.
@@ -70,7 +70,7 @@
 ## Meals
 
 - `average_daily_employee_meal_uzs` is per present employee per day, not one restaurant total.
-- `employee_daily_meal_expenses` freezes completed-day rate, present count, and total; reports use it, never today's setting. Backfill is one-time, never recalculated.
+- `employee_daily_meal_expenses` freezes completed-day rate, present count and total; reports use it, never today's setting. One-time backfill, never recalculated.
 - Absences/employment boundaries set meal attendance; skip future dates.
 - Cron repairs meal dates independently in bounded batches.
 - Meal rows reduce report remainder; no payment method or cash ledger mutation.
