@@ -1032,6 +1032,10 @@ export default {
   {
    "filename": "256_menu_variant_visibility_team_notifications.sql",
    "sha256": "79547f38730169a6ae48dac333750f5e043881e5d91a39510c0cf470f7a23855"
+  },
+  {
+   "filename": "257_accounting_month_closes.sql",
+   "sha256": "a2df112fb99f70583bd7c1935d521edb780b8392712bacfa47b2df15d5b4569c"
   }
  ],
  "functions": [
@@ -1119,6 +1123,11 @@ export default {
    "name": "queue_employee_kpi_rule_change_telegram_delivery",
    "filename": "203_kpi_workday_start_time.sql",
    "md5": "30a546e1348f56d30dd1c5540a793319"
+  },
+  {
+   "name": "get_accounting_all_time_balance",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "aa08192d3ebee19f3506a392856d5b73"
   },
   {
    "name": "invoke_game_club_team_notifications",
@@ -1509,6 +1518,46 @@ export default {
    "name": "menu_item_variant_visibility",
    "filename": "256_menu_variant_visibility_team_notifications.sql",
    "md5": "0b3053a261bf036c9133aa0d4a5b83d8"
+  },
+  {
+   "name": "prevent_accounting_month_close_changes",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "a913ab8303b712e784a4c45f9cce2d84"
+  },
+  {
+   "name": "accounting_month_components",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "2e9680f1f96ff68306892e7dab06cf88"
+  },
+  {
+   "name": "accounting_first_active_month",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "824390025b29315ba4f8f24551479f12"
+  },
+  {
+   "name": "accounting_month_close_json",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "ebd2f7bf7f278c778ef3ddd610fa5af8"
+  },
+  {
+   "name": "get_accounting_owner_profit",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "7d92eae8fa2c26bbd8ea89a0f8749ae2"
+  },
+  {
+   "name": "close_accounting_month",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "a1d49a48580727c46e3023b7381a7136"
+  },
+  {
+   "name": "accounting_closed_through",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "fe2ab0b894f4a61eb0795907e299457b"
+  },
+  {
+   "name": "guard_closed_accounting_month",
+   "filename": "257_accounting_month_closes.sql",
+   "md5": "5cb8c0e83ab4b073f37eb9935e60c5b2"
   }
  ]
 }

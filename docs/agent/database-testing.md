@@ -7,7 +7,7 @@
 - SQL migrations: `migrations/`
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
-- `194`/`206`/`237` roles; `238` Tourist `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254` KPI QR `256` var TG, test: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237` roles; `238` Tourist `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254` KPI QR `256` var TG `257` owner, test: `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 
@@ -36,7 +36,7 @@
   - Game Club per-round Team queue/cron: `180`
   - Daily Team KPI image claims and legacy-delivery suppression: `181`
 - Tech Card cost sync `183`, targeted `236`. Tests: `tests/techCardCostSyncMigration.test.js`; SQL: `scripts/check-tech-card-*-sync.mjs`.
-- Ingredient renames with stable catalog keys and unchanged purchase snapshots: `182`.
+- Ingredient renames keep catalog keys and purchase snapshots: `182`.
 
 ## Invariants
 

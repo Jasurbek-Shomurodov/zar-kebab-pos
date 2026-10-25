@@ -6,6 +6,7 @@ import {
   BadgeDollarSign,
   CalendarDays,
   ChevronDown,
+  Crown,
   Flame,
   HandCoins,
   Hourglass,
@@ -95,6 +96,7 @@ const L = {
     close: 'Yopish',
     refresh: 'Yangilash',
     estimate: 'Oylik taxmin',
+    ownerProfit: 'Egasi foydasi',
     period: 'Hisobot davri',
     comparedWith: 'Taqqoslash',
     moneyIn: 'Kirim',
@@ -105,7 +107,7 @@ const L = {
     burnRate: 'Kunlik sarf',
     burnRateSub: 'O‘rtacha bir kunlik xarajat',
     runway: 'Zaxira yetadi',
-    runwaySub: 'Umumiy qoldiq ÷ kunlik sarf',
+    runwaySub: 'Umumiy qoldiq (yopilgan oylar foydasisiz) ÷ kunlik sarf',
     days: 'kun',
     foodCost: 'Bozor / kafe daromadi',
     foodCostSub: 'Mahsulot xaridining daromaddagi ulushi',
@@ -168,6 +170,7 @@ const L = {
     close: 'Закрыть',
     refresh: 'Обновить',
     estimate: 'Прогноз на месяц',
+    ownerProfit: 'Прибыль владельца',
     period: 'Отчётный период',
     comparedWith: 'Сравнение с',
     moneyIn: 'Приход',
@@ -178,7 +181,7 @@ const L = {
     burnRate: 'Расход в день',
     burnRateSub: 'Средние траты за один день',
     runway: 'Запаса хватит',
-    runwaySub: 'Общий остаток ÷ расход в день',
+    runwaySub: 'Общий остаток (без прибыли закрытых месяцев) ÷ расход в день',
     days: 'дн.',
     foodCost: 'Базар / доход кафе',
     foodCostSub: 'Доля закупок продуктов в доходе',
@@ -241,6 +244,7 @@ const L = {
     close: 'Close',
     refresh: 'Refresh',
     estimate: 'Monthly estimate',
+    ownerProfit: 'Owner profit',
     period: 'Reporting period',
     comparedWith: 'Compared with',
     moneyIn: 'Money in',
@@ -251,7 +255,7 @@ const L = {
     burnRate: 'Daily burn',
     burnRateSub: 'Average spending per day',
     runway: 'Runway',
-    runwaySub: 'All-time balance ÷ daily burn',
+    runwaySub: 'All-time balance (after closed months’ owner profit) ÷ daily burn',
     days: 'days',
     foodCost: 'Bazaar / cafe income',
     foodCostSub: 'Product purchases as a share of income',
@@ -647,6 +651,16 @@ export default function AccountingAnalysis() {
           >
             <ReceiptText size={16} />
             <span className="hidden xl:inline">{l.estimate}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/financial-analysis/owner-profit')}
+            aria-label={l.ownerProfit}
+            title={l.ownerProfit}
+            className="ws-btn ws-btn-outline !h-[38px] !px-2.5 xl:!px-3.5"
+          >
+            <Crown size={16} />
+            <span className="hidden xl:inline">{l.ownerProfit}</span>
           </button>
           <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-[#e4e1de] sm:block" />
           <button

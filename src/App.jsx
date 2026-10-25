@@ -47,6 +47,7 @@ const STAFF_PAGES = {
   AccountingAnalysis: () => import('./pages/AccountingAnalysis'),
   Salaries: () => import('./pages/Salaries'),
   MonthlyEstimate: () => import('./pages/MonthlyEstimate'),
+  OwnerProfit: () => import('./pages/OwnerProfit'),
   Employees: () => import('./pages/Employees'),
   EmployeeSalaryHistory: () => import('./pages/EmployeeSalaryHistory'),
   Reports: () => import('./pages/Reports'),
@@ -77,6 +78,7 @@ const AccountingHistory = lazy(() => import('./pages/AccountingHistory'))
 const AccountingAnalysis = lazy(() => import('./pages/AccountingAnalysis'))
 const Salaries = lazy(() => import('./pages/Salaries'))
 const MonthlyEstimate = lazy(() => import('./pages/MonthlyEstimate'))
+const OwnerProfit = lazy(() => import('./pages/OwnerProfit'))
 const Employees = lazy(() => import('./pages/Employees'))
 const EmployeeSalaryHistory = lazy(() => import('./pages/EmployeeSalaryHistory'))
 const Reports = lazy(() => import('./pages/Reports'))
@@ -502,6 +504,9 @@ function InternalAppRoutes({ adminHost = false }) {
         } />
         <Route path="/admin/financial-analysis/estimate" element={
           <LazyProtectedRoute page="financial_analysis"><MonthlyEstimate /></LazyProtectedRoute>
+        } />
+        <Route path="/admin/financial-analysis/owner-profit" element={
+          <LazyProtectedRoute page="financial_analysis"><OwnerProfit /></LazyProtectedRoute>
         } />
         <Route path="/admin/accounting/employees" element={
           <LazyProtectedRoute page="expenses"><Employees /></LazyProtectedRoute>

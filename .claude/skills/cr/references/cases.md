@@ -15,6 +15,8 @@ with `rg` or `repo_nav` first.
 
 | Date | Commit | Scope | Findings (S0/S1/S2) | Checks run | Not run |
 |---|---|---|---|---|---|
+| 2026-10-25 | 4117d5e + uncommitted owner-profit diff | `diff fix`: owner-profit flow | 0/0/0 after fixes (fixed 3 S1; DRY-005 and duplicated SQL left as product decisions) | `npm test`, `npm run build`, `npm run docs:check` | browser (migration not applied) |
+| 2026-10-25 | 4117d5e + uncommitted owner-profit diff | owner-profit flow (257) and its reach into Accounting, Financial analysis, Telegram | 0/4/1 | `node --test tests/ownerProfit.test.js tests/dbHealth.test.js`, read-only EXPLAIN | browser (migration not applied), full `npm test` |
 
 ## HIST — immutable financial history
 
@@ -25,6 +27,7 @@ with `rg` or `repo_nav` first.
 | HIST-003 | S0 | Service rates and payments are not rewritten | `rg -n "\.update\(" src/lib/db.js \| rg -i "payment\|service"` | Payment corrections insert a correcting row through the atomic RPC; no in-place update of a paid payment |
 | HIST-004 | S0 | Reporting snapshots are read, not regenerated | Read `src/lib/db.js` loaders used by `Reports.jsx` and `AccountingHistory.jsx` | Historical ranges come from stored snapshots; recomputation is explicit and never overwrites |
 | HIST-005 | S1 | A migration never backfills history from current values | Read any `update ... set` in the newest `migrations/*.sql` | Backfills touch only derived or new columns, never stored prices, costs or rates |
+| HIST-006 | S1 | A closed accounting month's inputs cannot change after the close | Read triggers on `expenses`, `employee_daily_meal_expenses` and payroll tables against `accounting_month_closes` | Insert/update/delete dated in a closed month is rejected, or the close page flags drift between frozen and live totals [cr 2026-10-25] Fixed 2026-10-25 (257 `guard_closed_accounting_month` triggers + KPI/meal-day precondition; `tests/ownerProfit.test.js`) |
 
 ## ARCH — archival deletion
 
@@ -181,6 +184,7 @@ with `rg` or `repo_nav` first.
 | DRY-002 | S1 | The same query written once | `rg -n "\.from\('orders'\)" src \| wc -l` and similar per table | One `db.js` helper per read shape |
 | DRY-003 | S2 | Repeated markup becomes a component | Three or more elements with the same classes in two files | Extracted into `src/components` |
 | DRY-004 | S2 | Near-duplicate components merged | Two pickers, two badges, two summary strips | One with a `variant` |
+| DRY-005 | S1 | One meaning of "profit by month" | Compare Financial analysis Profit by month (229/230), Owner profit (257) and the Telegram payroll report | Same definition, or differently named cards that say what they count [cr 2026-10-25] |
 
 ## COST — running cost
 

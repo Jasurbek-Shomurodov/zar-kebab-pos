@@ -153,6 +153,7 @@ const MIGRATION_HINTS = {
   get_accounting_paid_order_summary: 'Run migrations/109_accounting_paid_order_summary.sql',
   get_accounting_all_time_balance: 'Run migrations/177_accounting_all_time_balance.sql',
   get_accounting_monthly_cashflow: 'Run migrations/229_accounting_monthly_cashflow.sql',
+  get_accounting_owner_profit: 'Run migrations/257_accounting_month_closes.sql',
   get_financial_analysis: 'Run migrations/231_financial_analysis_bundle.sql',
   get_monthly_estimate: 'Run migrations/233_monthly_estimate_bundle.sql',
   get_reports_accounting: 'Run migrations/235_reports_accounting_bundle.sql',
@@ -274,6 +275,7 @@ export async function runDbHealthChecks(dbClient = supabase, { manifestLoader = 
   }))
   checks.push(await checkRpc(dbClient, 'get_accounting_all_time_balance', {}))
   checks.push(await checkRpc(dbClient, 'get_accounting_monthly_cashflow', { p_month_count: 1 }))
+  checks.push(await checkRpc(dbClient, 'get_accounting_owner_profit', {}))
   checks.push(await checkRpc(dbClient, 'get_financial_analysis', { p_date_from: '2000-01-01', p_date_to: '2000-01-01', p_previous_from: '1999-12-31', p_previous_to: '1999-12-31', p_include_growth: false }))
   checks.push(await checkRpc(dbClient, 'get_monthly_estimate', { p_month_start: '2000-01-01', p_month_end: '2000-01-31', p_completed_sales_to: null, p_previous_start: '1999-12-01', p_previous_end: '1999-12-31' }))
   checks.push(await checkRpc(dbClient, 'get_reports_accounting', { p_date_from: '2000-01-01', p_date_to: '2000-01-01' }))
