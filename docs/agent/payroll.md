@@ -1,4 +1,4 @@
-# Employees, Payroll, KPI, Absence, and Employee Meals
+# Employees, Payroll, KPI, Absence, Employee Meals
 
 - `194`/`206`/`237`: display-only job_function (required on create, owner-editable, EN/RU/UZ); no permission/payroll effect. Test: `tests/employeeJobFunctions.test.js`.
 

@@ -39,6 +39,7 @@ import { inferOrderType, isDineInOrderType } from '../../src/lib/orderTypes.js'
 import { PRICE_MODE_TOURIST } from '../../src/lib/priceModes.js'
 import { formatLongDate } from '../../src/lib/dateFormat.js'
 import { getDailySalesMix } from '../../src/lib/salesMix.js'
+import { buildDailyBreakEvenSnapshotRow } from '../../src/lib/dailyBreakEven.js'
 
 const KPI_RETRY_LOOKBACK_DAYS = 7
 const KPI_MISSING_DATE_BATCH_SIZE = 31
@@ -790,6 +791,73 @@ async function updateInvestorReportDeliveryStatus(
   if (update.error) throw update.error
 }
 
+function isMissingDailyBreakEvenTable(error) {
+  return ['42P01', 'PGRST205'].includes(error?.code) || /daily_break_even_snapshots/.test(error?.message || '')
+}
+
+// Saves the finished day's break-even calculation once (rows are immutable)
+// and, when it is the newest day, makes it the current daily target; the
+// business_settings trigger (260) records the change in the target history.
+export async function recordDailyBreakEven(supabase, businessDate, summary) {
+  const row = buildDailyBreakEvenSnapshotRow(summary, businessDate)
+  const inserted = await supabase
+    .from('daily_break_even_snapshots')
+    .upsert(row, { onConflict: 'business_date', ignoreDuplicates: true })
+  if (inserted.error) {
+    if (isMissingDailyBreakEvenTable(inserted.error)) return { businessDate, status: 'unavailable' }
+    throw inserted.error
+  }
+  const latest = await supabase
+    .from('daily_break_even_snapshots')
+    .select('business_date, break_even_income_uzs')
+    .order('business_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (latest.error) throw latest.error
+  const amount = latest.data?.break_even_income_uzs
+  if (latest.data?.business_date !== businessDate || amount == null) {
+    return { businessDate, status: 'recorded', breakEven: row.break_even_income_uzs }
+  }
+  const updated = await supabase
+    .from('business_settings')
+    .update({ average_daily_break_even_income_uzs: amount, updated_at: new Date().toISOString() })
+    .eq('id', 'default')
+    .neq('average_daily_break_even_income_uzs', amount)
+  if (updated.error) throw updated.error
+  return { businessDate, status: 'applied', breakEven: amount }
+}
+
+async function recordDailyBreakEvenSafely(supabase, businessDate, summary) {
+  try {
+    return await recordDailyBreakEven(supabase, businessDate, summary)
+  } catch (error) {
+    console.error('[telegram/daily-salary] daily break-even was not recorded:', error)
+    return { businessDate, status: 'failed', error: String(error?.message || error).slice(0, 1000) }
+  }
+}
+
+// The report may already have been sent (or skipped) before this existed:
+// calculate the finished day on its own when no row is stored yet.
+async function ensureDailyBreakEven(supabase, businessDate) {
+  const existing = await supabase
+    .from('daily_break_even_snapshots')
+    .select('business_date')
+    .eq('business_date', businessDate)
+    .maybeSingle()
+  if (existing.error) {
+    if (isMissingDailyBreakEvenTable(existing.error)) return { businessDate, status: 'unavailable' }
+    throw existing.error
+  }
+  if (existing.data) return { businessDate, status: 'exists' }
+  const { data: kpiResults, error: kpiResultsError } = await supabase
+    .from('employee_daily_kpi_results')
+    .select('*')
+    .eq('business_date', businessDate)
+  if (kpiResultsError) throw kpiResultsError
+  const summary = await loadDailyPayrollGroupSummary(supabase, businessDate, kpiResults || [])
+  return recordDailyBreakEven(supabase, businessDate, summary)
+}
+
 async function sendDailyInvestorReportAlbum(supabase, businessDate, kpiResults) {
   const payrollDelivery = await claimDailyPayrollGroupDelivery(supabase, businessDate)
   // Retain the response field for existing cron consumers; Bazaar reporting is disabled.
@@ -812,6 +880,7 @@ async function sendDailyInvestorReportAlbum(supabase, businessDate, kpiResults) 
     const payrollModule = await import('./_lib/payrollReportImage.js')
     const operationsModule = await import('./_lib/dailyOperationsReportImages.js')
     const summary = await loadDailyPayrollGroupSummary(supabase, businessDate, kpiResults)
+    await recordDailyBreakEvenSafely(supabase, businessDate, summary)
     const photos = [
       {
         kind: 'payroll',
@@ -1111,18 +1180,25 @@ export default async function handler(req, res) {
       )
       return json(res, 200, { ok: true, notificationDate, result })
     }
+    if (cronTask === 'break-even') {
+      return json(res, 200, { ok: true, notificationDate, breakEven: await ensureDailyBreakEven(supabase, notificationDate) })
+    }
     if (cronTask === 'unavailable-products') {
       const businessDate = getTashkentDate(now)
       const [watchdogRun, unavailableRun] = await Promise.allSettled([
         verifyDailySalaryCronDelivery(supabase, notificationDate),
         sendDailyUnavailableMenuNotification(supabase, businessDate),
       ])
+      // After the watchdog, so a recovered report records the day itself.
+      const breakEvenRun = await ensureDailyBreakEven(supabase, notificationDate)
+        .catch(error => ({ businessDate: notificationDate, status: 'failed', error: String(error?.message || error).slice(0, 1000) }))
       if (watchdogRun.status === 'rejected') throw watchdogRun.reason
       if (unavailableRun.status === 'rejected') throw unavailableRun.reason
       return json(res, 200, {
         ok: true,
         ...unavailableRun.value,
         dailySalaryWatchdog: watchdogRun.value,
+        dailyBreakEven: breakEvenRun,
       })
     }
     const catchUpDates = await loadKpiCatchUpDates(supabase, now)

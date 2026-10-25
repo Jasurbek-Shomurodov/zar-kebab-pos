@@ -1,6 +1,6 @@
 # Architecture, State, Auth, and Realtime
 
-Read this guide for app startup, authentication, routes, permissions, shared state, hydration, and realtime work.
+Read this for app startup, authentication, routes, permissions, shared state, hydration, and realtime work.
 
 ## Entry points
 

@@ -52,7 +52,7 @@
 - Monthly Estimate: selected-month actuals plus expected salary, rent, utilities, and bazaar/sales at completed-day pace; no older arrears. Last-month comparison uses salary cost.
 - Salary operating cost is per employee, so one advance or old debt never distorts another.
 - `business_settings.monthly_utilities_uzs` is the plan; only recorded `utilities` rows are monthly actuals.
-- `business_settings.average_daily_break_even_income_uzs` is the operator's income-chart benchmark; it never alters Accounting totals.
+- `business_settings.average_daily_break_even_income_uzs` is a calculated chart target (`263`); never alters Accounting.
 
 ## Cash Telegram
 

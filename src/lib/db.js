@@ -170,16 +170,6 @@ function isMissingTouristServiceRateColumn(error) {
   )
 }
 
-function isMissingDailyBreakEvenIncomeColumn(error) {
-  const message = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return message.includes('average_daily_break_even_income_uzs') && (
-    message.includes('schema cache') ||
-    message.includes('column') ||
-    message.includes('42703') ||
-    message.includes('pgrst204')
-  )
-}
-
 function normalizeVariantCosts(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   return Object.fromEntries(Object.entries(value).flatMap(([variantId, rawCost]) => {
@@ -1444,7 +1434,6 @@ export async function writeToSupabase(action, state, options = {}) {
         monthly_rent_uzs: Math.max(0, Math.round(Number(settings.monthlyRentUzs) || 0)),
         monthly_utilities_uzs: Math.max(0, Math.round(Number(settings.monthlyUtilitiesUzs) || 0)),
         average_daily_employee_meal_uzs: Math.max(0, Math.round(Number(settings.averageDailyEmployeeMealUzs) || 0)),
-        average_daily_break_even_income_uzs: Math.max(0, Math.round(Number(settings.averageDailyBreakEvenIncomeUzs) || 0)),
         receipt_footer: settings.receiptFooter || '',
         receipt_marketing: normalizeReceiptMarketing(settings.receiptMarketing),
         auto_print: !!settings.autoPrint,
@@ -1462,13 +1451,6 @@ export async function writeToSupabase(action, state, options = {}) {
           throw new Error('Run migrations/238_tourist_menu_toggle.sql to change Tourist menu settings')
         }
         const { tourist_menu_enabled, public_tourist_prices, ...legacySettingsRow } = compatibleSettingsRow
-        compatibleSettingsRow = legacySettingsRow
-        ;({ error } = await supabase
-          .from('business_settings')
-          .upsert(compatibleSettingsRow))
-      }
-      if (error && isMissingDailyBreakEvenIncomeColumn(error)) {
-        const { average_daily_break_even_income_uzs, ...legacySettingsRow } = compatibleSettingsRow
         compatibleSettingsRow = legacySettingsRow
         ;({ error } = await supabase
           .from('business_settings')

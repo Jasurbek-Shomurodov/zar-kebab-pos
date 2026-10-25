@@ -114,12 +114,14 @@ test('monthly income chart keeps all 12 calendar positions in chronological orde
   assert.equal(chartRows[0].averageDailyIncome, 0)
 })
 
-test('daily break-even defaults to 10 million UZS and persists through business settings', () => {
+test('daily break-even defaults to 10 million UZS and is calculated, never saved from Settings', () => {
   assert.equal(DASHBOARD_DAILY_BREAK_EVEN_INCOME, 10_000_000)
-  assert.match(settings, /averageDailyBreakEvenIncomeUzs/)
-  assert.match(settings, /formatMoneyInput\(averageDailyBreakEvenIncomeUzs\)/)
+  // The cron calculates the target (migration 263); a Settings save must not overwrite it with stale state.
+  assert.match(settings, /formatCurrency\(settings\.averageDailyBreakEvenIncomeUzs\)/)
+  assert.match(settings, /<DailyBreakEvenBreakdown lang=\{lang\} \/>/)
+  assert.doesNotMatch(settings, /setAverageDailyBreakEvenIncomeUzs|formatMoneyInput\(averageDailyBreakEvenIncomeUzs\)/)
   assert.match(db, /averageDailyBreakEvenIncomeUzs: Math\.max\(0, Math\.round\(Number\(row\.average_daily_break_even_income_uzs \?\? 10_000_000\) \|\| 0\)\)/)
-  assert.match(db, /average_daily_break_even_income_uzs: Math\.max\(0, Math\.round\(Number\(settings\.averageDailyBreakEvenIncomeUzs\) \|\| 0\)\)/)
+  assert.doesNotMatch(db, /average_daily_break_even_income_uzs: Math\.max\(0, Math\.round\(Number\(settings\.averageDailyBreakEvenIncomeUzs\)/)
   assert.match(defaults, /averageDailyBreakEvenIncomeUzs:\s*10_000_000/)
   assert.match(breakEvenMigration, /average_daily_break_even_income_uzs bigint not null default 10000000/)
   assert.doesNotMatch(loader, /loadPaidOrdersForRange|from\(['"]orders['"]\)/)

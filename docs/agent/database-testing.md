@@ -11,7 +11,7 @@
 
 ## Workflow
 
-- Use full filenames; keep legacy `073`/`108`/`157` duplicates distinct.
+- Full filenames; keep legacy `073`/`108`/`157` duplicates distinct.
 - `199` receipts/drift; `255` Settings check vs `src/generated/migrationManifest.js` (`npm run migrations:manifest`). `migrate.js --status`/`--sql`/`--apply <file>`; no legacy replay; same checksum skips, changed fails.
 - Migrations:
   - settings, payments, kitchen submit, tables/reservations: `011`, `012`, `018`–`020`
@@ -23,14 +23,14 @@
   - Tech Cards, access, components, stock, variant recipes, and fractional included-dish quantities: `139`–`140`, `149`–`151`, `154`–`156`, `159`
   - menu/expense notifications and financial snapshots: `142`–`147`
   - absence cleanup, daily-report/review crons: `148`, `152`, `225`
-  - Monthly income snapshots, break-even target/history, completed-day average: `157`–`158`, `174`, `260`, `262`
+  - Monthly income snapshots, break-even target/history, completed-day average: `157`–`158`, `174`, `260`, `262`, `263`
   - authoritative Daily Bazaar ingredient catalog, clean reset, owner-only catalog writes, and immutable price-variance snapshots: `160`–`163`
   - immutable sold-item Tech Card ingredient snapshots and duplicate-safe daily ingredient image delivery: `164`–`165`
   - Tashkent expense backdate limit: `166`
   - salary/KPI accrual, notifications, Tech Card catalog access, and Team queue repair: `169`–`172`
-  - paid-order correction feature access: `173`
+  - paid-order correction access: `173`
   - Investor alerts for order deletes and payment corrections, including trigger repair: `175`–`176`
-  - compact all-time Accounting remainder: `177`
+  - all-time Accounting rest: `177`
   - employee lifecycle Investor notification queue: `178`
   - Game Club type, permission and service checks: `179`
   - Game Club per-round Team queue/cron: `180`

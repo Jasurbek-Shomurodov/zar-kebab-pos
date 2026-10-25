@@ -1056,6 +1056,10 @@ export default {
   {
    "filename": "262_break_even_target_history_starting_value.sql",
    "sha256": "d5fc3751f6bf942400c3582cb869ca7369c09b97112fbd36d4dd95d907083dd7"
+  },
+  {
+   "filename": "263_daily_break_even_snapshots.sql",
+   "sha256": "a43f5d4d04d82e20e91b1ccf84d3632f87079969d94521c18ee7759a83968106"
   }
  ],
  "functions": [

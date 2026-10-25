@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { normalizeDailyBreakEvenSnapshot } from './dailyBreakEven.js'
 
 // Daily break-even target history (migration 260). Each row applies from its
 // Tashkent date until the next row; a period uses the target in effect on its
@@ -60,4 +61,21 @@ export async function loadBreakEvenTargetHistory(options = {}) {
     throw error
   }
   return normalizeBreakEvenTargetHistory(data)
+}
+
+// The newest calculated day (migration 263); null before the first calculation.
+export async function loadLatestDailyBreakEven(options = {}) {
+  const dbClient = options.dbClient || supabase
+  let request = dbClient
+    .from('daily_break_even_snapshots')
+    .select('*')
+    .order('business_date', { ascending: false })
+    .limit(1)
+  if (options.signal && typeof request?.abortSignal === 'function') request = request.abortSignal(options.signal)
+  const { data, error } = await request.maybeSingle()
+  if (error) {
+    if (error?.code === '42P01' || error?.code === 'PGRST205' || String(error?.message || '').includes('daily_break_even_snapshots')) return null
+    throw error
+  }
+  return normalizeDailyBreakEvenSnapshot(data)
 }
