@@ -16,6 +16,7 @@ import {
   ShoppingBasket,
   Users,
   WalletCards,
+  X,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { Kpi, KpiExplanationDialog, toKpiDetail } from '../components/AccountingKpi'
@@ -24,6 +25,7 @@ import { OperationalLoading } from '../components/OperationalState'
 import MonthlyIncomeChart from '../components/MonthlyIncomeChart'
 import WeeklyIncomeChart from '../components/WeeklyIncomeChart'
 import SankeyChart, { useElementWidth } from '../components/SankeyChart'
+import { Shimmer } from '../components/PageShimmer'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../store/AppContext'
 import { getAccountingQuickRange, normalizeAccountingPaidOrderSummary } from '../lib/accounting'
@@ -47,6 +49,7 @@ import {
   buildAccountingTrend,
   buildCategoryComparison,
   buildDailySpending,
+  buildDayMoneyFlow,
   buildGrowthOverview,
   buildLargestPayments,
   buildMonthlyProfitRows,
@@ -126,7 +129,8 @@ const L = {
     categoriesTitle: 'Xarajatlar tarkibi',
     categoriesSub: 'Kategoriya bo‘yicha. Tarixni ochish uchun bosing.',
     dailyTitle: 'Kunlik xarajatlar',
-    dailySub: 'Har kuni sarflangan pul va o‘rtacha kunlik kafe daromadi',
+    dailySub: 'Har kuni sarflangan pul va o‘rtacha kunlik kafe daromadi. Kunni bosing — pul qayerga ketgani ochiladi',
+    dayFlowTitle: 'Pul qayerga ketdi', dayPayments: 'Shu kungi to‘lovlar', dayLoadFailed: 'Kunlik kafe daromadini yuklab bo‘lmadi.', dayNoPayments: 'Bu kuni to‘lov yo‘q',
     avgIncome: 'O‘rtacha kunlik daromad',
     salaries: 'Maoshlar',
     bazaar: 'Bozor',
@@ -201,7 +205,8 @@ const L = {
     categoriesTitle: 'Структура расходов',
     categoriesSub: 'По категориям. Нажмите, чтобы открыть историю.',
     dailyTitle: 'Расходы по дням',
-    dailySub: 'Траты каждого дня и средний дневной доход кафе',
+    dailySub: 'Траты каждого дня и средний дневной доход кафе. Нажмите на день, чтобы увидеть, куда ушли деньги',
+    dayFlowTitle: 'Куда ушли деньги', dayPayments: 'Платежи за день', dayLoadFailed: 'Не удалось загрузить доход кафе за день.', dayNoPayments: 'В этот день платежей нет',
     avgIncome: 'Средний дневной доход',
     salaries: 'Зарплаты',
     bazaar: 'Базар',
@@ -276,7 +281,8 @@ const L = {
     categoriesTitle: 'Spending breakdown',
     categoriesSub: 'By category. Tap one to open its history.',
     dailyTitle: 'Daily spending',
-    dailySub: 'What was spent each day against average daily cafe income',
+    dailySub: 'What was spent each day against average daily cafe income. Tap a day to see where the money went',
+    dayFlowTitle: 'Where the money went', dayPayments: 'Payments that day', dayLoadFailed: 'Could not load the day’s cafe income.', dayNoPayments: 'No payments that day',
     avgIncome: 'Avg daily income',
     salaries: 'Salaries',
     bazaar: 'Bazaar',
@@ -375,6 +381,7 @@ export default function AccountingAnalysis() {
   const [loadFailed, setLoadFailed] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [selectedKpi, setSelectedKpi] = useState(null)
+  const [selectedDay, setSelectedDay] = useState(null)
   const requestRef = useRef(0)
   const previousPeriod = useMemo(() => getPreviousAccountingPeriod(dateFrom, dateTo), [dateFrom, dateTo])
   const [growth, setGrowth] = useState({ status: 'loading', months: [], tenDay: [], cashflow: null, cashflowStatus: 'loading' })
@@ -574,9 +581,9 @@ export default function AccountingAnalysis() {
     openHistory(category, 'income')
   }
 
-  function openHistory(category, type) {
+  function openHistory(category, type, from = dateFrom, to = dateTo) {
     if (!category || category.startsWith('__')) return
-    const params = new URLSearchParams({ type, category, from: dateFrom, to: dateTo })
+    const params = new URLSearchParams({ type, category, from, to })
     navigate(`/admin/accounting/history?${params.toString()}`)
   }
 
@@ -842,8 +849,22 @@ export default function AccountingAnalysis() {
                   averageIncome={analysis.summary.cafeIncomeSummary.averageDaily}
                   l={l}
                   lang={lang}
+                  onSelectDay={setSelectedDay}
                 />
               </ChartCard>
+
+              {selectedDay && (
+                <DayFlowDialog
+                  date={selectedDay}
+                  entries={analysis.entries}
+                  menuItems={state.menuItems}
+                  l={l}
+                  lang={lang}
+                  categoryName={categoryName}
+                  onOpenHistory={category => openHistory(category, 'expense', selectedDay, selectedDay)}
+                  onClose={() => setSelectedDay(null)}
+                />
+              )}
 
               <ChartCard title={l.methodsTitle} description={l.methodsSub}>
                 <PaymentMethodFlow rows={analysis.summary.cashflow.rows} lang={lang} l={l} />
@@ -1657,7 +1678,7 @@ function CategoryComparison({ rows, labelFor, l }) {
   )
 }
 
-function DailySpendingChart({ days, averageIncome, l, lang }) {
+function DailySpendingChart({ days, averageIncome, l, lang, onSelectDay }) {
   const [hoverIndex, setHoverIndex] = useState(null)
   if (!days.length || days.every(day => day.total === 0)) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
 
@@ -1695,7 +1716,18 @@ function DailySpendingChart({ days, averageIncome, l, lang }) {
             const x = pad.left + index * slot + (slot - barWidth) / 2
             let stackTop = pad.top + plotH
             return (
-              <g key={day.date} onMouseEnter={() => setHoverIndex(index)}>
+              <g
+                key={day.date}
+                onMouseEnter={() => setHoverIndex(index)}
+                onClick={day.total > 0 ? () => onSelectDay(day.date) : undefined}
+                onKeyDown={event => {
+                  if (day.total > 0 && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelectDay(day.date) }
+                }}
+                role={day.total > 0 ? 'button' : undefined}
+                tabIndex={day.total > 0 ? 0 : undefined}
+                aria-label={day.total > 0 ? `${formatLongDate(day.date, lang, day.date)} · ${formatCurrency(day.total)}` : undefined}
+                className={day.total > 0 ? 'cursor-pointer outline-none' : undefined}
+              >
                 <rect x={pad.left + index * slot} y={pad.top} width={slot} height={plotH} fill={hoverIndex === index ? 'rgb(255 90 0 / 8%)' : 'transparent'} />
                 {SPENDING_GROUPS.map(group => {
                   if (!day[group]) return null
@@ -1729,6 +1761,111 @@ function DailySpendingChart({ days, averageIncome, l, lang }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Tapping a day in Daily spending: that day's money flow (income -> spending
+// categories) and every payment of the day. Cafe income is stored only as
+// period totals, so the day's paid-order summary is loaded on open.
+function DayFlowDialog({ date, entries, menuItems, l, lang, categoryName, onOpenHistory, onClose }) {
+  const [order, setOrder] = useState({ status: 'loading', summary: null })
+  const [retry, setRetry] = useState(0)
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  useEffect(() => {
+    let active = true
+    const fallbackMenuItemMap = Object.fromEntries((menuItems || []).map(item => [item.id, item]))
+    setOrder({ status: 'loading', summary: null })
+    loadAccountingPaidOrderSummary(date, date, { fallbackMenuItemMap })
+      .then(summary => { if (active) setOrder({ status: 'ready', summary }) })
+      .catch(() => { if (active) setOrder({ status: 'error', summary: null }) })
+    return () => { active = false }
+  }, [date, retry]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const flow = useMemo(() => buildDayMoneyFlow(order.summary || {}, entries, date), [order.summary, entries, date])
+  const groupLabels = { salaries: l.salaries, bazaar: l.bazaar, meals: l.meals, other: l.otherSpend }
+  const moneyIn = flow.sankey.incomeTotal
+  const spent = flow.sankey.spendTotal
+  const ready = order.status === 'ready'
+  const max = flow.payments[0]?.amount || 1
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
+      <section role="dialog" aria-modal="true" aria-labelledby="day-flow-title" className="ws-dialog max-h-[92vh] w-full overflow-y-auto !rounded-b-none sm:max-w-4xl sm:!rounded-2xl">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#e4e1de] bg-white px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="ws-caption font-medium">{l.dayFlowTitle}</p>
+            <h2 id="day-flow-title" className="ws-display mt-1">{formatLongDate(date, lang, date)}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label={l.close} className="ws-btn ws-btn-ghost !h-10 !w-10 !px-0">
+            <X size={19} />
+          </button>
+        </div>
+        <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {[[l.moneyIn, moneyIn, 'text-[#22201d]', !ready], [l.spent, spent, 'text-[#22201d]', false], [l.left, moneyIn - spent, moneyIn - spent >= 0 ? 'text-green-600' : 'text-red-600', !ready]].map(([label, amount, tone, pending]) => (
+              <div key={label} className="rounded-xl bg-[#f6f5f3] p-3 sm:p-4">
+                <p className="ws-caption">{label}</p>
+                {pending
+                  ? <Shimmer className="mt-1.5 h-6 w-24" />
+                  : <p className={`mt-1 break-words text-base font-semibold tabular-nums sm:text-xl ${tone}`}>{formatCurrency(amount)}</p>}
+              </div>
+            ))}
+          </div>
+
+          {order.status === 'error' ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-[#e4e1de] py-10 text-sm font-bold text-[#8a867f]">
+              <p>{l.dayLoadFailed}</p>
+              <button type="button" className="ws-btn" onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />{l.retry}</button>
+            </div>
+          ) : !ready ? (
+            <Shimmer className="h-[300px] w-full rounded-xl" />
+          ) : (
+            <SankeyChart
+              sankey={flow.sankey}
+              colors={flow.colors}
+              hubLabel={l.hub}
+              emptyLabel={l.empty}
+              sourceLabel={key => l[key] || key}
+              targetLabel={categoryName}
+              onTargetClick={onOpenHistory}
+            />
+          )}
+
+          <div>
+            <h3 className="text-sm font-semibold text-[#22201d]">{l.dayPayments}</h3>
+            {!flow.payments.length ? (
+              <p className="py-6 text-center text-sm font-bold text-[#8a867f]">{l.dayNoPayments}</p>
+            ) : (
+              <ol className="mt-2 divide-y divide-[#efece9]">
+                {flow.payments.map(row => {
+                  const details = [row.vendor, expenseDescriptionLabel(row.description, lang)].filter(Boolean).join(' · ')
+                  return (
+                    <li key={row.id}>
+                      <button type="button" onClick={() => onOpenHistory(row.category)} title={l.openHistory} className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-lg px-2 py-2.5 text-left hover:bg-[#f6f5f3]">
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13px] font-semibold text-[#22201d]">{categoryName(row.category)}{details ? <span className="font-normal text-[#68655f]"> · {details}</span> : null}</span>
+                          <span className="inline-flex items-center gap-1.5 text-[12px] text-[#8a867f]"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: GROUP_COLORS[row.group] }} />{groupLabels[row.group]} · {expensePaymentMethodLabel(row.method, lang)}</span>
+                        </span>
+                        <span className="text-right text-[13px] font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.amount)}</span>
+                        <span className="col-span-2 h-1 overflow-hidden rounded-full bg-[#efece9]"><span className="block h-full rounded-full" style={{ width: `${(row.amount / max) * 100}%`, backgroundColor: GROUP_COLORS[row.group] }} /></span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ol>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

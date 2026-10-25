@@ -13,6 +13,7 @@ import {
   getTrendIntervals,
   buildCategoryComparison,
   buildDailySpending,
+  buildDayMoneyFlow,
   buildGrowthOverview,
   buildLargestPayments,
   buildMonthlyProfitRows,
@@ -239,4 +240,17 @@ test('monthly profit rows exclude investor support and payback uses the last thr
   assert.deepEqual(payback, { invested: 500, generated: 210, paidBackPct: 42, remaining: 290, monthlyPace: 43, monthsLeft: 7 })
   assert.equal(buildPaybackSummary({ investorSupport: 0, operatingCash: 10 }, rows), null)
   assert.equal(buildPaybackSummary({ investorSupport: 100, operatingCash: 150 }, rows).monthsLeft, 0)
+})
+
+test('a tapped day becomes its own money flow with every payment, largest first', () => {
+  const flow = buildDayMoneyFlow({ cafe_income: 5000000 }, [
+    { id: 1, entry_type: 'expense', expense_date: '2026-10-15', category: 'salary_cook', amount: 6400000, is_salary_payment: true, vendor: 'Cook' },
+    { id: 2, entry_type: 'expense', expense_date: '2026-10-15', category: 'products_bazaar', amount: 1100000 },
+    { id: 3, entry_type: 'expense', expense_date: '2026-10-16', category: 'rent', amount: 9000000 },
+    { id: 4, entry_type: 'income', expense_date: '2026-10-15', category: 'investor_support', amount: 1000000 },
+  ], '2026-10-15')
+  assert.deepEqual(flow.payments.map(row => [row.id, row.group]), [[1, 'salaries'], [2, 'bazaar']])
+  assert.equal(flow.sankey.spendTotal, 7500000)
+  assert.equal(flow.sankey.incomeTotal, flow.summary.cafeIncome + 1000000)
+  assert.ok(flow.sankey.targets.every(target => target.key !== 'rent'))
 })

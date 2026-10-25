@@ -148,6 +148,39 @@ export function buildDailySpending(entries = [], dateFrom, dateTo) {
   return days
 }
 
+// One day of the Daily spending chart as a money flow: that day's income
+// (cafe income comes from the day's paid-order summary) into its spending
+// categories, plus every payment of the day, largest first.
+export function buildDayMoneyFlow(paidOrderSummary, entries = [], date) {
+  const dayEntries = (entries || []).filter(entry => entry?.expense_date === date)
+  const summary = getAccountingAnalysisSummary(paidOrderSummary, dayEntries, date, date)
+  const categories = getTopExpenseCategories(summary.expenseSummary.byCategory)
+  const payments = dayEntries
+    .filter(entry => normalizeExpenseEntryType(entry?.entry_type) === 'expense' && normalizeExpenseAmount(entry?.amount) > 0)
+    .map(entry => ({
+      id: entry.id,
+      category: entry.category,
+      group: spendingGroup(entry),
+      vendor: entry.vendor || '',
+      description: entry.description || '',
+      method: entry.payment_method || 'cash',
+      amount: normalizeExpenseAmount(entry.amount),
+    }))
+    .sort((a, b) => b.amount - a.amount || String(a.id).localeCompare(String(b.id)))
+  return {
+    summary,
+    categories,
+    colors: assignCategoryColors(categories),
+    sankey: buildAccountingSankey({
+      cafeIncome: summary.cafeIncome,
+      investorSupport: summary.investorSupportTotal,
+      otherIncome: summary.otherIncomeTotal,
+      categories,
+    }),
+    payments,
+  }
+}
+
 export function getPercentChange(current, previous) {
   const now = Number(current) || 0
   const before = Number(previous) || 0
