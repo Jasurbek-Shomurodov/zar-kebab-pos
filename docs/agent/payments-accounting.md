@@ -41,7 +41,7 @@
 - KPIs use permission-checked aggregates, never full history. The all-time cash remainder excludes unpaid salary liability.
 - Order rows belong to reports, receipts and drilldowns.
 - Accounting: recording, spending/salary KPIs (no method-balance panel). Analysis/Estimate: `financial_analysis` (needs `expenses`; `230`); `229` growth; `231`/`233` bundles.
-- Owner profit `257` (`ownerProfit.js`): month from zero, salary when earned; owner closes oldest month from the 4th once KPI/meal days are final; request-id retries; locks its expenses, meals, bonuses, fines; remainder minus `settled_amount`. `tests/ownerProfit.test.js`.
+- Owner profit `257` (sidebar, `ownerProfit.js`): month at zero, salary when earned; owner closes oldest month from the 4th once KPI/meal days are final; request-id retries; locks its expenses, meals, bonuses, fines; remainder minus `settled_amount`. `tests/ownerProfit.test.js`.
 
 ## Expenses and estimates
 

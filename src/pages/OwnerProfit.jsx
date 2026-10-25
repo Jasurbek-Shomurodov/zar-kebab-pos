@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Crown, Loader2, Lock, RefreshCw, TrendingDown, TrendingUp, WalletCards } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { Kpi } from '../components/AccountingKpi'
@@ -25,7 +24,7 @@ import {
 
 const LABELS = {
   uz: {
-    title: 'Egasi foydasi', back: 'Moliyaviy tahlilga qaytish', refresh: 'Yangilash', loading: 'Oylar yuklanmoqda',
+    title: 'Egasi foydasi', refresh: 'Yangilash', loading: 'Oylar yuklanmoqda',
     intro: 'Har oy noldan boshlanadi: o‘sha oy kirimi minus o‘sha oy xarajatlari. Maosh ishlangan oyiga yoziladi. Tugagan oy yopilganda qolgan pul egasi foydasi sifatida yoziladi va umumiy qoldiq yana noldan boshlanadi.',
     totalClosed: 'Yopilgan oylar foydasi', totalClosedSub: '{n} ta yopilgan oy', average: 'O‘rtacha oylik foyda', averageSub: 'Yopilgan oylar bo‘yicha',
     best: 'Eng yaxshi oy', worst: 'Eng yomon oy', none: 'Hali yopilgan oy yo‘q',
@@ -44,7 +43,7 @@ const LABELS = {
     closedOk: '{month} yopildi.',
   },
   ru: {
-    title: 'Прибыль владельца', back: 'Назад к финансовому анализу', refresh: 'Обновить', loading: 'Загрузка месяцев',
+    title: 'Прибыль владельца', refresh: 'Обновить', loading: 'Загрузка месяцев',
     intro: 'Каждый месяц начинается с нуля: доход месяца минус расходы месяца. Зарплата относится к месяцу, в котором её заработали. При закрытии месяца остаток записывается как прибыль владельца, и общий остаток снова начинается с нуля.',
     totalClosed: 'Прибыль закрытых месяцев', totalClosedSub: 'Закрыто месяцев: {n}', average: 'Средняя прибыль в месяц', averageSub: 'По закрытым месяцам',
     best: 'Лучший месяц', worst: 'Худший месяц', none: 'Закрытых месяцев пока нет',
@@ -63,7 +62,7 @@ const LABELS = {
     closedOk: '{month} закрыт.',
   },
   en: {
-    title: 'Owner profit', back: 'Back to financial analysis', refresh: 'Refresh', loading: 'Loading months',
+    title: 'Owner profit', refresh: 'Refresh', loading: 'Loading months',
     intro: 'Every month starts from zero: that month’s income minus that month’s costs. Salary counts in the month it was earned. Closing a finished month records what is left as owner profit, so the all-time remainder starts from zero again.',
     totalClosed: 'Closed months profit', totalClosedSub: '{n} closed months', average: 'Average monthly profit', averageSub: 'Across closed months',
     best: 'Best month', worst: 'Worst month', none: 'No closed months yet',
@@ -247,7 +246,6 @@ function MonthDetails({ row, l, lang }) {
 }
 
 export default function OwnerProfit() {
-  const navigate = useNavigate()
   const { state } = useApp()
   const { profile } = useAuth()
   const lang = state.lang
@@ -327,7 +325,6 @@ export default function OwnerProfit() {
     }
   }
 
-  const back = { label: l.back, onClick: () => navigate('/admin/financial-analysis') }
   const headerActions = (
     <button
       type="button"
@@ -345,7 +342,7 @@ export default function OwnerProfit() {
   const showShimmer = loading && !data
 
   return (
-    <AppShell title={l.title} back={back} headerActions={headerActions}>
+    <AppShell title={l.title} headerActions={headerActions}>
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page space-y-5">
           <p className="max-w-3xl text-[13px] leading-relaxed text-[#68655f]">{l.intro}</p>

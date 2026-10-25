@@ -166,3 +166,10 @@ test('migration 257 locks the records a close was built from', () => {
   assert.match(sql, /raise exception 'kpi_days_pending'/)
   assert.match(sql, /raise exception 'meal_days_pending'/)
 })
+
+test('Owner profit has its own drawer row behind Financial analysis access', () => {
+  const sidebar = readFileSync(new URL('../src/components/UnifiedSidebar.jsx', import.meta.url), 'utf8')
+  assert.match(sidebar, /key: 'owner_profit',\s+accessKey: 'financial_analysis',[\s\S]{0,200}path: '\/admin\/financial-analysis\/owner-profit'/)
+  // The more specific path is matched before Financial analysis, so only one row is highlighted.
+  assert.ok(sidebar.indexOf("startsWith('/admin/financial-analysis/owner-profit')) return 'owner_profit'") < sidebar.indexOf("startsWith('/admin/financial-analysis')) return 'financial_analysis'"))
+})

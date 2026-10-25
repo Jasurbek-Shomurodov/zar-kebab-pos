@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Table2, BookOpen,
   Receipt, Users, BarChart2, ShieldCheck, Settings, LogOut,
   BadgeDollarSign, WalletCards, ShoppingBasket, PieChart,
-  ClipboardList, PackagePlus, PanelLeft, ChevronRight, QrCode, Sparkles,
+  ClipboardList, PackagePlus, PanelLeft, ChevronRight, QrCode, Sparkles, Crown,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -114,6 +114,15 @@ const NAV = [
     group: 'business',
   },
   {
+    // A Financial analysis page with its own row; closing a month stays owner-only in the database.
+    key: 'owner_profit',
+    accessKey: 'financial_analysis',
+    icon: Crown,
+    labels: { uz: 'Egasi foydasi', ru: 'Прибыль владельца', en: 'Owner profit' },
+    path: '/admin/financial-analysis/owner-profit',
+    group: 'business',
+  },
+  {
     key: 'team',
     icon: Users,
     labels: { uz: 'Jamoa', ru: 'Команда', en: 'Team' },
@@ -156,6 +165,7 @@ function activeKey(pathname) {
   if (pathname.startsWith('/waiter/tables'))  return 'tables'
   if (pathname.startsWith('/cashier'))        return 'cashier'
   if (pathname.startsWith('/admin/loyalty'))  return 'loyalty'
+  if (pathname.startsWith('/admin/financial-analysis/owner-profit')) return 'owner_profit'
   if (pathname.startsWith('/admin/financial-analysis')) return 'financial_analysis'
   if (pathname.startsWith('/admin/accounting')) return 'expenses'
   if (pathname.startsWith('/admin/expenses')) return 'expenses'
