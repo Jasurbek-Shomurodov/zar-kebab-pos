@@ -18,6 +18,12 @@ import {
   buildLargestPayments,
   buildMonthlyProfitRows,
   buildPaybackSummary,
+  buildBreakEvenSummary,
+  buildInvestorOverview,
+  buildPeriodTotals,
+  buildMonthlyIncomeSources,
+  buildMonthlySpending,
+  incomeSourceOfOrder,
   getPercentChange,
   getPreviousAccountingPeriod,
   getTopExpenseCategories,
@@ -253,4 +259,84 @@ test('a tapped day becomes its own money flow with every payment, largest first'
   assert.equal(flow.sankey.spendTotal, 7500000)
   assert.equal(flow.sankey.incomeTotal, flow.summary.cafeIncome + 1000000)
   assert.ok(flow.sankey.targets.every(target => target.key !== 'rent'))
+})
+
+test('overall investor support, year totals and break-even come from the monthly cash rows', () => {
+  const rows = buildMonthlyProfitRows([
+    { monthStart: '2026-07-01', cafeIncome: 100, otherIncome: 0, spent: 150, salesCost: 40, orderCount: 2, investorSupport: 500, salaries: 60 },
+    { monthStart: '2026-08-01', cafeIncome: 200, otherIncome: 10, spent: 150, salesCost: 80, orderCount: 4, investorSupport: 0, salaries: 60 },
+    { monthStart: '2026-09-01', cafeIncome: 300, otherIncome: 0, spent: 380, salesCost: 90, orderCount: 5, investorSupport: 100, salaries: 90 },
+    { monthStart: '2026-10-01', cafeIncome: 120, otherIncome: 0, spent: 40, salesCost: 30, orderCount: 2, investorSupport: 0, salaries: 0 },
+  ], '2026-10-12')
+
+  const investor = buildInvestorOverview({ investorSupport: 900, firstInvestmentMonth: '2026-05' }, rows)
+  assert.equal(investor.invested, 900)
+  assert.equal(investor.recentTotal, 600)
+  assert.equal(investor.supportedMonthCount, 2)
+  assert.equal(investor.averagePerSupportedMonth, 300)
+  assert.equal(investor.last.key, '2026-09')
+  assert.equal(investor.largest.key, '2026-07')
+  assert.equal(investor.thisMonth, 0)
+  assert.equal(investor.shortfall, 50 + 80)
+  assert.equal(investor.shortfallCoveredPct, 100)
+  assert.equal(investor.shareOfSpendingPct, 83.3)
+  assert.equal(buildInvestorOverview({ investorSupport: 0 }, rows.map(row => ({ ...row, investorSupport: 0 }))), null)
+
+  const totals = buildPeriodTotals(rows)
+  assert.equal(totals.cafeIncome, 720)
+  assert.equal(totals.income, 730)
+  assert.equal(totals.spent, 720)
+  assert.equal(totals.left, 10)
+  assert.equal(totals.grossProfit, 480)
+  assert.equal(totals.salaries, 210)
+  assert.equal(totals.investorSupport, 600)
+  assert.deepEqual([totals.profitableMonths, totals.completedMonths], [1, 3])
+  assert.equal(totals.bestMonth.key, '2026-10')
+  assert.equal(totals.worstMonth.key, '2026-09')
+  assert.equal(buildPeriodTotals([]), null)
+
+  const overview = { latest: { monthStart: '2026-10-01', averageDailyIncome: 80 }, months: [
+    { isFinalized: true, averageDailyIncome: 120 }, { isFinalized: true, averageDailyIncome: 90 }, { isFinalized: false, averageDailyIncome: 80 },
+  ] }
+  assert.deepEqual(buildBreakEvenSummary(overview, 100), {
+    target: 100, latestDaily: 80, latestMonth: '2026-10-01', coveragePct: 80, dailyGap: 20, monthsAbove: 1, completedMonths: 2,
+  })
+  assert.equal(buildBreakEvenSummary(overview, 0), null)
+})
+
+test('overall income lines split paid orders by saved price mode and order type, investor apart', () => {
+  assert.equal(incomeSourceOfOrder('take_away', 'tourist'), 'tourist')
+  assert.equal(incomeSourceOfOrder('dine_in', 'regular'), 'regular')
+  assert.equal(incomeSourceOfOrder('game_club', 'regular'), 'game_club')
+  const profitRows = [
+    { key: '2026-09', dateFrom: '2026-09-01', otherIncome: 10, investorSupport: 500 },
+    { key: '2026-10', dateFrom: '2026-10-01', otherIncome: 0, investorSupport: 0 },
+  ]
+  const sources = buildMonthlyIncomeSources([
+    { monthStart: '2026-09-01', orderType: 'dine_in', priceMode: 'regular', orderCount: 4, amount: 400 },
+    { monthStart: '2026-09-01', orderType: 'dine_in', priceMode: 'tourist', orderCount: 2, amount: 300 },
+    { monthStart: '2026-09-01', orderType: 'game_club', priceMode: 'regular', orderCount: 1, amount: 50 },
+    { monthStart: '2026-10-01', orderType: 'delivery', priceMode: 'regular', orderCount: 1, amount: 40 },
+    { monthStart: '2026-08-01', orderType: 'dine_in', priceMode: 'regular', orderCount: 9, amount: 999 },
+  ], profitRows)
+  assert.deepEqual(sources.series.map(row => row.key), ['regular', 'tourist', 'delivery', 'game_club', 'other_income', 'investor_support'])
+  assert.equal(sources.earnedTotal, 800)
+  assert.equal(sources.averageMonthly, 760)
+  const tourist = sources.series.find(row => row.key === 'tourist')
+  assert.deepEqual([tourist.sharePct, tourist.averageCheck, tourist.current, tourist.previous], [37.5, 150, 0, 300])
+  assert.equal(sources.series.find(row => row.key === 'investor_support').sharePct, null)
+})
+
+test('overall spending folds salary categories and averages finished months only', () => {
+  const spending = buildMonthlySpending([
+    { monthStart: '2026-09-01', category: 'salaries', amount: 100 },
+    { monthStart: '2026-09-01', category: 'salary_cook', amount: 20 },
+    { monthStart: '2026-09-01', category: 'products_bazaar', amount: 80 },
+    { monthStart: '2026-10-01', category: 'products_bazaar', amount: 30 },
+  ], ['2026-09-01', '2026-10-01'])
+  assert.equal(spending.total, 230)
+  assert.equal(spending.averageMonthly, 200)
+  const salaries = spending.categories.find(row => row.key === 'salaries')
+  assert.deepEqual([salaries.total, salaries.averagePerMonth, salaries.current, salaries.previous], [120, 120, 0, 120])
+  assert.equal(buildMonthlySpending([], ['2026-10-01']), null)
 })

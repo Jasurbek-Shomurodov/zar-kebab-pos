@@ -161,8 +161,11 @@ test('Monthly income chart reads snapshots plus only the live current month aggr
   assert.match(analysis, /<MonthlyIncomeChart[\s\S]*rows=\{growth\.months\}/)
   assert.match(analysis, /DASHBOARD_DAILY_BREAK_EVEN_INCOME/)
   assert.match(analysis, /state\.settings\?\.averageDailyBreakEvenIncomeUzs/)
+  // The dotted line follows the target in effect for each month (260), not today's value.
+  assert.match(analysis, /<MonthlyIncomeChart[\s\S]*targetForPeriod=\{targetForPeriod\}/)
   assert.match(monthlyChart, /buildDashboardMonthlyIncomeChartRows\(rows\)/)
-  assert.match(monthlyChart, /breakEvenLineHeight/)
+  assert.match(monthlyChart, /targetForPeriod\(lastDayOfMonth\(row\.monthStart\)\)/)
+  assert.match(monthlyChart, /row\.target \/ monthlyIncomeScaleMax/)
   assert.match(monthlyChart, /border-dotted border-\[#c4262c\]/)
   assert.match(monthlyChart, /monthlyIncomeChartRows\.map/)
   assert.match(monthlyChart, /formatCompactIncome\(row\.averageDailyIncome, lang\)/)

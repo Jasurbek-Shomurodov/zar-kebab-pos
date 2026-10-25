@@ -12,6 +12,7 @@ import {
   normalizeOwnerProfitData,
   reopenAccountingMonth,
   summarizeClosedOwnerProfit,
+  buildOwnerProfitOverview,
 } from '../src/lib/ownerProfit.js'
 import { buildInvestorQueueMessage } from '../api/telegram/_lib/ingredientNotifications.js'
 
@@ -251,4 +252,16 @@ test('Owner profit opens on the overview; closing and reopening live on the Take
   assert.match(page, /\{taking && row === latestClosed && isOwner/)
   assert.match(page, /\{taking && isConfirming && \(/)
   assert.match(page, /\{taking && isReopening && \(/)
+})
+
+test('Financial analysis owner profit counts closed months only and lists unclosed finished months', () => {
+  const close = (monthStart, cafeIncome, costs) => ({ monthStart, cafeIncome, otherIncome: 0, investorSupport: 0, recordedExpenses: costs, legacyPaidBonuses: 0, employeeMeals: 0, salaryEarned: 0, ownerProfit: cafeIncome - costs })
+  const overview = buildOwnerProfitOverview({
+    closes: [close('2026-07-01', 100, 150), close('2026-08-01', 300, 200)],
+    openMonths: [{ monthStart: '2026-09-01' }, { monthStart: '2026-10-01' }],
+  }, '2026-10-25')
+  assert.deepEqual([overview.count, overview.total, overview.average, overview.profitableCount, overview.marginPct], [2, 50, 25, 1, 12.5])
+  assert.deepEqual(overview.months.map(row => [row.key, row.ownerProfit]), [['2026-07', -50], ['2026-08', 100]])
+  assert.deepEqual(overview.pending, ['2026-09-01'])
+  assert.equal(buildOwnerProfitOverview({ closes: [], openMonths: [{ monthStart: '2026-10-01' }] }, '2026-10-25'), null)
 })

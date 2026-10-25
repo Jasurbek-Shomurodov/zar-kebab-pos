@@ -11,6 +11,7 @@ const TABLE_CHECKS = [
   { name: 'order_kitchen_rounds', columns: ['order_id', 'kitchen_round_id', 'item_ids', 'table_id', 'submitted_by', 'submitted_at', 'created_at'] },
   { name: 'order_payments', columns: ['id', 'order_id', 'method', 'amount'] },
   { name: 'business_settings', columns: ['id', 'service_rate_pct', 'tourist_service_rate_pct', 'restaurant_name', 'monthly_rent_uzs', 'monthly_utilities_uzs', 'average_daily_employee_meal_uzs', 'average_daily_break_even_income_uzs', 'receipt_marketing', 'auto_print', 'auto_print_kitchen_check', 'tourist_menu_enabled', 'public_tourist_prices'] },
+  { name: 'business_break_even_target_history', columns: ['effective_from', 'amount_uzs', 'changed_by', 'changed_at'] },
   { name: 'loyalty_cards', columns: ['id', 'card_number', 'cashback_type', 'balance', 'total_earned', 'total_redeemed', 'is_active'] },
   { name: 'loyalty_transactions', columns: ['id', 'loyalty_card_id', 'type', 'amount', 'balance_before', 'balance_after', 'cashback_percent_used', 'card_type_at_transaction', 'card_number_at_transaction', 'customer_name_at_transaction', 'phone_number_at_transaction'] },
   { name: 'expenses', columns: ['id', 'entry_type', 'expense_date', 'category', 'payment_method', 'amount', 'vendor', 'description', 'created_by_name'] },
@@ -63,6 +64,7 @@ const TABLE_CHECKS = [
 const MIGRATION_HINTS = {
   order_payments: 'Run migrations/012_split_order_payments.sql',
   business_settings: 'Run business settings migrations through migrations/158_business_settings_daily_break_even_income.sql and migrations/238_tourist_menu_toggle.sql',
+  business_break_even_target_history: 'Run migrations/260_break_even_target_history.sql',
   table_zones: 'Run migrations/019_table_management.sql',
   loyalty_cards: 'Run migrations/022_loyalty_cashback_wallet.sql and migrations/061_loyalty_special_card.sql',
   loyalty_transactions: 'Run migrations/022_loyalty_cashback_wallet.sql, migrations/051_remove_loyalty_cards_preserve_history.sql, and migrations/061_loyalty_special_card.sql',
@@ -153,6 +155,7 @@ const MIGRATION_HINTS = {
   get_accounting_paid_order_summary: 'Run migrations/109_accounting_paid_order_summary.sql',
   get_accounting_all_time_balance: 'Run migrations/177_accounting_all_time_balance.sql',
   get_accounting_monthly_cashflow: 'Run migrations/229_accounting_monthly_cashflow.sql',
+  get_accounting_monthly_breakdown: 'Run migrations/261_accounting_monthly_breakdown.sql',
   get_accounting_owner_profit: 'Run migrations/257_accounting_month_closes.sql',
   get_financial_analysis: 'Run migrations/231_financial_analysis_bundle.sql',
   get_monthly_estimate: 'Run migrations/233_monthly_estimate_bundle.sql',
@@ -275,6 +278,7 @@ export async function runDbHealthChecks(dbClient = supabase, { manifestLoader = 
   }))
   checks.push(await checkRpc(dbClient, 'get_accounting_all_time_balance', {}))
   checks.push(await checkRpc(dbClient, 'get_accounting_monthly_cashflow', { p_month_count: 1 }))
+  checks.push(await checkRpc(dbClient, 'get_accounting_monthly_breakdown', { p_month_count: 1 }))
   checks.push(await checkRpc(dbClient, 'get_accounting_owner_profit', {}))
   checks.push(await checkRpc(dbClient, 'get_financial_analysis', { p_date_from: '2000-01-01', p_date_to: '2000-01-01', p_previous_from: '1999-12-31', p_previous_to: '1999-12-31', p_include_growth: false }))
   checks.push(await checkRpc(dbClient, 'get_monthly_estimate', { p_month_start: '2000-01-01', p_month_end: '2000-01-31', p_completed_sales_to: null, p_previous_start: '1999-12-01', p_previous_end: '1999-12-31' }))

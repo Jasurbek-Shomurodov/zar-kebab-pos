@@ -1044,6 +1044,14 @@ export default {
   {
    "filename": "259_owner_profit_close_notifications_and_reopen.sql",
    "sha256": "83b90ece698d95dfeea4bddfba2dfca704566439d92cdcc3a22af9972bb8c18b"
+  },
+  {
+   "filename": "260_break_even_target_history.sql",
+   "sha256": "c977818305cd00da04fb27f849b2c8ae56f8957bd863e56b35d5050ea1c6e7dd"
+  },
+  {
+   "filename": "261_accounting_monthly_breakdown.sql",
+   "sha256": "4391b52126329ae15f3880a66d81c65a9ef43f27c7ab2f5c6450cf69b9b85e9e"
   }
  ],
  "functions": [
@@ -1576,6 +1584,16 @@ export default {
    "name": "reopen_accounting_month",
    "filename": "259_owner_profit_close_notifications_and_reopen.sql",
    "md5": "f493db68528ef6b08454e3ac11ef40bd"
+  },
+  {
+   "name": "record_break_even_target_change",
+   "filename": "260_break_even_target_history.sql",
+   "md5": "a5b66b3d970d057226779ccab42a850d"
+  },
+  {
+   "name": "get_accounting_monthly_breakdown",
+   "filename": "261_accounting_monthly_breakdown.sql",
+   "md5": "2170758e70c9d1dec7b57359b99b668b"
   }
  ]
 }

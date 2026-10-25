@@ -87,6 +87,40 @@ export function isMissingAccountingMonthlyCashflowRpc(error) {
   )
 }
 
+// Income by source and spending by category per month (migration 261) for
+// the Overall tab.
+export async function loadAccountingMonthlyBreakdown(monthCount = 12, options = {}) {
+  const dbClient = options.dbClient || supabase
+  const { data, error } = await dbClient.rpc('get_accounting_monthly_breakdown', {
+    p_month_count: Math.max(1, Math.min(Math.round(Number(monthCount) || 12), 36)),
+  })
+  if (error) throw error
+  return normalizeAccountingMonthlyBreakdown(data)
+}
+
+const MONTH_START = /^\d{4}-\d{2}-01$/
+
+export function normalizeAccountingMonthlyBreakdown(data) {
+  return {
+    spending: (data?.spending || []).map(row => ({
+      monthStart: String(row?.month_start || '').slice(0, 10),
+      category: String(row?.category || 'other'),
+      amount: Math.max(0, cashflowAmount(row?.amount)),
+    })).filter(row => MONTH_START.test(row.monthStart) && row.amount > 0),
+    income: (data?.income || []).map(row => ({
+      monthStart: String(row?.month_start || '').slice(0, 10),
+      orderType: String(row?.order_type || 'dine_in'),
+      priceMode: String(row?.price_mode || 'regular'),
+      orderCount: Math.max(0, cashflowAmount(row?.order_count)),
+      amount: Math.max(0, cashflowAmount(row?.amount)),
+    })).filter(row => MONTH_START.test(row.monthStart)),
+  }
+}
+
+export function isMissingAccountingMonthlyBreakdownRpc(error) {
+  return isMissingRpc(error, 'get_accounting_monthly_breakdown')
+}
+
 function isMissingRpc(error, name) {
   const message = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
   return error?.code === 'PGRST202' || (message.includes(name) && (

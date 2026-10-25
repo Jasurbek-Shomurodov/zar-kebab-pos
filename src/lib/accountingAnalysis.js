@@ -456,7 +456,11 @@ export function buildMonthlyProfitRows(months = [], today = null) {
       dateTo,
       days,
       cafeIncome: row.cafeIncome,
+      otherIncome: row.otherIncome,
       orderCount: row.orderCount,
+      salesCost: row.salesCost,
+      grossProfit: row.cafeIncome - row.salesCost,
+      salaries: row.salaries || 0,
       income,
       spent: row.spent,
       left: income - row.spent,
@@ -486,5 +490,201 @@ export function buildPaybackSummary(totals = {}, profitRows = []) {
     remaining,
     monthlyPace,
     monthsLeft: remaining === 0 ? 0 : monthlyPace > 0 ? Math.ceil(remaining / monthlyPace) : null,
+  }
+}
+
+// Investor support at a glance: the all-time total, how much of it went in
+// during the shown months, which months the cafe did not cover its own
+// spending (the shortfall the support had to fill) and the latest top-up.
+export function buildInvestorOverview(totals = {}, profitRows = []) {
+  const invested = normalizeExpenseAmount(totals?.investorSupport)
+  const rows = profitRows || []
+  const months = rows.map(row => ({
+    key: row.key,
+    monthStart: row.dateFrom,
+    amount: normalizeExpenseAmount(row.investorSupport),
+    shortfall: Math.max(0, row.spent - row.income),
+  }))
+  const supported = months.filter(row => row.amount > 0)
+  const recentTotal = supported.reduce((sum, row) => sum + row.amount, 0)
+  const spent = rows.reduce((sum, row) => sum + row.spent, 0)
+  const shortfall = months.reduce((sum, row) => sum + row.shortfall, 0)
+  if (invested <= 0 && recentTotal <= 0) return null
+  return {
+    invested,
+    firstMonth: totals?.firstInvestmentMonth || null,
+    recentTotal,
+    monthCount: months.length,
+    supportedMonthCount: supported.length,
+    averagePerSupportedMonth: supported.length ? Math.round(recentTotal / supported.length) : null,
+    last: supported.at(-1) || null,
+    thisMonth: months.at(-1)?.amount || 0,
+    shareOfSpendingPct: ratioPct(recentTotal, spent),
+    shortfall,
+    shortfallCoveredPct: shortfall > 0 ? Math.min(100, ratioPct(recentTotal, shortfall)) : null,
+    largest: supported.reduce((top, row) => (!top || row.amount > top.amount ? row : top), null),
+    months,
+  }
+}
+
+// Totals across the shown months (the current month counts so far). Investor
+// support stays out of income, as in the profit rows.
+export function buildPeriodTotals(profitRows = []) {
+  const rows = profitRows || []
+  if (!rows.length) return null
+  const sum = key => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0)
+  const cafeIncome = sum('cafeIncome')
+  const income = sum('income')
+  const spent = sum('spent')
+  const grossProfit = sum('grossProfit')
+  const salaries = sum('salaries')
+  const left = income - spent
+  const completed = rows.slice(0, -1)
+  return {
+    monthCount: rows.length,
+    firstMonth: rows[0].dateFrom,
+    cafeIncome,
+    otherIncome: sum('otherIncome'),
+    income,
+    orderCount: sum('orderCount'),
+    averageCheck: sum('orderCount') > 0 ? Math.round(cafeIncome / sum('orderCount')) : null,
+    salesCost: sum('salesCost'),
+    grossProfit,
+    grossMarginPct: ratioPct(grossProfit, cafeIncome),
+    spent,
+    averageMonthlySpent: Math.round(spent / rows.length),
+    salaries,
+    salaryShareOfSpendingPct: ratioPct(salaries, spent),
+    left,
+    leftMarginPct: ratioPct(left, income),
+    investorSupport: sum('investorSupport'),
+    profitableMonths: completed.filter(row => row.left > 0).length,
+    completedMonths: completed.length,
+    bestMonth: rows.reduce((top, row) => (!top || row.left > top.left ? row : top), null),
+    worstMonth: rows.reduce((low, row) => (!low || row.left < low.left ? row : low), null),
+  }
+}
+
+// Daily sales against the daily break-even target from settings. Completed
+// months compare with the target that was in effect for them when given.
+export function buildBreakEvenSummary(overview = null, target = 0, targetForMonth = null) {
+  const goal = Math.max(0, Math.round(Number(target) || 0))
+  const latest = overview?.latest
+  if (!goal || !latest) return null
+  const completed = (overview.months || []).filter(row => row.isFinalized && row.averageDailyIncome > 0)
+  return {
+    target: goal,
+    latestDaily: latest.averageDailyIncome,
+    latestMonth: latest.monthStart,
+    coveragePct: ratioPct(latest.averageDailyIncome, goal),
+    dailyGap: goal - latest.averageDailyIncome,
+    monthsAbove: completed.filter(row => row.averageDailyIncome >= (targetForMonth ? targetForMonth(row.monthStart) : goal)).length,
+    completedMonths: completed.length,
+  }
+}
+
+// Where the money goes month after month (migration 261 rows). Salary
+// categories fold into one Salaries line; the average covers completed months
+// only, so the current part-month never drags it down.
+export function buildMonthlySpending(rows = [], monthStarts = []) {
+  const months = (monthStarts || []).map(monthStart => ({ key: monthStart.slice(0, 7), monthStart, total: 0, byCategory: {} }))
+  const byMonth = new Map(months.map(month => [month.monthStart, month]))
+  const totals = {}
+  for (const row of rows || []) {
+    const month = byMonth.get(row?.monthStart)
+    const amount = normalizeExpenseAmount(row?.amount)
+    if (!month || amount <= 0) continue
+    const key = spendingGroupOfCategory(row.category) === 'salaries' ? 'salaries' : String(row.category || 'other')
+    month.byCategory[key] = (month.byCategory[key] || 0) + amount
+    month.total += amount
+    totals[key] = (totals[key] || 0) + amount
+  }
+  const total = months.reduce((sum, month) => sum + month.total, 0)
+  if (!months.length || total <= 0) return null
+  const top = getTopExpenseCategories(totals)
+  const colors = assignCategoryColors(top)
+  const members = Object.fromEntries(top.map(category => [category.key, category.isOther ? category.members : [category.key]]))
+  const completed = months.length > 1 ? months.slice(0, -1) : months
+  const current = months.at(-1)
+  const previous = months.length > 1 ? months.at(-2) : null
+  const amountIn = (month, key) => (month ? members[key].reduce((sum, member) => sum + (month.byCategory[member] || 0), 0) : 0)
+  return {
+    total,
+    averageMonthly: Math.round(completed.reduce((sum, month) => sum + month.total, 0) / completed.length),
+    completedCount: completed.length,
+    categories: top.map(category => ({
+      key: category.key,
+      isOther: category.isOther,
+      color: colors[category.key],
+      total: category.amount,
+      sharePct: ratioPct(category.amount, total),
+      averagePerMonth: Math.round(completed.reduce((sum, month) => sum + amountIn(month, category.key), 0) / completed.length),
+      current: amountIn(current, category.key),
+      previous: previous ? amountIn(previous, category.key) : null,
+    })),
+    months: months.map(month => ({
+      key: month.key,
+      monthStart: month.monthStart,
+      total: month.total,
+      parts: top.map(category => ({ key: category.key, amount: amountIn(month, category.key) })).filter(part => part.amount > 0),
+    })),
+  }
+}
+
+export const INCOME_SOURCE_KEYS = ['regular', 'tourist', 'take_away', 'delivery', 'game_club', 'other_income', 'investor_support']
+
+// Saved price mode first: a Tourist bill is tourist income whatever its order
+// type. Other Regular orders split by their saved order type.
+export function incomeSourceOfOrder(orderType, priceMode) {
+  if (priceMode === 'tourist') return 'tourist'
+  if (orderType === 'take_away' || orderType === 'delivery' || orderType === 'game_club') return orderType
+  return 'regular'
+}
+
+// How money comes in month after month: paid orders by source (migration 261)
+// plus other income and investor support from the cash rows (229). Investor
+// support is its own line and never part of the income share.
+export function buildMonthlyIncomeSources(incomeRows = [], profitRows = []) {
+  const months = (profitRows || []).map(row => {
+    const values = Object.fromEntries(INCOME_SOURCE_KEYS.map(key => [key, 0]))
+    values.other_income = normalizeExpenseAmount(row.otherIncome)
+    values.investor_support = normalizeExpenseAmount(row.investorSupport)
+    return { key: row.key, monthStart: row.dateFrom, values, orders: {} }
+  })
+  const byMonth = new Map(months.map(month => [month.monthStart, month]))
+  for (const row of incomeRows || []) {
+    const month = byMonth.get(row?.monthStart)
+    if (!month) continue
+    const key = incomeSourceOfOrder(row.orderType, row.priceMode)
+    month.values[key] += normalizeExpenseAmount(row.amount)
+    month.orders[key] = (month.orders[key] || 0) + (Number(row.orderCount) || 0)
+  }
+  if (!months.length) return null
+  const completed = months.length > 1 ? months.slice(0, -1) : months
+  const earned = month => INCOME_SOURCE_KEYS.reduce((sum, key) => sum + (key === 'investor_support' ? 0 : month.values[key]), 0)
+  const earnedTotal = months.reduce((sum, month) => sum + earned(month), 0)
+  const series = INCOME_SOURCE_KEYS
+    .map(key => {
+      const total = months.reduce((sum, month) => sum + month.values[key], 0)
+      const orders = months.reduce((sum, month) => sum + (month.orders[key] || 0), 0)
+      return {
+        key,
+        total,
+        orders,
+        averagePerMonth: Math.round(completed.reduce((sum, month) => sum + month.values[key], 0) / completed.length),
+        sharePct: key === 'investor_support' ? null : ratioPct(total, earnedTotal),
+        averageCheck: orders > 0 ? Math.round(total / orders) : null,
+        current: months.at(-1).values[key],
+        previous: months.length > 1 ? months.at(-2).values[key] : null,
+      }
+    })
+    .filter(row => row.total > 0)
+  if (!series.length) return null
+  return {
+    earnedTotal,
+    averageMonthly: Math.round(completed.reduce((sum, month) => sum + earned(month), 0) / completed.length),
+    completedCount: completed.length,
+    series,
+    months: months.map(month => ({ key: month.key, monthStart: month.monthStart, values: month.values, earned: earned(month) })),
   }
 }

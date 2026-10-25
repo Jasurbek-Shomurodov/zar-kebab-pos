@@ -23,7 +23,7 @@
   - Tech Cards, access, components, stock, variant recipes, and fractional included-dish quantities: `139`–`140`, `149`–`151`, `154`–`156`, `159`
   - menu/expense notifications and financial snapshots: `142`–`147`
   - absence cleanup, daily-report/review crons: `148`, `152`, `225`
-  - Dashboard monthly income snapshots, break-even target, and completed-day live average: `157`–`158`, `174`
+  - Monthly income snapshots, break-even target/history, completed-day average: `157`–`158`, `174`, `260`
   - authoritative Daily Bazaar ingredient catalog, clean reset, owner-only catalog writes, and immutable price-variance snapshots: `160`–`163`
   - immutable sold-item Tech Card ingredient snapshots and duplicate-safe daily ingredient image delivery: `164`–`165`
   - Tashkent expense backdate limit: `166`
@@ -67,7 +67,7 @@
 ## Build
 
 - Authenticate routes.
-- Migration `179_game_club_orders.sql` must precede the Game Club frontend release. Never require the reopening function retired by `090`. Tests: `tests/gameClubOrders.test.js`.
+- `179` (Game Club) ships before its frontend. Never require the reopen function `090` retired. Tests: `tests/gameClubOrders.test.js`.
 - `180` SQL: `scripts/check-game-club-migration.mjs`.
 - `184` requires deletion reasons and snapshots them for Investor alerts. Apply before UI.
 - `185`: independent status-message tracking and minute cleanup retries. Apply before the Telegram sender. Tests: `tests/orderStatusDelivery.test.js`.
@@ -86,5 +86,5 @@
 - `210`: see [salary orders](salary-orders.md).
 - `211`: profile name realtime. Tests: `tests/activeOrderWaiters.test.js`.
 - `212`/`220`: bill edits (payments); `221`: price-mode guard (ordering); `222`: insert image guard (menu); `224`: payments
-- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`/`239`–`242` menu; `229`–`235` payments/orders.
+- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`/`239`–`242` menu; `229`–`235`, `261` payments/orders.
 - `215`–`217`: payroll.md; `218`–`219`: architecture.md.

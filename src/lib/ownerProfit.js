@@ -197,6 +197,27 @@ export function summarizeClosedOwnerProfit(rows = []) {
   }
 }
 
+// Actual owner profit for Financial analysis Overall: only closed months, whose
+// figures are frozen. Finished months not closed yet are listed, never guessed,
+// because their salary earned is only final at close.
+export function buildOwnerProfitOverview(data = null, today = '') {
+  if (!data) return null
+  const closed = buildOwnerProfitMonths({ closes: data.closes || [] })
+  const pending = (data.openMonths || [])
+    .filter(month => getSalaryMonthEndDate(month.monthStart) < today)
+    .map(month => month.monthStart)
+  if (!closed.length && !pending.length) return null
+  const summary = summarizeClosedOwnerProfit(closed)
+  const income = closed.reduce((sum, row) => sum + row.income, 0)
+  return {
+    ...summary,
+    marginPct: income > 0 ? Math.round((summary.total / income) * 1000) / 10 : null,
+    profitableCount: closed.filter(row => row.ownerProfit > 0).length,
+    months: closed.slice(-12).map(row => ({ key: row.monthStart.slice(0, 7), monthStart: row.monthStart, ownerProfit: row.ownerProfit, marginPct: row.marginPct })),
+    pending,
+  }
+}
+
 export const MONTH_CLOSE_ERROR_CODES = [
   'owner_required',
   'month_already_closed',

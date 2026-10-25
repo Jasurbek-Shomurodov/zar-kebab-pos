@@ -10,6 +10,8 @@ import {
   loadFinancialAnalysisBundle,
   loadMonthlyEstimateBundle,
   loadReportsAccountingBundle,
+  isMissingAccountingMonthlyBreakdownRpc,
+  loadAccountingMonthlyBreakdown,
 } from '../src/lib/accountingSummary.js'
 
 const migration = readFileSync(
@@ -279,4 +281,35 @@ test('Reports accounting bundle returns only in-range salary cash rows behind Ac
   assert.match(sql, /m\.business_date between p_date_from and p_date_to/)
   assert.doesNotMatch(sql, /employee_salary_rates|employee_salary_absences|employee_salary_fines/)
   assert.match(sql, /grant execute on function public\.get_reports_accounting\(date, date\)\s+to authenticated/)
+})
+
+test('monthly breakdown loads income by source and spending by category in one RPC', async () => {
+  const calls = []
+  const dbClient = {
+    rpc(name, args) {
+      calls.push({ name, args })
+      return Promise.resolve({
+        data: {
+          spending: [{ month_start: '2026-10-01', category: 'rent', amount: '900' }, { month_start: 'bad', category: 'x', amount: 1 }],
+          income: [{ month_start: '2026-10-01', order_type: 'game_club', price_mode: 'regular', order_count: '3', amount: '120' }],
+        },
+        error: null,
+      })
+    },
+  }
+  const result = await loadAccountingMonthlyBreakdown(12, { dbClient })
+  assert.deepEqual(calls, [{ name: 'get_accounting_monthly_breakdown', args: { p_month_count: 12 } }])
+  assert.deepEqual(result.spending, [{ monthStart: '2026-10-01', category: 'rent', amount: 900 }])
+  assert.deepEqual(result.income, [{ monthStart: '2026-10-01', orderType: 'game_club', priceMode: 'regular', orderCount: 3, amount: 120 }])
+  assert.equal(isMissingAccountingMonthlyBreakdownRpc({ code: 'PGRST202' }), true)
+})
+
+test('monthly breakdown migration keeps Accounting access and the cash-flow rules', () => {
+  const sql = readFileSync(new URL('../migrations/261_accounting_monthly_breakdown.sql', import.meta.url), 'utf8')
+  assert.match(sql, /current_staff_can_access\('expenses'\)/)
+  assert.match(sql, /coalesce\(o\.paid_at, o\.created_at\)/)
+  assert.match(sql, /b\.accrues_to_salary is not true/)
+  assert.match(sql, /o\.price_mode/)
+  assert.match(sql, /revoke all on function public\.get_accounting_monthly_breakdown\(integer\)\s+from public, anon, authenticated/)
+  assert.match(sql, /grant execute on function public\.get_accounting_monthly_breakdown\(integer\)\s+to authenticated/)
 })
