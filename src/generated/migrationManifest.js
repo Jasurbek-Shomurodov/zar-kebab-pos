@@ -1052,6 +1052,10 @@ export default {
   {
    "filename": "261_accounting_monthly_breakdown.sql",
    "sha256": "4391b52126329ae15f3880a66d81c65a9ef43f27c7ab2f5c6450cf69b9b85e9e"
+  },
+  {
+   "filename": "262_break_even_target_history_starting_value.sql",
+   "sha256": "d5fc3751f6bf942400c3582cb869ca7369c09b97112fbd36d4dd95d907083dd7"
   }
  ],
  "functions": [

@@ -166,6 +166,9 @@ test('Monthly income chart reads snapshots plus only the live current month aggr
   assert.match(monthlyChart, /buildDashboardMonthlyIncomeChartRows\(rows\)/)
   assert.match(monthlyChart, /targetForPeriod\(lastDayOfMonth\(row\.monthStart\)\)/)
   assert.match(monthlyChart, /row\.target \/ monthlyIncomeScaleMax/)
+  // One connected line through the bar centres, not a flat segment per bar.
+  assert.match(monthlyChart, /<BreakEvenLine points=\{breakEvenPoints\} \/>/)
+  assert.doesNotMatch(monthlyChart, /border-dotted border-\[#c4262c\]" style/)
   assert.match(monthlyChart, /border-dotted border-\[#c4262c\]/)
   assert.match(monthlyChart, /monthlyIncomeChartRows\.map/)
   assert.match(monthlyChart, /formatCompactIncome\(row\.averageDailyIncome, lang\)/)

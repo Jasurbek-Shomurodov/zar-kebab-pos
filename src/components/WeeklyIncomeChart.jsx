@@ -1,5 +1,6 @@
 import CalendarPicker from './CalendarPicker'
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import BreakEvenLine from './BreakEvenLine'
 import { buildIncomeMonthOptions, incomeMonthColors, hideZeroIncomeMonths, loadDashboardWeeklyIncome, loadFirstOrderMonth } from '../lib/weeklyIncome'
 import { loadEarliestOrderDate } from '../lib/db'
 import { restaurantTodayStr, toRestaurantDateStr } from '../lib/analytics'
@@ -13,7 +14,7 @@ const labels = {
 }
 
 // targetForPeriod(dateTo) gives the daily break-even target in effect for a
-// period, so the dotted line steps where the target was changed.
+// period, so the dotted line moves where the target was changed.
 export default function WeeklyIncomeChart({ lang, targetForPeriod = null }) {
   const l = labels[lang] || labels.en
   const today = restaurantTodayStr()
@@ -102,13 +103,17 @@ export default function WeeklyIncomeChart({ lang, targetForPeriod = null }) {
               {formatMonthYear(group.key + '-01', lang)}
             </div>)}</div>
             <div className="relative flex h-48 items-end border-b border-[#e4e1de]" role="list" aria-label={l.title}>
-              {chartRows.map((row, index) => <div key={row.weekStart} role="listitem" tabIndex={0}
+              <BreakEvenLine points={chartRows.map((row, index) => ({
+                key: row.weekStart,
+                value: row.target,
+                x: ((index + 0.5) / chartRows.length) * 100,
+                y: (row.target / max) * 100,
+                label: row.target > 0 && row.target !== chartRows[index - 1]?.target ? l.target + ': ' + formatCurrency(row.target) : '',
+              }))} />
+              {chartRows.map(row => <div key={row.weekStart} role="listitem" tabIndex={0}
                 aria-label={row.weekStart + ' – ' + row.weekEnd + ': ' + formatCurrency(row.averageDailyIncome) + (row.target > 0 ? ' · ' + l.target + ': ' + formatCurrency(row.target) : '')}
                 title={l.total + ': ' + formatCurrency(row.totalIncome) + ' · ' + row.dayCount + ' ' + l.days + (row.target > 0 ? ' · ' + l.target + ': ' + formatCurrency(row.target) : '')}
                 className="zk-income-month relative flex h-full min-w-0 flex-1 items-end px-2" style={row.monthStyle}>
-                {row.target > 0 && <div className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-dotted border-[#c4262c]" style={{ bottom: (row.target / max * 100) + '%' }}>
-                  {row.target !== chartRows[index + 1]?.target && <span className="absolute bottom-1 right-0 whitespace-nowrap rounded bg-white/90 px-1.5 text-[10px] font-semibold tabular-nums text-[#c4262c]">{l.target}: {formatCurrency(row.target)}</span>}
-                </div>}
                 <div className="w-full rounded-t-lg"
                   style={{ backgroundColor: row.dayCount === 0 ? 'var(--ws-border, #e4e1de)' : row.barColor, height: Math.max(1, row.averageDailyIncome / max * 100) + '%' }} />
               </div>)}

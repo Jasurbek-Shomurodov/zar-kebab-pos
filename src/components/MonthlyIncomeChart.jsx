@@ -1,6 +1,8 @@
 import React from 'react'
 import { buildDashboardMonthlyIncomeChartRows, DASHBOARD_MONTHLY_INCOME_MONTH_COUNT } from '../lib/monthlyIncome'
 import { lastDayOfMonth } from '../lib/breakEvenTarget'
+import BreakEvenLine from './BreakEvenLine'
+import { useElementWidth } from './SankeyChart'
 import { restaurantTodayStr } from '../lib/analytics'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatMonthYear } from '../lib/dateFormat'
@@ -33,9 +35,10 @@ function ChartShimmer() {
 // Monthly rows come from the caller (Financial analysis already loads them for
 // its growth overview), so this card never issues its own request.
 // targetForPeriod(dateTo) gives the daily break-even target in effect for a
-// period, so the dotted line steps where the target was changed.
+// period, so the dotted line moves where the target was changed.
 export default function MonthlyIncomeChart({ rows, status, onRetry, lang, targetForPeriod = null }) {
   const l = labels[lang] || labels.en
+  const [plotRef, plotWidth] = useElementWidth()
   const currentMonthStart = `${restaurantTodayStr().slice(0, 8)}01`
   const monthlyIncomeChartRows = buildDashboardMonthlyIncomeChartRows(rows)
     .slice(-DASHBOARD_MONTHLY_INCOME_MONTH_COUNT)
@@ -51,6 +54,17 @@ export default function MonthlyIncomeChart({ rows, status, onRetry, lang, target
     maxTarget > 0 ? Math.ceil(maxTarget * 1.2) : 0,
     1,
   )
+  // Bar centres in percent of the plot: 8px side padding and 12px gaps (px-2, gap-3).
+  const barCount = monthlyIncomeChartRows.length
+  const barWidth = barCount ? (plotWidth - 16 - 12 * (barCount - 1)) / barCount : 0
+  const breakEvenPoints = plotWidth > 0 ? monthlyIncomeChartRows.map((row, index) => ({
+    key: row.monthStart,
+    value: row.target,
+    x: ((8 + index * (barWidth + 12) + barWidth / 2) / plotWidth) * 100,
+    y: (row.target / monthlyIncomeScaleMax) * 100,
+    // Tag the first month of each run with the same target.
+    label: row.target > 0 && row.target !== monthlyIncomeChartRows[index - 1]?.target ? formatCompactIncome(row.target, lang) : '',
+  })) : []
 
   return (
     <section aria-busy={status === 'loading'} className="ws-panel min-w-0">
@@ -90,14 +104,14 @@ export default function MonthlyIncomeChart({ rows, status, onRetry, lang, target
         <div className="overflow-x-auto pb-1">
           <div className="min-w-[720px] pt-7">
             <div
+              ref={plotRef}
               className="relative flex h-48 items-end gap-3 border-b border-[#e4e1de] px-2"
               role="list"
               aria-label={l.title}
             >
-              {monthlyIncomeChartRows.map((row, index) => {
+              <BreakEvenLine points={breakEvenPoints} />
+              {monthlyIncomeChartRows.map(row => {
                 const height = Math.max(3, Math.round((row.averageDailyIncome / monthlyIncomeScaleMax) * 100))
-                // Label the last month of each run with the same target.
-                const endsTargetRun = row.target !== monthlyIncomeChartRows[index + 1]?.target
                 return (
                   <div
                     key={row.monthStart}
@@ -106,20 +120,7 @@ export default function MonthlyIncomeChart({ rows, status, onRetry, lang, target
                     tabIndex={0}
                     aria-label={`${row.label}: ${formatCurrency(row.averageDailyIncome)}${row.target > 0 ? ` · ${l.breakEven}: ${formatCurrency(row.target)}` : ''}`}
                   >
-                    {row.target > 0 && (
-                      <div
-                        className="pointer-events-none absolute -inset-x-1.5 z-20 border-t-2 border-dotted border-[#c4262c]"
-                        style={{ bottom: `${Math.round((row.target / monthlyIncomeScaleMax) * 100)}%` }}
-                        aria-hidden="true"
-                      >
-                        {endsTargetRun && (
-                          <span className="absolute bottom-1 right-1.5 whitespace-nowrap rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#c4262c] shadow-sm">
-                            {formatCompactIncome(row.target, lang)}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <div className="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#22201d] px-2 py-1 text-[10px] font-medium tabular-nums text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-[#22201d] px-2 py-1 text-[10px] font-medium tabular-nums text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                       {formatCurrency(row.averageDailyIncome)}{row.target > 0 ? ` · ${l.breakEven}: ${formatCurrency(row.target)}` : ''}
                     </div>
                     <div

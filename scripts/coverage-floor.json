@@ -43,6 +43,8 @@
     "src/components/AttentionBadge.jsx",
     "src/components/BazaarCategoryPicker.jsx",
     "src/components/BazaarIngredientPicker.jsx",
+    "src/components/BreakEvenLine.jsx",
+    "src/components/BreakEvenTargetHistoryDialog.jsx",
     "src/components/BusyHoursCard.jsx",
     "src/components/CalendarPicker.jsx",
     "src/components/CartPanel.jsx",
