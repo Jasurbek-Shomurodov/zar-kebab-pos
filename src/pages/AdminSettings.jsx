@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Store, Percent, Globe, Printer, Bell, Shield, Table2, ChefHat,
-  Check, ChevronRight, Activity, AlertTriangle, RefreshCw, Home, Zap, UtensilsCrossed, BadgeDollarSign, Moon, Sun,
+  Check, ChevronRight, Activity, AlertTriangle, RefreshCw, Home, Zap, UtensilsCrossed, BadgeDollarSign, Moon, Sun, History,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,6 +11,7 @@ import { runDbHealthChecks } from '../lib/dbHealth'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { canEditFeature } from '../lib/permissions'
 import AttendanceQrAccessSettings from '../components/AttendanceQrAccessSettings'
+import BreakEvenTargetHistoryDialog from '../components/BreakEvenTargetHistoryDialog'
 import { useTheme, setTheme } from '../lib/theme'
 
 // Settings page group and card labels (sections are shown in one column, grouped).
@@ -117,6 +118,7 @@ export default function AdminSettings() {
   const [monthlyUtilitiesUzs, setMonthlyUtilitiesUzs] = useState(String(settings.monthlyUtilitiesUzs || ''))
   const [averageDailyEmployeeMealUzs, setAverageDailyEmployeeMealUzs] = useState(String(settings.averageDailyEmployeeMealUzs || ''))
   const [averageDailyBreakEvenIncomeUzs, setAverageDailyBreakEvenIncomeUzs] = useState(String(settings.averageDailyBreakEvenIncomeUzs || ''))
+  const [targetHistoryOpen, setTargetHistoryOpen] = useState(false)
   const [autoPrint,      setAutoPrint]      = useState(settings.autoPrint)
   const [autoPrintKitchenCheck, setAutoPrintKitchenCheck] = useState(!!settings.autoPrintKitchenCheck)
   const [touristMenuEnabled, setTouristMenuEnabled] = useState(settings.touristMenuEnabled !== false)
@@ -267,6 +269,7 @@ export default function AdminSettings() {
       averageDailyEmployeeMealSub: 'Har bir ishga kelgan xodim uchun kunlik o‘rtacha qiymat',
       averageDailyBreakEvenIncome: 'O‘rtacha kunlik zararsizlik daromadi',
       averageDailyBreakEvenIncomeSub: 'Dashboard grafigidagi qizil nuqtali chiziq uchun kunlik maqsad',
+      targetHistory: 'Tarix',
       system:          'Tizim',
       tableManagement: 'Stollar',
       tableManagementSub: 'Restoran stollari, zonalari va sig‘imini boshqarish',
@@ -346,6 +349,7 @@ export default function AdminSettings() {
       averageDailyEmployeeMealSub: 'Средняя дневная стоимость на каждого присутствующего сотрудника',
       averageDailyBreakEvenIncome: 'Средний дневной доход безубыточности',
       averageDailyBreakEvenIncomeSub: 'Дневная цель для красной пунктирной линии на графике Dashboard',
+      targetHistory: 'История',
       system:          'Система',
       tableManagement: 'Столы',
       tableManagementSub: 'Управление столами, зонами и вместимостью',
@@ -425,6 +429,7 @@ export default function AdminSettings() {
       averageDailyEmployeeMealSub: 'Average daily cost for each employee who is present',
       averageDailyBreakEvenIncome: 'Average daily break-even income',
       averageDailyBreakEvenIncomeSub: 'Daily target used by the red dotted line on the Dashboard chart',
+      targetHistory: 'History',
       system:          'System',
       tableManagement: 'Tables',
       tableManagementSub: 'Manage restaurant tables, zones, and capacity',
@@ -618,18 +623,25 @@ export default function AdminSettings() {
                 </div>
               </SettingRow>
               <SettingRow icon={BadgeDollarSign} label={l.averageDailyBreakEvenIncome} sub={l.averageDailyBreakEvenIncomeSub}>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formatMoneyInput(averageDailyBreakEvenIncomeUzs)}
-                    onChange={event => setAverageDailyBreakEvenIncomeUzs(normalizeMoneyInput(event.target.value))}
-                    disabled={!canManageSettings}
-                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
-                    placeholder="0"
-                  />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setTargetHistoryOpen(true)} className="ws-btn ws-btn-outline flex-shrink-0">
+                    <History size={15} />
+                    {l.targetHistory}
+                  </button>
+                  <div className="relative min-w-0 flex-1 sm:flex-none">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formatMoneyInput(averageDailyBreakEvenIncomeUzs)}
+                      onChange={event => setAverageDailyBreakEvenIncomeUzs(normalizeMoneyInput(event.target.value))}
+                      disabled={!canManageSettings}
+                      className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                      placeholder="0"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                  </div>
                 </div>
+                {targetHistoryOpen && <BreakEvenTargetHistoryDialog lang={lang} onClose={() => setTargetHistoryOpen(false)} />}
               </SettingRow>
               </Section>
             )}
