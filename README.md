@@ -177,7 +177,7 @@ The Mini App is a read-only menu with loyalty-balance lookup and restaurant cont
 
 ## Google Maps review bot
 
-The protected `/api/google-reviews/run` endpoint checks the configured Google Business Profile for unanswered reviews and creates a short reply in the review's language. It uses Google Gemini (free tier) when `GEMINI_API_KEY` is present, replying in the guest's original language and script. Without it, a conservative template is used in the review's language (Russian, Uzbek Latin, Uzbek Cyrillic or English, or `GOOGLE_REVIEW_DEFAULT_LANGUAGE` for text-free reviews); reviews in any other language are reported as failed instead of answered in the wrong language. Supabase Cron (`225_google_review_reply_cron.sql`, reusing the Vault secret from `152`) calls it every day at 13:00 Tashkent, separately from the 08:00 Telegram/payroll job, so review failures cannot block that work. Without the Google variables it returns `mode: "disabled"`. Gemini's free tier allows 5 requests per minute, so the bot spaces Gemini calls 13 seconds apart (`GOOGLE_REVIEW_GEMINI_INTERVAL_MS`), retries a rate-limited call after the delay Gemini suggests, and stops starting new replies after 240 seconds (`GOOGLE_REVIEW_TIME_BUDGET_MS`); it also stops at the free tier's daily cap (20 requests). Reviews it did not reach are reported as `deferred` and answered by the next daily run.
+The protected `/api/google-reviews/run` endpoint checks the configured Google Business Profile for unanswered reviews and creates a short reply in the review's language. It uses Google Gemini (free tier) when `GEMINI_API_KEY` is present, replying in the guest's original language and script. Without it, a conservative template is used in the review's language (Russian, Uzbek Latin, Uzbek Cyrillic or English, or `GOOGLE_REVIEW_DEFAULT_LANGUAGE` for text-free reviews); reviews in any other language are reported as failed instead of answered in the wrong language. Supabase Cron (`266_google_business_daily_sync.sql`, reusing the Vault secret from `152`) calls it every day at 04:10 Tashkent, right after the 04:05 daily reports but in its own job, so review failures cannot block them. Without the Google variables it returns `mode: "disabled"`. Gemini's free tier allows 5 requests per minute, so the bot spaces Gemini calls 13 seconds apart (`GOOGLE_REVIEW_GEMINI_INTERVAL_MS`), retries a rate-limited call after the delay Gemini suggests, and stops starting new replies after 240 seconds (`GOOGLE_REVIEW_TIME_BUDGET_MS`); it also stops at the free tier's daily cap (20 requests). Reviews it did not reach are reported as `deferred` and answered by the next daily run.
 
 Add these server-only deployment variables:
 
@@ -205,6 +205,10 @@ curl -s "https://www.zarkebab.uz/api/google-reviews/run" \
 ```
 
 Inspect the returned replies, then set `GOOGLE_REVIEW_AUTO_PUBLISH=true` to enable live replies. The endpoint processes only reviews that do not already have an owner reply, with a maximum of 25 per run.
+
+### Google Maps menu sync
+
+`/api/google-reviews/run?task=menu` publishes the POS menu to the Google Business Profile food menu every day at 04:20 Tashkent (same migration `266`). Names and descriptions go in English, Russian and Uzbek; the POS card subtitle (portion · kcal) leads the description; each item carries its POS photo and a "Tourist price" option (regular × 1.2, rounded to 1 000, as in the POS), and variants are listed at both prices. Categories in `GOOGLE_MENU_EXCLUDED_CATEGORIES` (default `Utensils,Corporate set`, matched on the English name) are left off. Photos are uploaded once and remembered in `google_menu_photo_keys`; WebP images are converted to JPEG first. The menu is only replaced when it differs from what Google has, and an empty POS read never publishes.
 
 
 ### Database migration receipts and drift checks

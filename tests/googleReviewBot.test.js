@@ -321,3 +321,18 @@ test('Supabase runs the review bot daily at 13:00 Tashkent, outside the 08:00 jo
   const dailyCron = await readFile(new URL('../api/telegram/daily-salary.js', import.meta.url), 'utf8')
   assert.doesNotMatch(dailyCron, /runGoogleReviewBot/)
 })
+
+test('266 runs review replies and the menu sync right after the 04:05 reports, in their own jobs', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const migration = await readFile(new URL('../migrations/266_google_business_daily_sync.sql', import.meta.url), 'utf8')
+  const reports = await readFile(new URL('../migrations/244_kpi_day_ends_0400.sql', import.meta.url), 'utf8')
+  assert.match(reports, /'zar-kebab-daily-reports',\s*'5 23 \* \* \*'/, 'daily reports still start at 23:05 UTC (04:05 Tashkent)')
+  assert.match(migration, /'zar-kebab-google-review-replies',\s*'10 23 \* \* \*'/)
+  assert.match(migration, /'zar-kebab-google-menu-sync',\s*'20 23 \* \* \*'/)
+  assert.match(migration, /url := 'https:\/\/www\.zarkebab\.uz\/api\/google-reviews\/run\?task=menu'/)
+  assert.match(migration, /name = 'zar_kebab_daily_report_cron_secret'/)
+  assert.match(migration, /revoke all on function public\.invoke_zar_kebab_google_menu_sync\(\) from anon/)
+  assert.match(migration, /alter table public\.google_menu_photo_keys enable row level security/)
+  assert.match(migration, /revoke all on table public\.google_menu_photo_keys from anon, authenticated/)
+  assert.doesNotMatch(migration, /invoke_zar_kebab_daily_reports/, 'never chained into the report job')
+})

@@ -10,7 +10,8 @@
       "maxDuration": 120
     },
     "api/google-reviews/run.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**}"
     }
   },
   "crons": [

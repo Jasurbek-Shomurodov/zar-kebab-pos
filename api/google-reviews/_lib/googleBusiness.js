@@ -60,7 +60,7 @@ export async function getGoogleAccessToken(config, fetchImpl = fetch) {
   return payload.access_token
 }
 
-function locationResource(config) {
+export function googleLocationResource(config) {
   const accountId = encodeURIComponent(config.accountId.replace(/^accounts\//, ''))
   const locationId = encodeURIComponent(config.locationId.replace(/^locations\//, ''))
   return `accounts/${accountId}/locations/${locationId}`
@@ -74,7 +74,7 @@ export async function listUnansweredReviews(config, accessToken, options = {}) {
     orderBy: 'updateTime desc',
   })
   const response = await fetchImpl(
-    `${GOOGLE_BUSINESS_API_URL}/${locationResource(config)}/reviews?${params}`,
+    `${GOOGLE_BUSINESS_API_URL}/${googleLocationResource(config)}/reviews?${params}`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   )
   const payload = await readResponse(response)

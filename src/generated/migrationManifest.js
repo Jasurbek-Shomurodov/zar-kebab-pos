@@ -1068,6 +1068,10 @@ export default {
   {
    "filename": "265_accounting_daily_cafe_income.sql",
    "sha256": "269f3fbe75621b3a942ed36a8ef69b23a6a03069af08c7901bc06d5183a4f433"
+  },
+  {
+   "filename": "266_google_business_daily_sync.sql",
+   "sha256": "b231868aa5f0c01e58cf1e36491c6749092b9ac4efd6bb11f0ca5ba828ec04a4"
   }
  ],
  "functions": [
@@ -1620,6 +1624,11 @@ export default {
    "name": "get_accounting_daily_cafe_income",
    "filename": "265_accounting_daily_cafe_income.sql",
    "md5": "7ebb1dbb12e57fe420495570a413da69"
+  },
+  {
+   "name": "invoke_zar_kebab_google_menu_sync",
+   "filename": "266_google_business_daily_sync.sql",
+   "md5": "df393df8a177ff72cb4634a113a932fa"
   }
  ]
 }
