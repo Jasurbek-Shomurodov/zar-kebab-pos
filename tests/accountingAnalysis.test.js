@@ -13,6 +13,7 @@ import {
   getTrendIntervals,
   buildCategoryComparison,
   buildDailySpending,
+  buildRunningAverageIncome,
   buildDayMoneyFlow,
   buildGrowthOverview,
   buildLargestPayments,
@@ -69,6 +70,19 @@ test('daily spending groups expenses per calendar day and ignores income', () =>
   assert.equal(days[0].salaries, 100)
   assert.equal(days[0].bazaar, 50)
   assert.equal(days[1].other, 30)
+})
+
+test('running average income divides income so far by calendar days so far', () => {
+  const days = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'].map(date => ({ date }))
+  assert.deepEqual(buildRunningAverageIncome(days, { '2026-10-01': 900, '2026-10-02': 300, '2026-10-04': 400 }), [900, 600, 400, 400])
+  assert.deepEqual(buildRunningAverageIncome(days, {}), [0, 0, 0, 0])
+})
+
+test('daily cafe income RPC reuses the Accounting summary rules per day', () => {
+  const sql = readFileSync(new URL('../migrations/265_accounting_daily_cafe_income.sql', import.meta.url), 'utf8')
+  assert.match(sql, /current_staff_can_access\('expenses'\)/)
+  assert.match(sql, /get_accounting_paid_order_summary\(day::date, day::date\)->>'cafe_income'/)
+  assert.match(sql, /revoke all on function public\.get_accounting_daily_cafe_income\(date, date\)\s+from public, anon, authenticated/)
 })
 
 test('indicators derive ratios from the shared accounting summary', () => {

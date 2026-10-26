@@ -36,6 +36,20 @@ export async function loadAccountingPaidOrderSummary(dateFrom, dateTo, options =
   )
 }
 
+// Cafe income per day (migration 265), for the running average on Daily
+// spending. Same rules as get_accounting_paid_order_summary.
+export async function loadAccountingDailyCafeIncome(dateFrom, dateTo, options = {}) {
+  const dbClient = options.dbClient || supabase
+  const { data, error } = await dbClient.rpc('get_accounting_daily_cafe_income', {
+    p_date_from: dateFrom,
+    p_date_to: dateTo,
+  })
+  if (error) throw error
+  return Object.fromEntries((data || [])
+    .map(row => [String(row?.date || '').slice(0, 10), Math.max(0, Math.round(Number(row?.cafe_income) || 0))])
+    .filter(([date]) => /^\d{4}-\d{2}-\d{2}$/.test(date)))
+}
+
 export async function loadAccountingAllTimeBalance(options = {}) {
   const dbClient = options.dbClient || supabase
   const { data, error } = await dbClient.rpc('get_accounting_all_time_balance')

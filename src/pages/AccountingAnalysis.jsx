@@ -36,6 +36,7 @@ import {
   loadAccountingAllTimeBalance,
   loadAccountingMonthlyCashflow,
   loadAccountingMonthlyBreakdown,
+  loadAccountingDailyCafeIncome,
   loadAccountingPaidOrderSummary,
   loadFinancialAnalysisBundle,
 } from '../lib/accountingSummary'
@@ -54,6 +55,7 @@ import {
   buildBreakEvenSummary,
   buildCategoryComparison,
   buildDailySpending,
+  buildRunningAverageIncome,
   buildDayMoneyFlow,
   buildGrowthOverview,
   buildInvestorOverview,
@@ -146,7 +148,7 @@ const L = {
     categoriesTitle: 'Xarajatlar tarkibi',
     categoriesSub: 'Kategoriya bo‘yicha. Tarixni ochish uchun bosing.',
     dailyTitle: 'Kunlik xarajatlar',
-    dailySub: 'Har kuni sarflangan pul va o‘rtacha kunlik kafe daromadi. Kunni bosing — pul qayerga ketgani ochiladi',
+    dailySub: 'Har kuni sarflangan pul va shu kungacha o‘rtacha kunlik kafe daromadi. Kunni bosing — pul qayerga ketgani ochiladi',
     dayFlowTitle: 'Pul qayerga ketdi', dayPayments: 'Shu kungi to‘lovlar', dayLoadFailed: 'Kunlik kafe daromadini yuklab bo‘lmadi.', dayNoPayments: 'Bu kuni to‘lov yo‘q',
     avgIncome: 'O‘rtacha kunlik daromad',
     salaries: 'Maoshlar',
@@ -229,7 +231,7 @@ const L = {
     categoriesTitle: 'Структура расходов',
     categoriesSub: 'По категориям. Нажмите, чтобы открыть историю.',
     dailyTitle: 'Расходы по дням',
-    dailySub: 'Траты каждого дня и средний дневной доход кафе. Нажмите на день, чтобы увидеть, куда ушли деньги',
+    dailySub: 'Траты каждого дня и средний дневной доход кафе на эту дату. Нажмите на день, чтобы увидеть, куда ушли деньги',
     dayFlowTitle: 'Куда ушли деньги', dayPayments: 'Платежи за день', dayLoadFailed: 'Не удалось загрузить доход кафе за день.', dayNoPayments: 'В этот день платежей нет',
     avgIncome: 'Средний дневной доход',
     salaries: 'Зарплаты',
@@ -312,7 +314,7 @@ const L = {
     categoriesTitle: 'Spending breakdown',
     categoriesSub: 'By category. Tap one to open its history.',
     dailyTitle: 'Daily spending',
-    dailySub: 'What was spent each day against average daily cafe income. Tap a day to see where the money went',
+    dailySub: 'What was spent each day against average daily cafe income so far. Tap a day to see where the money went',
     dayFlowTitle: 'Where the money went', dayPayments: 'Payments that day', dayLoadFailed: 'Could not load the day’s cafe income.', dayNoPayments: 'No payments that day',
     avgIncome: 'Avg daily income',
     salaries: 'Salaries',
@@ -367,7 +369,7 @@ const HELP = {
     categories: 'Spending split by category. Tap a category to open its payments.',
     compare: 'Each category now against the previous period of the same length.',
     largest: 'The biggest single payments in the period, without salaries and staff meals.',
-    daily: 'Spending on each day, with the average daily income as a line. Tap a day to see where its money went.',
+    daily: 'Spending on each day, with the average daily income so far as a line: each point is the income up to that day divided by the days so far. Tap a day to see where its money went.',
     methods: 'How money came in and went out by payment method: cash, card, terminal and others.',
   },
   ru: {
@@ -401,7 +403,7 @@ const HELP = {
     categories: 'Расходы по категориям. Нажмите на категорию, чтобы открыть платежи.',
     compare: 'Каждая категория сейчас против прошлого периода той же длины.',
     largest: 'Самые крупные платежи периода, без зарплат и питания сотрудников.',
-    daily: 'Расходы по дням и линия среднего дохода в день. Нажмите на день, чтобы увидеть, куда ушли деньги.',
+    daily: 'Расходы по дням и линия среднего дохода в день на каждую дату: доход с начала периода, делённый на прошедшие дни. Нажмите на день, чтобы увидеть, куда ушли деньги.',
     methods: 'Как деньги пришли и ушли по способу оплаты: наличные, карта, терминал и другие.',
   },
   uz: {
@@ -435,7 +437,7 @@ const HELP = {
     categories: 'Xarajatlar kategoriyalar bo‘yicha. To‘lovlarni ochish uchun kategoriyani bosing.',
     compare: 'Har bir kategoriya hozir va shu uzunlikdagi oldingi davr.',
     largest: 'Davrdagi eng katta alohida to‘lovlar, maosh va xodimlar ovqatisiz.',
-    daily: 'Har kungi xarajat va kunlik o‘rtacha daromad chizig‘i. Pul qayerga ketganini ko‘rish uchun kunni bosing.',
+    daily: 'Har kungi xarajat va shu kungacha kunlik o‘rtacha daromad chizig‘i: davr boshidan tushgan daromad o‘tgan kunlarga bo‘linadi. Pul qayerga ketganini ko‘rish uchun kunni bosing.',
     methods: 'Pul to‘lov usuli bo‘yicha qanday kelib-ketgan: naqd, karta, terminal va boshqalar.',
   },
 }
@@ -576,6 +578,7 @@ export default function AccountingAnalysis() {
   const [trendRetry, setTrendRetry] = useState(0)
   const [trend, setTrend] = useState({ key: '', status: 'idle', cafeIncomeByBucket: {} })
   const [targetHistory, setTargetHistory] = useState([])
+  const [dailyIncome, setDailyIncome] = useState({ key: '', byDate: null })
   const trendRequestRef = useRef('')
   // Trends stop at today: future days have no income yet and would read as a collapse.
   const trendTo = useMemo(() => (dateTo > todayExpenseDate() ? todayExpenseDate() : dateTo), [dateTo])
@@ -754,6 +757,19 @@ export default function AccountingAnalysis() {
         setTrend(current => (current.key === key ? { key, status: 'error', cafeIncomeByBucket: {} } : current))
       })
   }, [flowMode, trendKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Per-day cafe income for the running average on Daily spending. Optional:
+  // until it arrives (or without migration 265) the chart keeps the flat line.
+  useEffect(() => {
+    if (dateFrom > trendTo) return undefined
+    const key = `${dateFrom}|${trendTo}|${reloadKey}`
+    let active = true
+    loadAccountingDailyCafeIncome(dateFrom, trendTo)
+      .then(byDate => { if (active) setDailyIncome({ key, byDate }) })
+      .catch(() => { if (active) setDailyIncome({ key, byDate: null }) })
+    return () => { active = false }
+  }, [dateFrom, trendTo, reloadKey])
+  const dailyIncomeByDate = dailyIncome.key === `${dateFrom}|${trendTo}|${reloadKey}` ? dailyIncome.byDate : null
 
   const analysis = useMemo(() => {
     if (!data) return null
@@ -1092,6 +1108,7 @@ export default function AccountingAnalysis() {
                 <DailySpendingChart
                   days={analysis.daily}
                   averageIncome={analysis.summary.cafeIncomeSummary.averageDaily}
+                  incomeByDate={dailyIncomeByDate}
                   l={l}
                   lang={lang}
                   onSelectDay={setSelectedDay}
@@ -2427,8 +2444,9 @@ function CategoryComparison({ rows, labelFor, l }) {
   )
 }
 
-function DailySpendingChart({ days, averageIncome, l, lang, onSelectDay }) {
+function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSelectDay }) {
   const [hoverIndex, setHoverIndex] = useState(null)
+  const runningAverage = useMemo(() => (incomeByDate ? buildRunningAverageIncome(days, incomeByDate) : null), [days, incomeByDate])
   if (!days.length || days.every(day => day.total === 0)) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
 
   const width = 960
@@ -2436,7 +2454,7 @@ function DailySpendingChart({ days, averageIncome, l, lang, onSelectDay }) {
   const pad = { top: 12, right: 12, bottom: 28, left: 52 }
   const plotW = width - pad.left - pad.right
   const plotH = height - pad.top - pad.bottom
-  const maxValue = Math.max(averageIncome, ...days.map(day => day.total), 1) * 1.08
+  const maxValue = Math.max(averageIncome, ...(runningAverage || []), ...days.map(day => day.total), 1) * 1.08
   const y = value => pad.top + plotH - (value / maxValue) * plotH
   const slot = plotW / days.length
   const barWidth = Math.max(2, Math.min(28, slot - 3))
@@ -2451,7 +2469,7 @@ function DailySpendingChart({ days, averageIncome, l, lang, onSelectDay }) {
         {SPENDING_GROUPS.map(group => (
           <span key={group} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: GROUP_COLORS[group] }} />{groupLabels[group]}</span>
         ))}
-        {averageIncome > 0 && <span className="inline-flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-[#22201d]" />{l.avgIncome}</span>}
+        {(averageIncome > 0 || runningAverage) && <span className="inline-flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-[#22201d]" />{l.avgIncome}</span>}
       </div>
       <div className="relative">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label={l.dailyTitle} onMouseLeave={() => setHoverIndex(null)}>
@@ -2490,7 +2508,17 @@ function DailySpendingChart({ days, averageIncome, l, lang, onSelectDay }) {
               </g>
             )
           })}
-          {averageIncome > 0 && (
+          {runningAverage ? (
+            <polyline
+              points={runningAverage.map((value, index) => `${pad.left + (index + 0.5) * slot},${y(value)}`).join(' ')}
+              fill="none"
+              className="stroke-current text-[#22201d]"
+              strokeWidth={2}
+              strokeDasharray="6 5"
+              strokeLinejoin="round"
+              pointerEvents="none"
+            />
+          ) : averageIncome > 0 && (
             <line x1={pad.left} x2={width - pad.right} y1={y(averageIncome)} y2={y(averageIncome)} className="stroke-current text-[#22201d]" strokeWidth={2} strokeDasharray="6 5" pointerEvents="none" />
           )}
         </svg>
@@ -2507,6 +2535,9 @@ function DailySpendingChart({ days, averageIncome, l, lang, onSelectDay }) {
               </p>
             ))}
             <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-semibold text-[#22201d]"><span>{l.total}</span><span className="tabular-nums">{formatCurrency(hovered.total)}</span></p>
+            {runningAverage && (
+              <p className="mt-1 flex justify-between gap-2 font-bold text-[#68655f]"><span>{l.avgIncome}</span><span className="tabular-nums text-[#22201d]">{formatCompact(runningAverage[hoverIndex])}</span></p>
+            )}
           </div>
         )}
       </div>

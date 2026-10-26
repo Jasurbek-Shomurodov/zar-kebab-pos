@@ -156,6 +156,7 @@ const MIGRATION_HINTS = {
   save_menu_item_tech_card: 'Run migrations/139_menu_item_tech_cards.sql, migrations/149_tech_card_menu_item_components.sql, and migrations/154_tech_card_component_variants.sql',
   get_accounting_paid_order_summary: 'Run migrations/109_accounting_paid_order_summary.sql',
   get_accounting_all_time_balance: 'Run migrations/177_accounting_all_time_balance.sql',
+  get_accounting_daily_cafe_income: 'Run migrations/265_accounting_daily_cafe_income.sql',
   get_accounting_monthly_cashflow: 'Run migrations/229_accounting_monthly_cashflow.sql',
   get_accounting_monthly_breakdown: 'Run migrations/261_accounting_monthly_breakdown.sql',
   get_accounting_owner_profit: 'Run migrations/257_accounting_month_closes.sql',
@@ -279,6 +280,7 @@ export async function runDbHealthChecks(dbClient = supabase, { manifestLoader = 
     p_date_to: '2000-01-01',
   }))
   checks.push(await checkRpc(dbClient, 'get_accounting_all_time_balance', {}))
+  checks.push(await checkRpc(dbClient, 'get_accounting_daily_cafe_income', { p_date_from: '2000-01-01', p_date_to: '2000-01-01' }))
   checks.push(await checkRpc(dbClient, 'get_accounting_monthly_cashflow', { p_month_count: 1 }))
   checks.push(await checkRpc(dbClient, 'get_accounting_monthly_breakdown', { p_month_count: 1 }))
   checks.push(await checkRpc(dbClient, 'get_accounting_owner_profit', {}))

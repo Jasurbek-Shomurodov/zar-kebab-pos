@@ -148,6 +148,17 @@ export function buildDailySpending(entries = [], dateFrom, dateTo) {
   return days
 }
 
+// Average daily cafe income up to and including each day: income so far over
+// calendar days so far (days without sales count, as in averageDaily), so the
+// line shows how the period is going instead of one flat value.
+export function buildRunningAverageIncome(days = [], incomeByDate = {}) {
+  let total = 0
+  return (days || []).map((day, index) => {
+    total += Math.max(0, Number(incomeByDate?.[day.date]) || 0)
+    return Math.round(total / (index + 1))
+  })
+}
+
 // One day of the Daily spending chart as a money flow: that day's income
 // (cafe income comes from the day's paid-order summary) into its spending
 // categories, plus every payment of the day, largest first.
