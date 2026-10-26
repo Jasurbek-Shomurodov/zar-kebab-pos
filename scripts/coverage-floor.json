@@ -51,6 +51,7 @@
     "src/components/CashierLoyaltyNameSearch.jsx",
     "src/components/CheckinCountdownBar.jsx",
     "src/components/ChoiceTiles.jsx",
+    "src/components/DailyBreakEvenBreakdown.jsx",
     "src/components/DateRangePicker.jsx",
     "src/components/GuestModeUI.jsx",
     "src/components/ImageLoadShimmer.jsx",
