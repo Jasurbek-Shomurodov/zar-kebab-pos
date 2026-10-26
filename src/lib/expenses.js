@@ -69,6 +69,10 @@ export const EXPENSE_CATEGORIES = [
     labels: { uz: 'Ta’mirlash', ru: 'Ремонт', en: 'Repair' },
   },
   {
+    key: 'investment',
+    labels: { uz: 'Investitsiya', ru: 'Инвестиция', en: 'Investment' },
+  },
+  {
     key: 'other',
     labels: { uz: 'Boshqa', ru: 'Другое', en: 'Other' },
   },

@@ -1060,6 +1060,14 @@ export default {
   {
    "filename": "263_daily_break_even_snapshots.sql",
    "sha256": "3950536551052d66584654ebc688f2f19183be23aa77d019d556c2e47adbbb3c"
+  },
+  {
+   "filename": "264_expense_investment_category.sql",
+   "sha256": "4a03ad468af928535390525f8223b4168ba3d241462306e278b67ad9836e94a2"
+  },
+  {
+   "filename": "265_accounting_daily_cafe_income.sql",
+   "sha256": "269f3fbe75621b3a942ed36a8ef69b23a6a03069af08c7901bc06d5183a4f433"
   }
  ],
  "functions": [
@@ -1607,6 +1615,11 @@ export default {
    "name": "apply_daily_break_even",
    "filename": "263_daily_break_even_snapshots.sql",
    "md5": "2e3ef9be807c13d69aa2a4e35aec91b4"
+  },
+  {
+   "name": "get_accounting_daily_cafe_income",
+   "filename": "265_accounting_daily_cafe_income.sql",
+   "md5": "7ebb1dbb12e57fe420495570a413da69"
   }
  ]
 }
