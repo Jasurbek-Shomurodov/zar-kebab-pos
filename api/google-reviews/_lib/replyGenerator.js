@@ -91,6 +91,22 @@ function responseText(payload) {
     .join(' ')
 }
 
+const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+// Gemini 429 bodies carry a google.rpc.RetryInfo detail such as { retryDelay: "12s" }.
+export function geminiRetryDelayMs(payload, fallbackMs = 15000) {
+  const retryInfo = (payload?.error?.details || []).find(detail => detail?.retryDelay)
+  const seconds = Number.parseFloat(String(retryInfo?.retryDelay || ''))
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.ceil(seconds * 1000) + 500 : fallbackMs
+}
+
+// The free tier also caps requests per day; waiting minutes will not help with that one.
+export function isGeminiDailyQuota(payload) {
+  const violations = (payload?.error?.details || []).flatMap(detail => detail?.violations || [])
+  if (violations.some(violation => /PerDay/i.test(String(violation?.quotaId || '')))) return true
+  return /requests per day/i.test(String(payload?.error?.message || ''))
+}
+
 export async function generateReviewReply(review, options = {}) {
   const apiKey = String(options.apiKey || '').trim()
   const businessName = String(options.businessName || 'Zar Kebab').trim()
@@ -116,22 +132,40 @@ export async function generateReviewReply(review, options = {}) {
     'Return only the reply text.',
   ].join('\n')
   const model = String(options.model || 'gemini-3.6-flash').trim()
-  const response = await fetchImpl(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': apiKey,
-        'Content-Type': 'application/json',
+  const sleep = options.sleep || defaultSleep
+  const now = options.now || Date.now
+  const maxRetries = options.maxRetries ?? 2
+  let payload
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetchImpl(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 1024 },
+        }),
       },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 1024 },
-      }),
-    },
-  )
-  const payload = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(payload?.error?.message || `Gemini request failed (${response.status})`)
+    )
+    payload = await response.json().catch(() => ({}))
+    if (response.ok) break
+    // The free tier allows only a few requests per minute; wait the delay Gemini suggests
+    // and retry, unless that would run past the caller's deadline.
+    const dailyQuota = response.status === 429 && isGeminiDailyQuota(payload)
+    const delayMs = response.status === 429 && !dailyQuota ? geminiRetryDelayMs(payload) : null
+    const fitsDeadline = !options.deadline || now() + delayMs < options.deadline
+    if (delayMs == null || attempt >= maxRetries || !fitsDeadline) {
+      const error = new Error(payload?.error?.message || `Gemini request failed (${response.status})`)
+      error.status = response.status
+      error.dailyQuota = dailyQuota
+      throw error
+    }
+    await sleep(delayMs)
+  }
   const reply = sanitizeReply(responseText(payload))
   if (!reply) throw new Error('Gemini returned an empty review reply')
   return { reply, source: 'gemini' }

@@ -9,6 +9,7 @@ import {
   buildFallbackReply,
   detectReviewLanguage,
   generateReviewReply,
+  geminiRetryDelayMs,
   originalReviewText,
   sanitizeReply,
 } from '../api/google-reviews/_lib/replyGenerator.js'
@@ -178,6 +179,135 @@ test('bot previews by default and publishes only with the explicit switch', asyn
   const published = await runGoogleReviewBot({ env, fetchImpl })
   assert.equal(published.results[0].status, 'published')
   assert.equal(calls.some(call => call.url.endsWith('/reply')), true)
+})
+
+function geminiRateLimit(retryDelay = '12s') {
+  return response({
+    error: {
+      code: 429,
+      message: 'Quota exceeded for metric: generate_content_free_tier_requests',
+      details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay }],
+    },
+  }, 429)
+}
+
+function fakeClock() {
+  let time = 0
+  return {
+    now: () => time,
+    sleep: async ms => { time += ms },
+  }
+}
+
+test('Gemini rate limits are retried after the suggested delay, within the deadline', async () => {
+  assert.equal(geminiRetryDelayMs(await geminiRateLimit('12s').json()), 12500)
+  assert.equal(geminiRetryDelayMs({}), 15000)
+
+  const clock = fakeClock()
+  let calls = 0
+  const generated = await generateReviewReply({ starRating: 'FIVE', comment: 'Great' }, {
+    apiKey: 'key',
+    ...clock,
+    fetchImpl: async () => (++calls === 1 ? geminiRateLimit() : response(geminiReply('Thank you from Zar Kebab!'))),
+  })
+  assert.equal(generated.reply, 'Thank you from Zar Kebab!')
+  assert.equal(calls, 2)
+  assert.equal(clock.now(), 12500)
+
+  calls = 0
+  await assert.rejects(
+    generateReviewReply({ starRating: 'FIVE', comment: 'Great' }, {
+      apiKey: 'key',
+      ...fakeClock(),
+      deadline: 5000,
+      fetchImpl: async () => { calls += 1; return geminiRateLimit() },
+    }),
+    error => error.status === 429,
+  )
+  assert.equal(calls, 1, 'a retry that would pass the deadline is not attempted')
+
+  await assert.rejects(
+    generateReviewReply({ starRating: 'FIVE', comment: 'Great' }, {
+      apiKey: 'key',
+      ...fakeClock(),
+      fetchImpl: async () => response({ error: { message: 'bad key' } }, 400),
+    }),
+    /bad key/,
+  )
+})
+
+test('bot paces Gemini calls and defers reviews past its time budget', async () => {
+  const clock = fakeClock()
+  const geminiCalls = []
+  const env = {
+    GOOGLE_BUSINESS_CLIENT_ID: 'client',
+    GOOGLE_BUSINESS_CLIENT_SECRET: 'secret',
+    GOOGLE_BUSINESS_REFRESH_TOKEN: 'refresh',
+    GOOGLE_BUSINESS_ACCOUNT_ID: '123',
+    GOOGLE_BUSINESS_LOCATION_ID: '456',
+    GEMINI_API_KEY: 'key',
+    GOOGLE_REVIEW_TIME_BUDGET_MS: '30000',
+  }
+  const fetchImpl = async url => {
+    if (url.includes('oauth2.googleapis.com')) return response({ access_token: 'token' })
+    if (url.includes('generativelanguage')) {
+      geminiCalls.push(clock.now())
+      return response(geminiReply('Thank you from Zar Kebab!'))
+    }
+    return response({ reviews: ['a', 'b', 'c', 'd'].map(id => ({
+      name: `accounts/123/locations/456/reviews/${id}`,
+      reviewId: id,
+      starRating: 'FIVE',
+      comment: 'Great',
+    })) })
+  }
+
+  const result = await runGoogleReviewBot({ env, fetchImpl, ...clock })
+  assert.deepEqual(geminiCalls, [0, 13000, 26000])
+  assert.deepEqual(result.results.map(item => item.status), ['preview', 'preview', 'preview', 'deferred'])
+  assert.equal(result.succeeded, 3)
+  assert.equal(result.failed, 0)
+  assert.equal(result.deferred, 1)
+})
+
+test('a Gemini daily quota stops the run and defers the rest without retrying', async () => {
+  const geminiCalls = []
+  const env = {
+    GOOGLE_BUSINESS_CLIENT_ID: 'client',
+    GOOGLE_BUSINESS_CLIENT_SECRET: 'secret',
+    GOOGLE_BUSINESS_REFRESH_TOKEN: 'refresh',
+    GOOGLE_BUSINESS_ACCOUNT_ID: '123',
+    GOOGLE_BUSINESS_LOCATION_ID: '456',
+    GEMINI_API_KEY: 'key',
+  }
+  const fetchImpl = async url => {
+    if (url.includes('oauth2.googleapis.com')) return response({ access_token: 'token' })
+    if (url.includes('generativelanguage')) {
+      geminiCalls.push(url)
+      if (geminiCalls.length === 1) return response(geminiReply('Thank you from Zar Kebab!'))
+      return response({
+        error: {
+          code: 429,
+          message: 'Generate content requests per day limit exceeded on Free Tier.',
+          details: [
+            { '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }] },
+            { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '30s' },
+          ],
+        },
+      }, 429)
+    }
+    return response({ reviews: ['a', 'b', 'c'].map(id => ({
+      name: `accounts/123/locations/456/reviews/${id}`,
+      reviewId: id,
+      starRating: 'FIVE',
+      comment: 'Great',
+    })) })
+  }
+
+  const result = await runGoogleReviewBot({ env, fetchImpl, ...fakeClock() })
+  assert.equal(geminiCalls.length, 2)
+  assert.deepEqual(result.results.map(item => item.status), ['preview', 'deferred', 'deferred'])
+  assert.equal(result.failed, 0)
 })
 
 test('Supabase runs the review bot daily at 13:00 Tashkent, outside the 08:00 job', async () => {

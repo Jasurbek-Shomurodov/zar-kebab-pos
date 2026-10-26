@@ -8,6 +8,9 @@
     },
     "api/assistant/index.js": {
       "maxDuration": 120
+    },
+    "api/google-reviews/run.js": {
+      "maxDuration": 300
     }
   },
   "crons": [
