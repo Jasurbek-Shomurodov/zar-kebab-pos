@@ -1084,6 +1084,10 @@ export default {
   {
    "filename": "269_missing_checkin_absences.sql",
    "sha256": "ee225c0a0ad548c15b1875d3aa47e504cd6eaa24e62c0ff5673cd38aa86dc366"
+  },
+  {
+   "filename": "270_menu_price_investor_notifications.sql",
+   "sha256": "142f2410c5a8da298a152b58c4bbfbc7963050de8a9fc08217c17f826c6887f3"
   }
  ],
  "functions": [
@@ -1646,6 +1650,16 @@ export default {
    "name": "record_missing_checkin_absences",
    "filename": "269_missing_checkin_absences.sql",
    "md5": "fd919536bdff7ce21db99287497ccf82"
+  },
+  {
+   "name": "menu_item_variant_prices",
+   "filename": "270_menu_price_investor_notifications.sql",
+   "md5": "649102177c4c2640923a573659b3dc9e"
+  },
+  {
+   "name": "queue_menu_price_investor_notification",
+   "filename": "270_menu_price_investor_notifications.sql",
+   "md5": "71679c9c7be6e5617cd1cb10c717e0bb"
   }
  ]
 }

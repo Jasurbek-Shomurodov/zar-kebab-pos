@@ -2,6 +2,7 @@ import { formatLongDateTime } from '../../../src/lib/dateFormat.js'
 import { bazaarCategoryLabel, bazaarUnitLabel } from '../../../src/lib/bazaar.js'
 import { escapeTelegramHtml, sendTelegramMessage } from './telegram.js'
 import { buildMonthCloseInvestorMessage, isMonthCloseEvent } from './monthCloseMessages.js'
+import { buildMenuPriceInvestorMessage, isMenuPriceEvent } from './menuPriceMessages.js'
 
 export async function loadIngredientInvestorTarget(supabase, env = process.env) {
   const { data, error } = await supabase.from('telegram_notification_targets')
@@ -39,9 +40,12 @@ export function buildIngredientInvestorMessage(snapshot) {
   return lines.join('\n')
 }
 
-// The queue also carries Owner profit month close/reopen events (259).
+// The queue also carries Owner profit month close/reopen events (259)
+// and menu item price changes (270).
 export function buildInvestorQueueMessage(snapshot) {
-  return isMonthCloseEvent(snapshot) ? buildMonthCloseInvestorMessage(snapshot) : buildIngredientInvestorMessage(snapshot)
+  if (isMonthCloseEvent(snapshot)) return buildMonthCloseInvestorMessage(snapshot)
+  if (isMenuPriceEvent(snapshot)) return buildMenuPriceInvestorMessage(snapshot)
+  return buildIngredientInvestorMessage(snapshot)
 }
 
 // A compare-and-set claim prevents parallel workers from sending the same event.
