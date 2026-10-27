@@ -11,7 +11,7 @@
     },
     "api/google-reviews/run.js": {
       "maxDuration": 300,
-      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**}"
+      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}"
     }
   },
   "crons": [

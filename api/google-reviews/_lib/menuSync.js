@@ -119,6 +119,51 @@ export function canonicalFoodMenu(payload) {
   return JSON.stringify(canonical({ menus: payload?.menus || [] }))
 }
 
+function flattenMenuItems(payload) {
+  const items = new Map()
+  for (const section of payload?.menus?.[0]?.sections || []) {
+    for (const item of section.items || []) {
+      const english = (item.labels || []).find(label => (label.languageCode || 'en') === 'en') || item.labels?.[0]
+      const name = clean(english?.displayName)
+      const russian = clean((item.labels || []).find(label => label.languageCode === 'ru')?.displayName) || name
+      if (name && !items.has(name.toLowerCase())) items.set(name.toLowerCase(), { name: russian, section: clean(section.labels?.[0]?.displayName), item })
+    }
+  }
+  return items
+}
+
+const sameJson = (a, b) => canonicalFoodMenu({ menus: [a ?? null] }) === canonicalFoodMenu({ menus: [b ?? null] })
+
+// What changed on Google, matched by English item name and reported with the Russian
+// name, for the daily digest image.
+export function diffFoodMenus(current, next) {
+  const before = flattenMenuItems(current)
+  const after = flattenMenuItems(next)
+  const price = entry => Number(entry.item.attributes?.price?.units) || 0
+  const changes = { added: [], removed: [], priceChanges: [], updated: [] }
+  for (const [key, entry] of after) {
+    const old = before.get(key)
+    if (!old) {
+      changes.added.push({ name: entry.name, section: entry.section, price: price(entry) })
+      continue
+    }
+    if (price(old) !== price(entry)) changes.priceChanges.push({ name: entry.name, from: price(old), to: price(entry) })
+    const fields = []
+    const labels = item => (item.labels || []).map(label => ({ ...label, displayName: label.languageCode === 'en' ? '' : label.displayName }))
+    const descriptions = item => (item.labels || []).map(label => label.description || '')
+    if (!sameJson(descriptions(old.item), descriptions(entry.item))) fields.push('description')
+    else if (!sameJson(labels(old.item), labels(entry.item))) fields.push('translation')
+    if (!sameJson(old.item.attributes?.mediaKeys, entry.item.attributes?.mediaKeys)) fields.push('photo')
+    if (!sameJson(old.item.options, entry.item.options)) fields.push('options')
+    if (old.section.toLowerCase() !== entry.section.toLowerCase()) fields.push('section')
+    if (fields.length) changes.updated.push({ name: entry.name, fields })
+  }
+  for (const [key, entry] of before) {
+    if (!after.has(key)) changes.removed.push({ name: entry.name, section: entry.section, price: price(entry) })
+  }
+  return changes
+}
+
 async function googleRequest(path, accessToken, { method = 'GET', body, rawBody, contentType, fetchImpl }) {
   const response = await fetchImpl(`${GOOGLE_BUSINESS_API_URL}${path}`, {
     method,
@@ -219,7 +264,8 @@ export async function runGoogleMenuSync(options = {}) {
   if (!itemCount) throw new Error('Refusing to publish an empty Google menu')
 
   const current = await googleRequest(`/v4/${location}/foodMenus`, accessToken, { fetchImpl })
-  if (canonicalFoodMenu(current) === canonicalFoodMenu(menu)) return { mode: 'unchanged', ...summary }
+  if (canonicalFoodMenu(current) === canonicalFoodMenu(menu)) return { mode: 'unchanged', ...summary, changes: diffFoodMenus(menu, menu) }
+  summary.changes = diffFoodMenus(current, menu)
   await googleRequest(`/v4/${location}/foodMenus`, accessToken, {
     method: 'PATCH', fetchImpl, body: { name: `${location}/foodMenus`, ...menu },
   })

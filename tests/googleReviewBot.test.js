@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   getGoogleAccessToken,
+  listReviewsForReply,
   listUnansweredReviews,
   publishReviewReply,
 } from '../api/google-reviews/_lib/googleBusiness.js'
@@ -55,6 +56,27 @@ test('review listing keeps only unanswered reviews', async () => {
     },
   })
   assert.deepEqual(reviews.map(review => review.name), ['accounts/123/locations/456/reviews/a'])
+})
+
+test('older unanswered reviews behind answered pages are still found, with the profile rating', async () => {
+  const pages = {
+    '': { averageRating: 4.7, totalReviewCount: 183, nextPageToken: 'p2', reviews: Array.from({ length: 50 }, (_, i) => ({ name: `accounts/123/locations/456/reviews/new${i}`, reviewReply: { comment: 'Thanks' } })) },
+    p2: { nextPageToken: 'p3', reviews: [{ name: 'accounts/123/locations/456/reviews/old1', starRating: 'ONE' }] },
+    p3: { reviews: [{ name: 'accounts/123/locations/456/reviews/old2', starRating: 'TWO' }] },
+  }
+  const seen = []
+  const result = await listReviewsForReply(config, 'token', {
+    limit: 25,
+    fetchImpl: async url => {
+      const token = new URL(url).searchParams.get('pageToken') || ''
+      seen.push(token)
+      return response(pages[token])
+    },
+  })
+  assert.deepEqual(seen, ['', 'p2', 'p3'])
+  assert.deepEqual(result.reviews.map(review => review.name.split('/').pop()), ['old1', 'old2'])
+  assert.equal(result.averageRating, 4.7)
+  assert.equal(result.totalReviewCount, 183)
 })
 
 test('publishing validates the Google resource name and sends only the reply', async () => {
@@ -118,8 +140,9 @@ test('template replies match the review language or are skipped', async () => {
   )
   assert.equal(buildFallbackReply({ starRating: 'FIVE', comment: 'とても美味しい' }), null)
 
+  // No text and no name: English, never a Russian guess (the name rule is tested below).
   const generated = await generateReviewReply({ starRating: 'FIVE', comment: '' })
-  assert.match(generated.reply, /^Спасибо/)
+  assert.match(generated.reply, /^Thank you/)
   await assert.rejects(
     generateReviewReply({ starRating: 'FIVE', comment: 'とても美味しい' }),
     /No reply template for this review language/,
@@ -310,6 +333,34 @@ test('a Gemini daily quota stops the run and defers the rest without retrying', 
   assert.equal(result.failed, 0)
 })
 
+test('1–3★ replies wait for the owner; saved drafts are reused without Gemini', async () => {
+  const published = []
+  let geminiCalls = 0
+  const env = {
+    GOOGLE_BUSINESS_CLIENT_ID: 'client', GOOGLE_BUSINESS_CLIENT_SECRET: 'secret', GOOGLE_BUSINESS_REFRESH_TOKEN: 'refresh',
+    GOOGLE_BUSINESS_ACCOUNT_ID: '123', GOOGLE_BUSINESS_LOCATION_ID: '456', GEMINI_API_KEY: 'key',
+    GOOGLE_REVIEW_AUTO_PUBLISH: 'true', GOOGLE_REVIEW_GEMINI_INTERVAL_MS: '0',
+  }
+  const fetchImpl = async (url, options = {}) => {
+    if (url.includes('oauth2.googleapis.com')) return response({ access_token: 'token' })
+    if (url.includes('generativelanguage')) { geminiCalls += 1; return response(geminiReply('Draft from Zar Kebab')) }
+    if (url.endsWith('/reply')) { published.push(url.split('/').at(-2)); return response({}) }
+    return response({ reviews: [
+      { name: 'accounts/123/locations/456/reviews/five', reviewId: 'five', starRating: 'FIVE', comment: 'Great' },
+      { name: 'accounts/123/locations/456/reviews/one', reviewId: 'one', starRating: 'ONE', comment: 'Tourist prices' },
+      { name: 'accounts/123/locations/456/reviews/three', reviewId: 'three', starRating: 'THREE', comment: 'Oily' },
+    ] })
+  }
+  const result = await runGoogleReviewBot({ env, fetchImpl, ...fakeClock(), heldDrafts: new Map([['three', 'Saved draft']]) })
+  assert.deepEqual(published, ['five'], 'only the 5★ reply is posted')
+  assert.deepEqual(result.results.map(item => [item.reviewId, item.status]), [
+    ['five', 'published'], ['one', 'awaiting_approval'], ['three', 'awaiting_approval'],
+  ])
+  assert.equal(result.results[2].reply, 'Saved draft')
+  assert.equal(geminiCalls, 2, 'the saved 3★ draft is not regenerated')
+  assert.equal(result.awaitingApproval, 2)
+})
+
 test('Supabase runs the review bot daily at 13:00 Tashkent, outside the 08:00 job', async () => {
   const { readFile } = await import('node:fs/promises')
   const migration = await readFile(new URL('../migrations/225_google_review_reply_cron.sql', import.meta.url), 'utf8')
@@ -335,4 +386,28 @@ test('266 runs review replies and the menu sync right after the 04:05 reports, i
   assert.match(migration, /alter table public\.google_menu_photo_keys enable row level security/)
   assert.match(migration, /revoke all on table public\.google_menu_photo_keys from anon, authenticated/)
   assert.doesNotMatch(migration, /invoke_zar_kebab_daily_reports/, 'never chained into the report job')
+})
+
+test('rating-only reviews are answered in a language chosen from the reviewer name', async () => {
+  const cases = [
+    ['Jami Mustafa', 'en'], ['Eric F', 'en'], ['Gianni Minoia', 'en'], ['Jon Smith', 'en'], ['Leroy Brown', 'en'],
+    ['Asilbek Rashidov', 'uz-Latn'], ['Dilnoza K', 'uz-Latn'], ['Ulug‘bek Tursunov', 'uz-Latn'],
+    ['Марина Войтина', 'ru'], ['Ўткир Қодиров', 'uz-Cyrl'],
+  ]
+  for (const [name, language] of cases) assert.equal(detectReviewLanguage('', 'English', name), language, name)
+  assert.equal(detectReviewLanguage('Очень вкусно', 'English', 'Eric F'), 'ru', 'review text still wins over the name')
+  assert.match(buildFallbackReply({ starRating: 'FIVE', reviewer: { displayName: 'Gergő Borhegyi' } }), /Thank you/)
+  assert.match(buildFallbackReply({ starRating: 'FIVE', reviewer: { displayName: 'Asilbek Rashidov' } }), /rahmat/)
+
+  let prompt = ''
+  await generateReviewReply({ starRating: 'FIVE', reviewer: { displayName: 'Gianni Minoia' } }, {
+    apiKey: 'key',
+    fetchImpl: async (_url, options) => {
+      prompt = JSON.parse(options.body).contents[0].parts[0].text
+      return response(geminiReply('Grazie da Zar Kebab!'))
+    },
+  })
+  assert.match(prompt, /Reviewer name: "Gianni Minoia"/)
+  assert.match(prompt, /choose the language from the reviewer's name/)
+  assert.match(prompt, /Never default to Russian for a non-Russian name/)
 })

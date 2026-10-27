@@ -1072,6 +1072,14 @@ export default {
   {
    "filename": "266_google_business_daily_sync.sql",
    "sha256": "b231868aa5f0c01e58cf1e36491c6749092b9ac4efd6bb11f0ca5ba828ec04a4"
+  },
+  {
+   "filename": "267_google_business_daily_digests.sql",
+   "sha256": "30df2a844a0a0a6085b117afd6086e5ee89b41f4103f059a249e16e930e597f9"
+  },
+  {
+   "filename": "268_google_digest_title_highlights.sql",
+   "sha256": "b8d60d632280bfe5edbb8aaa510b407aad1410174acd032f658227912dbab011"
   }
  ],
  "functions": [

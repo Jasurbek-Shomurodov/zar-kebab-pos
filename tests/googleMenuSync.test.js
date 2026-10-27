@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildGoogleFoodMenu,
   canonicalFoodMenu,
+  diffFoodMenus,
   excludedCategoryNames,
   runGoogleMenuSync,
 } from '../api/google-reviews/_lib/menuSync.js'
@@ -71,6 +72,22 @@ test('menu comparison ignores whitespace Google collapses and the resource name'
   assert.equal(canonicalFoodMenu(fromGoogle), canonicalFoodMenu(menu))
   fromGoogle.menus[0].sections[0].items[0].attributes.price.units = '30000'
   assert.notEqual(canonicalFoodMenu(fromGoogle), canonicalFoodMenu(menu))
+})
+
+test('menu changes are listed by Russian name: prices, new, removed and updated items', () => {
+  const excluded = { excludedCategories: excludedCategoryNames({}) }
+  const before = buildGoogleFoodMenu(categories, items, { 'https://cdn.example/beef.png': 'OLD' }, excluded)
+  const changed = items.filter(item => item.id !== 'cola').map(item => item.id === 'beef'
+    ? { ...item, price: 40000, description_ru: 'Новое описание' }
+    : item)
+  changed.push({ id: 'lamb', category_id: 'shash', sort_order: 2, price: 55000, name_en: 'Lamb Shashleek', name_ru: 'Шашлык из баранины', image_url: 'x.png' })
+  const after = buildGoogleFoodMenu(categories, changed, { 'https://cdn.example/beef.png': 'NEW' }, excluded)
+  const diff = diffFoodMenus(before, after)
+  assert.deepEqual(diff.priceChanges, [{ name: 'Шашлык из говядины', from: 35000, to: 40000 }])
+  assert.deepEqual(diff.added, [{ name: 'Шашлык из баранины', section: 'Shashleek', price: 55000 }])
+  assert.deepEqual(diff.removed, [{ name: 'Кока-кола', section: 'Drinks', price: 17000 }])
+  assert.deepEqual(diff.updated, [{ name: 'Шашлык из говядины', fields: ['description', 'photo', 'options'] }])
+  assert.deepEqual(diffFoodMenus(after, after), { added: [], removed: [], priceChanges: [], updated: [] })
 })
 
 function fakeSupabase({ photoKeys = [], menuItems = items } = {}) {

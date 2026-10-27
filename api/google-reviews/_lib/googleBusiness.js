@@ -66,20 +66,41 @@ export function googleLocationResource(config) {
   return `accounts/${accountId}/locations/${locationId}`
 }
 
-export async function listUnansweredReviews(config, accessToken, options = {}) {
+// Unanswered reviews plus the profile's overall rating, which Google returns with the list.
+export async function listReviewsForReply(config, accessToken, options = {}) {
   const fetchImpl = options.fetchImpl || fetch
   const limit = Math.max(1, Math.min(Number(options.limit) || 10, 50))
-  const params = new URLSearchParams({
-    pageSize: String(Math.min(50, Math.max(limit * 2, 10))),
-    orderBy: 'updateTime desc',
-  })
-  const response = await fetchImpl(
-    `${GOOGLE_BUSINESS_API_URL}/${googleLocationResource(config)}/reviews?${params}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  )
-  const payload = await readResponse(response)
-  if (!response.ok) throw new Error(googleErrorMessage(payload, response.status))
-  return (payload.reviews || []).filter(review => !review.reviewReply).slice(0, limit)
+  const maxPages = Math.max(1, Number(options.maxPages) || 20)
+  const unanswered = []
+  let first = null
+  let pageToken = ''
+  // Page through every review: older unanswered ones (often the critical ones) sit
+  // behind newer answered reviews and must not be missed.
+  for (let page = 0; page < maxPages && unanswered.length < limit; page += 1) {
+    const params = new URLSearchParams({ pageSize: '50', orderBy: 'updateTime desc' })
+    if (pageToken) params.set('pageToken', pageToken)
+    const response = await fetchImpl(
+      `${GOOGLE_BUSINESS_API_URL}/${googleLocationResource(config)}/reviews?${params}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    )
+    const payload = await readResponse(response)
+    if (!response.ok) throw new Error(googleErrorMessage(payload, response.status))
+    first ||= payload
+    unanswered.push(...(payload.reviews || []).filter(review => !review.reviewReply))
+    pageToken = payload.nextPageToken || ''
+    if (!pageToken) break
+  }
+  const averageRating = Number(first?.averageRating)
+  const totalReviewCount = Number(first?.totalReviewCount)
+  return {
+    reviews: unanswered.slice(0, limit),
+    averageRating: Number.isFinite(averageRating) && averageRating > 0 ? averageRating : null,
+    totalReviewCount: Number.isFinite(totalReviewCount) ? totalReviewCount : null,
+  }
+}
+
+export async function listUnansweredReviews(config, accessToken, options = {}) {
+  return (await listReviewsForReply(config, accessToken, options)).reviews
 }
 
 export async function publishReviewReply(reviewName, reply, accessToken, fetchImpl = fetch) {
