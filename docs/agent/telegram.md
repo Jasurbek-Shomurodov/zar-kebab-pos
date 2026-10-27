@@ -46,7 +46,7 @@
 
 - Authenticated availability, creation, archival and variant visibility (`256`) queue immutable Russian Team events; edits/restores send nothing.
 - Unavailable-products snapshot: 04:05; 08:00 retries. `266`/`267`: 04:10 Google replies (paced, `deferred`), 04:20 menu sync + Investor PNG.
-- Public `/yandex-menu.yml` (`task=yandex-feed`): 503, never empty.
+- Public `/yandex-menu.yml` + `/yandex-photos` (JPEG): never empty.
 - Non-empty: one tracked PNG only (`menuAvailabilityImage.js`), no text; failures retry. Empty: short text.
 - Exclude archived products/categories; preserve exact sent snapshots.
 

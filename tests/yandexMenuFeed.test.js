@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { buildYandexMenuYml, serveYandexMenuFeed } from '../api/yandex-menu/_lib/yandexFeed.js'
+import { buildYandexMenuYml, serveYandexMenuFeed, serveYandexMenuPhoto, yandexPictureUrl } from '../api/yandex-menu/_lib/yandexFeed.js'
 import { excludedCategoryNames } from '../api/_lib/posMenu.js'
 
 const categories = [
@@ -101,4 +101,48 @@ test('Google endpoint serves the Yandex feed without the cron secret', () => {
   const run = readFileSync(new URL('../api/google-reviews/run.js', import.meta.url), 'utf8')
   const feedBranch = run.indexOf("requestTask(req) === 'yandex-feed'")
   assert.ok(feedBranch > 0 && feedBranch < run.indexOf('requireCronSecret(req)\n    const task'))
+})
+
+test('Yandex feed sends WebP menu photos through the JPEG route and keeps JPEG/PNG links', () => {
+  const r2 = 'https://pub-1.r2.dev/menu/products'
+  assert.equal(yandexPictureUrl(`${r2}/m3-1786540954813-jklkh093.webp`), 'https://www.zarkebab.uz/yandex-photos/m3-1786540954813-jklkh093.jpg')
+  assert.equal(yandexPictureUrl(`${r2}/beef.png`), `${r2}/beef.png`)
+  assert.equal(yandexPictureUrl('https://cdn.example/other/plov.webp'), '')
+  assert.equal(yandexPictureUrl(''), '')
+})
+
+test('Yandex photo route converts the R2 WebP photo to a cached JPEG', async () => {
+  const { default: sharp } = await import('sharp')
+  const webp = await sharp({ create: { width: 8, height: 6, channels: 4, background: '#c33' } }).webp().toBuffer()
+  const requested = []
+  const fetchImpl = async url => { requested.push(url); return new Response(webp, { status: 200 }) }
+  const res = fakeResponse()
+  await serveYandexMenuPhoto({ method: 'GET', url: '/api/google-reviews/run?task=yandex-photo&file=m3-17865.jpg' }, res,
+    { env: { R2_PUBLIC_BASE_URL: 'https://pub-1.r2.dev/' }, fetchImpl })
+  assert.deepEqual(requested, ['https://pub-1.r2.dev/menu/products/m3-17865.webp'])
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.headers['content-type'], 'image/jpeg')
+  assert.match(res.headers['cache-control'], /immutable/)
+  assert.equal((await sharp(res.body).metadata()).format, 'jpeg')
+})
+
+test('Yandex photo route only serves menu product names from our bucket', async () => {
+  const fetchImpl = async () => { throw new Error('must not fetch') }
+  for (const file of ['../secret.jpg', 'a/b.jpg', 'photo.png', '', 'x.jpg?u=https://evil']) {
+    const res = fakeResponse()
+    await serveYandexMenuPhoto({ method: 'GET', url: `/api/google-reviews/run?task=yandex-photo&file=${encodeURIComponent(file)}` }, res,
+      { env: { R2_PUBLIC_BASE_URL: 'https://pub-1.r2.dev' }, fetchImpl })
+    assert.equal(res.statusCode, 404, file)
+  }
+  const missing = fakeResponse()
+  await serveYandexMenuPhoto({ method: 'GET', url: '/x?file=gone.jpg' }, missing,
+    { env: { R2_PUBLIC_BASE_URL: 'https://pub-1.r2.dev' }, fetchImpl: async () => new Response('', { status: 404 }) })
+  assert.equal(missing.statusCode, 404)
+})
+
+test('Yandex photos are reachable at /yandex-photos/<name>.jpg ahead of the SPA fallback', () => {
+  const rewrites = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url))).rewrites
+  const index = rewrites.findIndex(rule => rule.source === '/yandex-photos/:file')
+  assert.equal(rewrites[index]?.destination, '/api/google-reviews/run?task=yandex-photo&file=:file')
+  assert.ok(index < rewrites.findIndex(rule => rule.destination === '/index.html'))
 })

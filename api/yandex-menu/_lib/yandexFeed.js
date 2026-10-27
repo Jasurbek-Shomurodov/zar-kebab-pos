@@ -6,8 +6,10 @@ import { getSupabaseAdmin } from '../../telegram/_lib/supabaseAdmin.js'
 
 const VENDOR = 'Zar Kebab'
 const TOURIST_SUFFIX = ' — для туристов'
-// Yandex Business takes JPEG/PNG photos only; WebP items are published without a photo.
+// Yandex Business takes JPEG/PNG photos only, so WebP menu photos go through /yandex-photos/<name>.jpg.
 const PICTURE_PATTERN = /\.(png|jpe?g)(\?|$)/i
+const WEBP_MENU_PHOTO = /\/menu\/products\/([A-Za-z0-9_-]+)\.webp(\?|$)/i
+const SITE_URL = 'https://www.zarkebab.uz'
 
 function xml(value) {
   return clean(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -37,6 +39,13 @@ function priceRows(item) {
   })
 }
 
+export function yandexPictureUrl(imageUrl) {
+  const url = String(imageUrl || '')
+  if (PICTURE_PATTERN.test(url)) return url
+  const webp = url.match(WEBP_MENU_PHOTO)
+  return webp ? `${SITE_URL}/yandex-photos/${webp[1]}.jpg` : ''
+}
+
 // Pure: POS categories/items (archived already removed) -> Yandex Business YML price list.
 // Russian names, UZS prices, and a "для туристов" copy of every price, like the Google menu.
 export function buildYandexMenuYml(categories, items, options = {}) {
@@ -52,7 +61,7 @@ export function buildYandexMenuYml(categories, items, options = {}) {
     for (const item of categoryItems) {
       const subtitle = [gramsLabel(item, 'ru') || millilitresLabel(item), kcalLabel(item, 'ru')].filter(Boolean).join(' · ')
       const description = [subtitle, ru(item, 'description')].filter(Boolean).join(' — ').slice(0, 3000)
-      const picture = PICTURE_PATTERN.test(item.image_url || '') ? item.image_url : ''
+      const picture = yandexPictureUrl(item.image_url)
       for (const row of priceRows(item)) {
         for (const tourist of [false, true]) {
           const price = Math.round(tourist ? calculateUnitPrice(row.price, PRICE_MODE_TOURIST) : row.price)
@@ -109,5 +118,36 @@ export async function serveYandexMenuFeed(req, res, { supabase } = {}) {
   } catch (error) {
     console.error('[yandex-menu] feed failed:', error)
     return json(res, 503, { ok: false, error: 'Menu is temporarily unavailable' })
+  }
+}
+
+// Public JPEG copy of a WebP menu photo for Yandex, served at /yandex-photos/<name>.jpg.
+// Only menu product photos in our R2 bucket; file names carry a timestamp, so they never change.
+export async function serveYandexMenuPhoto(req, res, { env = process.env, fetchImpl = fetch } = {}) {
+  if (!['GET', 'HEAD'].includes(req.method)) {
+    res.setHeader('Allow', 'GET, HEAD')
+    return json(res, 405, { error: 'Method not allowed' })
+  }
+  const file = new URL(req.url || '/', SITE_URL).searchParams.get('file') || ''
+  const name = file.match(/^([A-Za-z0-9_-]+)\.jpg$/)?.[1]
+  const base = String(env.R2_PUBLIC_BASE_URL || '').replace(/\/+$/, '')
+  if (!name || !base) return json(res, 404, { error: 'Not found' })
+  try {
+    const source = await fetchImpl(`${base}/menu/products/${name}.webp`)
+    if (!source.ok) return json(res, source.status === 404 ? 404 : 502, { error: 'Photo unavailable' })
+    const { default: sharp } = await import('sharp')
+    const jpeg = await sharp(Buffer.from(await source.arrayBuffer()))
+      .rotate()
+      .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' })
+      .jpeg({ quality: 88 })
+      .toBuffer()
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=31536000, immutable')
+    res.end(req.method === 'HEAD' ? undefined : jpeg)
+  } catch (error) {
+    console.error('[yandex-menu] photo failed:', error)
+    return json(res, 502, { error: 'Photo unavailable' })
   }
 }
