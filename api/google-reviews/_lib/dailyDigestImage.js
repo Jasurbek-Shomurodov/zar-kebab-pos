@@ -191,7 +191,7 @@ function layout(blocks, x) {
         const tx = x + i * (width + gap)
         parts.push(`<rect x="${tx}" y="${y}" width="${width}" height="150" rx="18" fill="${COLORS.tile}"/>`)
         parts.push(`<text x="${tx + 22}" y="${y + 40}" font-size="21" fill="${COLORS.muted}">${escape(tile.label)}</text>`)
-        parts.push(`<text x="${tx + 22}" y="${y + 92}" font-size="${[...tile.value].length > 8 ? 30 : 44}" font-weight="700" fill="${toneColor(tile.tone)}">${escape(tile.value)}</text>`)
+        parts.push(`<text x="${tx + 22}" y="${y + 92}" font-size="${[...tile.value].length > 11 ? 26 : [...tile.value].length > 8 ? 30 : 44}" font-weight="700" fill="${toneColor(tile.tone)}">${escape(tile.value)}</text>`)
         if (tile.sub) parts.push(`<text x="${tx + 22}" y="${y + 128}" font-size="19" fill="${COLORS.faint}">${escape(tile.sub)}</text>`)
       })
       y += 150 + 20
