@@ -2,25 +2,16 @@ import sharp from 'sharp'
 import { calculateUnitPrice, PRICE_MODE_TOURIST } from '../../../src/lib/priceModes.js'
 import { gramsLabel, kcalLabel, millilitresLabel, getItemKcal } from '../../../src/lib/nutrition.js'
 import { loadSalaryRows } from '../../../src/lib/salaryData.js'
+import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, publicVariants } from '../../_lib/posMenu.js'
 import { getGoogleAccessToken, getGoogleBusinessConfig, googleLocationResource } from './googleBusiness.js'
 
 const GOOGLE_BUSINESS_API_URL = 'https://mybusiness.googleapis.com'
 const LANGS = ['en', 'ru', 'uz']
-const DEFAULT_EXCLUDED_CATEGORIES = 'Utensils,Corporate set'
 const TOURIST_PRICE = { en: 'Tourist price', ru: 'Цена для туристов', uz: 'Turistlar uchun narx' }
 const TOURIST_SUFFIX = { en: ' — tourist', ru: ' — для туристов', uz: ' — turistlar uchun' }
 const MENU_TITLE = { en: 'Menu', ru: 'Меню', uz: 'Menyu' }
 // Google fetches PNG/JPEG by URL; anything else (WebP) is converted and uploaded as bytes.
 const URL_UPLOAD_PATTERN = /\.(png|jpe?g)(\?|$)/i
-
-const ITEM_COLUMNS = [
-  'id', 'category_id', 'name_uz', 'name_ru', 'name_en', 'description_uz', 'description_ru', 'description_en',
-  'price', 'image_url', 'sort_order', 'option_groups', 'grams', 'millilitres', 'litres', 'kcal',
-].join(',')
-
-function clean(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim()
-}
 
 function money(units) {
   return { currencyCode: 'UZS', units: String(Math.max(0, Math.round(Number(units) || 0))) }
@@ -32,18 +23,6 @@ function localized(row, key, lang) {
 
 function subtitle(item, lang) {
   return [gramsLabel(item, lang) || millilitresLabel(item), kcalLabel(item, lang)].filter(Boolean).join(' · ')
-}
-
-// Mirrors src/lib/menuPricing.js: a variant's own price, else parent price + delta.
-function publicVariants(item) {
-  return (Array.isArray(item.option_groups) ? item.option_groups : [])
-    .filter(group => group?.id === 'variants')
-    .flatMap(group => group.options || [])
-    .filter(option => !option?.public_hidden)
-    .map(option => ({
-      ...option,
-      price: Number(option.price) > 0 ? Number(option.price) : (Number(item.price) || 0) + (Number(option.price_delta) || 0),
-    }))
 }
 
 function itemLabels(item) {
@@ -73,21 +52,17 @@ function itemOptions(item, variants) {
   })))
 }
 
-export function excludedCategoryNames(env = process.env) {
-  return new Set(String(env.GOOGLE_MENU_EXCLUDED_CATEGORIES ?? DEFAULT_EXCLUDED_CATEGORIES)
-    .split(',').map(name => clean(name).toLowerCase()).filter(Boolean))
-}
+export { excludedCategoryNames }
 
 // Pure: POS categories/items (archived already removed) -> Google FoodMenus payload.
 export function buildGoogleFoodMenu(categories, items, mediaKeysByUrl = {}, options = {}) {
   const excluded = options.excludedCategories || excludedCategoryNames()
-  const bySort = (a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
   const sections = []
-  for (const category of [...categories].sort(bySort)) {
+  for (const category of [...categories].sort(bySortOrder)) {
     if (excluded.has(clean(category.name_en).toLowerCase())) continue
     const sectionItems = items
       .filter(item => item.category_id === category.id)
-      .sort(bySort)
+      .sort(bySortOrder)
       .map(item => {
         const variants = publicVariants(item)
         const basePrice = variants.length ? Math.min(...variants.map(variant => variant.price)) : item.price
@@ -204,16 +179,6 @@ async function uploadMenuPhoto(imageUrl, location, accessToken, fetchImpl) {
   const mediaKey = String(created?.name || '').split('/').pop()
   if (!mediaKey) throw new Error('Google did not return a media key')
   return mediaKey
-}
-
-async function loadPosMenu(supabase) {
-  const [{ data: categories, error: categoryError }, { data: items, error: itemError }] = await Promise.all([
-    supabase.from('menu_categories').select('id,name_uz,name_ru,name_en,sort_order').is('deleted_at', null),
-    loadSalaryRows(() => supabase.from('menu_items').select(ITEM_COLUMNS).is('deleted_at', null)),
-  ])
-  if (categoryError) throw categoryError
-  if (itemError) throw itemError
-  return { categories: categories || [], items: items || [] }
 }
 
 async function loadPhotoKeys(supabase) {

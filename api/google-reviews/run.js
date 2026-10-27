@@ -2,6 +2,7 @@ import { getBearerToken, json, methodNotAllowed } from '../telegram/_lib/http.js
 import { getSupabaseAdmin } from '../telegram/_lib/supabaseAdmin.js'
 import { isGoogleReviewBotConfigured, runGoogleReviewBot } from './_lib/runReviewBot.js'
 import { runGoogleMenuSync } from './_lib/menuSync.js'
+import { serveYandexMenuFeed } from '../yandex-menu/_lib/yandexFeed.js'
 import { googleDigestDate, loadHeldReviewDrafts, saveGoogleDigestPart, sendGoogleDailyDigest } from './_lib/dailyDigest.js'
 
 function requireCronSecret(req) {
@@ -25,6 +26,8 @@ async function recordPart(supabase, part, result, date) {
 }
 
 export default async function handler(req, res) {
+  // Public, no cron secret: Yandex Business fetches the menu feed from /yandex-menu.yml.
+  if (requestTask(req) === 'yandex-feed') return serveYandexMenuFeed(req, res)
   if (!['GET', 'POST'].includes(req.method)) return methodNotAllowed(res, ['GET', 'POST'])
   try {
     requireCronSecret(req)

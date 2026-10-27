@@ -2,15 +2,11 @@
 
 ## Entry points
 
-- UI: `src/pages/TelegramMiniApp.jsx`, `src/lib/telegramWebApp.js`
+- UI (read-only): `src/pages/TelegramMiniApp.jsx`, `src/lib/telegramWebApp.js`
 - Notifications: `api/telegram/`
 - Delivery: `api/telegram/_lib/`
 - Polling: `bots/telegram-bot.js`
 - Tests: `tests/teamDailyKpiDelivery.test.js`, `tests/employeePayrollImages.test.js`.
-
-## Mini App
-
-- Read-only.
 
 ## Delivery retries
 
@@ -41,7 +37,7 @@
 - Game Club paid revenue has its own text/PNG bucket, excluded from other buckets.
 - `180`: Game Club rounds send Team RU date, actor, menu, items, total, + paid daily income snapshot at send (Tashkent paid_at, created_at fallback; saved totals). Read errors queue; cron retries; unknown sends held. No costs/tenders.
 - Daily/MTD cafe income uses immutable `orders.total`. Cash/terminal uses payment rows; QR maps to terminal; card/loyalty stay distinct.
-- `api/telegram/daily-salary.js` loads MTD cafe income orders via `loadSalaryRows` (paged by `id`); unpaged selects cap at 1000 rows (cf. RPC `get_dashboard_monthly_average_income`).
+- `daily-salary.js` loads MTD cafe income orders via `loadSalaryRows` (by `id`); unpaged caps at 1000 rows (cf. `get_dashboard_monthly_average_income`).
 - Daily soliq: 4% of paid cafe revenue, in expenses, deducted from net profit.
 - Break-even `263`: album/watchdog (`task=break-even`) save once.
 - Team KPI: one Russian PNG per finalized date (all awards, total, date, system author); `181` claims dates; unknown sends held. No text fallback/sales/rate/balance. Deletes edit its row.
@@ -49,7 +45,8 @@
 ## Menu availability
 
 - Authenticated availability, creation, archival and variant visibility (`256`) queue immutable Russian Team events; edits/restores send nothing.
-- Unavailable-products snapshot: sent at 04:05; 08:00 retries. `266`/`267`: 04:10 Google replies (paced, `deferred`), 04:20 menu sync + Investor PNG.
+- Unavailable-products snapshot: 04:05; 08:00 retries. `266`/`267`: 04:10 Google replies (paced, `deferred`), 04:20 menu sync + Investor PNG.
+- Public `/yandex-menu.yml` (`task=yandex-feed`): 503, never empty.
 - Non-empty: one tracked PNG only (`menuAvailabilityImage.js`), no text; failures retry. Empty: short text.
 - Exclude archived products/categories; preserve exact sent snapshots.
 
@@ -62,7 +59,7 @@
 - Investor daily album: yesterday’s financial/payroll, sales mix, live unpaid, uncancelled orders (place/id/time/status/total/items); RU labels/catalog names, saved-name fallback; renderer drops paid/cancelled. No Bazaar totals/Tech Card images, even on retry/manual send. Keep historical ledgers.
 - Bazaar PNGs group numbered items by saved RU category: paid/normal prices, signed variance (red above, green below), total variance. Missing normal prices stay unset; no truncation.
 - Investor: image-only, retryable render errors, no text fallback; the ledger dedupes the album, marking sent only after each photo’s message id.
-- Employee meal daily aggregate also goes to Investor, with the employee-count formula.
+- Employee meal daily aggregate also goes to Investor, with employee-count formula.
 - Edits/deletes, calculated salary/bonus rows never announce cash expenses.
 
 ## Status messages

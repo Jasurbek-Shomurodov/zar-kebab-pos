@@ -46,6 +46,7 @@
   ],
   "rewrites": [
     { "source": "/sb/rest/v1/:path*", "destination": "https://bcdbljpwhyawaasimjmk.supabase.co/rest/v1/:path*" },
+    { "source": "/yandex-menu.yml", "destination": "/api/google-reviews/run?task=yandex-feed" },
     { "source": "/((?!api/|sb/).*)", "destination": "/index.html" }
   ]
 }
