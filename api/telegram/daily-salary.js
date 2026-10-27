@@ -46,6 +46,8 @@ const KPI_MISSING_DATE_BATCH_SIZE = 31
 const PENDING_DELIVERY_RETRY_MS = 2 * 60 * 1000
 const CRON_FAILURE_ALERT_MARKER = '[cron-failure-alerted]'
 const WATCHDOG_ACTIVE_RUN_GRACE_MS = 3 * 60 * 1000
+// First day closed by the no-check-in rule (269): the attendance start date.
+export const MISSING_CHECKIN_ABSENCE_START_DATE = '2026-10-15'
 
 function requireCronSecret(req) {
   const expected = process.env.CRON_SECRET
@@ -334,6 +336,7 @@ async function verifyDailySalaryCronDelivery(supabase, businessDate) {
   // unknown Telegram outcome and must not be replayed by the watchdog.
   if (!delivery || ['failed', 'skipped'].includes(delivery.status)) {
     try {
+      await recordMissingCheckinAbsences(supabase, businessDate)
       await finalizeEmployeeMealDate(supabase, businessDate)
       const kpiResults = await finalizeDailyKpiDate(supabase, businessDate)
       await sendDailyInvestorReportAlbum(supabase, businessDate, kpiResults)
@@ -981,6 +984,21 @@ async function claimDelivery(supabase, salaryProfileId, notificationDate) {
   return claimed.data || null
 }
 
+// A closed day without a QR check-in becomes an absence before the meal count,
+// KPI and salary summaries read it, so every balance drops that day's pay.
+export async function recordMissingCheckinAbsences(supabase, businessDate) {
+  if (businessDate < MISSING_CHECKIN_ABSENCE_START_DATE) return []
+  const { data, error } = await supabase.rpc('record_missing_checkin_absences', {
+    p_business_date: businessDate,
+  })
+  if (error) {
+    // Rolling deployment: before migration 269 days keep the old pay rule.
+    if (['42883', 'PGRST202'].includes(error.code)) return []
+    throw error
+  }
+  return data || []
+}
+
 async function finalizeDailyKpiDate(supabase, businessDate) {
   const { data, error } = await supabase.rpc('generate_daily_kpi_bonuses', {
     p_business_date: businessDate,
@@ -1194,6 +1212,7 @@ export default async function handler(req, res) {
 
     for (const businessDate of catchUpDates) {
       try {
+        await recordMissingCheckinAbsences(supabase, businessDate)
         await finalizeEmployeeMealDate(supabase, businessDate)
         const results = await finalizeDailyKpiDate(supabase, businessDate)
         kpiResultsByDate.set(businessDate, results)

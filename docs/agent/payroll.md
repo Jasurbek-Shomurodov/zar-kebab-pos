@@ -24,7 +24,7 @@
 - Separate payments, bonuses, fines, absences, rates.
 - `getSalaryBalance()` is the signed ledger: base salary plus accruing manual/KPI bonuses, minus payments and fines. Excess payments/fines carry forward negatively.
 - `getSalaryDue()`: one employee's nonnegative liability. `getTotalSalaryDue()` sums per employee so one advance never hides another's due.
-- Payments allowed at zero/negative balance.
+- Payments allowed at balance ≤ 0.
 - History: effective date, then newest `created_at`.
 - Page payroll ledgers via `src/lib/salaryData.js`; include accrued bonuses and remove deleted bonuses from balance state. Coverage: `tests/salaryBalanceConsistency.test.js`.
 
@@ -34,7 +34,7 @@
 - Bonuses created after `169` accrue into salary liability and become cash expense only through a later salary payment. Legacy bonuses remain immutable immediately-paid expenses.
 - Salary writes: Accounting access + audits.
 - Today's absence can be undone only for an active employee with an exact row for the current Tashkent date.
-- Undo absence: confirm, then exact delete by absence id + salary profile id + date; zero rows is an error.
+- Undo absence: confirm, then exact delete by absence id + profile id + date; zero rows is an error.
 - History deletion first retracts tracked employee/Salary/Team Telegram messages (failure keeps the source); deleted bonus/fine/absence/rate events drop delivery records so nothing retries.
 - Deactivation/reactivation boundaries are inclusive; only dates between become absences. Archived `deleted_at` is exclusive after the last working date.
 - Employee create/activate/deactivate queue immutable Russian Investor events (`216`: created shows salary). Screens retry safely.
@@ -47,7 +47,7 @@
 - `215`/`217`: same-day table rows inherit the opener.
 - `226`: absences no longer skip KPI. Employment boundaries still do.
 - `244`: from 2026-10-14 shifts end 04:00 (`kpi_business_date`); cron 04:05; finalized shifts block bill deletes. Test: `tests/kpiDayCutoff.test.js`.
-- `254`: from 2026-10-16 KPI starts at QR check-in (`employee_kpi_start_time`); none = `skipped_absent`; remote = whole shift. Test: `tests/kpiCheckinStart.test.js`.
+- `254`: from 2026-10-16 KPI starts at QR check-in (`employee_kpi_start_time`); none = `skipped_absent`; remote = whole shift. `269`: from 10-15 none = absence. Test: `tests/kpiCheckinStart.test.js`.
 - Runs/results are immutable; only service-role finalization creates `daily_kpi` bonuses (`200`: creator repair). `202` forbids deleting previous-day orders (`232`: owners may delete unpaid ones); today's deletions reduce bases before finalization.
 - Bonuses accrue into salary; formula/settlement immutable; payments record cash expense.
 - Deleting a generated bonus marks its result voided; retries never recreate it.
@@ -55,7 +55,7 @@
 - Cards show today’s rule. KPI dropdown: active POS profiles, saves the opener, retryable load errors.
 - KPI rate/status/basis/account changes snapshot before/after and queue Salary delivery; no-op saves silent; no backfill.
 - Salary History splits manual and KPI bonuses; Salary + bonuses counts each once.
-- History calendar (`getSalaryHistoryWorkStatus`, display only): absence = absent; QR check-in = worked + time; past on-site day with neither from `ATTENDANCE_START_DATE` = no check-in; earlier/remote = worked; outside employment or future = none.
+- History calendar (`getSalaryHistoryWorkStatus`, display only): absence = absent; QR check-in = worked + time; past on-site day with neither from `ATTENDANCE_START_DATE` = no check-in; earlier/remote = worked; not employed/future = none.
 - Effective dates cannot enter finalized periods. Recovery scans missing older dates in bounded batches.
 
 ## Notifications

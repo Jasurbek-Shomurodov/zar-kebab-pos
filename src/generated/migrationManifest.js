@@ -1080,6 +1080,10 @@ export default {
   {
    "filename": "268_google_digest_title_highlights.sql",
    "sha256": "b8d60d632280bfe5edbb8aaa510b407aad1410174acd032f658227912dbab011"
+  },
+  {
+   "filename": "269_missing_checkin_absences.sql",
+   "sha256": "ee225c0a0ad548c15b1875d3aa47e504cd6eaa24e62c0ff5673cd38aa86dc366"
   }
  ],
  "functions": [
@@ -1637,6 +1641,11 @@ export default {
    "name": "invoke_zar_kebab_google_menu_sync",
    "filename": "266_google_business_daily_sync.sql",
    "md5": "df393df8a177ff72cb4634a113a932fa"
+  },
+  {
+   "name": "record_missing_checkin_absences",
+   "filename": "269_missing_checkin_absences.sql",
+   "md5": "fd919536bdff7ce21db99287497ccf82"
   }
  ]
 }

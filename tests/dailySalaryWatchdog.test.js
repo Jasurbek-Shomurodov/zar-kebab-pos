@@ -85,6 +85,7 @@ function watchdogDependencies(calls) {
   return {
     CRON_FAILURE_ALERT_MARKER: '[cron-failure-alerted]',
     dailySalaryRunCanStillBeActive: row => row?.status === 'pending' && row.active,
+    recordMissingCheckinAbsences: async () => calls.push('absences'),
     finalizeEmployeeMealDate: async () => calls.push('meal'),
     finalizeDailyKpiDate: async () => { calls.push('kpi'); return ['finalized'] },
     sendDailyInvestorReportAlbum: async (db, date, results) => {
@@ -107,7 +108,7 @@ test('watchdog recovers previously alerted failures and verifies durable deliver
     { status: 'sent', telegram_message_id: '123' },
   ])
   assert.deepEqual(await verify(db, '2026-09-16'), { status: 'recovered' })
-  assert.deepEqual(calls, ['meal', 'kpi', 'album'])
+  assert.deepEqual(calls, ['absences', 'meal', 'kpi', 'album'])
 })
 
 test('watchdog does not replay sent, active, or uncertain pending reports', async () => {
@@ -130,7 +131,7 @@ test('watchdog does not send a report when KPI finalization fails', async () => 
   dependencies.finalizeDailyKpiDate = async () => { throw new Error('guard failure') }
   const verify = loadFunction('verifyDailySalaryCronDelivery', 'async function loadUnavailableMenuItems', dependencies)
   assert.equal((await verify(deliveryDatabase([null]), '2026-09-16')).status, 'alert_sent')
-  assert.deepEqual(calls, ['meal', 'alert', 'record-alert'])
+  assert.deepEqual(calls, ['absences', 'meal', 'alert', 'record-alert'])
 })
 
 test('watchdog requires durable sent confirmation before reporting recovery', async () => {

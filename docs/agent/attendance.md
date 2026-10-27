@@ -28,5 +28,5 @@
 
 - One row per employee per Tashkent date; the first scan wins (`ignoreDuplicates`), later scans echo the stored time.
 - Rows snapshot `work_start_time` and arrival status (`early`, `on_time`, `late`, `no_schedule`) in whole minutes; editing the start time never rewrites history.
-- No fines, bonuses or absences. From 2026-10-16 the check-in starts the employee's KPI window (`254`, see payroll.md); no check-in means no KPI that day. Staff read via `expenses` RLS; only the service role writes.
+- No fines or bonuses. From 2026-10-15 (`269`, backfilled once on 2026-10-27, `MISSING_CHECKIN_ABSENCE_START_DATE`) the daily-salary cron records an on-site employee's closed day (after 04:00) without a check-in as a silent `No QR check-in` absence before meals/KPI/summaries, so every salary reader drops that day's pay. Remote employees are skipped. Test: `tests/missingCheckinAbsences.test.js`. From 2026-10-16 the check-in starts the employee's KPI window (`254`, see payroll.md); no check-in means no KPI that day. Staff read via `expenses` RLS; only the service role writes.
 - Deploy migrations before the frontend/webhook: the old webhook ignores rotating payloads.
