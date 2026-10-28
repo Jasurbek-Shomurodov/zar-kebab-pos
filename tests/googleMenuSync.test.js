@@ -183,3 +183,33 @@ test('an empty POS read never wipes the Google menu', async () => {
   await assert.rejects(runGoogleMenuSync({ env, fetchImpl, supabase }), /empty Google menu/)
   assert.equal(patched, false)
 })
+
+test('a brief Google outage is retried for the menu read and publish, never for photo uploads', async () => {
+  const supabase = fakeSupabase({ menuItems: items.filter(item => item.id === 'beef') })
+  const waits = []
+  const counts = { GET: 0, PATCH: 0, media: 0 }
+  const unavailable = () => response({ error: { code: 503, message: 'The service is currently unavailable.', status: 'UNAVAILABLE' } }, 503)
+  const fetchImpl = async (url, options = {}) => {
+    if (url.includes('oauth2.googleapis.com')) return response({ access_token: 'token' })
+    if (url.endsWith('/media')) { counts.media += 1; return unavailable() }
+    if (options.method === 'PATCH') return ++counts.PATCH === 1 ? unavailable() : response(JSON.parse(options.body))
+    return ++counts.GET <= 2 ? unavailable() : response({ menus: [] })
+  }
+  const result = await runGoogleMenuSync({ env, fetchImpl, supabase, sleep: async ms => { waits.push(ms) } })
+  assert.equal(result.mode, 'published')
+  assert.deepEqual(counts, { GET: 3, PATCH: 2, media: 1 })
+  assert.deepEqual(waits, [10_000, 30_000, 10_000])
+  assert.equal(result.photoFailures.length, 1)
+})
+
+test('a lasting Google outage fails the menu sync after its retries', async () => {
+  const supabase = fakeSupabase({ menuItems: items.filter(item => item.id === 'beef'), photoKeys: [{ image_url: 'https://cdn.example/beef.png', media_key: 'K' }] })
+  let reads = 0
+  const fetchImpl = async url => {
+    if (url.includes('oauth2.googleapis.com')) return response({ access_token: 'token' })
+    reads += 1
+    return response({ error: { message: 'The service is currently unavailable.' } }, 503)
+  }
+  await assert.rejects(runGoogleMenuSync({ env, fetchImpl, supabase, sleep: async () => {} }), /currently unavailable/)
+  assert.equal(reads, 3)
+})

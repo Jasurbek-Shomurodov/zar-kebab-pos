@@ -12,6 +12,16 @@ const TOURIST_SUFFIX = { en: ' — tourist', ru: ' — для туристов',
 const MENU_TITLE = { en: 'Menu', ru: 'Меню', uz: 'Menyu' }
 // Google fetches PNG/JPEG by URL; anything else (WebP) is converted and uploaded as bytes.
 const URL_UPLOAD_PATTERN = /\.(png|jpe?g)(\?|$)/i
+// Google answers 503 "The service is currently unavailable." during short outages. GET and the
+// full-menu PATCH are idempotent, so they retry; media POSTs never do (a retry could duplicate a
+// photo, and a failed upload is tried again on the next daily run).
+const RETRY_DELAYS_MS = [10_000, 30_000]
+const RETRYABLE_METHODS = new Set(['GET', 'PATCH'])
+const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+function isRetryableStatus(status) {
+  return status === 429 || status >= 500
+}
 
 function money(units) {
   return { currencyCode: 'UZS', units: String(Math.max(0, Math.round(Number(units) || 0))) }
@@ -139,20 +149,26 @@ export function diffFoodMenus(current, next) {
   return changes
 }
 
-async function googleRequest(path, accessToken, { method = 'GET', body, rawBody, contentType, fetchImpl }) {
-  const response = await fetchImpl(`${GOOGLE_BUSINESS_API_URL}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(body !== undefined || rawBody ? { 'Content-Type': contentType || 'application/json' } : {}),
-    },
-    ...(rawBody ? { body: rawBody } : body !== undefined ? { body: JSON.stringify(body) } : {}),
-  })
-  const text = await response.text()
-  let payload = {}
-  try { payload = text ? JSON.parse(text) : {} } catch { payload = { raw: text.slice(0, 300) } }
-  if (!response.ok) throw new Error(payload?.error?.message || `Google API request failed (${response.status})`)
-  return payload
+async function googleRequest(path, accessToken, { method = 'GET', body, rawBody, contentType, fetchImpl, sleep = defaultSleep }) {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetchImpl(`${GOOGLE_BUSINESS_API_URL}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(body !== undefined || rawBody ? { 'Content-Type': contentType || 'application/json' } : {}),
+      },
+      ...(rawBody ? { body: rawBody } : body !== undefined ? { body: JSON.stringify(body) } : {}),
+    })
+    const text = await response.text()
+    let payload = {}
+    try { payload = text ? JSON.parse(text) : {} } catch { payload = { raw: text.slice(0, 300) } }
+    if (response.ok) return payload
+    if (RETRYABLE_METHODS.has(method) && isRetryableStatus(response.status) && attempt < RETRY_DELAYS_MS.length) {
+      await sleep(RETRY_DELAYS_MS[attempt])
+      continue
+    }
+    throw new Error(payload?.error?.message || `Google API request failed (${response.status})`)
+  }
 }
 
 async function uploadMenuPhoto(imageUrl, location, accessToken, fetchImpl) {
@@ -191,6 +207,7 @@ export async function runGoogleMenuSync(options = {}) {
   const env = options.env || process.env
   const fetchImpl = options.fetchImpl || fetch
   const supabase = options.supabase
+  const sleep = options.sleep || defaultSleep
   const config = getGoogleBusinessConfig(env)
   const location = googleLocationResource(config)
   const accessToken = await getGoogleAccessToken(config, fetchImpl)
@@ -228,11 +245,11 @@ export async function runGoogleMenuSync(options = {}) {
   // An empty read must never wipe the live Google menu.
   if (!itemCount) throw new Error('Refusing to publish an empty Google menu')
 
-  const current = await googleRequest(`/v4/${location}/foodMenus`, accessToken, { fetchImpl })
+  const current = await googleRequest(`/v4/${location}/foodMenus`, accessToken, { fetchImpl, sleep })
   if (canonicalFoodMenu(current) === canonicalFoodMenu(menu)) return { mode: 'unchanged', ...summary, changes: diffFoodMenus(menu, menu) }
   summary.changes = diffFoodMenus(current, menu)
   await googleRequest(`/v4/${location}/foodMenus`, accessToken, {
-    method: 'PATCH', fetchImpl, body: { name: `${location}/foodMenus`, ...menu },
+    method: 'PATCH', fetchImpl, sleep, body: { name: `${location}/foodMenus`, ...menu },
   })
   return { mode: 'published', ...summary }
 }
