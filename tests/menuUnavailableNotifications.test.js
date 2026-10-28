@@ -258,9 +258,25 @@ test('non-empty daily unavailable-product snapshot is sent as one tracked image 
   const sender = dailyCron.match(/async function sendDailyUnavailableMenuSnapshot[\s\S]*?\n}\n/)?.[0] || ''
   assert.match(sender, /if \(items\.length === 0\) \{\s*return sendTelegramMessage\(chatId, buildDailyUnavailableMenuTeamMessage\(items, businessDate, snapshotTime\)\)/)
   assert.match(sender, /const snapshotTime = getTashkentClockTime\(\)/)
-  assert.match(sender, /const photo = await renderDailyUnavailableMenuImage\(items, businessDate, snapshotTime\)\s*return sendTelegramPhoto\(chatId, photo/)
-  assert.match(dailyCron, /const response = await sendDailyUnavailableMenuSnapshot\(target\.chatId, items, businessDate\)\s*telegramMessageId = getTelegramMessageId\(response\)/)
+  assert.match(sender, /const photo = await renderDailyUnavailableMenuImage\(items, businessDate, snapshotTime\)[\s\S]*return sendTelegramPhoto\(chatId, photo/)
+  assert.match(dailyCron, /const response = await sendDailyUnavailableMenuSnapshot\([\s\S]*?\)\s*telegramMessageId = getTelegramMessageId\(response\)/)
   assert.doesNotMatch(dailyCron, /sendDailyUnavailableMenuImage|Image not sent:/)
+})
+
+test('the morning run pairs the Team KPI image with the unavailable-product snapshot in one album', () => {
+  const sender = dailyCron.match(/async function sendDailyUnavailableMenuSnapshot[\s\S]*?\n}\n/)?.[0] || ''
+  // Only a photo snapshot joins the album; the empty-menu text never does.
+  assert.ok(sender.indexOf('items.length === 0') < sender.indexOf('prepareCompanion?.()'))
+  const album = dailyCron.match(/async function sendTeamMorningAlbum[\s\S]*?\n}\n/)?.[0] || ''
+  assert.match(album, /sendTelegramMediaGroup\(chatId, \[\s*\{ photo: kpi\.photo/)
+  assert.match(album, /getTelegramMediaGroupMessageIds\(response, 2\)/)
+  assert.match(album, /kpi\.finish\(kpiMessageId\)/)
+  const mainRun = dailyCron.slice(dailyCron.indexOf('const catchUpDates = await loadKpiCatchUpDates'))
+  const loop = mainRun.slice(0, mainRun.indexOf('deliverAutomaticKpiBonuses(supabase, results)'))
+  assert.match(loop, /if \(businessDate === notificationDate\)[\s\S]*sendDailyUnavailableMenuNotification\(\s*supabase,\s*getTashkentDate\(now\),\s*businessDate\s*\)/)
+  // The 08:00 retry sends the snapshot alone.
+  const retry = dailyCron.slice(dailyCron.indexOf("cronTask === 'unavailable-products'"))
+  assert.match(retry, /sendDailyUnavailableMenuNotification\(supabase, businessDate\),/)
 })
 
 test('the 04:05 report run sends one duplicate-safe unavailable-product snapshot; 08:00 only retries', () => {

@@ -27,6 +27,7 @@ import {
 } from './_lib/menuAvailabilityMessages.js'
 import { renderDailyUnavailableMenuImage } from './_lib/menuAvailabilityImage.js'
 import { notifyAutomaticKpiBonus } from './employee-notification.js'
+import { prepareTeamDailyKpi } from './_lib/teamDailyKpiDelivery.js'
 import {
   getInclusiveCalendarDayCount,
   getOrderPayments,
@@ -501,16 +502,47 @@ function getTashkentClockTime(now = new Date()) {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now)
 }
 
-async function sendDailyUnavailableMenuSnapshot(chatId, items, businessDate) {
+async function sendDailyUnavailableMenuSnapshot(chatId, items, businessDate, prepareCompanion) {
   const snapshotTime = getTashkentClockTime()
   if (items.length === 0) {
     return sendTelegramMessage(chatId, buildDailyUnavailableMenuTeamMessage(items, businessDate, snapshotTime))
   }
   const photo = await renderDailyUnavailableMenuImage(items, businessDate, snapshotTime)
+  const companion = await prepareCompanion?.()
+  if (companion) return sendTeamMorningAlbum(chatId, companion, photo, businessDate)
   return sendTelegramPhoto(chatId, photo, { filename: `unavailable-menu-${businessDate}.png` })
 }
 
-async function sendDailyUnavailableMenuNotification(supabase, businessDate) {
+// The Team KPI image leads one album with the unavailable-dishes snapshot.
+// Each photo keeps its own tracked message id; a KPI bookkeeping error is
+// logged (its claim stays held) so the snapshot is still recorded as sent.
+async function sendTeamMorningAlbum(chatId, kpi, photo, businessDate) {
+  const response = await sendTelegramMediaGroup(chatId, [
+    { photo: kpi.photo, filename: kpi.filename },
+    { photo, filename: `unavailable-menu-${businessDate}.png` },
+  ])
+  const [kpiMessageId, unavailableMessageId] = getTelegramMediaGroupMessageIds(response, 2)
+  await kpi.finish(kpiMessageId).catch(error => {
+    console.error('[telegram/daily-salary] Team KPI album photo sent but delivery status was not persisted:', error)
+  })
+  return { result: { message_id: unavailableMessageId } }
+}
+
+// A KPI image that cannot be prepared falls back to its own per-event send.
+function prepareTeamKpiCompanion(supabase, kpiDate, chatId) {
+  if (!kpiDate) return null
+  return async () => {
+    try {
+      const prepared = await prepareTeamDailyKpi(supabase, kpiDate, chatId)
+      return prepared.result ? null : prepared
+    } catch (error) {
+      console.error('[telegram/daily-salary] Team KPI image could not join the morning album:', error)
+      return null
+    }
+  }
+}
+
+async function sendDailyUnavailableMenuNotification(supabase, businessDate, kpiDate = '') {
   const items = await loadUnavailableMenuItems(supabase)
   const delivery = await claimDailyUnavailableMenuDelivery(supabase, businessDate, items)
   if (!delivery) return { businessDate, itemCount: items.length, status: 'duplicate' }
@@ -520,7 +552,12 @@ async function sendDailyUnavailableMenuNotification(supabase, businessDate) {
   try {
     target = await loadTeamGroupTarget(supabase)
     if (!target.chatId) throw new Error('ZarKebab Team Telegram group is not configured')
-    const response = await sendDailyUnavailableMenuSnapshot(target.chatId, items, businessDate)
+    const response = await sendDailyUnavailableMenuSnapshot(
+      target.chatId,
+      items,
+      businessDate,
+      prepareTeamKpiCompanion(supabase, kpiDate, target.chatId)
+    )
     telegramMessageId = getTelegramMessageId(response)
     await markDailyUnavailableMenuDeliverySent(
       supabase,
@@ -1209,6 +1246,7 @@ export default async function handler(req, res) {
     const kpiDeliveries = []
     const kpiResultsByDate = new Map()
     let kpiUnavailable = false
+    let dailyUnavailableMenu
 
     for (const businessDate of catchUpDates) {
       try {
@@ -1216,6 +1254,15 @@ export default async function handler(req, res) {
         await finalizeEmployeeMealDate(supabase, businessDate)
         const results = await finalizeDailyKpiDate(supabase, businessDate)
         kpiResultsByDate.set(businessDate, results)
+        if (businessDate === notificationDate) {
+          // Before the per-award deliveries, so the Team KPI image and the
+          // unavailable-dishes snapshot arrive as one album.
+          dailyUnavailableMenu = await sendDailyUnavailableMenuNotification(
+            supabase,
+            getTashkentDate(now),
+            businessDate
+          ).catch(error => ({ status: 'failed', error: String(error?.message || error).slice(0, 1000) }))
+        }
         const deliveries = await deliverAutomaticKpiBonuses(supabase, results)
         kpiRuns.push({
           businessDate,
@@ -1322,12 +1369,14 @@ export default async function handler(req, res) {
 
     // The unavailable-dishes snapshot goes out with the other morning reports.
     // It is claimed once per Tashkent date, so the 08:00 task only retries a
-    // failed send; its own failure never defers the salary summary.
-    let dailyUnavailableMenu
-    try {
-      dailyUnavailableMenu = await sendDailyUnavailableMenuNotification(supabase, getTashkentDate(now))
-    } catch (error) {
-      dailyUnavailableMenu = { status: 'failed', error: String(error?.message || error).slice(0, 1000) }
+    // failed send; its own failure never defers the salary summary. It already
+    // went out with the KPI album unless that date's finalization failed.
+    if (!dailyUnavailableMenu) {
+      try {
+        dailyUnavailableMenu = await sendDailyUnavailableMenuNotification(supabase, getTashkentDate(now))
+      } catch (error) {
+        dailyUnavailableMenu = { status: 'failed', error: String(error?.message || error).slice(0, 1000) }
+      }
     }
 
     const notificationSummaryRun = dailySummaryRuns.find(

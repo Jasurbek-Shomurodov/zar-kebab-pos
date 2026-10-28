@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { deliverTeamDailyKpi, retractTeamDailyKpiItem } from '../api/telegram/_lib/teamDailyKpiDelivery.js'
+import { deliverTeamDailyKpi, prepareTeamDailyKpi, retractTeamDailyKpiItem } from '../api/telegram/_lib/teamDailyKpiDelivery.js'
 import { buildTeamDailyKpiImageSvg } from '../api/telegram/_lib/employeePayrollImages.js'
 
 const date = '2026-09-05'
@@ -60,4 +60,13 @@ test('deleting one award edits the shared image and retains other employees',asy
 test('legacy delivered dates are held without duplicate broadcast',async()=>withTelegram(async count=>{
  const db=fakeDb();db.tables.daily_team_kpi_image_deliveries.push({business_date:date,status:'legacy',items:[]})
  assert.equal((await deliverTeamDailyKpi(db,date,'team')).status,'pending');assert.equal(count(),0)
+}))
+test('a prepared image claims the date for an album send and records its message id',async()=>withTelegram(async count=>{
+ const db=fakeDb()
+ const prepared=await prepareTeamDailyKpi(db,date,'team')
+ assert.ok(prepared.photo);assert.equal(count(),0)
+ assert.equal((await prepareTeamDailyKpi(db,date,'team')).result.status,'pending')
+ assert.equal((await prepared.finish(456)).status,'sent')
+ assert.equal(db.tables.daily_team_kpi_image_deliveries[0].telegram_message_id,'456')
+ assert.equal((await deliverTeamDailyKpi(db,date,'team')).status,'sent');assert.equal(count(),0)
 }))

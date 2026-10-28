@@ -40,14 +40,14 @@
 - `daily-salary.js` loads MTD cafe income orders via `loadSalaryRows` (by `id`); unpaged caps at 1000 rows (cf. `get_dashboard_monthly_average_income`).
 - Daily soliq: 4% of paid cafe revenue, in expenses, deducted from net profit.
 - Break-even `263`: album/watchdog (`task=break-even`) save once.
-- Team KPI: one Russian PNG per finalized date (all awards, total, date, system author); `181` claims dates; unknown sends held. No text fallback/sales/rate/balance. Deletes edit its row.
+- Team KPI: one RU PNG per finalized date (all awards, total, date, system author); `181` claims dates; unknown sends held. No text/sales/rate/balance. Deletes edit it.
 
 ## Menu availability
 
 - Authenticated availability, creation, archival and variant visibility (`256`) queue immutable Russian Team events; edits/restores send nothing.
-- Unavailable-products snapshot: 04:05; 08:00 retries. `266`/`267`: 04:10 Google replies (paced, `deferred`), 04:20 menu sync + Investor PNG.
+- Unavailable snapshot: 04:05; 08:00 retries alone. `266`/`267`: 04:10 Google replies (paced, `deferred`), 04:20 menu sync + Investor PNG.
 - Public `/yandex-menu.yml` + `/yandex-photos` (JPEG): never empty.
-- Non-empty: one tracked PNG only (`menuAvailabilityImage.js`), no text; failures retry. Empty: short text.
+- Non-empty: one PNG (`menuAvailabilityImage.js`), at 04:05 in an album after the Team KPI PNG. Empty: text.
 - Exclude archived products/categories; preserve exact sent snapshots.
 
 ## Investor
