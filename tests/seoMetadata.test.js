@@ -59,7 +59,7 @@ test('public menu keeps homepage search metadata without rendering an SEO copy b
   const menu = fs.readFileSync(path.join(root, 'src/pages/PublicMenu.jsx'), 'utf8')
 
   assert.match(app, /<Route path="\/" element={<PublicMenu \/>} \/>/)
-  assert.match(menu, /const pageTitle = corporateSets \? `\$\{siteCopy\.corporateSets\} — Zar Kebab` : seo\.title\n\s*document\.title = pageTitle/)
+  assert.match(menu, /const pageTitle = corporateSets\n\s*\? `\$\{siteCopy\.corporateSets\} — Zar Kebab`\n\s*: frozenMeals \? `\$\{siteCopy\.frozenMeals\} — Zar Kebab` : seo\.title\n\s*document\.title = pageTitle/)
   assert.match(menu, /Завтрак · Обед · Ужин\./)
   assert.match(menu, /Breakfast · Lunch · Dinner\./)
   assert.match(menu, /\+998 91-509-55-45/)

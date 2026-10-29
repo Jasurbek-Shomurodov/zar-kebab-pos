@@ -36,10 +36,11 @@ export function excludedCategoryNames(env = process.env) {
 
 export async function loadPosMenu(supabase) {
   const [{ data: categories, error: categoryError }, { data: items, error: itemError }] = await Promise.all([
-    supabase.from('menu_categories').select('id,name_uz,name_ru,name_en,sort_order').is('deleted_at', null),
+    supabase.from('menu_categories').select('id,name_uz,name_ru,name_en,sort_order,frozen_shop').is('deleted_at', null),
     loadSalaryRows(() => supabase.from('menu_items').select(ITEM_COLUMNS).is('deleted_at', null)),
   ])
   if (categoryError) throw categoryError
   if (itemError) throw itemError
-  return { categories: categories || [], items: items || [] }
+  // Frozen half-prepared meals (272) are a retail line with their own site page, not the cafe menu.
+  return { categories: (categories || []).filter(category => !category.frozen_shop), items: items || [] }
 }

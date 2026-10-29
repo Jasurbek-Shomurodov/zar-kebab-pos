@@ -448,7 +448,7 @@ test('selected categories can be hidden only from Tourist-priced menus', () => {
   assert.match(adminMenu, /tourist_hidden: !event\.target\.checked/)
   assert.match(adminMenu, /Tourist menu/)
   assert.match(waiterOrder, /priceMode !== PRICE_MODE_TOURIST \|\| !isTouristHiddenMenuCategory\(category\)/)
-  assert.match(publicMenu, /premium \? categories\.filter\(category => !isTouristHiddenMenuCategory\(category\)\) : categories/)
+  assert.match(publicMenu, /premium \? menuCategories\.filter\(category => !isTouristHiddenMenuCategory\(category\)\) : menuCategories/)
   assert.match(guestCart, /normalizedPriceMode !== PRICE_MODE_TOURIST \|\| !isTouristHiddenMenuCategory\(category\)/)
   assert.match(schema, /tourist_hidden\s+boolean\s+not null default false/)
   assert.match(migration, /add column if not exists tourist_hidden boolean not null default false/)

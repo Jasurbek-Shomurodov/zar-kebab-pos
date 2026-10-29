@@ -363,6 +363,8 @@ function PublicCustomerRoutes() {
       <Route path="/search" element={<PublicMenu searchMode />} />
       <Route path="/corporate-sets" element={<PublicMenu corporateSets />} />
       <Route path="/corporate-sets/item/:itemId" element={<PublicMenu corporateSets />} />
+      <Route path="/frozen-meals" element={<PublicMenu frozenMeals />} />
+      <Route path="/frozen-meals/item/:itemId" element={<PublicMenu frozenMeals />} />
       <Route path="/premium-menu" element={<PublicMenu premium />} />
       <Route path="/premium-menu/item/:itemId" element={<PublicMenu premium />} />
       <Route path="/catering" element={<CateringPage />} />
@@ -400,6 +402,8 @@ function InternalAppRoutes({ adminHost = false }) {
         <Route path="/search"        element={adminHost ? <Navigate to="/admin" replace /> : <PublicMenu searchMode />} />
         <Route path="/corporate-sets"        element={adminHost ? <Navigate to="/admin" replace /> : <PublicMenu corporateSets />} />
         <Route path="/corporate-sets/item/:itemId" element={adminHost ? <Navigate to="/admin" replace /> : <PublicMenu corporateSets />} />
+        <Route path="/frozen-meals"          element={adminHost ? <Navigate to="/admin" replace /> : <PublicMenu frozenMeals />} />
+        <Route path="/frozen-meals/item/:itemId" element={adminHost ? <Navigate to="/admin" replace /> : <PublicMenu frozenMeals />} />
         <Route path="/premium-menu"          element={adminHost ? <Navigate to="/admin" replace /> : <PublicMenu premium />} />
         <Route path="/premium-menu/item/:itemId" element={adminHost ? <Navigate to="/admin" replace /> : <PublicMenu premium />} />
         <Route path="/catering"      element={adminHost ? <Navigate to="/admin" replace /> : <CateringPage />} />

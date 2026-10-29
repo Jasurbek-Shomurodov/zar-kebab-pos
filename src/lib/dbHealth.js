@@ -33,7 +33,7 @@ const TABLE_CHECKS = [
   { name: 'menu_item_tech_cards', columns: ['menu_item_id', 'variant_option_id', 'portion_count', 'batch_output_quantity', 'batch_output_unit', 'preparation_steps', 'notes', 'updated_by', 'created_at', 'updated_at'] },
   { name: 'menu_item_tech_card_ingredients', columns: ['id', 'menu_item_id', 'name', 'quantity', 'unit', 'unit_price_uzs', 'sort_order', 'created_at', 'updated_at'] },
   { name: 'menu_item_tech_card_components', columns: ['id', 'menu_item_id', 'component_menu_item_id', 'selected_options', 'quantity', 'sort_order', 'created_at', 'updated_at'] },
-  { name: 'menu_categories', columns: ['id', 'name_uz', 'name_ru', 'name_en', 'hidden', 'waiter_hidden', 'tourist_hidden', 'always_visible_game_club', 'always_visible_take_away', 'always_visible_delivery', 'visible_from_time', 'visible_until_time', 'sort_order', 'deleted_at'] },
+  { name: 'menu_categories', columns: ['id', 'name_uz', 'name_ru', 'name_en', 'hidden', 'waiter_hidden', 'tourist_hidden', 'frozen_shop', 'always_visible_game_club', 'always_visible_take_away', 'always_visible_delivery', 'visible_from_time', 'visible_until_time', 'sort_order', 'deleted_at'] },
   { name: 'menu_category_user_schedule_overrides', columns: ['category_id', 'profile_id', 'created_by', 'created_at'] },
   { name: 'profiles', columns: ['id', 'role', 'full_name', 'feature_access'] },
   { name: 'employee_salary_profiles', columns: ['id', 'profile_id', 'employee_name', 'job_function', 'joined_at', 'ended_at', 'deleted_at', 'pay_schedule', 'payment_method', 'is_active', 'works_remotely'] },

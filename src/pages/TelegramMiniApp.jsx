@@ -10,7 +10,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { formatMenuTimeWindow, isPublicMenuCategory, isPublicMenuItem } from '../lib/menuItems'
+import { formatMenuTimeWindow, isFrozenShopMenuCategory, isPublicMenuCategory, isPublicMenuItem } from '../lib/menuItems'
 import { formatCurrency } from '../lib/formatCurrency'
 import { getCategoryName, getItemDesc, getItemName } from '../lib/i18n'
 import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
@@ -25,10 +25,11 @@ import {
   telegramApi,
 } from '../lib/telegramWebApp'
 
+// Frozen half-prepared meals have their own site page and stay out of the Telegram menu.
 async function loadTelegramMenuData() {
   const rpcRes = await supabase.rpc('get_public_menu_data')
   if (!rpcRes.error && rpcRes.data) {
-    const categories = (rpcRes.data.categories || []).filter(isPublicMenuCategory)
+    const categories = (rpcRes.data.categories || []).filter(isPublicMenuCategory).filter(category => !isFrozenShopMenuCategory(category))
     const categoryIds = new Set(categories.map(category => category.id))
     return {
       categories,
@@ -41,7 +42,7 @@ async function loadTelegramMenuData() {
     supabase.from('menu_items').select('*').order('sort_order'),
   ])
   if (catRes.error || itemRes.error) throw catRes.error || itemRes.error
-  const categories = (catRes.data || []).filter(isPublicMenuCategory)
+  const categories = (catRes.data || []).filter(isPublicMenuCategory).filter(category => !isFrozenShopMenuCategory(category))
   const categoryIds = new Set(categories.map(category => category.id))
   return {
     categories,

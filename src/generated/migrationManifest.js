@@ -1088,6 +1088,10 @@ export default {
   {
    "filename": "270_menu_price_investor_notifications.sql",
    "sha256": "142f2410c5a8da298a152b58c4bbfbc7963050de8a9fc08217c17f826c6887f3"
+  },
+  {
+   "filename": "272_menu_category_frozen_shop.sql",
+   "sha256": "4f6c011a8c6bb239c9ed9923b78e1f7229b8c80b52f84e8cac54194274c904a6"
   }
  ],
  "functions": [

@@ -15,7 +15,7 @@ import {
   normalizeMenuCurrency,
   saveMenuCurrency,
 } from '../lib/menuCurrency'
-import { isPublicMenuCategory, isPublicMenuItem, isTouristHiddenMenuCategory, menuTimeWindowLabel } from '../lib/menuItems'
+import { isFrozenShopMenuCategory, isPublicMenuCategory, isPublicMenuItem, isTouristHiddenMenuCategory, menuTimeWindowLabel } from '../lib/menuItems'
 import { useApp } from '../store/AppContext'
 import { findMenuItemByLinkKey, getMenuItemPublicPath } from '../lib/menuLinks'
 import { getMenuItemForPriceMode } from '../lib/priceModes'
@@ -79,6 +79,8 @@ const PUBLIC_SITE_COPY = {
   uz: {
     menu: 'Menyu',
     corporateSets: 'Korporativ setlar',
+    frozenMeals: 'Yarim tayyor mahsulotlar',
+    frozenMealsIntro: 'Muzlatilgan yarim tayyor taomlarimiz — uyda bir necha daqiqada pishiring.',
     promotions: 'Aksiyalar',
     vacancies: 'Ish o‘rinlari',
     contacts: 'Aloqa',
@@ -92,6 +94,8 @@ const PUBLIC_SITE_COPY = {
   ru: {
     menu: 'Меню',
     corporateSets: 'Корпоративные сеты',
+    frozenMeals: 'Полуфабрикаты',
+    frozenMealsIntro: 'Наши замороженные полуфабрикаты — приготовьте дома за несколько минут.',
     promotions: 'Акции',
     vacancies: 'Вакансии',
     contacts: 'Контакты',
@@ -105,6 +109,8 @@ const PUBLIC_SITE_COPY = {
   en: {
     menu: 'Menu',
     corporateSets: 'Corporate sets',
+    frozenMeals: 'Frozen meals',
+    frozenMealsIntro: 'Our frozen half-prepared meals — ready to cook at home in minutes.',
     promotions: 'Promotions',
     vacancies: 'Vacancies',
     contacts: 'Contacts',
@@ -278,7 +284,7 @@ function PublicContactButtons({ className = '', onOpenMap }) {
   )
 }
 
-function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenVacancies, onOpenMap }) {
+function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenFrozenMeals, onOpenVacancies, onOpenMap }) {
   const year = new Date().getFullYear()
   return (
     <footer id="public-menu-contacts" className="lux-page-2 lux-line scroll-mt-28 border-t px-4 py-9 sm:px-6 sm:py-12">
@@ -293,6 +299,7 @@ function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenV
             <nav className="lux-body mt-4 flex flex-col items-start gap-3 text-sm">
               <a href="/menu" onClick={onOpenMenu} className="hover:text-[#ff5a00]">{copy.menu}</a>
               <a href="/corporate-sets" onClick={onOpenCorporateSets} className="hover:text-[#ff5a00]">{copy.corporateSets}</a>
+              <a href="/frozen-meals" onClick={onOpenFrozenMeals} className="hover:text-[#ff5a00]">{copy.frozenMeals}</a>
               <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="hover:text-[#ff5a00]">{copy.promotions}</a>
               <a href="/vacancies" onClick={onOpenVacancies} className="hover:text-[#ff5a00]">{copy.vacancies}</a>
             </nav>
@@ -583,7 +590,7 @@ async function loadPublicMenuData() {
   }
 }
 
-export default function PublicMenu({ premium = false, searchMode = false, corporateSets = false }) {
+export default function PublicMenu({ premium = false, searchMode = false, corporateSets = false, frozenMeals = false }) {
   const { itemId } = useParams()
   const navigate = useNavigate()
   const { state } = useApp()
@@ -605,14 +612,16 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   const [menuCurrency, setMenuCurrency] = useState(() => premium ? 'USD' : getDefaultMenuCurrency())
   const [currencyRates, setCurrencyRates] = useState({ UZS: 1 })
   const [priceSettings, setPriceSettings] = useState({ touristMenuEnabled: true, publicTouristPrices: false })
-  const menuBasePath = premium ? '/premium-menu' : corporateSets ? '/corporate-sets' : '/menu'
+  const menuBasePath = premium ? '/premium-menu' : corporateSets ? '/corporate-sets' : frozenMeals ? '/frozen-meals' : '/menu'
+  // Corporate sets and frozen meals are single-purpose pages: no hero, deals or uncategorized dishes.
+  const sectionPage = corporateSets || frozenMeals
   const lang = premium ? premiumLang : appLang
   const seo = PUBLIC_MENU_SEO[lang] || PUBLIC_MENU_SEO.ru
   const siteCopy = PUBLIC_SITE_COPY[lang] || PUBLIC_SITE_COPY.en
   const showDetailOverlay = Boolean(detailItem)
   const headerRef = useRef(null)
   const heroRef = useRef(null)
-  const [headerOverHero, setHeaderOverHero] = useState(!premium && !corporateSets)
+  const [headerOverHero, setHeaderOverHero] = useState(!premium && !sectionPage)
   const savedScrollRef = useRef(0)
   const detailSourceRef = useRef(null)
   const [mapChooserOpen, setMapChooserOpen] = useState(false)
@@ -628,21 +637,26 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   useEffect(() => {
     if (premium) return
 
-    const pageTitle = corporateSets ? `${siteCopy.corporateSets} — Zar Kebab` : seo.title
+    const pageTitle = corporateSets
+      ? `${siteCopy.corporateSets} — Zar Kebab`
+      : frozenMeals ? `${siteCopy.frozenMeals} — Zar Kebab` : seo.title
     document.title = pageTitle
+    const pageDescription = frozenMeals ? siteCopy.frozenMealsIntro : seo.description
     const description = document.querySelector('meta[name="description"]')
-    description?.setAttribute('content', seo.description)
+    description?.setAttribute('content', pageDescription)
 
     document.querySelector('meta[property="og:title"]')?.setAttribute('content', pageTitle)
-    document.querySelector('meta[property="og:description"]')?.setAttribute('content', seo.description)
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', pageDescription)
     document.querySelector('meta[property="og:locale"]')?.setAttribute('content', seo.locale)
     document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', pageTitle)
-    document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', seo.description)
+    document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', pageDescription)
     document.documentElement.lang = lang
 
     const canonical = document.querySelector('link[rel="canonical"]')
-    canonical?.setAttribute('href', corporateSets ? 'https://www.zarkebab.uz/corporate-sets' : 'https://www.zarkebab.uz/')
-  }, [corporateSets, lang, premium, seo.description, seo.locale, seo.title, siteCopy.corporateSets])
+    canonical?.setAttribute('href', corporateSets
+      ? 'https://www.zarkebab.uz/corporate-sets'
+      : frozenMeals ? 'https://www.zarkebab.uz/frozen-meals' : 'https://www.zarkebab.uz/')
+  }, [corporateSets, frozenMeals, lang, premium, seo.description, seo.locale, seo.title, siteCopy.corporateSets, siteCopy.frozenMeals, siteCopy.frozenMealsIntro])
 
   // Links such as /menu#public-menu-deals arrive before the menu renders.
   useEffect(() => {
@@ -689,7 +703,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
 
   // Over the welcome photo the header is see-through; past it, the regular glass bar returns.
   useEffect(() => {
-    if (premium || corporateSets) {
+    if (premium || sectionPage) {
       setHeaderOverHero(false)
       return undefined
     }
@@ -706,7 +720,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
       window.removeEventListener('scroll', updateHeaderOverHero)
       window.removeEventListener('resize', updateHeaderOverHero)
     }
-  }, [corporateSets, headerOffset, premium])
+  }, [headerOffset, premium, sectionPage])
 
   useEffect(() => {
     function updateHeaderOffset() {
@@ -757,23 +771,25 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   }, [menuCurrency])
 
   const searchQuery = search.trim().toLowerCase()
-  const displayCategories = useMemo(
-    () => premium ? categories.filter(category => !isTouristHiddenMenuCategory(category)) : categories,
-    [categories, premium]
-  )
+  // Frozen meals list only on their own page; every other view omits those categories.
+  const displayCategories = useMemo(() => {
+    if (frozenMeals) return categories.filter(isFrozenShopMenuCategory)
+    const menuCategories = categories.filter(category => !isFrozenShopMenuCategory(category))
+    return premium ? menuCategories.filter(category => !isTouristHiddenMenuCategory(category)) : menuCategories
+  }, [categories, frozenMeals, premium])
   // Corporate sets live on their own page; the main public menu omits them.
   const listedCategories = useMemo(() => {
     if (corporateSets) return displayCategories.filter(category => category.id === CORPORATE_SETS_CATEGORY_ID)
-    if (premium) return displayCategories
+    if (premium || frozenMeals) return displayCategories
     return displayCategories.filter(category => category.id !== CORPORATE_SETS_CATEGORY_ID)
-  }, [corporateSets, displayCategories, premium])
+  }, [corporateSets, displayCategories, frozenMeals, premium])
   const displayItems = useMemo(() => {
     const categoryIds = new Set(displayCategories.map(category => category.id))
-    const visibleItems = items.filter(item => !item.category_id || categoryIds.has(item.category_id))
+    const visibleItems = items.filter(item => categoryIds.has(item.category_id) || (!frozenMeals && !item.category_id))
     return premium || priceSettings.publicTouristPrices
       ? visibleItems.map(item => getMenuItemForPriceMode(item, 'tourist'))
       : visibleItems
-  }, [displayCategories, items, premium, priceSettings.publicTouristPrices])
+  }, [displayCategories, frozenMeals, items, premium, priceSettings.publicTouristPrices])
 
   useEffect(() => {
     if (loading) return
@@ -818,7 +834,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
 
     const categoryIds = new Set(displayCategories.map(cat => cat.id))
     const uncategorized = displayItems.filter(item => !categoryIds.has(item.category_id))
-    if (!corporateSets && uncategorized.length > 0) {
+    if (!sectionPage && uncategorized.length > 0) {
       sections.push({
         cat: { id: 'uncategorized', name_uz: 'Boshqa', name_ru: 'Другое', name_en: 'Other' },
         items: uncategorized,
@@ -826,17 +842,17 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
     }
 
     return sections
-  }, [corporateSets, displayCategories, displayItems, listedCategories])
+  }, [displayCategories, displayItems, listedCategories, sectionPage])
 
   const dealItems = useMemo(() => {
-    if (corporateSets) return []
+    if (sectionPage) return []
     const listedIds = new Set(listedCategories.map(cat => cat.id))
     const categoryIds = new Set(displayCategories.map(cat => cat.id))
     return displayItems.filter(item =>
       (listedIds.has(item.category_id) || !categoryIds.has(item.category_id)) && getMenuPricing(item).discounted
     )
-  }, [corporateSets, displayCategories, displayItems, listedCategories])
-  const showHero = !premium && !corporateSets
+  }, [displayCategories, displayItems, listedCategories, sectionPage])
+  const showHero = !premium && !sectionPage
   const priceFormatter = useMemo(
     () => amount => formatMenuCurrency(amount, menuCurrency, currencyRates),
     [menuCurrency, currencyRates]
@@ -969,8 +985,17 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
     navigateWithTransition('/corporate-sets')
   }
 
+  function openFrozenMeals(event) {
+    event.preventDefault()
+    if (frozenMeals) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    navigateWithTransition('/frozen-meals')
+  }
+
   function openMenuHome(event) {
-    if (!corporateSets) {
+    if (!sectionPage) {
       navigateToPublicSection(event, 'public-menu-content')
       return
     }
@@ -1057,6 +1082,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                   <nav className="hidden items-center gap-5 lg:flex" aria-label={siteCopy.company}>
                     <a href="/menu" onClick={openMenuHome} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.menu}</a>
                     <a href="/corporate-sets" onClick={openCorporateSets} aria-current={corporateSets ? 'page' : undefined} className={`text-sm font-semibold transition-colors hover:text-[#ff5a00] ${corporateSets ? 'text-[#ff5a00]' : 'lux-title'}`}>{siteCopy.corporateSets}</a>
+                    <a href="/frozen-meals" onClick={openFrozenMeals} aria-current={frozenMeals ? 'page' : undefined} className={`text-sm font-semibold transition-colors hover:text-[#ff5a00] ${frozenMeals ? 'text-[#ff5a00]' : 'lux-title'}`}>{siteCopy.frozenMeals}</a>
                     <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.promotions}</a>
                     <a href="/vacancies" onClick={openVacancies} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.vacancies}</a>
                     <a href="#public-menu-contacts" onClick={event => navigateToPublicSection(event, 'public-menu-contacts')} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.contacts}</a>
@@ -1101,6 +1127,12 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
       {showHero && <PublicMenuHero lang={lang} onViewMenu={openMenuHome} headerOffset={headerOffset} heroRef={heroRef} theme={theme} />}
 
       <main id="public-menu-content" className="mx-auto max-w-[1280px] scroll-mt-28 px-3 pb-5 pt-3 sm:px-6 sm:pt-5">
+        {frozenMeals && (
+          <div className="pb-2 pt-4 sm:pt-8">
+            <h1 className="zk-serif lux-title text-[32px] font-semibold leading-tight sm:text-[44px]">{siteCopy.frozenMeals}</h1>
+            <p className="lux-body mt-2 max-w-xl text-sm sm:text-base">{siteCopy.frozenMealsIntro}</p>
+          </div>
+        )}
         {!corporateSets && <div data-nosnippet="">
           <MenuCategoryScroller
             categories={categoryCards}
@@ -1208,7 +1240,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
           )
         )}
       </main>
-      {!premium && <PublicMenuFooter copy={siteCopy} lang={lang} onOpenMenu={openMenuHome} onOpenCorporateSets={openCorporateSets} onOpenVacancies={openVacancies} onOpenMap={openMapChooser} />}
+      {!premium && <PublicMenuFooter copy={siteCopy} lang={lang} onOpenMenu={openMenuHome} onOpenCorporateSets={openCorporateSets} onOpenFrozenMeals={openFrozenMeals} onOpenVacancies={openVacancies} onOpenMap={openMapChooser} />}
       {showDetailOverlay && (
         <div className="fixed inset-0 z-[80]">
           <PublicDishDetailPage

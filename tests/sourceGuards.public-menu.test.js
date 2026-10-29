@@ -27,7 +27,7 @@ test('PublicMenu supports direct product links and copyable item URLs', () => {
   assert.match(publicMenu, /useParams/)
   assert.match(publicMenu, /findMenuItemByLinkKey\(displayItems, itemId\)/)
   assert.match(publicMenu, /navigate\(getMenuItemPublicPath\(item, menuBasePath\)\)/)
-  assert.match(publicMenu, /premium \? '\/premium-menu' : corporateSets \? '\/corporate-sets' : '\/menu'/)
+  assert.match(publicMenu, /premium \? '\/premium-menu' : corporateSets \? '\/corporate-sets' : frozenMeals \? '\/frozen-meals' : '\/menu'/)
   assert.match(publicMenu, /const showDetailOverlay = Boolean\(detailItem\)/)
   assert.match(publicMenu, /showDetailOverlay && \(/)
   assert.match(publicMenu, /fixed inset-0 z-\[80\]/)
@@ -50,7 +50,7 @@ test('Premium public menu uses tourist pricing without duplicating menu items', 
   const publicMenu = readSource('src/pages/PublicMenu.jsx')
 
   assert.match(app, /path="\/premium-menu"/)
-  assert.match(publicMenu, /export default function PublicMenu\(\{ premium = false, searchMode = false, corporateSets = false \}\)/)
+  assert.match(publicMenu, /export default function PublicMenu\(\{ premium = false, searchMode = false, corporateSets = false, frozenMeals = false \}\)/)
   assert.match(publicMenu, /const \[premiumLang, setPremiumLang\] = useState\('en'\)/)
   assert.match(publicMenu, /useState\(\(\) => premium \? 'USD' : getDefaultMenuCurrency\(\)\)/)
   assert.match(publicMenu, /const lang = premium \? premiumLang : appLang/)
@@ -607,7 +607,27 @@ test('corporate sets have their own public page and stay out of the main menu', 
   assert.match(app, /path="\/corporate-sets\/item\/:itemId"[^\n]*<PublicMenu corporateSets \/>/)
   assert.match(publicMenu, /if \(corporateSets\) return displayCategories\.filter\(category => category\.id === CORPORATE_SETS_CATEGORY_ID\)/)
   assert.match(publicMenu, /return displayCategories\.filter\(category => category\.id !== CORPORATE_SETS_CATEGORY_ID\)/)
-  assert.match(publicMenu, /\{siteCopy\.corporateSets\}<\/a>\s*<a href="\/menu#public-menu-deals"[^\n]*\{siteCopy\.promotions\}/)
+  assert.match(publicMenu, /\{siteCopy\.corporateSets\}<\/a>\s*<a href="\/frozen-meals"[^\n]*\{siteCopy\.frozenMeals\}<\/a>\s*<a href="\/menu#public-menu-deals"[^\n]*\{siteCopy\.promotions\}/)
+})
+
+test('frozen half-prepared meals list only on their own public page', () => {
+  const publicMenu = readSource('src/pages/PublicMenu.jsx')
+  const app = readSource('src/App.jsx')
+  const telegram = readSource('src/pages/TelegramMiniApp.jsx')
+  const menuItems = readSource('src/lib/menuItems.js')
+  const posMenu = readSource('api/_lib/posMenu.js')
+  const sitemap = readSource('public/sitemap.xml')
+
+  assert.match(app, /path="\/frozen-meals"[^\n]*<PublicMenu frozenMeals \/>/)
+  assert.match(app, /path="\/frozen-meals\/item\/:itemId"[^\n]*<PublicMenu frozenMeals \/>/)
+  assert.match(publicMenu, /if \(frozenMeals\) return categories\.filter\(isFrozenShopMenuCategory\)/)
+  assert.match(publicMenu, /const menuCategories = categories\.filter\(category => !isFrozenShopMenuCategory\(category\)\)/)
+  assert.match(publicMenu, /categoryIds\.has\(item\.category_id\) \|\| \(!frozenMeals && !item\.category_id\)/)
+  assert.match(publicMenu, /<a href="\/frozen-meals" onClick=\{onOpenFrozenMeals\}/)
+  assert.match(telegram, /\.filter\(isPublicMenuCategory\)\.filter\(category => !isFrozenShopMenuCategory\(category\)\)/)
+  assert.match(menuItems, /!isHiddenMenuCategory\(category\) &&\n\s*!isFrozenShopMenuCategory\(category\) &&/)
+  assert.match(posMenu, /categories \|\| \[\]\)\.filter\(category => !category\.frozen_shop\)/)
+  assert.match(sitemap, /https:\/\/www\.zarkebab\.uz\/frozen-meals/)
 })
 
 test('public menu lists deals after the regular categories, not on top', () => {

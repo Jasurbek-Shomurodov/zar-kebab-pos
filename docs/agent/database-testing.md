@@ -7,7 +7,7 @@
 - SQL migrations: `migrations/`
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
-- `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269` KPI QR `256`/`270` TG `257`–9 owner, test: `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269` KPI QR `256`/`270` TG `272` menu `257`–9 owner; `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 
@@ -20,7 +20,7 @@
   - salary/Telegram tracking and historical financial freezing: `107`–`119`
   - menu permissions, estimates, archival, stale items, Team catalog events: `121`–`127`, `167`–`168`, `223`
   - KPI and Tourist service: `129`–`130`
-  - Tech Cards, access, components, stock, variant recipes, and fractional included-dish quantities: `139`–`140`, `149`–`151`, `154`–`156`, `159`
+  - Tech Cards, access, components, stock, variant recipes, fractional included dishes: `139`–`140`, `149`–`151`, `154`–`156`, `159`
   - menu/expense notifications and financial snapshots: `142`–`147`
   - absence cleanup, report/Google crons: `148`, `152`, `225`, `266`–`268`
   - Monthly income snapshots, break-even target/history, completed-day average: `157`–`158`, `174`, `260`, `262`, `263`

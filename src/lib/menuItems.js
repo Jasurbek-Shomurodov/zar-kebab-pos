@@ -108,6 +108,12 @@ export function isTouristHiddenMenuCategory(category) {
   )
 }
 
+// Frozen half-prepared meals are a separate retail line with their own public
+// page; every guest-facing menu (public, Tourist, Telegram, guest device) omits them.
+export function isFrozenShopMenuCategory(category) {
+  return !!(category?.frozen_shop || category?.frozenShop)
+}
+
 export function getMenuCategoryAlwaysVisibleProfileIds(category) {
   const value = category?.always_visible_profile_ids ?? category?.alwaysVisibleProfileIds
   if (!Array.isArray(value)) return []
@@ -122,6 +128,7 @@ export function hasMenuCategoryScheduleOverride(category, profileId) {
 export function isCustomerMenuCategory(category, date = new Date()) {
   return isActiveMenuCategory(category) &&
     !isHiddenMenuCategory(category) &&
+    !isFrozenShopMenuCategory(category) &&
     isWithinMenuTimeWindow(category, date)
 }
 

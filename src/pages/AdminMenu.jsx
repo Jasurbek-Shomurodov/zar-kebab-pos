@@ -31,12 +31,13 @@ import {
   isCashierQuickItem,
   isDeletedMenuCategory,
   isDeletedMenuItem,
+  isFrozenShopMenuCategory,
   isPublicHiddenMenuItem,
 } from '../lib/menuItems'
 import {
   Plus, Edit2, Trash2, Archive, X, UtensilsCrossed,
   Search, LayoutGrid, List, Tag, FolderOpen, GripVertical,
-  ImagePlus, Loader2, Bold, Eye, EyeOff, Lock, Clock3, ClipboardList, RotateCcw,
+  ImagePlus, Loader2, Bold, Eye, EyeOff, Lock, Clock3, ClipboardList, RotateCcw, Snowflake,
 } from 'lucide-react'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
 import { useAppDataStatus } from '../store/appHooks'
@@ -1212,6 +1213,12 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
             {hiddenFromTouristMenuLabel(lang)}
           </span>
         )}
+        {isFrozenShopMenuCategory(cat) && (
+          <span className="ws-badge">
+            <Snowflake />
+            {frozenShopMenuLabel(lang)}
+          </span>
+        )}
         {scheduleLabel && (
           <span className="ws-badge ws-tone-positive">
             <Clock3 />
@@ -1281,12 +1288,17 @@ const blankCat = {
   hidden: false,
   waiter_hidden: false,
   tourist_hidden: false,
+  frozen_shop: false,
   visible_from_time: '',
   visible_until_time: '',
   always_visible_take_away: false,
   always_visible_delivery: false,
   always_visible_game_club: false,
   always_visible_profile_ids: [],
+}
+
+function frozenShopMenuLabel(lang) {
+  return lang === 'uz' ? 'Muzlatilgan mahsulotlar' : lang === 'ru' ? 'Замороженные полуфабрикаты' : 'Frozen meals shop'
 }
 
 function normalizeCategoryAlwaysVisibleProfileIds(value) {
@@ -1305,6 +1317,7 @@ function getCategoryFormFingerprint(value = {}) {
     hidden: !!value.hidden,
     waiter_hidden: !!value.waiter_hidden,
     tourist_hidden: !!value.tourist_hidden,
+    frozen_shop: !!value.frozen_shop,
     visible_from_time: nullableMenuTime(value.visible_from_time),
     visible_until_time: nullableMenuTime(value.visible_until_time),
     always_visible_take_away: !!value.always_visible_take_away,
@@ -2020,6 +2033,7 @@ export default function AdminMenu() {
       hidden: !!category.hidden,
       waiter_hidden: !!(category.waiter_hidden || category.waiterHidden || category.hide_from_waiter || category.hideFromWaiter),
       tourist_hidden: !!(category.tourist_hidden || category.touristHidden || category.hide_from_tourist || category.hideFromTourist),
+      frozen_shop: isFrozenShopMenuCategory(category),
       visible_from_time: String(category.visible_from_time || category.visibleFromTime || '').slice(0, 5),
       visible_until_time: String(category.visible_until_time || category.visibleUntilTime || '').slice(0, 5),
       always_visible_profile_ids: normalizeCategoryAlwaysVisibleProfileIds(category.always_visible_profile_ids),
@@ -2299,6 +2313,7 @@ export default function AdminMenu() {
           hidden: !!catForm.hidden,
           waiter_hidden: !!catForm.waiter_hidden,
           tourist_hidden: !!catForm.tourist_hidden,
+          frozen_shop: !!catForm.frozen_shop,
           visible_from_time: nullableMenuTime(catForm.visible_from_time),
           visible_until_time: nullableMenuTime(catForm.visible_until_time),
           ...(isOwner ? {
@@ -2640,6 +2655,27 @@ export default function AdminMenu() {
                         </span>
                       </span>
                       {touristVisible ? <Eye size={16} className="shrink-0 text-[#1d7a52]" /> : <EyeOff size={16} className="shrink-0 text-[#68655f]" />}
+                    </label>
+
+                    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-[10px] border border-[#e4e1de] p-3 transition-colors hover:bg-[#f6f5f3]">
+                      <input
+                        type="checkbox"
+                        checked={!!catForm.frozen_shop}
+                        onChange={event => setCatForm(current => ({ ...current, frozen_shop: event.target.checked }))}
+                        disabled={savingCatForm}
+                        className="h-[18px] w-[18px] shrink-0 accent-[#ff5a00] disabled:cursor-wait"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-[#22201d]">
+                          {frozenShopMenuLabel(lang)}
+                        </span>
+                        <span className="ws-caption block">
+                          {catForm.frozen_shop
+                            ? (lang === 'uz' ? 'Faqat zarkebab.uz/frozen-meals sahifasida; kafe menyularida yo‘q' : lang === 'ru' ? 'Только на странице zarkebab.uz/frozen-meals; не в меню кафе' : 'Only on zarkebab.uz/frozen-meals; not in the cafe menus')
+                            : (lang === 'uz' ? 'Oddiy menyu kategoriyasi' : lang === 'ru' ? 'Обычная категория меню' : 'Regular menu category')}
+                        </span>
+                      </span>
+                      <Snowflake size={16} className={`shrink-0 ${catForm.frozen_shop ? 'text-[#2f6fb3]' : 'text-[#68655f]'}`} />
                     </label>
                     </div>
                   </section>
@@ -3227,6 +3263,12 @@ export default function AdminMenu() {
                                 {cat.tourist_hidden && (
                                   <span className="ws-badge">
                                     {hiddenFromTouristMenuLabel(lang)}
+                                  </span>
+                                )}
+                                {isFrozenShopMenuCategory(cat) && (
+                                  <span className="ws-badge">
+                                    <Snowflake />
+                                    {frozenShopMenuLabel(lang)}
                                   </span>
                                 )}
                               </div>

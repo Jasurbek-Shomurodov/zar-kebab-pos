@@ -10,14 +10,14 @@
 
 ## Visibility
 
-- Public order: Corporate Sets (`c1789462941735`), Deals, other categories. Its card follows All. Visibility rules apply.
-
+- Public order: Corporate Sets (`c1789462941735`), Deals, others; card follows All.
+- `frozen_shop` (`272`): `/frozen-meals` only.
 - `menu_items.available` affects waiter orderability only. Public/Telegram still show active unavailable meals.
 - `public_hidden` is owner-controlled. Non-owner saves preserve it; new products default visible.
 - Manage Menu may create unavailable products and change availability (DB-enforced).
 - `cashier_only`, schedules, category visibility, option visibility, and `deleted_at` are separate controls.
 - Schedules gate waiter ordering only; public/Telegram list scheduled rows all day with a time label (`isPublicMenu*`, `241`).
-- `deleted_at` is the archive boundary. Archived products/categories never reappear because of availability behavior.
+- `deleted_at` is the archive boundary. Archived products/categories never reappear via availability.
 - Archive/restore requires Manage Menu (any role; `223`). Telegram says archived, not deleted.
 - `stock_count` is shelf inventory, never visibility/orderability.
 
