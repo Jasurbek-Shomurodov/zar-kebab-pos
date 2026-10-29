@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 import { calculateUnitPrice, PRICE_MODE_TOURIST } from '../../../src/lib/priceModes.js'
-import { gramsLabel, kcalLabel, millilitresLabel, getItemKcal } from '../../../src/lib/nutrition.js'
+import { gramsLabel, kcalLabel, millilitresLabel, servesLabel, getItemKcal } from '../../../src/lib/nutrition.js'
 import { loadSalaryRows } from '../../../src/lib/salaryData.js'
 import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, publicVariants } from '../../_lib/posMenu.js'
 import { getGoogleAccessToken, getGoogleBusinessConfig, googleLocationResource } from './googleBusiness.js'
@@ -32,7 +32,7 @@ function localized(row, key, lang) {
 }
 
 function subtitle(item, lang) {
-  return [gramsLabel(item, lang) || millilitresLabel(item), kcalLabel(item, lang)].filter(Boolean).join(' · ')
+  return [gramsLabel(item, lang) || millilitresLabel(item), kcalLabel(item, lang), servesLabel(item, lang)].filter(Boolean).join(' · ')
 }
 
 function itemLabels(item) {

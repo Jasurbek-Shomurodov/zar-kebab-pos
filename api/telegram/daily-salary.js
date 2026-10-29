@@ -26,7 +26,7 @@ import {
   getRussianMenuItemName,
 } from './_lib/menuAvailabilityMessages.js'
 import { renderDailyUnavailableMenuImage } from './_lib/menuAvailabilityImage.js'
-import { notifyAutomaticKpiBonus } from './employee-notification.js'
+import { notifyAutomaticKpiBonus, retryLateCheckinFineDeliveries } from './employee-notification.js'
 import { prepareTeamDailyKpi } from './_lib/teamDailyKpiDelivery.js'
 import {
   getInclusiveCalendarDayCount,
@@ -1196,7 +1196,11 @@ export default async function handler(req, res) {
     cronTask = getCronTask(req)
     supabase = getSupabaseAdmin({ retryReportReads: true })
     if (cronTask === 'employee-order-kpi') {
-      return json(res, 200, await drainEmployeeOrderKpiNotifications(supabase))
+      const orderKpi = await drainEmployeeOrderKpiNotifications(supabase)
+      // Late check-in fines (273) whose Salary/Team send failed retry here too.
+      const lateFines = await retryLateCheckinFineDeliveries(supabase, now)
+        .catch(error => [{ status: 'failed', error: String(error?.message || error).slice(0, 1000) }])
+      return json(res, 200, { ...orderKpi, lateFines })
     }
     if (cronTask === 'order-status-cleanup') {
       return json(res, 200, await retractDeletedOrderStatusMessages(supabase))

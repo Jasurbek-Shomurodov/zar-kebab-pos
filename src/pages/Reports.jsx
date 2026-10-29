@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { getCategoryName } from '../lib/i18n'
 import { formatCurrency } from '../lib/formatCurrency'
-import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
+import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
 import {
   getOrderDate,
   getOrderItemCategoryId,
@@ -764,10 +764,12 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
               <ChevronRight size={14} className={`flex-shrink-0 text-[#68655f] transition-transform ${pickerOpen ? 'rotate-90' : ''}`} />
             </button>
 
+            {/* Phones get a bottom sheet sized to the visible screen; wider screens keep the dropdown under the button. */}
+            {pickerOpen && <div aria-hidden="true" onClick={() => setPickerOpen(false)} className="fixed inset-0 z-40 bg-[#22201d]/40 sm:hidden" />}
             {pickerOpen && (
-              <div className="ws-dialog absolute right-0 top-[calc(100%+8px)] z-30 w-full overflow-hidden !rounded-xl sm:w-[620px]">
-                <div className="border-b border-[#e4e1de] p-3">
-                  <div className="relative">
+              <div className="ws-dialog fixed inset-x-0 bottom-0 z-50 flex h-[min(640px,85dvh)] flex-col overflow-hidden !rounded-b-none !rounded-t-2xl pb-[env(safe-area-inset-bottom)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-[calc(100%+8px)] sm:z-30 sm:h-auto sm:w-[620px] sm:!rounded-xl sm:pb-0">
+                <div className="flex flex-shrink-0 items-center gap-2 border-b border-[#e4e1de] p-3">
+                  <div className="relative min-w-0 flex-1">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
                     <input
                       value={pickerSearch}
@@ -776,14 +778,23 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
                       className="ws-input !h-10 !pl-9"
                     />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setPickerOpen(false)}
+                    aria-label={lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'}
+                    className="ws-btn ws-btn-ghost !h-10 !w-10 flex-shrink-0 touch-manipulation !px-0 sm:hidden"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
 
-                <div className="grid max-h-[440px] min-h-[260px] grid-cols-1 overflow-hidden sm:grid-cols-[230px_1fr]">
-                  <div className="border-b border-[#e4e1de] bg-[#f6f5f3] p-2 sm:border-b-0 sm:border-r">
+                {/* Phones: categories become a swipeable chip row above a scrolling dish list, so nothing is clipped. */}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:grid sm:max-h-[440px] sm:min-h-[260px] sm:grid-cols-[230px_1fr]">
+                  <div className="flex flex-shrink-0 gap-1 overflow-x-auto border-b border-[#e4e1de] bg-[#f6f5f3] p-2 sm:block sm:overflow-visible sm:border-b-0 sm:border-r">
                     <button
                       type="button"
                       onClick={() => selectDish(ALL_DISHES_KEY)}
-                      className={`mb-1 flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+                      className={`flex flex-shrink-0 items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors sm:mb-1 sm:w-full ${
                         selectedDishKey === ALL_DISHES_KEY
                           ? 'bg-[#ff5a00] text-white'
                           : 'text-[#22201d] hover:bg-white'
@@ -794,7 +805,7 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
                         {analysis.dishes.length}
                       </span>
                     </button>
-                    <div className="max-h-[362px] space-y-1 overflow-y-auto pr-1">
+                    <div className="flex gap-1 sm:block sm:max-h-[362px] sm:space-y-1 sm:overflow-y-auto sm:pr-1">
                       {dishSections.map(section => (
                         <button
                           key={section.key}
@@ -802,7 +813,7 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
                           onMouseEnter={() => setActiveSectionKey(section.key)}
                           onFocus={() => setActiveSectionKey(section.key)}
                           onClick={() => setActiveSectionKey(section.key)}
-                          className={`flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+                          className={`flex flex-shrink-0 items-center justify-between gap-3 whitespace-nowrap rounded-[10px] px-3 py-2.5 text-left transition-colors sm:w-full ${
                             activeSection?.key === section.key ? 'bg-white text-[#ff5a00] shadow-[0_1px_2px_rgb(34_32_29/8%)]' : 'text-[#22201d] hover:bg-white'
                           }`}
                         >
@@ -815,7 +826,7 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
                     </div>
                   </div>
 
-                  <div className="max-h-[440px] overflow-y-auto p-2">
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:max-h-[440px]">
                     {activeSection ? (
                       <>
                         <div className="sticky top-0 z-10 mb-1 rounded-[10px] bg-white/95 px-3 py-2 backdrop-blur">
@@ -1545,6 +1556,7 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
               const grams = gramsLabel(mi || item, lang)
               const millilitres = millilitresLabel(mi || item, lang)
               const kcal = kcalLabel(mi || item, lang)
+              const serves = servesLabel(mi || item, lang)
               return (
                 <div key={i} className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-[10px] overflow-hidden bg-[#efece9] border border-[#e4e1de] flex-shrink-0">
@@ -1558,7 +1570,7 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-[#22201d] truncate">{item.name || mi?.name_en || 'Item'}</p>
-                    {(grams || millilitres || kcal) && (
+                    {(grams || millilitres || kcal || serves) && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {grams && (
                           <span className="ws-badge">
@@ -1573,6 +1585,11 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
                         {kcal && (
                           <span className="ws-badge">
                             {kcal}
+                          </span>
+                        )}
+                        {serves && (
+                          <span className="ws-badge">
+                            {serves}
                           </span>
                         )}
                       </div>
@@ -2451,10 +2468,11 @@ export default function Reports() {
         </button>
       )}
     >
-      <div className="flex h-full overflow-hidden bg-[#f6f5f3]">
+      {/* AppShell's <main> is the only scroller: a nested one stops scrolling and clips dropdowns on iOS Safari. */}
+      <div className="flex min-h-full bg-[#f6f5f3]">
 
         {/* ── Main content ── */}
-        <div className={`flex-1 min-w-0 overflow-y-auto transition-all ${showDrawer ? 'lg:mr-[380px]' : ''}`}>
+        <div className={`flex-1 min-w-0 transition-[margin] ${showDrawer ? 'lg:mr-[380px]' : ''}`}>
           <div className="min-h-full bg-[#f6f5f3]">
           <div className="ws-page !pt-2">
 

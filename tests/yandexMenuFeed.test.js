@@ -40,7 +40,7 @@ test('Yandex feed lists POS sections in order with UZS regular and tourist price
   assert.doesNotMatch(yml, /Приборы|Вилка/)
   assert.match(yml, /<offer id="zk-beef">\s*<name>Шашлык из говядины<\/name>\s*<vendor>Zar Kebab<\/vendor>\s*<categoryId>1<\/categoryId>\s*<price>35000<\/price>\s*<currencyId>UZS<\/currencyId>/)
   assert.match(yml, /<offer id="zk-beef-t">\s*<name>Шашлык из говядины — для туристов<\/name>[\s\S]*?<price>42000<\/price>/)
-  assert.match(yml, /<description>150 г · 420 ккал — Говядина &amp; лук &lt;на углях&gt;<\/description>/)
+  assert.match(yml, /<description>150 г, 420 ккал — Говядина &amp; лук &lt;на углях&gt;<\/description>/)
   assert.match(yml, /<picture>https:\/\/cdn\.example\/beef\.jpg<\/picture>/)
 })
 

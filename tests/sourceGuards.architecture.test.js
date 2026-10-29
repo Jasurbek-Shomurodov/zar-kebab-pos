@@ -388,6 +388,16 @@ test('global AppShell mobile drawer overlays content consistently', () => {
   // Unpositioned, sr-only spans far down a long page escape the scroll area and let iOS scroll the bare body.
   assert.match(shell, /<div className="fixed inset-0 flex overflow-hidden/)
   assert.match(shell, /<main ref=\{contentRef\} className="relative flex-1 min-h-0 overflow-y-auto/)
+  // A page-level scroller nested inside <main> stops scrolling and clips dropdowns on iOS Safari.
+  const reports = readSource('src/pages/Reports.jsx')
+  assert.match(reports, /<div className="flex min-h-full bg-\[#f6f5f3\]">/)
+  assert.doesNotMatch(reports, /flex h-full overflow-hidden bg-\[#f6f5f3\]/)
+  // The phone dish picker stacks categories above dishes, so the dish list must take the remaining height and scroll.
+  assert.match(reports, /min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:max-h-\[440px\]/)
+  // On phones the dish picker is a bottom sheet sized to the visible screen, not a dropdown that runs off it.
+  assert.match(reports, /ws-dialog fixed inset-x-0 bottom-0 z-50 flex h-\[min\(640px,85dvh\)\]/)
+  // iOS zooms into sub-16px fields on focus; touch screens get 16px form fields.
+  assert.match(readSource('src/index.css'), /@media \(hover: none\) and \(pointer: coarse\) \{\s*input:not\(\[type="checkbox"\]\)/)
   assert.match(shell, /<MobileDrawer open=\{mobileOpen\} onClose=\{\(\) => setMobileOpen\(false\)\}>/)
   assert.match(drawer, /lg:hidden fixed inset-0 z-50 flex h-\[100dvh\]/)
   assert.match(drawer, /absolute inset-0 bg-black\/40/)

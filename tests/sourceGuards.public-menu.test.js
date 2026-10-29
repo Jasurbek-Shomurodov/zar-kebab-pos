@@ -479,6 +479,9 @@ test('menu items support and display nutrition values', () => {
   assert.match(dbHealth, /'grams'/)
   assert.match(dbHealth, /'millilitres'/)
   assert.match(dbHealth, /'stock_count'/)
+  assert.match(dbHealth, /'serves'/)
+  assert.match(readSource('migrations/271_menu_item_serves.sql'), /add column if not exists serves integer not null default 0[\s\S]*serves = target_serves/)
+  assert.match(adminMenu, /setF\('serves'\)/)
   assert.match(nutrition, /function gramsLabel/)
   assert.match(nutrition, /function millilitresLabel/)
   assert.match(nutrition, /millilitres >= 1000/)
@@ -497,6 +500,7 @@ test('menu items support and display nutrition values', () => {
     assert.match(source, /kcalLabel/)
     assert.match(source, /gramsLabel/)
     assert.match(source, /millilitresLabel/)
+    assert.match(source, /servesLabel/)
   }
 })
 

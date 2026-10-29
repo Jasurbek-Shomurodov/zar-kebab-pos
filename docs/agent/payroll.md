@@ -13,7 +13,7 @@
 - `207`: rate dates (incl. initial) ≥ Tashkent today − 3 days; older rates immutable. Test: `tests/salaryRateDateWindow.test.js`.
 
 - Dates: Tashkent.
-- `243`/`245`/`247` attendance check-in: see [attendance](attendance.md).
+- `243`/`245`/`247`/`273` check-in, late fines: [attendance](attendance.md).
 
 - `208`: rate insert/update/delete audits; history labels creator/deleter, insert audits before live names. `209`: owner-only rate deletion; refresh balances/history, keep audits. Test: `tests/salaryRateHistory.test.js`.
 

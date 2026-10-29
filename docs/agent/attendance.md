@@ -9,7 +9,7 @@
 - Settings: `src/components/AttendanceQrAccessSettings.jsx` in `src/pages/AdminSettings.jsx`
 - Bot: `api/telegram/webhook.js` (`checkInEmployee`)
 - Schema: `migrations/243_employee_attendance_checkins.sql`, `migrations/245_attendance_kiosk_rotating_qr.sql`, `migrations/247_attendance_qr_drawer_access.sql` (245 is live; change it only through new migrations)
-- Test: `tests/employeeAttendance.test.js`
+- Test: `tests/employeeAttendance.test.js`, `tests/lateCheckinFines.test.js`
 
 ## Flow
 
@@ -28,5 +28,6 @@
 
 - One row per employee per Tashkent date; the first scan wins (`ignoreDuplicates`), later scans echo the stored time.
 - Rows snapshot `work_start_time` and arrival status (`early`, `on_time`, `late`, `no_schedule`) in whole minutes; editing the start time never rewrites history.
-- No fines or bonuses. From 2026-10-15 (`269`, backfilled once on 2026-10-27, `MISSING_CHECKIN_ABSENCE_START_DATE`) the daily-salary cron records an on-site employee's closed day (after 04:00) without a check-in as a silent `No QR check-in` absence before meals/KPI/summaries, so every salary reader drops that day's pay. Remote employees are skipped. Test: `tests/missingCheckinAbsences.test.js`. From 2026-10-16 the check-in starts the employee's KPI window (`254`, see payroll.md); no check-in means no KPI that day. Staff read via `expenses` RLS; only the service role writes.
+- Late fines (`273`, from 2026-10-30): a late first scan fines on insert (DB trigger, one per check-in via `source_checkin_id`): < 60 min 20 000 UZS, ≥ 60 min 50 000 UZS; remote skipped; system author `Система`. The check-in reply shows the fine (private fine notice skipped); Salary group + Team announce it from the webhook, minute `employee-order-kpi` cron retries. Test: `tests/lateCheckinFines.test.js`.
+- No bonuses. From 2026-10-15 (`269`, backfilled once on 2026-10-27, `MISSING_CHECKIN_ABSENCE_START_DATE`) the daily-salary cron records an on-site employee's closed day (after 04:00) without a check-in as a silent `No QR check-in` absence before meals/KPI/summaries, so every salary reader drops that day's pay. Remote employees are skipped. Test: `tests/missingCheckinAbsences.test.js`. From 2026-10-16 the check-in starts the employee's KPI window (`254`, see payroll.md); no check-in means no KPI that day. Staff read via `expenses` RLS; only the service role writes.
 - Deploy migrations before the frontend/webhook: the old webhook ignores rotating payloads.

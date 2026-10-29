@@ -53,3 +53,16 @@ export function millilitresLabel(item) {
 }
 
 export const litresLabel = millilitresLabel
+
+export function getItemServes(item) {
+  const value = Number(item?.serves ?? item?.servings ?? item?.persons)
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : 0
+}
+
+export function servesLabel(item, lang = 'en') {
+  const serves = getItemServes(item)
+  if (!serves) return ''
+  if (lang === 'ru') return `на ${serves} чел.`
+  if (lang === 'uz') return `${serves} kishilik`
+  return serves === 1 ? 'for 1 person' : `for ${serves} people`
+}

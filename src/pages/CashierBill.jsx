@@ -12,7 +12,7 @@ import { useOrderDeletionDate } from '../store/useOrderDeletionDate'
 import { useAuth } from '../contexts/AuthContext'
 import { getItemName, t, tf } from '../lib/i18n'
 import { formatCurrency } from '../lib/formatCurrency'
-import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
+import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
 import {
   getGroupedOrderItems,
   getPaymentMethodSummary,
@@ -904,6 +904,7 @@ export default function CashierBill() {
                     const grams = gramsLabel(mi, lang)
                     const millilitres = millilitresLabel(mi, lang)
                     const kcal = kcalLabel(mi, lang)
+                    const serves = servesLabel(mi, lang)
                     const optionLines = getOrderItemOptionLines(item, mi, lang)
                     const manualNotes = getManualOrderNotes(item, mi, lang)
                     const isCounter = isCashierQuickItem(mi)
@@ -942,7 +943,7 @@ export default function CashierBill() {
                             {desc && (
                               <p className="text-[11px] text-[#6B7280] line-clamp-1 mt-0.5">{desc}</p>
                             )}
-                            {(grams || millilitres || kcal) && (
+                            {(grams || millilitres || kcal || serves) && (
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {grams && (
                                   <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
@@ -957,6 +958,11 @@ export default function CashierBill() {
                                 {kcal && (
                                   <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
                                     {kcal}
+                                  </span>
+                                )}
+                                {serves && (
+                                  <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+                                    {serves}
                                   </span>
                                 )}
                               </div>

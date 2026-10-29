@@ -6,7 +6,7 @@ const DEFAULT_EXCLUDED_CATEGORIES = 'Utensils,Corporate set'
 
 const ITEM_COLUMNS = [
   'id', 'category_id', 'name_uz', 'name_ru', 'name_en', 'description_uz', 'description_ru', 'description_en',
-  'price', 'image_url', 'sort_order', 'option_groups', 'grams', 'millilitres', 'litres', 'kcal',
+  'price', 'image_url', 'sort_order', 'option_groups', 'grams', 'millilitres', 'litres', 'kcal', 'serves',
 ].join(',')
 
 export function clean(value) {

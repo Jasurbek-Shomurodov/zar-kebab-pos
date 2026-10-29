@@ -134,7 +134,7 @@ export default function DateRangePicker({ l, lang, rangeKey, dateFrom, dateTo, t
       </button>
 
       {open && (
-        <div role="dialog" aria-label={l.selectDateRange} style={panelShift ? { transform: `translateX(${panelShift}px)` } : undefined} className={`ws-dialog absolute ${align === 'right' ? 'right-0' : 'left-0'} top-[calc(100%+8px)] z-40 max-h-[min(650px,calc(100vh-140px))] w-[min(760px,calc(100vw-32px))] overflow-y-auto p-3 sm:p-4`}>
+        <div role="dialog" aria-label={l.selectDateRange} style={panelShift ? { transform: `translateX(${panelShift}px)` } : undefined} className={`ws-dialog absolute ${align === 'right' ? 'right-0' : 'left-0'} top-[calc(100%+8px)] z-40 max-h-[min(650px,calc(100dvh-140px))] w-[min(760px,calc(100vw-32px))] overflow-y-auto p-3 sm:p-4`}>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-[minmax(240px,1fr)_minmax(240px,1fr)_210px]">
             <MonthCalendar
               l={l}

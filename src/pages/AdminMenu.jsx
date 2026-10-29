@@ -18,7 +18,7 @@ import { t, getItemName, getCategoryName } from '../lib/i18n'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatLongDateTime } from '../lib/dateFormat'
 import { DEFAULT_MENU_PREP_MINUTES, menuPrepTimeLabel, normalizeMenuPrepMinutes } from '../lib/menuPrepTime'
-import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
+import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
 import { getMenuPricing } from '../lib/menuPricing'
 import { generateMenuExternalId } from '../lib/menuExternalId'
 import AppShell from '../components/AppShell'
@@ -1266,7 +1266,7 @@ const blankItem = {
   id: '', category_id: '',
   name_uz: '', name_ru: '', name_en: '',
   description_uz: '', description_ru: '', description_en: '',
-  external_id: '', price: '', old_price: '', cost_price: '', cost_source: 'manual', variant_costs: {}, sale_unit: MENU_SALE_UNIT_PIECE, grams: '', millilitres: '', kcal: '', stock_count: '', estimated_prep_minutes: DEFAULT_MENU_PREP_MINUTES, image_url: '', media_urls: [], available: true, sort_order: '',
+  external_id: '', price: '', old_price: '', cost_price: '', cost_source: 'manual', variant_costs: {}, sale_unit: MENU_SALE_UNIT_PIECE, grams: '', millilitres: '', kcal: '', serves: '', stock_count: '', estimated_prep_minutes: DEFAULT_MENU_PREP_MINUTES, image_url: '', media_urls: [], available: true, sort_order: '',
   option_groups: [],
   option_groups_editor: [],
   show_in_cashier_quick_items: false,
@@ -1687,6 +1687,7 @@ function getItemFormFingerprint(form = {}) {
     grams: Math.max(0, Math.round(Number(form.grams) || 0)),
     millilitres: Math.max(0, Math.round(Number(form.millilitres) || 0)),
     kcal: Math.max(0, Math.round(Number(form.kcal) || 0)),
+    serves: Math.min(100, Math.max(0, Math.round(Number(form.serves) || 0))),
     stock_count: Math.max(0, Math.round(Number(form.stock_count) || 0)),
     estimated_prep_minutes: normalizeMenuPrepMinutes(form.estimated_prep_minutes),
     sort_order: Number(form.sort_order) || 0,
@@ -2161,6 +2162,7 @@ export default function AdminMenu() {
           grams: Math.max(0, Math.round(Number(form.grams) || 0)),
           millilitres: Math.max(0, Math.round(Number(form.millilitres) || 0)),
           kcal: Math.max(0, Math.round(Number(form.kcal) || 0)),
+          serves: Math.min(100, Math.max(0, Math.round(Number(form.serves) || 0))),
           stock_count: Math.max(0, Math.round(Number(form.stock_count) || 0)),
           estimated_prep_minutes: normalizeMenuPrepMinutes(form.estimated_prep_minutes),
           sort_order: Number(form.sort_order) || 0,
@@ -2966,6 +2968,7 @@ export default function AdminMenu() {
                       <Field label={`${t(lang, 'gramsLabel')} (${t(lang, 'grams')})`} type="number" value={form.grams} onChange={setF('grams')} placeholder="250" />
                       <Field label={`${t(lang, 'millilitresLabel')} (${t(lang, 'millilitres')})`} type="number" value={form.millilitres} onChange={setF('millilitres')} placeholder="500" />
                       <Field label={`${t(lang, 'kcalLabel')} (${t(lang, 'kcal')})`} type="number" value={form.kcal} onChange={setF('kcal')} placeholder="420" />
+                      <Field label={t(lang, 'servesLabel')} type="number" value={form.serves} onChange={setF('serves')} placeholder="2" />
                       <Field
                         label={lang === 'uz' ? 'Tezkor tartib' : lang === 'ru' ? 'Порядок быстрого' : 'Quick order'}
                         type="number"
@@ -3213,6 +3216,9 @@ export default function AdminMenu() {
                       )}
                       {kcalLabel(activeItem, lang) && (
                         <p className="text-[#64748B] font-black text-[10px]">{kcalLabel(activeItem, lang)}</p>
+                      )}
+                      {servesLabel(activeItem, lang) && (
+                        <p className="text-[#64748B] font-black text-[10px]">{servesLabel(activeItem, lang)}</p>
                       )}
                     </div>
                   </div>
@@ -3904,6 +3910,7 @@ export default function AdminMenu() {
             <Field label={`${t(lang, 'gramsLabel')} (${t(lang, 'grams')})`} type="number" value={form.grams} onChange={setF('grams')} placeholder="250" />
             <Field label={`${t(lang, 'millilitresLabel')} (${t(lang, 'millilitres')})`} type="number" value={form.millilitres} onChange={setF('millilitres')} placeholder="500" />
             <Field label={`${t(lang, 'kcalLabel')} (${t(lang, 'kcal')})`} type="number" value={form.kcal} onChange={setF('kcal')} placeholder="420" />
+            <Field label={t(lang, 'servesLabel')} type="number" value={form.serves} onChange={setF('serves')} placeholder="2" />
             <Field
               label={lang === 'uz' ? 'Tokchadagi soni' : lang === 'ru' ? 'Количество на полке' : 'Shelf count'}
               type="number"

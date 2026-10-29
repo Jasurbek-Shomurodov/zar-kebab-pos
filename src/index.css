@@ -443,6 +443,12 @@ select:not([multiple]):not([size]):not(.appearance-none):disabled { cursor: not-
   select { background-image: none !important; }
 }
 
+/* iOS Safari zooms into any field under 16px on focus and leaves the page zoomed.
+   Touch screens only, so desktop keeps the compact 14px fields. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+}
+
 /* Page controls that move into the AppShell top bar only when the content
    column has room (container query, so the drawer and language are accounted
    for); otherwise they stay in the page. */

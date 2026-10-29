@@ -25,6 +25,7 @@ import {
   getTashkentClock,
   isAttendanceStarted,
 } from '../../src/lib/attendance.js'
+import { loadLateCheckinFine, notifyLateCheckinFine } from './employee-notification.js'
 
 const LANGUAGES = {
   uz: { label: "O'zbekcha", saved: "Til tanlandi. Menyuni ochishingiz mumkin.", openMenu: "Menyuni ochish" },
@@ -181,12 +182,25 @@ async function checkInEmployee(supabase, message, command) {
     checkin = existing
   }
 
+  // A late first scan was fined by the database in the same insert (273).
+  const fine = alreadyCheckedIn ? null : await loadLateCheckinFine(supabase, checkin.id)
+
   await sendTelegramMessage(message.chat.id, buildAttendanceCheckinMessage({
     name: escapeTelegramHtml(salaryProfile.employee_name || ''),
     checkin,
     alreadyCheckedIn,
     lang: link.preferred_language,
+    fine,
   }))
+
+  if (fine) {
+    // Salary group + Team; a failure stays queued for the minute cron.
+    try {
+      await notifyLateCheckinFine(supabase, fine.id)
+    } catch (error) {
+      console.error('[telegram/webhook] late fine notification failed:', error)
+    }
+  }
 }
 
 function languageKeyboard() {

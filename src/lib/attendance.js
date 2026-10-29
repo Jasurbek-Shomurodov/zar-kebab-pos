@@ -130,8 +130,9 @@ export function formatArrivalSummary(checkin, lang = 'en') {
   return time
 }
 
-// Telegram reply. `name` must already be HTML-escaped by the caller.
-export function buildAttendanceCheckinMessage({ name, checkin, alreadyCheckedIn = false, lang = 'ru' }) {
+// Telegram reply. `name` must already be HTML-escaped by the caller. `fine` is
+// the late check-in fine the database recorded with this check-in (273).
+export function buildAttendanceCheckinMessage({ name, checkin, alreadyCheckedIn = false, lang = 'ru', fine = null }) {
   const language = ['uz', 'ru', 'en'].includes(lang) ? lang : 'ru'
   const time = getTashkentClock(new Date(checkin.checked_in_at)).time
   const start = normalizeWorkStartTime(checkin.scheduled_start_time)
@@ -160,7 +161,16 @@ export function buildAttendanceCheckinMessage({ name, checkin, alreadyCheckedIn 
     },
   }[language]
   if (alreadyCheckedIn) return copy.already
-  return copy[checkin.arrival_status] || copy.no_schedule
+  const reply = copy[checkin.arrival_status] || copy.no_schedule
+  const fineAmount = Math.round(Number(fine?.amount) || 0)
+  if (checkin.arrival_status !== 'late' || fineAmount <= 0) return reply
+  const amount = `${new Intl.NumberFormat('ru-RU').format(fineAmount).replace(/\s/g, ' ')} UZS`
+  const fineLine = {
+    uz: `💸 Kechikish uchun jarima: ${amount}. U maoshingizdan ushlab qolinadi.`,
+    ru: `💸 Штраф за опоздание: ${amount}. Он будет удержан из зарплаты.`,
+    en: `💸 Late fine: ${amount}. It will be deducted from your salary.`,
+  }[language]
+  return `${reply}\n\n${fineLine}`
 }
 
 // Scanner's Telegram has never been linked to an employee: connect first, then rescan.

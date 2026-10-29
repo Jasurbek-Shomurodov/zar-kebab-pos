@@ -53,7 +53,8 @@ const GROUP_EVENT_CONFIG = {
   },
   fine: {
     table: 'employee_salary_fines',
-    select: 'id, salary_profile_id, fine_date, amount, reason, created_by, created_by_name, salary_profile:employee_salary_profiles(employee_name)',
+    select: 'id, salary_profile_id, fine_date, amount, reason, created_by, created_by_name, source_type, salary_profile:employee_salary_profiles(employee_name)',
+    legacySelect: 'id, salary_profile_id, fine_date, amount, reason, created_by, created_by_name, salary_profile:employee_salary_profiles(employee_name)',
   },
   absence: {
     table: 'employee_salary_absences',
@@ -290,7 +291,10 @@ async function loadOwnedSalaryEvent(supabase, user, type, eventId, actorName = '
   const isAutomaticKpiBonus = type === 'bonus'
     && data?.created_by == null
     && data?.source_type === 'daily_kpi'
-  if (!data || (data.created_by !== user.id && !isAutomaticKpiBonus)) {
+  const isLateCheckinFine = type === 'fine'
+    && data?.created_by == null
+    && data?.source_type === 'late_checkin'
+  if (!data || (data.created_by !== user.id && !isAutomaticKpiBonus && !isLateCheckinFine)) {
     throw Object.assign(new Error('Salary event not found'), { status: 404 })
   }
   let previousRate = null
@@ -990,8 +994,10 @@ async function notifySalaryEvent(supabase, user, actorName, type, eventId) {
   }
   const event = await loadOwnedSalaryEvent(supabase, user, type, eventId, actorName)
   const isAutomaticKpi = type === 'bonus' && event.source_type === 'daily_kpi'
+  // The check-in reply already told the employee about a late fine (273).
+  const isLateCheckinFine = type === 'fine' && event.source_type === 'late_checkin'
   return notifyLoadedSalaryEvent(supabase, type, event, {
-    includeEmployee: !isAutomaticKpi,
+    includeEmployee: !isAutomaticKpi && !isLateCheckinFine,
     includeGroup: !isAutomaticKpi,
   })
 }
@@ -1079,6 +1085,66 @@ async function notifyLoadedSalaryEvent(supabase, type, event, {
     group,
     team,
   }
+}
+
+// Late check-in fines are written by the database with the check-in (273).
+export async function loadLateCheckinFine(supabase, checkinId) {
+  const { data, error } = await supabase
+    .from('employee_salary_fines')
+    .select('id, amount, reason')
+    .eq('source_checkin_id', checkinId)
+    .maybeSingle()
+  if (error) {
+    // Rolling deployment: before migration 273 check-ins carry no fines.
+    if (['42703', 'PGRST204'].includes(error.code)) return null
+    throw error
+  }
+  return data || null
+}
+
+// Salary group + Team announcement; duplicate-safe through the delivery ledger.
+export async function notifyLateCheckinFine(supabase, fineId) {
+  const event = await loadOwnedSalaryEvent(supabase, { id: null }, 'fine', fineId, 'Система')
+  if (event.source_type !== 'late_checkin' || event.created_by != null) {
+    throw Object.assign(new Error('Late check-in fine not found'), { status: 404 })
+  }
+  return notifyLoadedSalaryEvent(supabase, 'fine', event, {
+    includeEmployee: false,
+    includeGroup: true,
+  })
+}
+
+// Minute-cron retry for late fines whose Salary/Team send failed or never ran.
+export async function retryLateCheckinFineDeliveries(supabase, now = new Date()) {
+  const since = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
+  const { data: fines, error } = await supabase
+    .from('employee_salary_fines')
+    .select('id')
+    .eq('source_type', 'late_checkin')
+    .gte('created_at', since)
+  if (error) {
+    if (['42703', 'PGRST204'].includes(error.code)) return []
+    throw error
+  }
+  if (!fines?.length) return []
+  const { data: deliveries, error: deliveriesError } = await supabase
+    .from('employee_salary_group_notification_deliveries')
+    .select('event_id, status, attempted_at, employee_status, employee_attempted_at, team_status, team_attempted_at, event_type')
+    .eq('event_type', 'fine')
+    .in('event_id', fines.map(fine => fine.id))
+  if (deliveriesError) throw deliveriesError
+  const results = []
+  for (const delivery of deliveries || []) {
+    const targets = getSalaryEventRetryTargets(delivery, { pendingRetryMs: PENDING_DELIVERY_RETRY_MS })
+    if (!targets.group && !targets.team) continue
+    try {
+      const result = await notifyLateCheckinFine(supabase, delivery.event_id)
+      results.push({ fineId: delivery.event_id, status: result.allSent ? 'sent' : result.ok ? 'partial' : 'failed' })
+    } catch (retryError) {
+      results.push({ fineId: delivery.event_id, status: 'failed', error: String(retryError?.message || retryError).slice(0, 1000) })
+    }
+  }
+  return results
 }
 
 export async function notifyAutomaticKpiBonus(supabase, bonusId) {

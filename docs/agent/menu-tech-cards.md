@@ -11,13 +11,13 @@
 ## Visibility
 
 - Public order: Corporate Sets (`c1789462941735`), Deals, others; card follows All.
-- `frozen_shop` (`272`): `/frozen-meals` only.
+- `frozen_shop` (`272`): `/frozen-meals` only; POS sells.
 - `menu_items.available` affects waiter orderability only. Public/Telegram still show active unavailable meals.
 - `public_hidden` is owner-controlled. Non-owner saves preserve it; new products default visible.
 - Manage Menu may create unavailable products and change availability (DB-enforced).
 - `cashier_only`, schedules, category visibility, option visibility, and `deleted_at` are separate controls.
 - Schedules gate waiter ordering only; public/Telegram list scheduled rows all day with a time label (`isPublicMenu*`, `241`).
-- `deleted_at` is the archive boundary. Archived products/categories never reappear via availability.
+- `deleted_at` is the archive boundary. Archived products/categories never reappear because of availability behavior.
 - Archive/restore requires Manage Menu (any role; `223`). Telegram says archived, not deleted.
 - `stock_count` is shelf inventory, never visibility/orderability.
 
@@ -27,7 +27,7 @@
 - Create product and cost atomically via the media-aware creation RPC; never insert the public product first.
 - Protected current costs live in `menu_item_costs`; variant costs live in `variant_costs`. Public options contain names and selling prices only.
 - `order_items.cost_price` is a sale-time snapshot. Reporting never falls back to today's cost for missing history.
-- Price/cost edits affect future order items only; never rewrite paid revenue, profit, reports, or saved costs.
+- Price/cost edits affect future order items only; never rewrite paid revenue, profit, reports or saved costs.
 - Catalog deletion is archival; physical deletion is rejected (reports).
 - Margin `(price-cost)/price` live.
 
@@ -51,7 +51,7 @@
 - Delete old R2 media after save; clean temp uploads on cancel.
 - Upload errors render inside `ImageUploadField`, not `SortableItemCard`.
 - Trim localized text at editor/write/display/DB boundaries; keep internal spaces and line breaks.
-- `estimated_prep_minutes`: current-catalog estimate, 1–180 (default 15), not a historical order promise.
+- `estimated_prep_minutes`: 1–180 (default 15), not an order promise. `serves` (`271`): 0–100.
 - Manage Menu Archive buttons use a retryable in-app dialog.
 - Archive tab: Restore clears `deleted_at`; items restore after their category; restored categories stay hidden.
 

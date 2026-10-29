@@ -94,12 +94,13 @@ test('check-in rows use the Tashkent date and snapshot the schedule', () => {
   })
 })
 
-test('Telegram replies thank early/on-time arrivals and note lateness without fines', () => {
+test('Telegram replies thank early/on-time arrivals and note lateness (fines: lateCheckinFines.test.js)', () => {
   const at = '2026-10-14T03:52:00Z' // 08:52 Tashkent
   const early = { checked_in_at: at, scheduled_start_time: '09:00:00', minutes_late: -68, arrival_status: 'early' }
   const late = { checked_in_at: at, scheduled_start_time: '08:30:00', minutes_late: 22, arrival_status: 'late' }
   assert.match(buildAttendanceCheckinMessage({ name: 'Ali', checkin: early, lang: 'ru' }), /на 1 ч 8 мин раньше/)
   assert.match(buildAttendanceCheckinMessage({ name: 'Ali', checkin: late, lang: 'en' }), /22 min late/)
+  // Without a recorded fine (before 273's start date) the reply mentions none.
   assert.doesNotMatch(buildAttendanceCheckinMessage({ name: 'Ali', checkin: late, lang: 'ru' }), /штраф/i)
   assert.match(buildAttendanceCheckinMessage({ name: 'Ali', checkin: late, alreadyCheckedIn: true, lang: 'uz' }), /allaqachon/)
   assert.equal(formatArrivalSummary(late, 'en'), '08:52 · late 22 min')

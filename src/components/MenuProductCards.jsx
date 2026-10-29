@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowUpRight, Check, Clock3, Copy, LayoutGrid, Minus, Phone, Play, Plus, UtensilsCrossed, X } from 'lucide-react'
 import { getCategoryName, getItemDesc, getItemName, t } from '../lib/i18n'
 import { formatCurrency } from '../lib/formatCurrency'
-import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
+import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
 import { getMenuOptionPricing, getSelectedMenuBasePrice } from '../lib/menuPricing'
 import { getMenuItemPublicUrl } from '../lib/menuLinks'
 import { getMenuItemMediaUrls, isMenuVideoUrl } from '../lib/menuMedia'
@@ -268,6 +268,7 @@ export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpen
   const unavailable = !readOnly && item?.available === false
   const [copied, setCopied] = useState(false)
   const kcal = kcalLabel(item, lang)
+  const serves = servesLabel(item, lang)
   const grams = gramsLabel(item, lang)
   const millilitres = millilitresLabel(item, lang)
   const pricing = getMenuOptionPricing(item, getMenuItemOptionGroups(item, lang, { audience }))
@@ -427,7 +428,7 @@ export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpen
               {formatPrice(pricing.price)}{pricing.maxPrice > pricing.price ? ` – ${formatPrice(pricing.maxPrice)}` : ''}{priceUnit}
             </p>
           </div>
-          {!showCompactPublicCard && (grams || millilitres || kcal) && (
+          {!showCompactPublicCard && (grams || millilitres || kcal || serves) && (
             <div className="flex flex-wrap justify-end gap-1">
               {grams && (
                 <span className={`rounded-full bg-[#F8FAFC] ${dense ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px]'} font-black text-[#64748B] ring-1 ring-[#E5E7EB]`}>
@@ -442,6 +443,11 @@ export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpen
               {kcal && (
                 <span className={`rounded-full bg-[#F8FAFC] ${dense ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px]'} font-black text-[#64748B] ring-1 ring-[#E5E7EB]`}>
                   {kcal}
+                </span>
+              )}
+              {serves && (
+                <span className={`rounded-full bg-[#F8FAFC] ${dense ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px]'} font-black text-[#64748B] ring-1 ring-[#E5E7EB]`}>
+                  {serves}
                 </span>
               )}
             </div>
@@ -533,7 +539,7 @@ function LuxDishPhoto({ item, name, description, eager = false, discountPct = 0,
 /** Weight or volume and calories on the left, price (old price stacked above) on the right. */
 function LuxPriceRow({ item, lang, pricing, formatPrice }) {
   const priceUnit = menuPriceUnitSuffix(item, lang)
-  const facts = [gramsLabel(item, lang) || millilitresLabel(item, lang), kcalLabel(item, lang)].filter(Boolean)
+  const facts = [gramsLabel(item, lang) || millilitresLabel(item, lang), kcalLabel(item, lang), servesLabel(item, lang)].filter(Boolean)
   return (
     <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-0.5 px-1.5 pb-1 pt-2.5 sm:px-2 sm:pb-1.5 sm:pt-3">
       <p className="lux-muted flex min-w-0 items-center gap-1.5 whitespace-nowrap pb-px text-[11.5px] sm:text-[12.5px]">
@@ -804,6 +810,7 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
     { text: gramsLabel(item, lang) },
     { text: millilitresLabel(item, lang) },
     { text: kcalLabel(item, lang) },
+    { text: servesLabel(item, lang) },
   ].filter(fact => fact.text)
   const discountPct = pricing.discounted && pricing.oldPrice > 0
     ? Math.round((1 - pricing.price / pricing.oldPrice) * 100)
@@ -1134,6 +1141,7 @@ function ClassicProductDetailPage({ item, category, currentQty, currentNotes, la
   const name = getItemName(item, lang)
   const desc = getItemDesc(item, lang)
   const kcal = kcalLabel(item, lang)
+  const serves = servesLabel(item, lang)
   const grams = gramsLabel(item, lang)
   const millilitres = millilitresLabel(item, lang)
   const soldByWeight = isMenuItemSoldByWeight(item)
@@ -1236,7 +1244,7 @@ function ClassicProductDetailPage({ item, category, currentQty, currentNotes, la
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700 ring-1 ring-amber-200">
             <Clock3 size={12} /> {prepTime}
           </span>
-          {(grams || millilitres || kcal) && (
+          {(grams || millilitres || kcal || serves) && (
             <div className="flex flex-wrap justify-end gap-1">
               {grams && (
                 <span className="rounded-full bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
@@ -1251,6 +1259,11 @@ function ClassicProductDetailPage({ item, category, currentQty, currentNotes, la
               {kcal && (
                 <span className="rounded-full bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
                   {kcal}
+                </span>
+              )}
+              {serves && (
+                <span className="rounded-full bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+                  {serves}
                 </span>
               )}
             </div>
@@ -1343,6 +1356,11 @@ function ClassicProductDetailPage({ item, category, currentQty, currentNotes, la
                   {kcal && (
                     <span className="rounded-full bg-[#FFF4ED] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[#FF4D00] ring-1 ring-[#FFD8BF]">
                       {kcal}
+                    </span>
+                  )}
+                  {serves && (
+                    <span className="rounded-full bg-[#FFF4ED] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[#FF4D00] ring-1 ring-[#FFD8BF]">
+                      {serves}
                     </span>
                   )}
                 </div>

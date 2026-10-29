@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { t, getItemDesc, getItemName } from '../lib/i18n'
 import { formatCurrency } from '../lib/formatCurrency'
 import { getOrderPaymentSummary } from '../lib/analytics'
-import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
+import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
 import { ORDER_TYPE_LABELS, isOffPremiseOrderType, orderTypeLabel } from '../lib/orderTypes'
 import { DEFAULT_PRICE_MODE, getPriceModeLabel, normalizePriceMode } from '../lib/priceModes'
 import { formatWriteError } from '../lib/writeErrorMessage'
@@ -38,6 +38,7 @@ function CartItemRow({ item, lang, dispatch, menuItem, canChangeQuantity }) {
   const grams = gramsLabel(menuItem, lang)
   const millilitres = millilitresLabel(menuItem, lang)
   const kcal = kcalLabel(menuItem, lang)
+  const serves = servesLabel(menuItem, lang)
   const cartItemKey = getCartItemKey(item)
   const optionLines = getOrderItemOptionLines(item, menuItem, lang)
   const notesValue = getManualOrderNotes(item, menuItem, lang)
@@ -98,8 +99,8 @@ function CartItemRow({ item, lang, dispatch, menuItem, canChangeQuantity }) {
             {line}
           </p>
         ))}
-        {(grams || millilitres || kcal) && (
-          <p className="lux-muted mb-1.5 text-[11.5px]">{[grams, millilitres, kcal].filter(Boolean).join(' · ')}</p>
+        {(grams || millilitres || kcal || serves) && (
+          <p className="lux-muted mb-1.5 text-[11.5px]">{[grams, millilitres, kcal, serves].filter(Boolean).join(' · ')}</p>
         )}
 
         {/* Qty stepper + price */}

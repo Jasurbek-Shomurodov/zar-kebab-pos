@@ -1090,8 +1090,16 @@ export default {
    "sha256": "142f2410c5a8da298a152b58c4bbfbc7963050de8a9fc08217c17f826c6887f3"
   },
   {
+   "filename": "271_menu_item_serves.sql",
+   "sha256": "c660dd5e1712f880b29e9d7157073cc9eb3966656da1931117578ed3646ef832"
+  },
+  {
    "filename": "272_menu_category_frozen_shop.sql",
    "sha256": "4f6c011a8c6bb239c9ed9923b78e1f7229b8c80b52f84e8cac54194274c904a6"
+  },
+  {
+   "filename": "273_late_checkin_fines.sql",
+   "sha256": "ef40883f7d74120c3af3d71811a05a5cc78d6aea0f4cc6639ecf9c5a6dca61db"
   }
  ],
  "functions": [
@@ -1124,6 +1132,16 @@ export default {
    "name": "capture_accounting_record_audit",
    "filename": "259_owner_profit_close_notifications_and_reopen.sql",
    "md5": "9aa7d8fff06843bf316a6c89094f91ee"
+  },
+  {
+   "name": "create_menu_item_with_media_and_cost",
+   "filename": "271_menu_item_serves.sql",
+   "md5": "4e15bfac248c8db0cece042b0e06588f"
+  },
+  {
+   "name": "queue_salary_event_telegram_delivery",
+   "filename": "273_late_checkin_fines.sql",
+   "md5": "b1d93951426a20d809f7c260e0880945"
   },
   {
    "name": "record_order_kitchen_round_receipt",
@@ -1664,6 +1682,16 @@ export default {
    "name": "queue_menu_price_investor_notification",
    "filename": "270_menu_price_investor_notifications.sql",
    "md5": "71679c9c7be6e5617cd1cb10c717e0bb"
+  },
+  {
+   "name": "late_checkin_fine_amount",
+   "filename": "273_late_checkin_fines.sql",
+   "md5": "f6fafd0cd5e226cb015b4cbb70785b71"
+  },
+  {
+   "name": "record_late_checkin_fine",
+   "filename": "273_late_checkin_fines.sql",
+   "md5": "8b2e5f0c2ac3be20a5af322b1f106a11"
   }
  ]
 }

@@ -98,6 +98,12 @@
       "symbol": "record_missing_checkin_absences"
     },
     {
+      "name": "late QR check-in fines",
+      "aliases": ["fine for being late", "kechikish jarima", "штраф за опоздание", "late arrival 20000 50000 fine"],
+      "path": "migrations/273_late_checkin_fines.sql",
+      "symbol": "record_late_checkin_fine"
+    },
+    {
       "name": "employee KPI workday start time",
       "aliases": ["time based KPI", "hostess manager KPI from 14:00", "KPI orders opened after shift begins"],
       "path": "migrations/213_kpi_order_opening_cutoff.sql",
@@ -227,7 +233,7 @@
     },
     {
       "name": "menu-media-inventory",
-      "keywords": ["dish", "category", "variant", "price", "currency", "image", "video", "nutrition", "frozen meals", "stock", "availability", "archive", "delete", "owner", "permission"],
+      "keywords": ["dish", "category", "variant", "price", "currency", "image", "video", "nutrition", "serves", "frozen meals", "stock", "availability", "archive", "delete", "owner", "permission"],
       "files": ["src/pages/AdminMenu.jsx", "src/pages/PublicMenu.jsx", "src/lib/menuLinks.js", "src/pages/TelegramMiniApp.jsx", "src/components/MenuProductCards.jsx", "src/lib/menuItems.js", "src/lib/menuPricing.js", "src/lib/menuMedia.js", "src/lib/permissions.js", "src/lib/db.js", "src/store/menuReducer.js", "api/menu-image/upload.js", "migrations/167_owner_only_menu_catalog_archival.sql", "migrations/223_manage_menu_catalog_archival.sql", "migrations/241_public_menu_ignores_schedules.sql", "migrations/272_menu_category_frozen_shop.sql"],
       "tests": ["tests/categoryScheduleAccess.test.js", "tests/menuItems.test.js", "tests/menuArchiveSafety.test.js", "tests/menuMedia.test.js", "tests/menuItemImageRequired.test.js", "tests/menuPricing.test.js", "tests/menuStock.test.js", "tests/nutrition.test.js", "tests/permissions.test.js", "tests/sourceGuards.menu.test.js", "tests/sourceGuards.public-menu.test.js"]
     },

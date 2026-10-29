@@ -1,5 +1,5 @@
 import { calculateUnitPrice, PRICE_MODE_TOURIST } from '../../../src/lib/priceModes.js'
-import { gramsLabel, kcalLabel, millilitresLabel } from '../../../src/lib/nutrition.js'
+import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../../../src/lib/nutrition.js'
 import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, publicVariants } from '../../_lib/posMenu.js'
 import { json } from '../../telegram/_lib/http.js'
 import { getSupabaseAdmin } from '../../telegram/_lib/supabaseAdmin.js'
@@ -59,7 +59,7 @@ export function buildYandexMenuYml(categories, items, options = {}) {
     const categoryId = categoryLines.length + 1
     categoryLines.push(`      <category id="${categoryId}">${xml(ru(category, 'name'))}</category>`)
     for (const item of categoryItems) {
-      const subtitle = [gramsLabel(item, 'ru') || millilitresLabel(item), kcalLabel(item, 'ru')].filter(Boolean).join(' · ')
+      const subtitle = [gramsLabel(item, 'ru') || millilitresLabel(item), kcalLabel(item, 'ru'), servesLabel(item, 'ru')].filter(Boolean).join(', ')
       const description = [subtitle, ru(item, 'description')].filter(Boolean).join(' — ').slice(0, 3000)
       const picture = yandexPictureUrl(item.image_url)
       for (const row of priceRows(item)) {

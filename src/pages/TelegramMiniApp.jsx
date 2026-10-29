@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase'
 import { formatMenuTimeWindow, isFrozenShopMenuCategory, isPublicMenuCategory, isPublicMenuItem } from '../lib/menuItems'
 import { formatCurrency } from '../lib/formatCurrency'
 import { getCategoryName, getItemDesc, getItemName } from '../lib/i18n'
-import { gramsLabel, kcalLabel, millilitresLabel } from '../lib/nutrition'
+import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
 import { getMenuPricing } from '../lib/menuPricing'
 import { menuPriceUnitSuffix } from '../lib/menuSaleUnits'
 import { menuPrepTimeLabel } from '../lib/menuPrepTime'
@@ -162,6 +162,7 @@ function ProductCard({ item, lang }) {
   const grams = gramsLabel(item, lang)
   const millilitres = millilitresLabel(item, lang)
   const kcal = kcalLabel(item, lang)
+  const serves = servesLabel(item, lang)
   const pricing = getMenuPricing(item)
   return (
     <article className="overflow-hidden rounded-[8px] border border-[#E8DED2] bg-white shadow-sm">
@@ -176,7 +177,7 @@ function ProductCard({ item, lang }) {
         <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-700 ring-1 ring-amber-200">
           <Clock3 size={11} /> {menuPrepTimeLabel(item, lang)}
         </span>
-        {(grams || millilitres || kcal) && (
+        {(grams || millilitres || kcal || serves) && (
           <div className="mt-2 flex flex-wrap gap-1">
             {grams && (
               <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
@@ -191,6 +192,11 @@ function ProductCard({ item, lang }) {
             {kcal && (
               <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
                 {kcal}
+              </span>
+            )}
+            {serves && (
+              <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
+                {serves}
               </span>
             )}
           </div>
