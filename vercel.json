@@ -1,17 +1,23 @@
 {
   "functions": {
+    "api/telegram/webhook.js": {
+      "excludeFiles": "node_modules/notosans-fontface/fonts/*.{eot,svg,woff,woff2}"
+    },
     "api/telegram/employee-notification.js": {
-      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}"
+      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}",
+      "excludeFiles": "node_modules/notosans-fontface/fonts/*.{eot,svg,woff,woff2}"
     },
     "api/telegram/daily-salary.js": {
-      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}"
+      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}",
+      "excludeFiles": "node_modules/notosans-fontface/fonts/*.{eot,svg,woff,woff2}"
     },
     "api/assistant/index.js": {
       "maxDuration": 120
     },
     "api/google-reviews/run.js": {
       "maxDuration": 300,
-      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}"
+      "includeFiles": "{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}",
+      "excludeFiles": "node_modules/notosans-fontface/fonts/*.{eot,svg,woff,woff2}"
     }
   },
   "crons": [

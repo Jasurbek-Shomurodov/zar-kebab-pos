@@ -1,0 +1,8 @@
+# Source-only material that the Vite build and the API functions never read.
+deliverables/
+output/
+tmp/
+coverage/
+/*.webp
+/*.png
+/*.jpeg

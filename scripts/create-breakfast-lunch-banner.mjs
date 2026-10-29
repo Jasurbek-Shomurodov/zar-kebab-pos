@@ -149,7 +149,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${
   <text x="${width - 100}" y="${height - 78}" text-anchor="end" font-family="Arial" font-weight="900" font-size="78" fill="#fff">2-ЭТАЖ / 2ND FLOOR</text>
 </svg>`
 
-const outputDir = path.join(root, 'public', 'banners')
+const outputDir = path.join(root, 'deliverables', 'banners')
 fs.mkdirSync(outputDir, { recursive: true })
 const svgPath = path.join(outputDir, 'zar-kebab-live-menu-banner-v4.svg')
 const pngPath = path.join(outputDir, 'zar-kebab-live-menu-banner-v4.png')
