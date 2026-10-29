@@ -28,20 +28,20 @@
 - Protected current costs live in `menu_item_costs`; variant costs live in `variant_costs`. Public options contain names and selling prices only.
 - `order_items.cost_price` is a sale-time snapshot. Reporting never falls back to today's cost for missing history.
 - Price/cost edits affect future order items only; never rewrite paid revenue, profit, reports, or saved costs.
-- Catalog deletion is archival; physical catalog deletion is rejected to preserve reports.
-- Margin `(price-cost)/price`, live.
+- Catalog deletion is archival; physical deletion is rejected (reports).
+- Margin `(price-cost)/price` live.
 
 ## Availability notifications
 
 - Availability changes, creation, and archival queue immutable Russian Team events with product/staff snapshots.
-- Ordinary edits/restoration send nothing; archival keeps `available`. Saves and quick toggles share the DB event.
+- Ordinary edits/restoration send nothing; archival keeps `available`. Saves/toggles share the DB event.
 - The daily 08:00 Tashkent snapshot lists unavailable active products by Russian category or confirms all are available. See `telegram.md`.
 
 ## Inventory
 
 - Payment deducts non-cancelled piece quantities exactly once in the atomic unpaid-to-paid transition.
 - Parent and selected-variant stock clamp at zero; `orders.stock_deducted_at` prevents retry/correction double deduction.
-- Weight-based inventory uses decimal stock, not piece assumptions.
+- Weight-based inventory uses decimal stock.
 - Old paid orders never deduct again.
 
 ## Media and text
@@ -60,13 +60,14 @@
 - Exclude Alcohol, Utensils, Carbonated Drinks. Bazaar prices locked; `227`/`228` sync catalog edits to same-name rows, unit-converted; `239` package `pieces_per_unit` prices piece rows per piece.
 - Each active product has one protected base recipe and one recipe per eligible variant; empty `variant_option_id` means base.
 - Ingredient and included-product rows belong to the exact product-and-variant recipe. Portion cost = batch ingredient cost / `portion_count` + per-portion component cost.
+- Batch output = read-only `calculateTechCardBatchOutput` (ingredient kg; ml as g; no pieces).
 - Save the card and complete ingredient list atomically with `save_menu_item_tech_card(payload jsonb)`. `183`/`236`: one sync per save for changed dishes and their includers; unchanged costs skipped, stops at convergence.
-- `tech_cards` permission controls route/read access; Manage Menu separately controls writes.
+- `tech_cards` permission: route/read; Manage Menu: writes.
 - Ingredient prices/recipes never enter public, Telegram, waiter, cashier, order, or receipt payloads.
 - Saving a base recipe syncs the protected parent cost; a variant recipe syncs that option in protected `variant_costs`. Preserve order-item cost snapshots.
 - Variant recipes may be copied/scaled; keep destination/portion count explicit.
 - Components use `selected_options` for variants; empty means base.
-- Included-product quantities are positive, may be fractional (`0,5`).
+- Included-product quantities are positive, fractional ok (`0,5`).
 - Variant cost uses protected variant cost, falling back to protected parent cost. Changing parent selection clears stale options.
 - `order_items.tech_card_component_snapshot` freezes chosen options. Payment deducts whole piece components once. Fractional components contribute proportional cost, never rounded integer stock movements.
 - New orders freeze direct/nested ingredient quantities, units and prices in service-only `order_item_tech_card_ingredient_snapshots`; daily consumption uses paid, non-cancelled quantities. Never expose or backfill them.

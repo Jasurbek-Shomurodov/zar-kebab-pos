@@ -65,7 +65,7 @@ function labels(lang) {
     ingredient: 'Masalliq', quantity: 'Miqdor', unit: 'Birlik', unitPrice: 'Birlik narxi', lineCost: 'Jami',
     includedItems: 'Kiritilgan menyu taomlari', includedItemsHint: 'Set sotilganda auditda hisoblanadigan tayyor taomlarni va ularning miqdorini tanlang.',
     addIncludedItem: 'Taom qo‘shish', selectIncludedItem: 'Taomni tanlang', noIncludedItems: 'Bu taomda kiritilgan menyu mahsulotlari yo‘q.',
-    batch: 'Partiya va porsiya', batchOutput: 'Tayyor mahsulot chiqishi', portions: 'Partiyadagi porsiyalar',
+    batch: 'Partiya va porsiya', batchOutput: 'Tayyor mahsulot chiqishi', batchOutputHint: 'Masalliqlar og‘irligidan avtomatik hisoblanadi; dona masalliqlar kirmaydi.', portions: 'Partiyadagi porsiyalar',
     method: 'Tayyorlash usuli', methodPlaceholder: 'Tayyorlash bosqichlarini ketma-ket yozing…', preparationMethodRequired: 'Tayyorlash usulini kiriting.',
     notes: 'Ichki izohlar', notesPlaceholder: 'Saqlash, harorat yoki oshpaz uchun boshqa eslatmalar…',
     salePrice: 'Sotuv narxi', savedCost: 'Saqlangan real tannarx', batchCost: 'Partiya tannarxi',
@@ -88,7 +88,7 @@ function labels(lang) {
     ingredient: 'Ингредиент', quantity: 'Количество', unit: 'Единица', unitPrice: 'Цена за единицу', lineCost: 'Сумма',
     includedItems: 'Включённые блюда меню', includedItemsHint: 'Выберите готовые блюда и их количество, которые нужно учитывать при продаже этого сета.',
     addIncludedItem: 'Добавить блюдо', selectIncludedItem: 'Выберите блюдо', noIncludedItems: 'В это блюдо не включены другие позиции меню.',
-    batch: 'Партия и порции', batchOutput: 'Выход готового продукта', portions: 'Порций из партии',
+    batch: 'Партия и порции', batchOutput: 'Выход готового продукта', batchOutputHint: 'Считается автоматически по весу ингредиентов; штучные не учитываются.', portions: 'Порций из партии',
     method: 'Технология приготовления', methodPlaceholder: 'Опишите этапы приготовления по порядку…', preparationMethodRequired: 'Добавьте технологию приготовления.',
     notes: 'Внутренние примечания', notesPlaceholder: 'Хранение, температура или другие заметки для кухни…',
     salePrice: 'Цена продажи', savedCost: 'Сохранённая себестоимость', batchCost: 'Стоимость партии',
@@ -111,7 +111,7 @@ function labels(lang) {
     ingredient: 'Ingredient', quantity: 'Quantity', unit: 'Unit', unitPrice: 'Unit price', lineCost: 'Total',
     includedItems: 'Included menu items', includedItemsHint: 'Choose the prepared meals and quantities counted when this set is sold.',
     addIncludedItem: 'Add menu item', selectIncludedItem: 'Select a meal', noIncludedItems: 'No other menu items are included in this meal.',
-    batch: 'Batch and portions', batchOutput: 'Finished batch output', portions: 'Portions per batch',
+    batch: 'Batch and portions', batchOutput: 'Finished batch output', batchOutputHint: 'Calculated from ingredient weights; piece ingredients are not counted.', portions: 'Portions per batch',
     method: 'Preparation method', methodPlaceholder: 'Write the preparation steps in order…', preparationMethodRequired: 'Add the preparation method.',
     notes: 'Internal notes', notesPlaceholder: 'Storage, temperature, or other kitchen notes…',
     salePrice: 'Selling price', savedCost: 'Saved real cost', batchCost: 'Batch cost',
@@ -129,9 +129,9 @@ function formatDecimal(value, lang, maximumFractionDigits = 3) {
   }).format(Number(value) || 0)
 }
 
-function formatOutputPerPortion(summary, unit, lang) {
-  if (summary.outputPerPortion == null) return '—'
-  let amount = summary.outputPerPortion
+function formatOutputAmount(value, unit, lang) {
+  if (value == null) return '—'
+  let amount = value
   let displayUnit = unit
   if (unit === 'kg' && amount < 1) {
     amount *= 1000
@@ -822,17 +822,12 @@ export default function TechCards() {
 
                 <section className="ws-panel">
                   <h2 className="ws-heading mb-4">{l.batch}</h2>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <label>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
                       <span className="ws-caption mb-1.5 block">{l.batchOutput}</span>
-                      <input inputMode="decimal" value={form.batch_output_quantity} onChange={event => { setForm(current => ({ ...current, batch_output_quantity: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} placeholder="5" className="ws-input tabular-nums disabled:bg-[#efece9]" />
-                    </label>
-                    <label>
-                      <span className="ws-caption mb-1.5 block">{l.unit}</span>
-                      <select value={form.batch_output_unit} onChange={event => { setForm(current => ({ ...current, batch_output_unit: event.target.value })); setSaveNotice('') }} disabled={!mayEdit || saving} className="ws-input disabled:bg-[#efece9]">
-                        {TECH_CARD_UNITS.map(unit => <option key={unit} value={unit}>{unitLabel(unit, lang)}</option>)}
-                      </select>
-                    </label>
+                      <output className="ws-input flex items-center bg-[#efece9] tabular-nums">{formatOutputAmount(summary.batchOutputQuantity || null, summary.batchOutputUnit, lang)}</output>
+                      <span className="mt-1.5 block text-xs text-[#68655f]">{l.batchOutputHint}</span>
+                    </div>
                     <label>
                       <span className="ws-caption mb-1.5 block">{l.portions}</span>
                       <input inputMode="decimal" value={form.portion_count} onChange={event => { setForm(current => ({ ...current, portion_count: event.target.value })); setSaveNotice('') }} placeholder="50" disabled={!mayEdit || saving} className="ws-input tabular-nums disabled:bg-[#efece9]" />
@@ -861,7 +856,7 @@ export default function TechCards() {
                       [l.savedCost, savedCost == null ? '—' : formatCurrency(savedCost)],
                       [l.batchCost, summary.batchCost == null ? '—' : formatCurrency(Math.round(summary.batchCost))],
                       [l.portionCost, summary.portionCost == null ? '—' : formatCurrency(Math.round(summary.portionCost))],
-                      [l.outputPerPortion, formatOutputPerPortion(summary, form.batch_output_unit, lang)],
+                      [l.outputPerPortion, formatOutputAmount(summary.outputPerPortion, summary.batchOutputUnit, lang)],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between gap-3 py-2.5">
                         <span className="text-[13px] text-[#68655f]">{label}</span>

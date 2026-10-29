@@ -86,8 +86,8 @@ export async function createTechCardPdf(entries, items, options, l, lang) {
     }
     const summary = card ? calculateTechCardSummary(card, items) : null
     if (summary?.outputPerPortion != null) {
-      const kg = card.batch_output_unit === 'kg'
-      line(`${l.outputPerPortion}: ${number(summary.outputPerPortion * (kg ? 1000 : 1))} ${techCardUnitLabel(kg ? 'g' : card.batch_output_unit, lang)}`)
+      const small = summary.batchOutputUnit === 'kg' ? 'g' : 'ml'
+      line(`${l.outputPerPortion}: ${number(summary.outputPerPortion * 1000)} ${techCardUnitLabel(small, lang)}`)
     }
     if (options.prices && present(entry.price)) line(`${l.salePrice}: ${money(entry.price)}`)
     if (options.cost && present(entry.cost)) line(`${l.savedCost}: ${money(entry.cost)}`)

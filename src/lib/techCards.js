@@ -199,6 +199,22 @@ export function normalizeTechCard(card = {}) {
   }
 }
 
+// Batch output is the ingredient weight, never typed in. Volume counts as mass
+// (1 ml = 1 g) in mass recipes; pieces have no weight and stay out.
+export function calculateTechCardBatchOutput(ingredients = []) {
+  let mass = 0
+  let volume = 0
+  for (const ingredient of ingredients) {
+    const [dimension, scale] = TECH_CARD_UNIT_SCALE[normalizeTechCardUnit(ingredient.unit, 'kg')]
+    const amount = normalizeTechCardNumber(ingredient.quantity) * scale
+    if (dimension === 'mass') mass += amount
+    else if (dimension === 'volume') volume += amount
+  }
+  if (mass > 0) return { quantity: roundTechCardPrice((mass + volume) / 1000), unit: 'kg' }
+  if (volume > 0) return { quantity: roundTechCardPrice(volume / 1000), unit: 'l' }
+  return { quantity: null, unit: 'kg' }
+}
+
 export function calculateTechCardSummary(card = {}, menuItems = []) {
   const menuItemById = new Map(menuItems.map(item => [item.id, item]))
   const ingredients = (card.ingredients || []).map(ingredient => {
@@ -227,7 +243,8 @@ export function calculateTechCardSummary(card = {}, menuItems = []) {
     }
   })
   const portionCount = normalizeTechCardNumber(card.portion_count)
-  const batchOutputQuantity = normalizeTechCardNumber(card.batch_output_quantity)
+  const batchOutput = calculateTechCardBatchOutput(card.ingredients || [])
+  const batchOutputQuantity = batchOutput.quantity || 0
   const selectedComponents = components.filter(component => component.component_menu_item_id)
   const componentCostAvailable = selectedComponents.every(component => component.costAvailable)
   const componentCostPerPortion = componentCostAvailable
@@ -250,6 +267,7 @@ export function calculateTechCardSummary(card = {}, menuItems = []) {
     portionCount,
     portionCost,
     batchOutputQuantity,
+    batchOutputUnit: batchOutput.unit,
     outputPerPortion: portionCount > 0 && batchOutputQuantity > 0
       ? batchOutputQuantity / portionCount
       : null,
@@ -258,14 +276,13 @@ export function calculateTechCardSummary(card = {}, menuItems = []) {
 
 export function buildTechCardPayload(card = {}) {
   const normalized = normalizeTechCard(card)
+  const batchOutput = calculateTechCardBatchOutput(normalized.ingredients)
   return {
     menu_item_id: normalized.menu_item_id,
     variant_option_id: normalized.variant_option_id,
     portion_count: normalizeTechCardNumber(normalized.portion_count),
-    batch_output_quantity: normalized.batch_output_quantity === ''
-      ? null
-      : normalizeTechCardNumber(normalized.batch_output_quantity),
-    batch_output_unit: normalized.batch_output_unit,
+    batch_output_quantity: batchOutput.quantity,
+    batch_output_unit: batchOutput.unit,
     preparation_steps: normalized.preparation_steps.trim(),
     notes: normalized.notes.trim(),
     ingredients: normalized.ingredients.map((ingredient, index) => ({
@@ -304,11 +321,8 @@ export function copyAndScaleTechCard(card = {}, variantOptionId = '', scale = 1)
       quantity: String(normalizeTechCardNumber(component.quantity) * multiplier),
     })),
     // The copied card still yields the same number of sellable variant units;
-    // only its recipe/output quantities scale (for example, a larger Qurutob).
+    // only its recipe quantities (and so its output) scale, e.g. a larger Qurutob.
     portion_count: normalized.portion_count,
-    batch_output_quantity: normalized.batch_output_quantity === ''
-      ? ''
-      : String(normalizeTechCardNumber(normalized.batch_output_quantity) * multiplier),
   })
 }
 
@@ -317,9 +331,6 @@ export function validateTechCard(card = {}, menuItems = [], messages = {}) {
   const menuItemById = new Map(menuItems.map(item => [item.id, item]))
   if (!payload.menu_item_id) return 'Menu item is required.'
   if (!(payload.portion_count > 0)) return 'Portions per batch must be greater than zero.'
-  if (payload.batch_output_quantity !== null && !(payload.batch_output_quantity > 0)) {
-    return 'Batch output must be greater than zero when provided.'
-  }
   if (payload.ingredients.length === 0 && payload.components.length === 0) {
     return 'Add at least one ingredient or included menu item.'
   }

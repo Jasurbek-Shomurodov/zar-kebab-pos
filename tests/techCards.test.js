@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildTechCardPayload,
+  calculateTechCardBatchOutput,
   calculateTechCardSummary,
   convertTechCardUnitPrice,
   copyAndScaleTechCard,
@@ -74,14 +75,12 @@ test('copying a variant recipe scales quantities and removes row identities', ()
     menu_item_id: 'qurutob',
     variant_option_id: 'one_person',
     portion_count: 1,
-    batch_output_quantity: 0.5,
     ingredients: [{ id: 'ingredient-row', name: 'Bread', quantity: 2, unit: 'piece', unit_price_uzs: 5_000 }],
     components: [{ id: 'component-row', component_menu_item_id: 'salad', quantity: 1 }],
   }, 'two_three_people', 2)
 
   assert.equal(copied.variant_option_id, 'two_three_people')
   assert.equal(copied.portion_count, '1')
-  assert.equal(copied.batch_output_quantity, '1')
   assert.equal(copied.ingredients[0].quantity, '4')
   assert.equal(copied.ingredients[0].id, null)
   assert.equal(copied.components[0].quantity, '2')
@@ -99,7 +98,38 @@ test('tech card calculates batch cost and per-portion cost from ingredient price
 
   assert.equal(summary.batchCost, 410_000)
   assert.equal(summary.portionCost, 8_200)
-  assert.equal(summary.outputPerPortion, 0.1)
+  // The stale typed output (5 kg) is ignored; ingredients weigh 7.5 kg.
+  assert.equal(summary.batchOutputQuantity, 7.5)
+  assert.equal(summary.outputPerPortion, 0.15)
+})
+
+test('batch output is the ingredient weight, ignoring piece ingredients', () => {
+  assert.deepEqual(calculateTechCardBatchOutput([
+    { quantity: 1, unit: 'kg' },
+    { quantity: 0.2, unit: 'kg' },
+    { quantity: 200, unit: 'g' },
+    { quantity: 0.2, unit: 'piece' },
+  ]), { quantity: 1.4, unit: 'kg' })
+  assert.deepEqual(calculateTechCardBatchOutput([
+    { quantity: 1, unit: 'kg' },
+    { quantity: 500, unit: 'ml' },
+  ]), { quantity: 1.5, unit: 'kg' })
+  assert.deepEqual(calculateTechCardBatchOutput([
+    { quantity: 2, unit: 'l' },
+    { quantity: 250, unit: 'ml' },
+  ]), { quantity: 2.25, unit: 'l' })
+  assert.deepEqual(calculateTechCardBatchOutput([{ quantity: 2, unit: 'piece' }]), { quantity: null, unit: 'kg' })
+
+  const summary = calculateTechCardSummary({
+    portion_count: 15,
+    ingredients: [
+      { name: 'Farsh', quantity: 1, unit: 'kg' },
+      { name: 'Onion', quantity: 0.2, unit: 'kg' },
+      { name: 'Chicken', quantity: 0.2, unit: 'kg' },
+      { name: 'Salt', quantity: 0.2, unit: 'piece' },
+    ],
+  })
+  assert.ok(Math.abs(summary.outputPerPortion - 1.4 / 15) < 1e-9)
 })
 
 test('included menu items add their protected real cost to every set portion', () => {
@@ -165,8 +195,8 @@ test('tech card payload trims recipe text and normalizes ingredient values', () 
   const payload = buildTechCardPayload({
     menu_item_id: ' meal-1 ',
     portion_count: '50',
-    batch_output_quantity: '5,5',
-    batch_output_unit: 'kg',
+    batch_output_quantity: '9',
+    batch_output_unit: 'piece',
     preparation_steps: '  Cook slowly.  ',
     notes: '  Keep chilled. ',
     ingredients: [{ name: '  Meat ', quantity: '5,25', unit: 'kg', unit_price_uzs: '80000' }],
@@ -176,7 +206,7 @@ test('tech card payload trims recipe text and normalizes ingredient values', () 
     menu_item_id: 'meal-1',
     variant_option_id: '',
     portion_count: 50,
-    batch_output_quantity: 5.5,
+    batch_output_quantity: 5.25,
     batch_output_unit: 'kg',
     preparation_steps: 'Cook slowly.',
     notes: 'Keep chilled.',
