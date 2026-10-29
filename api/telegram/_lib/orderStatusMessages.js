@@ -320,7 +320,7 @@ export function buildCompletedOrderGroupMessage(order) {
     const margin = order?.orderProfitMarginPct != null && Number.isFinite(Number(order.orderProfitMarginPct))
       ? ` · ${formatPercent(order.orderProfitMarginPct)}`
       : ''
-    lines.push(`Чистая прибыль: ${escapeTelegramHtml(`${formatMoney(order.orderNetProfit)}${margin}`)}`)
+    lines.push('', `Чистая прибыль: ${escapeTelegramHtml(`${formatMoney(order.orderNetProfit)}${margin}`)}`)
   }
   const dailySummaryLines = []
   if (Number.isFinite(Number(order?.dailyRevenueTotal))) {

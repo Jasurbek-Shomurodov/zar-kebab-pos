@@ -98,8 +98,7 @@ test('completed table rounds merge into one Telegram order summary', () => {
   assert.match(message, /Kebab/)
   assert.match(message, /Сумма заказа: 90 000 UZS/)
   assert.match(message, /Сервис 15%: 13 500 UZS/)
-  assert.match(message, /Оплата: Наличные 103 500 UZS/)
-  assert.match(message, /Чистая прибыль: 72 500 UZS · 70%/)
+  assert.match(message, /Оплата: Наличные 103 500 UZS\n\nЧистая прибыль: 72 500 UZS · 70%/)
   assert.match(
     message,
     /Чистая прибыль: 72 500 UZS · 70%\n\n<b>Доход: 500 000 UZS<\/b>\nДоход по лояльности: 25 000 UZS\nЧистая прибыль: 310 000 UZS · 62%/
