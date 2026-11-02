@@ -1112,6 +1112,10 @@ export default {
   {
    "filename": "276_inventory_items.sql",
    "sha256": "5e11e338c0b6b41e6fed6731b05e156a869708ae9b97e44b1910d0fbbe8f5d9e"
+  },
+  {
+   "filename": "277_inventory_investor_notifications.sql",
+   "sha256": "af80576658f1c6d9cc353d6740592030e9cb0b720357f03fbd315e9850f94973"
   }
  ],
  "functions": [
@@ -1739,6 +1743,11 @@ export default {
    "name": "stamp_inventory_item",
    "filename": "276_inventory_items.sql",
    "md5": "232d6ec27a1c1ae390e5e4dd05b5543b"
+  },
+  {
+   "name": "queue_inventory_investor_notification",
+   "filename": "277_inventory_investor_notifications.sql",
+   "md5": "b301d8ac8c223d35d967ef16bdc924ec"
   }
  ]
 }

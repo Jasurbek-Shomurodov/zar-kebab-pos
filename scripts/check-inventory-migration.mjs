@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 const { PGlite } = await import(process.argv[2] || '@electric-sql/pglite')
 const db = new PGlite()
 const migration = readFileSync(new URL('../migrations/276_inventory_items.sql', import.meta.url), 'utf8')
+const notifications = readFileSync(new URL('../migrations/277_inventory_investor_notifications.sql', import.meta.url), 'utf8')
 const ADMIN = '00000000-0000-0000-0000-000000000001'
 const VIEWER = '00000000-0000-0000-0000-000000000002'
 const OUTSIDER = '00000000-0000-0000-0000-000000000003'
@@ -23,7 +24,7 @@ try {
   await db.exec(`
     create role anon; create role authenticated;
     create schema auth;
-    create function auth.uid() returns uuid language sql stable as $$ select current_setting('app.uid', true)::uuid $$;
+    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('app.uid', true), '')::uuid $$;
     grant usage on schema auth, public to authenticated, anon;
     grant execute on function auth.uid() to authenticated, anon;
     create table public.profiles (id uuid, status text, role text, email text, full_name text, feature_access text[],
@@ -38,6 +39,13 @@ try {
       ('${OUTSIDER}', 'active', 'admin', 'o@zar.test', 'Outsider', array['ingredients']);
   `)
   await db.exec(migration)
+  await db.exec(`
+    create table public.ingredient_investor_notifications (
+      id uuid primary key default gen_random_uuid(), product_key text not null, event_type text not null,
+      snapshot jsonb not null, created_at timestamptz not null default clock_timestamp()
+    );
+  `)
+  await db.exec(notifications)
 
   const insert = `insert into public.inventory_items (id, name, quantity) values ($1, $2, $3)
     on conflict (id) do update set name = excluded.name, quantity = excluded.quantity returning *`
@@ -72,6 +80,21 @@ try {
   await assert.rejects(() => asUser(ADMIN, insert, ['00000000-0000-0000-0000-00000000000c', 'Forks', -1]), /check constraint/)
   await assert.rejects(() => asUser(ADMIN, insert, ['00000000-0000-0000-0000-00000000000c', ' Forks', 1]), /check constraint/)
   await assert.rejects(() => asUser(ADMIN, 'insert into public.inventory_items (name, image_url) values ($1, $2)', ['Forks', 'javascript:alert(1)']), /check constraint/)
+
+  // Investor events: one per new item or real count change, with immutable snapshots.
+  // Retries, name edits, archive, rejected writes and service writes above stay silent.
+  await asUser(ADMIN, 'update public.inventory_items set note = $1 where id = $2', ['Kitchen', '00000000-0000-0000-0000-00000000000b'])
+  await db.exec(`set app.uid = ''`)
+  await db.exec(`update public.inventory_items set quantity = 500 where id = '00000000-0000-0000-0000-00000000000b'`)
+  const events = (await db.query('select * from public.ingredient_investor_notifications order by created_at')).rows
+  assert.deepEqual(events.map(row => row.event_type), ['inventory_added', 'inventory_count_changed', 'inventory_added'])
+  assert.equal(events[0].snapshot.quantity, 120)
+  assert.equal(events[0].snapshot.quantity_before, null)
+  assert.equal(events[0].snapshot.actor_name, 'Admin One')
+  assert.equal(events[1].snapshot.quantity_before, 120)
+  assert.equal(events[1].snapshot.quantity, 104)
+  assert.equal(events[1].snapshot.actor_name, 'Admin Renamed')
+  assert.equal(events[1].product_key, `inventory:${ITEM}`)
 
   await db.exec('set role anon')
   await assert.rejects(() => db.query('select * from public.inventory_items'), /permission denied/)

@@ -246,8 +246,8 @@
     {
       "name": "equipment-inventory",
       "keywords": ["inventory", "equipment", "plates", "cutlery", "count", "photo", "archive"],
-      "files": ["src/pages/Inventory.jsx", "src/lib/inventory.js", "src/lib/inventoryPhoto.js", "api/menu-image/upload.js", "api/menu-image/delete.js", "api/menu-image/_lib/auth.js", "api/menu-image/_lib/r2.js", "migrations/276_inventory_items.sql", "scripts/check-inventory-migration.mjs", "docs/agent/inventory.md"],
-      "tests": ["tests/inventoryFeature.test.js"]
+      "files": ["src/pages/Inventory.jsx", "src/lib/inventory.js", "src/lib/inventoryPhoto.js", "api/menu-image/upload.js", "api/menu-image/delete.js", "api/menu-image/_lib/auth.js", "api/menu-image/_lib/r2.js", "migrations/276_inventory_items.sql", "migrations/277_inventory_investor_notifications.sql", "api/telegram/_lib/inventoryMessages.js", "scripts/check-inventory-migration.mjs", "docs/agent/inventory.md"],
+      "tests": ["tests/inventoryFeature.test.js", "tests/inventoryNotifications.test.js"]
     },
     {
       "name": "tech-cards",

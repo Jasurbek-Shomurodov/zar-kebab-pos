@@ -7,7 +7,8 @@ Register of the physical equipment the cafe owns (plates, spoons, forks), each w
 - Page: `src/pages/Inventory.jsx` at `/admin/inventory`, in the Kitchen & stock drawer group
 - Helpers: `src/lib/inventory.js` (pure rules), `src/lib/inventoryPhoto.js` (browser photo handling)
 - Database: `migrations/276_inventory_items.sql`; apply it before the frontend, because Team cannot save the `inventory` feature until its constraint allows it
-- Tests: `tests/inventoryFeature.test.js`; SQL: `scripts/check-inventory-migration.mjs`
+- Investor alerts: `migrations/277_inventory_investor_notifications.sql`, `api/telegram/_lib/inventoryMessages.js`; deploy the sender before applying 277
+- Tests: `tests/inventoryFeature.test.js`, `tests/inventoryNotifications.test.js`; SQL: `scripts/check-inventory-migration.mjs`
 
 ## Rules
 
@@ -16,6 +17,7 @@ Register of the physical equipment the cafe owns (plates, spoons, forks), each w
 - One active item per name, case-insensitively (`23505` shows the duplicate message). Archived names may repeat.
 - The `inventory_items_stamp` trigger owns `counted_at` and `counted_by_name`. They change only when `quantity` changes, so clients cannot forge them and retries do not move them.
 - There is no count history: the card shows the last change only.
+- A new active item or a real count change queues one immutable Investor event (`277`). Adds send the stored photo by URL; a photo Telegram refuses falls back to text. Name, photo and note edits, archive/restore, retries and service writes stay silent.
 - Saves upsert with a client id chosen when the popup opens, so a retry cannot create a second row. A network failure reconciles against the row first.
 - The page loads its own rows, pages past the PostgREST cap, and stays out of POS hydration and realtime. Failures are stored raw and localized on render.
 

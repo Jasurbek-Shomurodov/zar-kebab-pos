@@ -3,6 +3,7 @@ import { bazaarCategoryLabel, bazaarUnitLabel } from '../../../src/lib/bazaar.js
 import { escapeTelegramHtml, sendTelegramMessage } from './telegram.js'
 import { buildMonthCloseInvestorMessage, isMonthCloseEvent } from './monthCloseMessages.js'
 import { buildMenuPriceInvestorMessage, isMenuPriceEvent } from './menuPriceMessages.js'
+import { buildInventoryInvestorMessage, isInventoryEvent, sendTelegramPhotoUrl } from './inventoryMessages.js'
 
 export async function loadIngredientInvestorTarget(supabase, env = process.env) {
   const { data, error } = await supabase.from('telegram_notification_targets')
@@ -40,17 +41,31 @@ export function buildIngredientInvestorMessage(snapshot) {
   return lines.join('\n')
 }
 
-// The queue also carries Owner profit month close/reopen events (259)
-// and menu item price changes (270).
+// The queue also carries Owner profit month close/reopen events (259),
+// menu item price changes (270) and Inventory changes (277).
 export function buildInvestorQueueMessage(snapshot) {
   if (isMonthCloseEvent(snapshot)) return buildMonthCloseInvestorMessage(snapshot)
   if (isMenuPriceEvent(snapshot)) return buildMenuPriceInvestorMessage(snapshot)
+  if (isInventoryEvent(snapshot)) return buildInventoryInvestorMessage(snapshot)
   return buildIngredientInvestorMessage(snapshot)
+}
+
+// A photo Telegram refuses (deleted since, unreachable) must not hold back the
+// alert, so that one falls back to text. An unknown outcome still goes to review.
+async function sendInvestorQueueEvent(chatId, snapshot, message, send, sendPhoto) {
+  const photoUrl = isInventoryEvent(snapshot) ? snapshot.image_url : ''
+  if (!photoUrl) return send(chatId, message)
+  try {
+    return await sendPhoto(chatId, photoUrl, message)
+  } catch (error) {
+    if (!error?.telegramRejected) throw error
+    return send(chatId, message)
+  }
 }
 
 // A compare-and-set claim prevents parallel workers from sending the same event.
 // An uncertain Telegram result stays processing for review, never blindly resent.
-export async function deliverIngredientNotification(supabase, row, chatId, send = sendTelegramMessage) {
+export async function deliverIngredientNotification(supabase, row, chatId, send = sendTelegramMessage, sendPhoto = sendTelegramPhotoUrl) {
   const table = 'ingredient_investor_notifications'
   const { data: claimed, error } = await supabase.from(table)
     .update({ status: 'processing', chat_id: chatId, attempted_at: new Date().toISOString() })
@@ -60,7 +75,7 @@ export async function deliverIngredientNotification(supabase, row, chatId, send 
   const messageIds = []
   try {
     for (const message of [buildInvestorQueueMessage(claimed.snapshot)]) {
-      const response = await send(chatId, message)
+      const response = await sendInvestorQueueEvent(chatId, claimed.snapshot, message, send, sendPhoto)
       const id = response?.result?.message_id
       if (!id) throw new Error('Telegram did not return a message id; delivery outcome is unknown')
       messageIds.push(id)
