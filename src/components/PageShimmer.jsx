@@ -249,6 +249,37 @@ function IngredientsPage() {
   )
 }
 
+// Inventory result cards: photo, then name, count and last-count line.
+function InventoryCards({ cards = 10 }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 p-4 sm:p-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      {Array.from({ length: cards }, (_, index) => (
+        <div key={index} className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-[#e4e1de] bg-white">
+          <Shimmer className="aspect-[4/3] w-full rounded-none" />
+          <div className="p-3">
+            <Shimmer className={`h-4 ${index % 3 === 0 ? 'w-3/5' : index % 3 === 1 ? 'w-1/2' : 'w-2/5'}`} />
+            <Shimmer className="mt-3 h-6 w-1/3" />
+            <Shimmer className="mt-2 h-2.5 w-4/5" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Inventory page before its code loads: toolbar panel around the card grid.
+function InventoryPage() {
+  return (
+    <div className="ws-panel ws-panel-flush">
+      <div className="flex flex-wrap items-center gap-3 border-b border-[#e4e1de] p-5 max-sm:p-4">
+        <Shimmer className="h-11 min-w-[220px] flex-1 rounded-[10px] sm:max-w-sm" />
+        <Shimmer className="h-11 w-48 max-w-full rounded-[12px] sm:ml-auto" />
+      </div>
+      <InventoryCards />
+    </div>
+  )
+}
+
 // Purchases & usage result cards: name + category, then bought / usage / paid / remaining.
 function IngredientMovementCards({ cards = 8 }) {
   return (
@@ -527,9 +558,9 @@ function SalariesPage() {
 
 // Layouts that render inside the page's own `.ws-page` container, so the
 // skeleton has exactly the loaded page's width, padding and gaps.
-const PAGE_CONTAINER_LAYOUTS = new Set(['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage', 'employees'])
+const PAGE_CONTAINER_LAYOUTS = new Set(['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage', 'inventory', 'employees'])
 // Result-area layouts placed inside a page panel below its live toolbar: no extra container.
-const INLINE_LAYOUTS = new Set(['ingredientCards', 'ingredientMovementCards', 'employeeCards'])
+const INLINE_LAYOUTS = new Set(['ingredientCards', 'ingredientMovementCards', 'inventoryCards', 'employeeCards'])
 
 const LAYOUTS = {
   table: () => <><Toolbar /><TableRows /></>,
@@ -564,6 +595,8 @@ const LAYOUTS = {
   ingredientUsage: () => <IngredientUsagePage />,
   ingredientCards: () => <IngredientCards />,
   ingredientMovementCards: () => <IngredientMovementCards />,
+  inventory: () => <InventoryPage />,
+  inventoryCards: () => <InventoryCards />,
   employees: () => <EmployeesPage />,
   employeeCards: () => <EmployeeCards />,
 }
@@ -588,6 +621,7 @@ export function layoutForPath(pathname = '') {
   if (pathname.startsWith('/admin/tech-cards')) return 'techCards'
   if (pathname.startsWith('/admin/ingredients/usage')) return 'ingredientUsage'
   if (pathname.startsWith('/admin/ingredients')) return 'ingredients'
+  if (pathname.startsWith('/admin/inventory')) return 'inventory'
   if (pathname.startsWith('/waiter/order') || pathname.startsWith('/waiter/take-away') || pathname.startsWith('/cashier/bill')) return 'detail'
   if (pathname.startsWith('/admin/financial-analysis/estimate')) return 'estimate'
   if (pathname.startsWith('/admin/settings')) return 'form'

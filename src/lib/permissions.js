@@ -74,6 +74,12 @@ export const FEATURE_DEFINITIONS = [
     description: { uz: 'Masalliqlar, xaridlar va retsept bo‘yicha sarf', ru: 'Ингредиенты, закупки и расход по рецептам', en: 'Ingredient catalog, purchases, and recipe usage' },
   },
   {
+    key: 'inventory',
+    kind: 'page',
+    labels: { uz: 'Inventar', ru: 'Инвентарь', en: 'Inventory' },
+    description: { uz: 'Idish-tovoq va jihozlar: rasm va soni', ru: 'Посуда и оборудование: фото и количество', en: 'Plates, cutlery, and equipment with photos and counts' },
+  },
+  {
     key: 'tech_cards',
     kind: 'page',
     labels: { uz: 'Texnologik kartalar', ru: 'Техкарты', en: 'Tech Cards' },
@@ -306,6 +312,7 @@ export function defaultPath(role) {
   if (canViewPage(profile, 'expenses')) return '/admin/accounting/salaries'
   if (canViewPage(profile, 'bazaar')) return '/admin/bazaar'
   if (canViewPage(profile, 'ingredients')) return '/admin/ingredients'
+  if (canViewPage(profile, 'inventory')) return '/admin/inventory'
   if (canViewPage(profile, 'tech_cards')) return '/admin/tech-cards'
   if (canViewPage(profile, 'team')) return '/admin/users'
   if (canViewPage(profile, 'reports')) return '/admin/reports'

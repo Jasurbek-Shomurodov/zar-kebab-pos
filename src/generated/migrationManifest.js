@@ -1108,6 +1108,10 @@ export default {
   {
    "filename": "275_ingredient_movement_distinct_key_lookup.sql",
    "sha256": "d7330bf51d2e2ff33b2eeb3e710e7f212e2c29df6c3f20e27e99cd5e9e6a2401"
+  },
+  {
+   "filename": "276_inventory_items.sql",
+   "sha256": "5e11e338c0b6b41e6fed6731b05e156a869708ae9b97e44b1910d0fbbe8f5d9e"
   }
  ],
  "functions": [
@@ -1730,6 +1734,11 @@ export default {
    "name": "kick_tech_card_change_queue",
    "filename": "274_tech_card_change_telegram_images.sql",
    "md5": "c98ee67d1499809848feba508c096094"
+  },
+  {
+   "name": "stamp_inventory_item",
+   "filename": "276_inventory_items.sql",
+   "md5": "232d6ec27a1c1ae390e5e4dd05b5543b"
   }
  ]
 }

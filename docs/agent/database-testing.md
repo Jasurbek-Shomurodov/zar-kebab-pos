@@ -7,7 +7,7 @@
 - SQL migrations: `migrations/`
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
-- `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270`/`274` TG `271`/`272` menu `257`–9 owner; `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270`/`274` TG `271`/`272` menu `257`–9 owner `276` inventory; `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 
@@ -81,7 +81,7 @@
 - `203`/`213`: KPI start/opening cutoff; apply before UI. Tests: `tests/timeBasedKpi.test.js`.
 - `226`: closed-day KPI, no absence skip. Tests: `tests/closedOrderKpiDay.test.js`.
 - `204`: keep audit actors on account deletion. Tests: `tests/accountDeletionAudit.test.js`.
-- `205`: Take Away/Delivery/Game Club schedules; apply before UI. Seeds Game Club lunch. Tests: `tests/gameClubCategorySchedule.test.js`.
+- `205`: Take Away/Delivery/Game Club schedules; apply before UI. Tests: `tests/gameClubCategorySchedule.test.js`.
 - `207`–`209`: rate date guard, audits, owner-only DELETE. Apply before UI. Tests: `tests/salaryRateDateWindow.test.js`, `tests/salaryRateHistory.test.js`.
 - `210`: see [salary orders](salary-orders.md).
 - `211`: profile name realtime. Tests: `tests/activeOrderWaiters.test.js`.

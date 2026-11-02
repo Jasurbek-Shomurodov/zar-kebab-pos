@@ -128,6 +128,12 @@
       "symbol": "CORPORATE_SETS_CATEGORY_ID"
     },
     {
+      "name": "equipment inventory register",
+      "aliases": ["inventar", "инвентарь", "plates and cutlery count", "qoshiq vilka", "/admin/inventory", "inventory_items"],
+      "path": "src/pages/Inventory.jsx",
+      "symbol": "Inventory"
+    },
+    {
       "name": "frozen half-prepared meals page",
       "aliases": ["frozen meals", "polufabrikaty", "frozen_shop category", "/frozen-meals"],
       "path": "src/lib/menuItems.js",
@@ -236,6 +242,12 @@
       "keywords": ["dish", "category", "variant", "price", "currency", "image", "video", "nutrition", "serves", "frozen meals", "stock", "availability", "archive", "delete", "owner", "permission"],
       "files": ["src/pages/AdminMenu.jsx", "src/pages/PublicMenu.jsx", "src/lib/menuLinks.js", "src/pages/TelegramMiniApp.jsx", "src/components/MenuProductCards.jsx", "src/lib/menuItems.js", "src/lib/menuPricing.js", "src/lib/menuMedia.js", "src/lib/permissions.js", "src/lib/db.js", "src/store/menuReducer.js", "api/menu-image/upload.js", "migrations/167_owner_only_menu_catalog_archival.sql", "migrations/223_manage_menu_catalog_archival.sql", "migrations/241_public_menu_ignores_schedules.sql", "migrations/272_menu_category_frozen_shop.sql"],
       "tests": ["tests/categoryScheduleAccess.test.js", "tests/menuItems.test.js", "tests/menuArchiveSafety.test.js", "tests/menuMedia.test.js", "tests/menuItemImageRequired.test.js", "tests/menuPricing.test.js", "tests/menuStock.test.js", "tests/nutrition.test.js", "tests/permissions.test.js", "tests/sourceGuards.menu.test.js", "tests/sourceGuards.public-menu.test.js"]
+    },
+    {
+      "name": "equipment-inventory",
+      "keywords": ["inventory", "equipment", "plates", "cutlery", "count", "photo", "archive"],
+      "files": ["src/pages/Inventory.jsx", "src/lib/inventory.js", "src/lib/inventoryPhoto.js", "api/menu-image/upload.js", "api/menu-image/delete.js", "api/menu-image/_lib/auth.js", "api/menu-image/_lib/r2.js", "migrations/276_inventory_items.sql", "scripts/check-inventory-migration.mjs", "docs/agent/inventory.md"],
+      "tests": ["tests/inventoryFeature.test.js"]
     },
     {
       "name": "tech-cards",

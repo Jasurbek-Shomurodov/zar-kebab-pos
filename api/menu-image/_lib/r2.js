@@ -1,6 +1,6 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
-const VALID_TYPES = new Set(['product', 'category'])
+const TYPE_FOLDERS = { product: 'products', category: 'categories', inventory: 'inventory' }
 const IMAGE_EXTENSIONS = {
   'image/avif': 'avif',
   'image/gif': 'gif',
@@ -16,7 +16,7 @@ const VIDEO_EXTENSIONS = {
 const ALLOWED_IMAGE_TYPES = new Set(Object.keys(IMAGE_EXTENSIONS))
 const ALLOWED_VIDEO_TYPES = new Set(Object.keys(VIDEO_EXTENSIONS))
 const MEDIA_EXTENSIONS = { ...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS }
-const MENU_OBJECT_KEY_PATTERN = /^menu\/(?:products|categories)\/[a-z0-9][a-z0-9._-]{0,220}$/i
+const MENU_OBJECT_KEY_PATTERN = /^menu\/(?:products|categories|inventory)\/[a-z0-9][a-z0-9._-]{0,220}$/i
 
 function requiredEnv(name) {
   const value = process.env[name]
@@ -126,8 +126,8 @@ function safeSlug(value) {
 }
 
 export function makeObjectKey({ type, entityId, contentType }) {
-  if (!VALID_TYPES.has(type)) throw new Error('Menu media type must be product or category')
-  const folder = type === 'category' ? 'categories' : 'products'
+  const folder = Object.hasOwn(TYPE_FOLDERS, type) ? TYPE_FOLDERS[type] : ''
+  if (!folder) throw new Error('Menu media type must be product, category or inventory')
   const timestamp = Date.now()
   const random = Math.random().toString(36).slice(2, 10)
   return `menu/${folder}/${safeSlug(entityId)}-${timestamp}-${random}.${extensionForContentType(contentType)}`
@@ -159,6 +159,10 @@ export function normalizeMenuObjectKey(value) {
   } catch {
     return ''
   }
+}
+
+export function isInventoryObjectKey(key) {
+  return String(key || '').startsWith('menu/inventory/')
 }
 
 export function keyFromR2Url(urlOrKey) {

@@ -227,8 +227,8 @@ test('Financial analysis is a Team feature that always comes with Accounting', a
 test('Financial analysis access is enforced in the database and keeps current Accounting holders', async () => {
   const { readFileSync } = await import('node:fs')
   const migration = readFileSync(new URL('../migrations/230_financial_analysis_feature_access.sql', import.meta.url), 'utf8')
-  // The newest constraint (251 adds the assistant) must list exactly the app's feature keys.
-  const latestConstraint = readFileSync(new URL('../migrations/251_ai_assistant.sql', import.meta.url), 'utf8')
+  // The newest constraint (276 adds inventory) must list exactly the app's feature keys.
+  const latestConstraint = readFileSync(new URL('../migrations/276_inventory_items.sql', import.meta.url), 'utf8')
   const { FEATURE_KEYS } = await import('../src/lib/permissions.js')
   const allowed = latestConstraint.match(/feature_access <@ array\[([\s\S]*?)\]::text\[\]/)[1].match(/'([a-z_]+)'/g).map(key => key.slice(1, -1))
   assert.deepEqual([...allowed].sort(), [...FEATURE_KEYS].sort())

@@ -171,6 +171,7 @@ const checks = await Promise.all([
   checkTable('bazaar_purchases', 'id, request_key, expense_id, purchase_date, payment_method, buyer_profile_id, buyer_name, notes, total_amount, entry_source, created_by, created_by_name, created_at, updated_at'),
   checkTable('bazaar_purchase_items', 'id, purchase_id, product_name, product_key, category, quantity, unit, line_total, normal_unit_price, normal_line_total, price_difference, sort_order, notes, created_at'),
   checkTable('bazaar_product_catalog', 'product_key, product_name, category, unit, last_purchase_date, created_at, updated_at'),
+  checkTable('inventory_items', 'id, name, image_url, quantity, note, is_active, counted_at, counted_by_name, created_at, updated_at'),
   checkTable('bazaar_purchase_audit', 'id, purchase_id, action, old_snapshot, new_snapshot, changed_by, changed_by_name, changed_at'),
   checkTable('daily_bazaar_telegram_deliveries', 'purchase_date, target_key, status, telegram_chat_id, telegram_message_id, error_message, attempted_at, sent_at, updated_at'),
   checkTable('daily_payroll_group_notification_deliveries', 'business_date, target_key, status, telegram_chat_id, telegram_message_id, error_message, attempted_at, sent_at, updated_at'),

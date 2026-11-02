@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Table2, BookOpen,
   Receipt, Users, BarChart2, ShieldCheck, Settings, LogOut,
   BadgeDollarSign, WalletCards, ShoppingBasket, PieChart,
-  ClipboardList, PackagePlus, PanelLeft, ChevronRight, QrCode, Sparkles, Crown,
+  ClipboardList, PackagePlus, PanelLeft, ChevronRight, QrCode, Sparkles, Crown, UtensilsCrossed,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -91,6 +91,13 @@ const NAV = [
     group: 'kitchen',
   },
   {
+    key: 'inventory',
+    icon: UtensilsCrossed,
+    labels: { uz: 'Inventar', ru: 'Инвентарь', en: 'Inventory' },
+    path: '/admin/inventory',
+    group: 'kitchen',
+  },
+  {
     key: 'bazaar',
     icon: ShoppingBasket,
     labels: { uz: 'Kunlik bozor', ru: 'Ежедневный базар', en: 'Daily Bazaar' },
@@ -170,6 +177,7 @@ function activeKey(pathname) {
   if (pathname.startsWith('/admin/accounting')) return 'expenses'
   if (pathname.startsWith('/admin/expenses')) return 'expenses'
   if (pathname.startsWith('/admin/ingredients')) return 'ingredients'
+  if (pathname.startsWith('/admin/inventory')) return 'inventory'
   if (pathname.startsWith('/admin/bazaar'))   return 'bazaar'
   if (pathname.startsWith('/admin/tech-cards')) return 'tech_cards'
   if (pathname.startsWith('/admin/menu'))     return 'menu'

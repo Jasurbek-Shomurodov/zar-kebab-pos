@@ -4,7 +4,7 @@ Read this before changing code; then load only the feature guide relevant to the
 
 ## Project essentials
 
-Zar Kebab POS is a Vite/React 18 app on Supabase: menus, ordering, kitchen checks, billing, admin, reporting, accounting, payroll and Telegram notifications.
+Zar Kebab POS is a Vite/React 18 app on Supabase: menus, ordering, kitchen checks, billing, admin, reporting, accounting, payroll and Telegram.
 
 Core locations:
 
@@ -38,17 +38,18 @@ Read the feature's guide fully; read more only when a task crosses boundaries.
 
 | Task area | Required guide |
 | --- | --- |
-| App startup, authentication, shared state, realtime, permissions, routes | `docs/agent/architecture.md` |
+| App startup, auth, shared state, realtime, permissions, routes | `docs/agent/architecture.md` |
 | Waiter tables, cart, price mode, kitchen submission/checks, reservations | `docs/agent/ordering-kitchen.md` |
 | Products, categories, availability, media, stock, costs, tech cards | `docs/agent/menu-tech-cards.md` |
+| Equipment Inventory | `docs/agent/inventory.md` |
 | Cashier, payments, service fees, Accounting, expenses, Daily Bazaar | `docs/agent/payments-accounting.md` |
 | Orders paid from salary, non-cash settlement, linked payroll | `docs/agent/salary-orders.md` |
 | Employees, salaries, fines, absences, advances, KPI, employee meals | `docs/agent/payroll.md` |
 | Attendance check-in screen and rotating QR | `docs/agent/attendance.md` |
-| Telegram targets, messages, delivery tracking, cron notifications | `docs/agent/telegram.md` |
+| Telegram targets, messages, delivery, cron | `docs/agent/telegram.md` |
 | Dashboard, reports, historical snapshots, profit and date ranges | `docs/agent/reporting.md` |
 | AI assistant chat and datasets | `docs/agent/assistant.md` |
-| Migrations, database compatibility, tests, source guards, deployment checks | `docs/agent/database-testing.md` |
+| Migrations, DB compatibility, tests, source guards, deployment checks | `docs/agent/database-testing.md` |
 
 `docs/agent/legacy-context.md` is the former guide; read it only for regressions absent from focused guides.
 

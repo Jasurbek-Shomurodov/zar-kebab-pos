@@ -39,7 +39,13 @@ export async function requireAdminRole(req) {
   return user
 }
 
-export async function requireMenuEditAccess(req) {
+// Inventory photos share these endpoints (the deployment is at its function
+// limit) but an inventory holder may only touch inventory keys.
+export function isInventoryMediaRequest(req) {
+  return new URL(req.url || '/', 'http://localhost').searchParams.get('scope') === 'inventory'
+}
+
+async function loadMediaEditor(req) {
   const header = req.headers.authorization || ''
   const match = header.match(/^Bearer\s+(.+)$/i)
   const token = match ? match[1] : ''
@@ -59,9 +65,25 @@ export async function requireMenuEditAccess(req) {
   const isPrimaryOwner = profile?.role === 'owner'
     && FEATURE_ACCESS_MANAGER_EMAILS.has(String(profile?.email || '').trim().toLowerCase())
   const hasImplicitOwnerAccess = profile?.role === 'owner' && access === null
+  return { user, profile, access, hasOwnerAccess: isPrimaryOwner || hasImplicitOwnerAccess }
+}
+
+export async function requireMenuEditAccess(req) {
+  const { user, profile, access, hasOwnerAccess } = await loadMediaEditor(req)
   const hasExplicitMenuWrite = ALLOWED_ROLES.has(profile?.role) && access?.includes('menu')
 
-  if (profile?.status !== 'active' || (!isPrimaryOwner && !hasImplicitOwnerAccess && !hasExplicitMenuWrite)) {
+  if (profile?.status !== 'active' || (!hasOwnerAccess && !hasExplicitMenuWrite)) {
+    throw Object.assign(new Error('Forbidden'), { status: 403 })
+  }
+
+  return user
+}
+
+export async function requireInventoryEditAccess(req) {
+  const { user, profile, access, hasOwnerAccess } = await loadMediaEditor(req)
+  const hasExplicitInventoryWrite = ALLOWED_ROLES.has(profile?.role) && access?.includes('inventory')
+
+  if (profile?.status !== 'active' || (!hasOwnerAccess && !hasExplicitInventoryWrite)) {
     throw Object.assign(new Error('Forbidden'), { status: 403 })
   }
 

@@ -43,6 +43,7 @@ const STAFF_PAGES = {
   DailyBazaar: () => import('./pages/DailyBazaar'),
   IngredientUsage: () => import('./pages/IngredientUsage'),
   BazaarIngredients: () => import('./pages/BazaarIngredients'),
+  Inventory: () => import('./pages/Inventory'),
   AccountingHistory: () => import('./pages/AccountingHistory'),
   AccountingAnalysis: () => import('./pages/AccountingAnalysis'),
   Salaries: () => import('./pages/Salaries'),
@@ -74,6 +75,7 @@ const Expenses = lazy(() => import('./pages/Expenses'))
 const DailyBazaar = lazy(() => import('./pages/DailyBazaar'))
 const IngredientUsage = lazy(() => import('./pages/IngredientUsage'))
 const BazaarIngredients = lazy(() => import('./pages/BazaarIngredients'))
+const Inventory = lazy(() => import('./pages/Inventory'))
 const AccountingHistory = lazy(() => import('./pages/AccountingHistory'))
 const AccountingAnalysis = lazy(() => import('./pages/AccountingAnalysis'))
 const Salaries = lazy(() => import('./pages/Salaries'))
@@ -494,6 +496,9 @@ function InternalAppRoutes({ adminHost = false }) {
         } />
         <Route path="/admin/ingredients" element={
           <LazyProtectedRoute page="ingredients"><BazaarIngredients /></LazyProtectedRoute>
+        } />
+        <Route path="/admin/inventory" element={
+          <LazyProtectedRoute page="inventory"><Inventory /></LazyProtectedRoute>
         } />
         <Route path="/admin/accounting/history" element={
           <LazyProtectedRoute page="expenses"><AccountingHistory /></LazyProtectedRoute>
