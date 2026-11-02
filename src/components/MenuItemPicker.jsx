@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, Search, SlidersHorizontal, UtensilsCrossed } from 'lucide-react'
+import { ChevronDown, Search, UtensilsCrossed } from 'lucide-react'
 import MenuMedia from './MenuMedia'
 import { getMenuItemOptionGroups } from './MenuProductCards'
 import { getCategoryName, getItemName } from '../lib/i18n'
@@ -25,11 +25,12 @@ export default function MenuItemPicker({
   onChange,
   lang = 'en',
   disabled = false,
+  autoOpen = false,
 }) {
   const l = pickerLabels(lang)
   const rootRef = useRef(null)
   const panelRef = useRef(null)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(autoOpen && !disabled)
   const [panelPosition, setPanelPosition] = useState(null)
   const [search, setSearch] = useState('')
   const [activeCategoryId, setActiveCategoryId] = useState('all')
@@ -97,6 +98,7 @@ export default function MenuItemPicker({
       setPanelPosition(null)
       return undefined
     }
+    if (autoOpen) rootRef.current?.scrollIntoView({ block: 'center' })
     function place() {
       const rect = rootRef.current?.getBoundingClientRect()
       if (!rect) return
@@ -120,7 +122,7 @@ export default function MenuItemPicker({
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [open])
+  }, [autoOpen, open])
 
   useEffect(() => {
     if (activeCategoryId !== 'all' && !visibleSections.some(section => section.id === activeCategoryId)) {
@@ -142,11 +144,21 @@ export default function MenuItemPicker({
         onClick={() => !disabled && setOpen(current => !current)}
         disabled={disabled}
         aria-expanded={open}
-        className="flex h-11 w-full min-w-0 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-left outline-none transition-colors hover:border-orange-300 focus:border-[#ff5a00] disabled:bg-gray-100 disabled:hover:border-gray-200"
+        aria-label={l.field}
+        className="ws-input flex min-w-0 items-center gap-2.5 !px-2 text-left hover:border-orange-300 disabled:bg-[#efece9]"
       >
-        <SlidersHorizontal size={14} className="shrink-0 text-gray-400" />
-        <span className="shrink-0 text-[10px] font-black uppercase tracking-wide text-gray-400">{l.field}</span>
-        <span className={`min-w-0 flex-1 truncate text-sm font-bold ${selectedItem ? 'text-gray-800' : 'text-gray-400'}`}>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-orange-50">
+          {selectedItem ? (
+            <MenuMedia
+              src={selectedItem.image_url}
+              alt=""
+              className="h-full w-full object-cover"
+              containerClassName="h-full w-full"
+              fallback={<UtensilsCrossed size={13} className="text-orange-300" />}
+            />
+          ) : <UtensilsCrossed size={13} className="text-orange-300" />}
+        </span>
+        <span className={`min-w-0 flex-1 truncate text-sm font-medium ${selectedItem ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
           {selectedItem
             ? `${getItemName(selectedItem, lang)}${selectedOptionLabels.length ? ` · ${selectedOptionLabels.join(', ')}` : ''}`
             : l.select}

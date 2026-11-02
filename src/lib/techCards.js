@@ -274,6 +274,11 @@ export function calculateTechCardSummary(card = {}, menuItems = []) {
   }
 }
 
+export function isTechCardComponentOverPrice(component, sellingPrice) {
+  const price = Number(sellingPrice) || 0
+  return price > 0 && !!component?.costAvailable && component.lineCost > price
+}
+
 export function buildTechCardPayload(card = {}) {
   const normalized = normalizeTechCard(card)
   const batchOutput = calculateTechCardBatchOutput(normalized.ingredients)

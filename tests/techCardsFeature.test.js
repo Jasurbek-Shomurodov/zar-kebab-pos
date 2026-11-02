@@ -187,12 +187,33 @@ test('Tech Card ingredients come from the active Bazaar catalog and lock the nor
   assert.doesNotMatch(migration, /bazaar_purchases|bazaar_purchase_items/)
 })
 
-test('included-item controls stay top-aligned when the real-cost line is visible', () => {
+test('included-item rows keep controls aligned by giving cost its own column', () => {
+  const page = source('src/pages/TechCards.jsx')
+  const rows = page.slice(page.indexOf('form.components.map('), page.indexOf('{l.includedTotal}'))
+
+  assert.match(page, /componentColumns = 'sm:grid-cols-\[minmax\(0,1fr\)_112px_140px_92px\]'/)
+  assert.match(rows, /ws-row grid min-w-0 grid-cols-2 gap-3 p-3 sm:items-center \$\{componentColumns\}/)
+  // A cost line under the picker would push the quantity and actions out of line again.
+  assert.doesNotMatch(rows.slice(0, rows.indexOf('<label className="min-w-0">')), /componentSummary\.(lineCost|unitCost)/)
+  assert.match(rows, /formatCurrency\(Math\.round\(componentSummary\.unitCost\)\)\} × \{formatDecimal\(componentSummary\.quantity, lang\)\}/)
+})
+
+test('included-item rows flag lines above the selling price and total the section', () => {
   const page = source('src/pages/TechCards.jsx')
 
-  assert.match(page, /sm:grid-cols-\[minmax\(220px,1fr\)_130px_40px\] sm:items-start/)
-  assert.match(page, /aria-label="Remove included menu item"[\s\S]{0,240}sm:mt-\[22px\]/)
-  assert.match(page, /l\.savedCost[\s\S]{0,260}componentSummary\.lineCost/)
+  assert.match(page, /isTechCardComponentOverPrice\(componentSummary, price\)/)
+  assert.match(page, /l\.includedOverPrice/)
+  assert.match(page, /summary\.componentCostPerPortion == null \? '—'/)
+  // New tab: leaving in place would drop unsaved edits on this card.
+  assert.match(page, /href=\{`\/admin\/tech-cards\/[\s\S]{0,160}target="_blank"/)
+  assert.match(page, /isTechCardEligibleMenuItem\(componentItem, state\.categories\)/)
+})
+
+test('mobile tech-card save button is hidden by a wrapper because ws-btn display beats lg:hidden', () => {
+  const page = source('src/pages/TechCards.jsx')
+
+  assert.match(page, /<div className="lg:hidden">\s*<button[\s\S]{0,160}onClick=\{saveCard\}/)
+  assert.doesNotMatch(page, /ws-btn[^"]*lg:hidden/)
 })
 
 test('menu product editor links directly to its tech card', () => {

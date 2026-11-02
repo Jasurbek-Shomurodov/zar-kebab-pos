@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   Copy,
+  ExternalLink,
   LayoutGrid,
   Loader2,
   Plus,
@@ -43,6 +44,7 @@ import {
   getBazaarIngredientTechCardUnit,
   getCompatibleTechCardUnits,
   formatTechCardUnitPrice,
+  isTechCardComponentOverPrice,
   isTechCardEligibleMenuItem,
   normalizeTechCard,
   techCardFingerprint,
@@ -65,6 +67,7 @@ function labels(lang) {
     ingredient: 'Masalliq', quantity: 'Miqdor', unit: 'Birlik', unitPrice: 'Birlik narxi', lineCost: 'Jami',
     includedItems: 'Kiritilgan menyu taomlari', includedItemsHint: 'Set sotilganda auditda hisoblanadigan tayyor taomlarni va ularning miqdorini tanlang.',
     addIncludedItem: 'Taom qo‘shish', selectIncludedItem: 'Taomni tanlang', noIncludedItems: 'Bu taomda kiritilgan menyu mahsulotlari yo‘q.',
+    includedItem: 'Menyu taomi', includedTotal: 'Kiritilgan taomlar jami', openIncludedCard: 'Taom kartasini ochish', includedOverPrice: 'Bu qator sotuv narxidan qimmat. Taom kartasini tekshiring.', noDirectIngredients: 'Alohida masalliqlar yo‘q: tannarx kiritilgan taomlardan hisoblanadi.',
     batch: 'Partiya va porsiya', batchOutput: 'Tayyor mahsulot chiqishi', batchOutputHint: 'Masalliqlar og‘irligidan avtomatik hisoblanadi; dona masalliqlar kirmaydi.', portions: 'Partiyadagi porsiyalar',
     method: 'Tayyorlash usuli', methodPlaceholder: 'Tayyorlash bosqichlarini ketma-ket yozing…', preparationMethodRequired: 'Tayyorlash usulini kiriting.',
     notes: 'Ichki izohlar', notesPlaceholder: 'Saqlash, harorat yoki oshpaz uchun boshqa eslatmalar…',
@@ -88,6 +91,7 @@ function labels(lang) {
     ingredient: 'Ингредиент', quantity: 'Количество', unit: 'Единица', unitPrice: 'Цена за единицу', lineCost: 'Сумма',
     includedItems: 'Включённые блюда меню', includedItemsHint: 'Выберите готовые блюда и их количество, которые нужно учитывать при продаже этого сета.',
     addIncludedItem: 'Добавить блюдо', selectIncludedItem: 'Выберите блюдо', noIncludedItems: 'В это блюдо не включены другие позиции меню.',
+    includedItem: 'Позиция меню', includedTotal: 'Итого по включённым блюдам', openIncludedCard: 'Открыть техкарту блюда', includedOverPrice: 'Эта строка дороже цены продажи. Проверьте техкарту блюда.', noDirectIngredients: 'Отдельных ингредиентов нет: себестоимость считается по включённым блюдам.',
     batch: 'Партия и порции', batchOutput: 'Выход готового продукта', batchOutputHint: 'Считается автоматически по весу ингредиентов; штучные не учитываются.', portions: 'Порций из партии',
     method: 'Технология приготовления', methodPlaceholder: 'Опишите этапы приготовления по порядку…', preparationMethodRequired: 'Добавьте технологию приготовления.',
     notes: 'Внутренние примечания', notesPlaceholder: 'Хранение, температура или другие заметки для кухни…',
@@ -111,6 +115,7 @@ function labels(lang) {
     ingredient: 'Ingredient', quantity: 'Quantity', unit: 'Unit', unitPrice: 'Unit price', lineCost: 'Total',
     includedItems: 'Included menu items', includedItemsHint: 'Choose the prepared meals and quantities counted when this set is sold.',
     addIncludedItem: 'Add menu item', selectIncludedItem: 'Select a meal', noIncludedItems: 'No other menu items are included in this meal.',
+    includedItem: 'Menu item', includedTotal: 'Included items total', openIncludedCard: 'Open this meal’s tech card', includedOverPrice: 'This line costs more than the selling price. Check this meal’s tech card.', noDirectIngredients: 'No direct ingredients: the cost comes from the included menu items.',
     batch: 'Batch and portions', batchOutput: 'Finished batch output', batchOutputHint: 'Calculated from ingredient weights; piece ingredients are not counted.', portions: 'Portions per batch',
     method: 'Preparation method', methodPlaceholder: 'Write the preparation steps in order…', preparationMethodRequired: 'Add the preparation method.',
     notes: 'Internal notes', notesPlaceholder: 'Storage, temperature, or other kitchen notes…',
@@ -450,7 +455,7 @@ export default function TechCards() {
   function addComponent() {
     setForm(current => ({
       ...current,
-      components: [...current.components, createBlankTechCardComponent()],
+      components: [...current.components, { ...createBlankTechCardComponent(), autoOpenPicker: true }],
     }))
     setSaveNotice('')
   }
@@ -568,6 +573,7 @@ export default function TechCards() {
 
     const saveDisabled = saving || !dirty || !!validationError
     const ingredientColumns = 'sm:grid-cols-[minmax(140px,1.5fr)_90px_90px_minmax(120px,1fr)_110px_40px]'
+    const componentColumns = 'sm:grid-cols-[minmax(0,1fr)_112px_140px_92px]'
     const fieldLabel = 'ws-caption mb-1 block sm:sr-only'
 
     return (
@@ -674,7 +680,9 @@ export default function TechCards() {
                     </p>
                   )}
 
-                  {form.ingredients.length === 0 ? (
+                  {form.ingredients.length === 0 && form.components.length > 0 ? (
+                    <p className="ws-caption">{l.noDirectIngredients}</p>
+                  ) : form.ingredients.length === 0 ? (
                     <button type="button" onClick={mayEdit ? addIngredient : undefined} className="ws-empty w-full rounded-[10px] border border-dashed border-[#e4e1de] !py-10 disabled:cursor-default" disabled={!mayEdit}>
                       <ClipboardList size={22} />
                       <span className="text-sm font-medium text-[#68655f]">{l.addIngredient}</span>
@@ -767,12 +775,22 @@ export default function TechCards() {
                     </button>
                   ) : (
                     <div className="overflow-hidden rounded-[10px] border border-[#e4e1de]">
+                      <div className={`ws-table-head hidden gap-3 px-3 py-2 sm:grid ${componentColumns}`} aria-hidden="true">
+                        <span>{l.includedItem}</span>
+                        <span>{l.quantity}</span>
+                        <span className="text-right">{l.lineCost}</span>
+                        <span />
+                      </div>
                       {form.components.map((component, index) => {
                         const componentSummary = summary.components[index]
+                        const componentItem = activeItems.find(item => item.id === component.component_menu_item_id)
+                        const overPrice = isTechCardComponentOverPrice(componentSummary, price)
+                        const canOpenCard = componentItem && isTechCardEligibleMenuItem(componentItem, state.categories)
+                        const componentVariantId = Object.values(component.selected_options || {})[0] || ''
                         return (
-                        <div key={component.id || index} className="ws-row grid min-w-0 gap-3 p-3 sm:grid-cols-[minmax(220px,1fr)_130px_40px] sm:items-start">
-                          <label className="min-w-0">
-                            <span className="ws-caption mb-1 block">{l.includedItems}</span>
+                        <div key={component.id || index} data-over-price={overPrice || undefined} className={`ws-row grid min-w-0 grid-cols-2 gap-3 p-3 sm:items-center ${componentColumns} ${overPrice ? '!bg-[#fff6e5] shadow-[inset_3px_0_0_#d97706]' : ''}`}>
+                          <div className="col-span-2 min-w-0 sm:col-span-1">
+                            <span className={fieldLabel}>{l.includedItem}</span>
                             <MenuItemPicker
                               items={activeItems.filter(item => item.id !== editorItem.id)}
                               categories={state.categories}
@@ -784,38 +802,61 @@ export default function TechCards() {
                               })}
                               lang={lang}
                               disabled={!mayEdit || saving}
+                              autoOpen={!!component.autoOpenPicker}
                             />
-                            {component.component_menu_item_id && (
-                              <span className="ws-caption mt-1.5 block tabular-nums">
-                                {l.savedCost}: {componentSummary?.costAvailable
-                                  ? `${formatCurrency(Math.round(componentSummary.unitCost))} × ${formatDecimal(componentSummary.quantity, lang)} = ${formatCurrency(Math.round(componentSummary.lineCost))}`
-                                  : '—'}
-                              </span>
-                            )}
-                          </label>
-                          <label>
-                            <span className="ws-caption mb-1 block">{l.quantity}</span>
+                          </div>
+                          <label className="min-w-0">
+                            <span className={fieldLabel}>{l.quantity}</span>
                             <div className="relative">
                               <input
                                 inputMode="decimal"
                                 value={component.quantity}
                                 onChange={event => updateComponent(index, { quantity: event.target.value })}
                                 disabled={!mayEdit || saving}
-                                className="ws-input !pr-14 tabular-nums disabled:bg-[#efece9]"
+                                aria-label={l.quantity}
+                                className="ws-input !pr-12 tabular-nums disabled:bg-[#efece9]"
                               />
                               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">
-                                {unitLabel(activeItems.find(item => item.id === component.component_menu_item_id)?.sale_unit || 'piece', lang)}
+                                {unitLabel(componentItem?.sale_unit || 'piece', lang)}
                               </span>
                             </div>
                           </label>
-                          {mayEdit && (
-                            <button type="button" onClick={() => removeComponent(index)} disabled={saving} aria-label="Remove included menu item" className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon !h-11 justify-self-end sm:mt-[22px]">
-                              <Trash2 size={15} />
-                            </button>
-                          )}
+                          <div className="min-w-0 sm:text-right">
+                            <span className={fieldLabel}>{l.lineCost}</span>
+                            <p className={`text-sm font-semibold tabular-nums ${overPrice ? 'text-[#b45309]' : 'text-[#22201d]'}`}>
+                              {componentSummary?.costAvailable ? formatCurrency(Math.round(componentSummary.lineCost)) : '—'}
+                            </p>
+                            {componentSummary?.costAvailable && (
+                              <p className="ws-caption truncate tabular-nums">{formatCurrency(Math.round(componentSummary.unitCost))} × {formatDecimal(componentSummary.quantity, lang)}</p>
+                            )}
+                          </div>
+                          <div className="col-span-2 flex items-center justify-end gap-1 sm:col-span-1">
+                            {canOpenCard && (
+                              <a
+                                href={`/admin/tech-cards/${encodeURIComponent(componentItem.id)}${componentVariantId ? `?variant=${encodeURIComponent(componentVariantId)}` : ''}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={l.openIncludedCard}
+                                aria-label={l.openIncludedCard}
+                                className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"
+                              >
+                                <ExternalLink size={15} />
+                              </a>
+                            )}
+                            {mayEdit && (
+                              <button type="button" onClick={() => removeComponent(index)} disabled={saving} aria-label="Remove included menu item" className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon">
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </div>
+                          {overPrice && <p role="status" className="col-span-full text-xs font-medium text-[#b45309]">{l.includedOverPrice}</p>}
                         </div>
                         )
                       })}
+                      <div className="flex items-center justify-between gap-3 bg-[#f6f5f3] px-3 py-2.5">
+                        <span className="text-[13px] text-[#68655f]">{l.includedTotal}</span>
+                        <span className="text-sm font-semibold tabular-nums text-[#22201d]">{summary.componentCostPerPortion == null ? '—' : formatCurrency(Math.round(summary.componentCostPerPortion))}</span>
+                      </div>
                     </div>
                   )}
                 </section>
@@ -864,25 +905,27 @@ export default function TechCards() {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-3 rounded-[10px] bg-[#f6f5f3] px-3 py-2.5">
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 rounded-[10px] bg-[#f6f5f3] px-3 py-2.5">
                     <span className="text-[13px] text-[#68655f]">{l.estimatedProfit}</span>
-                    <span className={`text-right text-sm font-semibold tabular-nums ${estimatedProfit == null ? 'text-[#22201d]' : estimatedProfit.profit >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>{estimatedProfit == null
+                    <span className={`ml-auto whitespace-nowrap text-right text-sm font-semibold tabular-nums ${estimatedProfit == null ? 'text-[#22201d]' : estimatedProfit.profit >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>{estimatedProfit == null
                       ? '—'
                       : formatCurrencyWithPercentage(estimatedProfit.profit, estimatedProfit.marginPct, lang)}</span>
                   </div>
                 </section>
 
                 {mayEdit && (
-                  <button
-                    type="button"
-                    onClick={saveCard}
-                    disabled={saveDisabled}
-                    title={validationError || ''}
-                    className="ws-btn ws-btn-primary w-full lg:hidden"
-                  >
-                    {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                    {saving ? l.saving : l.save}
-                  </button>
+                  <div className="lg:hidden">
+                    <button
+                      type="button"
+                      onClick={saveCard}
+                      disabled={saveDisabled}
+                      title={validationError || ''}
+                      className="ws-btn ws-btn-primary w-full"
+                    >
+                      {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                      {saving ? l.saving : l.save}
+                    </button>
+                  </div>
                 )}
                 {validationError && dirty && <p className="ws-notice ws-tone-caution text-[13px]">{validationError}</p>}
               </aside>

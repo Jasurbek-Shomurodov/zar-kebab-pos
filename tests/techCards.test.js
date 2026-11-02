@@ -10,6 +10,7 @@ import {
   formatTechCardUnitPrice,
   getBazaarIngredientTechCardPatch,
   getCompatibleTechCardUnits,
+  isTechCardComponentOverPrice,
   isTechCardEligibleMenuItem,
   techCardStorageKey,
   validateTechCard,
@@ -290,4 +291,12 @@ test('included menu items accept fractional recipe quantities for every sale uni
 
   const summary = calculateTechCardSummary(card, menuItems)
   assert.equal(summary.componentCostPerPortion, 3_650)
+})
+
+test('an included line is flagged only when its known cost exceeds the selling price', () => {
+  assert.equal(isTechCardComponentOverPrice({ costAvailable: true, lineCost: 350001 }, 350000), true)
+  assert.equal(isTechCardComponentOverPrice({ costAvailable: true, lineCost: 350000 }, 350000), false)
+  assert.equal(isTechCardComponentOverPrice({ costAvailable: false, lineCost: null }, 350000), false)
+  assert.equal(isTechCardComponentOverPrice({ costAvailable: true, lineCost: 100 }, 0), false)
+  assert.equal(isTechCardComponentOverPrice(undefined, 350000), false)
 })
