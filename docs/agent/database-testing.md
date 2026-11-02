@@ -2,12 +2,12 @@
 
 ## Entry points
 
-- Database/health: `src/lib/db.js`, `src/lib/dbHealth.js`
+- DB/health: `src/lib/db.js`, `src/lib/dbHealth.js`
 - Tools: `migrations/migrate.js`, `scripts/check-db-health.js`
 - SQL migrations: `migrations/`
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
-- `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270` TG `271`/`272` menu `257`–9 owner; `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270`/`274` TG `271`/`272` menu `257`–9 owner; `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 

@@ -122,6 +122,7 @@ async function checkRpc(name, invoke, expectedError, required = true) {
 }
 
 const checks = await Promise.all([
+  checkTable('tech_card_change_notifications', 'id, menu_item_id, variant_option_id, event_type, snapshot, status, chat_id, telegram_message_ids, error_message, attempted_at, sent_at, created_at'),
   checkTable('ingredient_investor_notifications', 'id, product_key, event_type, snapshot, status, chat_id, telegram_message_ids, error_message, attempted_at, sent_at, created_at'),
   checkTable('app_schema_migrations', 'filename, sha256, applied_at'),
   checkTable('profiles', 'id, role, status, full_name, email, feature_access'),

@@ -63,7 +63,7 @@
 - Batch output = read-only `calculateTechCardBatchOutput` (ingredient kg; ml as g; no pieces).
 - Save the card and complete ingredient list atomically with `save_menu_item_tech_card(payload jsonb)`. `183`/`236`: one sync per save for changed dishes and their includers; unchanged costs skipped, stops at convergence.
 - `tech_cards` permission: route/read; Manage Menu: writes.
-- Ingredient prices/recipes never enter public, Telegram, waiter, cashier, order, or receipt payloads.
+- Ingredient prices/recipes never enter public, waiter, cashier, order, or receipt payloads; Telegram only via `274` (owner-approved).
 - Saving a base recipe syncs the protected parent cost; a variant recipe syncs that option in protected `variant_costs`. Preserve order-item cost snapshots.
 - Variant recipes may be copied/scaled; keep destination/portion count explicit.
 - Components use `selected_options` for variants; empty means base.
@@ -74,6 +74,6 @@
 - Repeat parents only per distinct variant.
 - `186`: `/admin/ingredients` Team access, movement totals (see reporting); canonical snapshot keys.
 - Used ingredients cannot archive; dialog lists cards (`242`, ids only), links `?variant=&ingredient=`.
-- PDF: `TechCardPdfDownload.jsx`; `tests/techCardPdfData.test.js`.
+- PDF: `TechCardPdfDownload.jsx`.
 - `205`: Take Away/Delivery/Game Club schedule overrides (`always_visible_*`); seeds Game Club lunch. Test: `tests/gameClubCategorySchedule.test.js`.
 - Prune stale selections after staff load; translate errors on render (`tests/categoryScheduleAccess.test.js`).

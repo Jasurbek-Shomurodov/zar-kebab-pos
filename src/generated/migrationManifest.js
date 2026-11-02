@@ -1100,6 +1100,10 @@ export default {
   {
    "filename": "273_late_checkin_fines.sql",
    "sha256": "ef40883f7d74120c3af3d71811a05a5cc78d6aea0f4cc6639ecf9c5a6dca61db"
+  },
+  {
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "sha256": "c9519b16c12f192c2e432ef8db06385ed90ab446512e510407679580c70ae869"
   }
  ],
  "functions": [
@@ -1157,6 +1161,11 @@ export default {
    "name": "generate_daily_kpi_bonuses",
    "filename": "254_kpi_starts_at_checkin.sql",
    "md5": "b89d15a8ec2af90e3d60a9a075506d04"
+  },
+  {
+   "name": "save_menu_item_tech_card",
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "md5": "4eacc5749001d55f5fbe9d145d10c9ff"
   },
   {
    "name": "get_pending_daily_kpi_dates",
@@ -1350,13 +1359,13 @@ export default {
   },
   {
    "name": "invoke_telegram_queues",
-   "filename": "219_event_driven_telegram_queues.sql",
-   "md5": "b073974b3025897a8b0e68bc9e9abbf0"
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "md5": "a43c426566fe7ad6378e8c9f2ee090f0"
   },
   {
    "name": "kick_telegram_queue",
-   "filename": "219_event_driven_telegram_queues.sql",
-   "md5": "5271cd4e89ea3d009060d5d8ba9bcb2e"
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "md5": "9ff4a875d717b877f9b35b9aef8d545b"
   },
   {
    "name": "kick_game_club_team_queue",
@@ -1692,6 +1701,31 @@ export default {
    "name": "record_late_checkin_fine",
    "filename": "273_late_checkin_fines.sql",
    "md5": "8b2e5f0c2ac3be20a5af322b1f106a11"
+  },
+  {
+   "name": "tech_card_change_snapshot",
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "md5": "7873b05774c455511d27ae441db9aed0"
+  },
+  {
+   "name": "tech_card_change_signature",
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "md5": "ceca7273d38db5f0f509853dd1c43a6d"
+  },
+  {
+   "name": "queue_tech_card_change_notification",
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "md5": "8c8386918c8c2518dee8845726aef074"
+  },
+  {
+   "name": "invoke_tech_card_change_notifications",
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "md5": "fed8e4840715d81ae36a46330a79090d"
+  },
+  {
+   "name": "kick_tech_card_change_queue",
+   "filename": "274_tech_card_change_telegram_images.sql",
+   "md5": "c98ee67d1499809848feba508c096094"
   }
  ]
 }

@@ -47,6 +47,7 @@
 - Authenticated availability, creation, archival and variant visibility (`256`) queue immutable Russian Team events; edits/restores send nothing.
 - Unavailable snapshot: 04:05; 08:00 retries alone. `266`/`267`: 04:10 Google replies (paced, `deferred`), 04:20 menu sync + Investor PNG.
 - Public `/yandex-menu.yml` + `/yandex-photos` (JPEG): never empty.
+- `274`: real recipe saves → `tech_card_events` (БОЗОРлик, no fallback): before/after PNGs with prices (owner choice). Catalog sync silent.
 - Non-empty: one PNG (`menuAvailabilityImage.js`), at 04:05 in an album after the Team KPI PNG. Empty: text.
 - Exclude archived products/categories; preserve exact sent snapshots.
 
@@ -66,8 +67,8 @@
 
 - Group identical product/options/notes/price/unit rows as receipts, ignoring variant-note language.
 - `Официант`: saved `waiter_name` across rounds; fallback `Не указан`, never closer.
-- Sum `cashback_earned`; omit zero. After payment: `💳 [owner] · кешбэк + [amount] UZS`; escaped snapshot names or `Карта лояльности`. Test: `tests/telegramOrderStatus.test.js`.
-- `185` first. `api/telegram/_lib/orderStatusDelivery.js` tracks new messages; order deletion retracts combined messages, minute cron retries. Missing messages succeed; errors recorded; old untracked stay; Telegram deletes ≤48h. Test: `tests/orderStatusDelivery.test.js`.
+- Sum `cashback_earned`; omit zero. After payment: `💳 [owner] · кешбэк + [amount] UZS`; escaped snapshot names or `Карта лояльности`.
+- `185` first. `api/telegram/_lib/orderStatusDelivery.js` tracks new messages; order deletion retracts combined messages, minute cron retries. Missing messages succeed; errors recorded; old untracked stay; Telegram deletes ≤48h.
 - `197`/`198`: private paid-order estimates snapshot order/daily KPI. `203`/`213`: cuts use the opening cutoff on the Tashkent payment date; Salary events snapshot before/after times. `202` cancels queued and retracts sent deleted-order notices (incl. orphans); minute `employee-order-kpi` cron retries; uncertain sends held. Migrations before sender/UI; prior estimates frozen. Tests: `tests/timeBasedKpi.test.js`.
-- Morning watchdog retries unstarted/failed/skipped (incl. alerted) Investor albums after meal/KPI finalization. Recovery needs a saved message ID; never replay sent/pending. Save alert ID/chat/error after confirmed send. Tests: `tests/dailySalaryWatchdog.test.js`.
+- Morning watchdog retries unstarted/failed/skipped (incl. alerted) Investor albums after meal/KPI finalization. Recovery needs a saved message ID; never replay sent/pending. Save alert ID/chat/error after confirmed send.
 - `210`: see [salary orders](salary-orders.md).

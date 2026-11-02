@@ -1,5 +1,6 @@
 import { drainEmployeeOrderKpiNotifications } from './_lib/employeeOrderKpiNotifications.js'
 import { drainIngredientNotifications } from './_lib/ingredientNotifications.js'
+import { drainTechCardChangeNotifications } from './_lib/techCardChangeNotifications.js'
 import { retractDeletedOrderStatusMessages } from './_lib/orderStatusDelivery.js'
 import { drainGameClubNotifications } from './_lib/gameClubNotifications.js'
 import { renderEmployeePayrollImage } from './_lib/employeePayrollImages.js'
@@ -1208,6 +1209,9 @@ export default async function handler(req, res) {
     if (cronTask === 'ingredient-events') {
       return json(res, 200, await drainIngredientNotifications(supabase))
     }
+    if (cronTask === 'tech-card-events') {
+      return json(res, 200, await drainTechCardChangeNotifications(supabase))
+    }
     if (cronTask === 'game-club-orders') {
       return json(res, 200, await drainGameClubNotifications(supabase))
     }
@@ -1447,6 +1451,9 @@ export default async function handler(req, res) {
     }
     if (cronTask === 'ingredient-events') {
       return json(res, error?.status || 500, { error: error.message || 'Ingredient notifications failed' })
+    }
+    if (cronTask === 'tech-card-events') {
+      return json(res, error?.status || 500, { error: error.message || 'Tech card notifications failed' })
     }
     if (cronTask === 'game-club-orders') {
       return json(res, error?.status || 500, { error: error.message || 'Game Club notifications failed' })
