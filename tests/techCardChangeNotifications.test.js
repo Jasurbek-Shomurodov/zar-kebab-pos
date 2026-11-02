@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import {
   buildTechCardChangeImageSvgs,
+  describeTechCardChanges,
   diffTechCardComponents,
   diffTechCardIngredients,
 } from '../api/telegram/_lib/techCardChangeImage.js'
@@ -81,25 +82,47 @@ test('recipe diff marks added, removed, changed and untouched rows', () => {
   assert.deepEqual(diffTechCardComponents(before, after).map(row => row.status), ['added', 'removed'])
 })
 
-test('the image shows both versions with prices, costs, the difference and escaped names', () => {
+test('the image lists what changed, then old on the left and new on the right', () => {
   const [svg, ...rest] = buildTechCardChangeImageSvgs(snapshot())
   assert.equal(rest.length, 0)
-  assert.match(svg, /Изменена техкарта|ИЗМЕНЕНА ТЕХКАРТА/)
-  assert.match(svg, /0,5 кг/)
-  assert.match(svg, /0,6 кг/)
-  assert.match(svg, /× 120\s000 = 60\s000/)
-  assert.match(svg, /× 120\s000 = 72\s000/)
+  assert.match(svg, /ИЗМЕНЕНА ТЕХКАРТА/)
+  assert.ok(svg.indexOf('Что изменилось') < svg.indexOf('БЫЛО'))
+  assert.ok(svg.indexOf('БЫЛО') < svg.indexOf('СТАЛО'))
+  assert.match(svg, /Говядина: с 0,5 кг на 0,6 кг/)
+  assert.match(svg, /Добавлено: Чеснок, 20 г/)
+  assert.match(svg, /Удалено: Зира, 5 г/)
+  assert.match(svg, /Себестоимость порции: с 61\s200 на 73\s000 UZS/)
   assert.match(svg, /\+12\s000/)
-  assert.match(svg, /Добавлено/)
-  assert.match(svg, /Удалено/)
-  assert.match(svg, /73\s000 UZS/)
-  assert.match(svg, /было: 61\s200 \(\+11\s800\)/)
+  assert.match(svg, /0,5 кг × 120\s000/)
+  assert.match(svg, /0,6 кг × 120\s000/)
+  assert.match(svg, /не было/)
+  assert.match(svg, />удалено</)
   assert.match(svg, /Казан &lt;кебаб&gt;/)
   assert.match(svg, /&lt;Admin&gt;/)
   assert.doesNotMatch(svg, /<кебаб>|<Admin>/)
 })
 
-test('a new card has no before column values and an unavailable cost stays unset', () => {
+test('changes are summarized in plain sentences, including method, notes, portions and price', () => {
+  const texts = describeTechCardChanges(snapshot({
+    before: recipe({ notes: 'старое', ingredients: [{ name: 'Лук', quantity: 1, unit: 'kg', unit_price_uzs: 5000 }] }),
+    after: recipe({ portion_count: 2, preparation_steps: 'Новый способ.', notes: 'новое', ingredients: [{ name: 'Лук', quantity: 1, unit: 'kg', unit_price_uzs: 6000 }] }),
+  })).map(change => change.text)
+  assert.ok(texts.includes('Лук: цена с 5\u00a0000 на 6\u00a0000'), texts.join('|'))
+  assert.ok(texts.includes('Порций в партии: с 1 на 2'))
+  assert.ok(texts.includes('Изменена технология приготовления'))
+  assert.ok(texts.includes('Изменены примечания'))
+  assert.deepEqual(describeTechCardChanges(snapshot({ before: null })), [])
+})
+
+test('the image never uses symbols missing from the shipped Noto Sans', () => {
+  const svg = buildTechCardChangeImageSvgs(snapshot({ sale_price: 1000 })).join('')
+  assert.doesNotMatch(svg, /[\u2212\u2192]/)
+  assert.match(svg, /–72\s000 UZS/)
+  const source = readFileSync(new URL('../api/telegram/_lib/techCardChangeImage.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(source.replace(/^\/\/.*$/gm, ''), /[\u2212\u2192]/)
+})
+
+test('a new card uses one full-width column and an unavailable cost stays unset', () => {
   const [svg] = buildTechCardChangeImageSvgs(snapshot({
     event_type: 'created',
     before: null,
@@ -110,22 +133,23 @@ test('a new card has no before column values and an unavailable cost stays unset
   }))
   assert.match(svg, /НОВАЯ ТЕХКАРТА/)
   assert.match(svg, /нет себестоимости/)
+  assert.doesNotMatch(svg, /БЫЛО|СТАЛО|Что изменилось|без изменений/)
   const [decimalPrice] = buildTechCardChangeImageSvgs(snapshot({ after: recipe({ ingredients: [{ name: 'Соль', quantity: 100, unit: 'g', unit_price_uzs: 7.5 }] }) }))
-  assert.match(decimalPrice, /× 7,5 = 750/)
-  assert.doesNotMatch(svg, /было:|без изменений/)
+  assert.match(decimalPrice, /100 г × 7,5/)
 })
 
 test('a long card continues on more pages and keeps every step', () => {
-  const steps = Array.from({ length: 120 }, (_, index) => `Шаг ${index + 1}`).join('\n')
+  const steps = Array.from({ length: 200 }, (_, index) => `Шаг ${index + 1}`).join('\n')
   const pages = buildTechCardChangeImageSvgs(snapshot({
     before: recipe({ preparation_steps: steps }),
     after: recipe({ preparation_steps: steps }),
   }))
   assert.ok(pages.length > 1)
-  for (const svg of pages) assert.ok(Number(svg.match(/height="(\d+)"/)[1]) <= 1760)
+  for (const svg of pages) assert.ok(Number(svg.match(/height="(\d+)"/)[1]) <= 2100)
   const all = pages.join('')
-  for (let index = 1; index <= 120; index += 1) assert.ok(all.includes(`>Шаг ${index}<`), `step ${index}`)
+  for (let index = 1; index <= 200; index += 1) assert.ok(all.includes(`>Шаг ${index}<`), `step ${index}`)
   assert.match(pages[1], />2 \/ \d+</)
+  assert.match(pages[1], /БЫЛО/)
 })
 
 test('the caption is escaped and names the change', () => {

@@ -11,30 +11,33 @@ const CONTENT_WIDTH = WIDTH - (MARGIN + PADDING) * 2
 const RIGHT = LEFT + CONTENT_WIDTH
 const HEADER_HEIGHT = 196
 const CONTINUATION_HEADER_HEIGHT = 92
-const TILE_HEIGHT = 128
 // Telegram downscales tall photos, so long cards continue on another page instead.
-const MAX_PAGE_HEIGHT = 1760
-const ROW_PADDING = 18
-const ROW_LINE_HEIGHT = 30
+const MAX_PAGE_HEIGHT = 2100
+const COLUMN_GAP = 24
+const COLUMN_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2
+const CELL_PADDING = 14
+const TOTAL_WIDTH = 150
+const BAND_HEIGHT = 56
 const TEXT_LINE_HEIGHT = 36
-const NAME_WIDTH = 330
-const CELL_WIDTH = 290
-const COLUMNS = { name: LEFT + 16, before: LEFT + 16 + NAME_WIDTH, after: LEFT + 16 + NAME_WIDTH + CELL_WIDTH, diff: RIGHT - 16 }
 // Noto Sans averages ~0.56em per Cyrillic glyph; wrap on a slightly wider estimate.
 const charsFor = (width, fontSize) => Math.floor(width / (fontSize * 0.58))
+// The shipped Noto Sans has no U+2212 minus or U+2192 arrow; both render as empty boxes.
+const MINUS = '–'
 
-const ROW_STYLES = {
-  added: { background: '#e8f6ee', label: 'Добавлено', color: '#1d7a52' },
-  removed: { background: '#fdeaea', label: 'Удалено', color: '#c4262c' },
-  changed: { background: '#fff4dc', label: 'Изменено', color: '#b45309' },
-  same: { background: '', label: '', color: '#a08870' },
+const TONES = {
+  added: { background: '#e8f6ee', color: '#1d7a52' },
+  removed: { background: '#fdeaea', color: '#c4262c' },
+  changed: { background: '#fff4dc', color: '#b45309' },
+  neutral: { background: '#f6efe4', color: '#7a6a5a' },
 }
+const MISSING_BACKGROUND = '#f7f4ef'
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c])
 const money = value => new Intl.NumberFormat('ru-RU').format(Math.round(Number(value) || 0))
 const decimal = value => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 }).format(Number(value) || 0)
 const unit = value => techCardUnitLabel(value, 'ru')
-const signedMoney = value => `${value > 0 ? '+' : '−'}${money(Math.abs(value))}`
+const signedMoney = value => `${value > 0 ? '+' : MINUS}${money(Math.abs(value))}`
+const signedAmount = value => `${value < 0 ? MINUS : ''}${money(Math.abs(value))}`
 
 function wrapText(text, maxChars) {
   const lines = []
@@ -97,138 +100,234 @@ export function diffTechCardComponents(before, after) {
   return diffTechCardRows(before, after, componentKey, (a, b) => Number(a.quantity) !== Number(b.quantity))
 }
 
-function ingredientCell(row) {
-  if (!row) return ['—', '']
-  return [`${decimal(row.quantity)} ${unit(row.unit)}`, `× ${decimal(row.unit_price_uzs)} = ${money(ingredientCost(row))}`]
+function describeIngredient(row) {
+  return { name: row.name, detail: `${decimal(row.quantity)} ${unit(row.unit)} × ${decimal(row.unit_price_uzs)}`, total: ingredientCost(row) }
 }
 
-function componentCell(row) {
-  if (!row) return ['—', '']
+function describeComponent(row) {
   const cost = componentCost(row)
-  return [`${decimal(row.quantity)} ${unit(row.unit)}`, cost == null ? 'нет себестоимости' : `× ${money(row.unit_cost)} = ${money(cost)}`]
+  return {
+    name: [row.name, row.variant].filter(Boolean).join(' · '),
+    detail: cost == null ? `${decimal(row.quantity)} ${unit(row.unit)}, нет себестоимости` : `${decimal(row.quantity)} ${unit(row.unit)} × ${money(row.unit_cost)}`,
+    total: cost,
+  }
 }
 
-function rowDifference(row, costOf) {
-  const previous = row.before ? costOf(row.before) : 0
-  const current = row.after ? costOf(row.after) : 0
+function rowAmount(row, describe) {
+  const previous = row.before ? describe(row.before).total : 0
+  const current = row.after ? describe(row.after).total : 0
   return previous == null || current == null ? 0 : current - previous
 }
 
-function tableBlocks(title, rows, cellOf, costOf, nameOf) {
-  if (rows.length === 0) return []
-  const heading = {
-    height: 84,
-    keepWithNext: true,
-    draw: y => `<text x="${LEFT}" y="${y + 34}" font-size="28" font-weight="700" fill="#2a1d14">${escape(title)}</text>
-      <rect x="${LEFT}" y="${y + 50}" width="${CONTENT_WIDTH}" height="34" rx="8" fill="#f6efe4"/>
-      <g font-size="19" font-weight="600" fill="#7a6a5a">
-      <text x="${COLUMNS.name}" y="${y + 74}">Название</text>
-      <text x="${COLUMNS.before}" y="${y + 74}">Было</text>
-      <text x="${COLUMNS.after}" y="${y + 74}">Стало</text>
-      <text x="${COLUMNS.diff}" y="${y + 74}" text-anchor="end">Разница, UZS</text></g>`,
-  }
-  const body = rows.map(row => {
-    const nameLines = wrapText(nameOf(row.after || row.before), charsFor(NAME_WIDTH - 20, 23))
-    const height = Math.max(nameLines.length, 2) * ROW_LINE_HEIGHT + ROW_PADDING
-    const style = ROW_STYLES[row.status]
-    const difference = rowDifference(row, costOf)
-    const [beforeTop, beforeBottom] = cellOf(row.before)
-    const [afterTop, afterBottom] = cellOf(row.after)
-    const dim = row.status === 'same' ? '#7a6a5a' : '#2a1d14'
-    return {
-      height,
-      draw: y => `${style.background ? `<rect x="${LEFT}" y="${y + 2}" width="${CONTENT_WIDTH}" height="${height - 4}" rx="8" fill="${style.background}"/>` : ''}
-        ${nameLines.map((line, index) => `<text x="${COLUMNS.name}" y="${y + 33 + index * ROW_LINE_HEIGHT}" font-size="23" font-weight="600" fill="#2a1d14">${escape(line)}</text>`).join('')}
-        <text x="${COLUMNS.before}" y="${y + 33}" font-size="23" fill="${dim}">${escape(beforeTop)}</text>
-        <text x="${COLUMNS.before}" y="${y + 61}" font-size="18" fill="#7a6a5a">${escape(beforeBottom)}</text>
-        ${row.status === 'same'
-    ? `<text x="${COLUMNS.after}" y="${y + 33}" font-size="23" fill="${dim}">${escape(afterTop)}</text>`
-    : `<text x="${COLUMNS.after}" y="${y + 33}" font-size="23" font-weight="700" fill="${dim}">${escape(afterTop)}</text>`}
-        <text x="${COLUMNS.after}" y="${y + 61}" font-size="18" fill="#7a6a5a">${escape(afterBottom)}</text>
-        <text x="${COLUMNS.diff}" y="${y + 33}" text-anchor="end" font-size="23" font-weight="700" fill="${difference > 0 ? '#c4262c' : difference < 0 ? '#1d7a52' : '#a08870'}">${difference ? signedMoney(difference) : '—'}</text>
-        <text x="${COLUMNS.diff}" y="${y + 61}" text-anchor="end" font-size="17" font-weight="600" fill="${style.color}">${escape(style.label)}</text>
-        <rect x="${LEFT}" y="${y + height - 1}" width="${CONTENT_WIDTH}" height="1" fill="#eee2d2"/>`,
-    }
-  })
-  return [heading, ...body, { height: 20, draw: () => '' }]
+function quantityLabel(row) {
+  return `${decimal(row.quantity)} ${unit(row.unit)}`
 }
 
-function textBlocks(title, before, after, hasBefore) {
+function changeSentence(row) {
+  const parts = []
+  if (quantityLabel(row.before) !== quantityLabel(row.after)) parts.push(`с ${quantityLabel(row.before)} на ${quantityLabel(row.after)}`)
+  if (row.before.unit_price_uzs !== undefined && Number(row.before.unit_price_uzs) !== Number(row.after.unit_price_uzs)) {
+    parts.push(`цена с ${decimal(row.before.unit_price_uzs)} на ${decimal(row.after.unit_price_uzs)}`)
+  }
+  return parts.join(', ')
+}
+
+function recipeChanges(rows, describe) {
+  return rows.filter(row => row.status !== 'same').map(row => {
+    const name = describe(row.after || row.before).name
+    const amount = rowAmount(row, describe)
+    if (row.status === 'added') return { tone: 'added', text: `Добавлено: ${name}, ${quantityLabel(row.after)}`, amount }
+    if (row.status === 'removed') return { tone: 'removed', text: `Удалено: ${name}, ${quantityLabel(row.before)}`, amount }
+    return { tone: 'changed', text: `${name}: ${changeSentence(row)}`, amount }
+  })
+}
+
+// Plain sentences for the top of the image, costliest fact first.
+export function describeTechCardChanges(snapshot) {
+  const before = snapshot.before
+  const after = snapshot.after
+  if (!before) return []
+  const changes = []
+  const previousCost = before.portion_cost == null ? null : Number(before.portion_cost)
+  const cost = after.portion_cost == null ? null : Number(after.portion_cost)
+  if (previousCost !== cost) {
+    changes.push({
+      tone: cost != null && previousCost != null && cost < previousCost ? 'added' : 'removed',
+      text: `Себестоимость порции: с ${previousCost == null ? '—' : money(previousCost)} на ${cost == null ? '—' : `${money(cost)} UZS`}`,
+      amount: cost == null || previousCost == null ? 0 : cost - previousCost,
+      strong: true,
+    })
+  }
+  changes.push(
+    ...recipeChanges(diffTechCardIngredients(before.ingredients || [], after.ingredients || []), describeIngredient),
+    ...recipeChanges(diffTechCardComponents(before.components || [], after.components || []), describeComponent),
+  )
+  if (Number(before.portion_count) !== Number(after.portion_count)) {
+    changes.push({ tone: 'changed', text: `Порций в партии: с ${decimal(before.portion_count)} на ${decimal(after.portion_count)}`, amount: 0 })
+  }
+  if (String(before.preparation_steps ?? '').trim() !== String(after.preparation_steps ?? '').trim()) {
+    changes.push({ tone: 'changed', text: 'Изменена технология приготовления', amount: 0 })
+  }
+  if (String(before.notes ?? '').trim() !== String(after.notes ?? '').trim()) {
+    changes.push({ tone: 'changed', text: 'Изменены примечания', amount: 0 })
+  }
+  return changes
+}
+
+function columnsFor(hasBefore) {
+  return hasBefore
+    ? [{ side: 'before', x: LEFT, width: COLUMN_WIDTH }, { side: 'after', x: LEFT + COLUMN_WIDTH + COLUMN_GAP, width: COLUMN_WIDTH }]
+    : [{ side: 'after', x: LEFT, width: CONTENT_WIDTH }]
+}
+
+function sectionTitle(title, note = '') {
+  return {
+    height: 54,
+    keepWithNext: true,
+    draw: y => `<text x="${LEFT}" y="${y + 36}" font-size="27" font-weight="700" fill="#2a1d14">${escape(title)}</text>
+      ${note ? `<text x="${RIGHT}" y="${y + 36}" text-anchor="end" font-size="19" fill="#a08870">${escape(note)}</text>` : ''}`,
+  }
+}
+
+function columnBand(columns) {
+  if (columns.length < 2) return ''
+  return y => columns.map(column => `<rect x="${column.x}" y="${y}" width="${column.width}" height="${BAND_HEIGHT - 12}" rx="10" fill="${column.side === 'before' ? '#6b5d52' : '#1d7a52'}"/>
+    <text x="${column.x + column.width / 2}" y="${y + 30}" text-anchor="middle" font-size="22" font-weight="700" letter-spacing="3" fill="white">${column.side === 'before' ? 'БЫЛО' : 'СТАЛО'}</text>`).join('')
+}
+
+function changesBlocks(snapshot) {
+  const changes = describeTechCardChanges(snapshot)
+  if (changes.length === 0) return []
+  const rows = changes.map(change => {
+    const lines = wrapText(change.text, charsFor(CONTENT_WIDTH - 210, 23))
+    const height = lines.length * 32 + 16
+    const tone = TONES[change.tone]
+    const amountColor = change.amount > 0 ? '#c4262c' : '#1d7a52'
+    return {
+      height,
+      draw: y => `<rect x="${LEFT}" y="${y}" width="${CONTENT_WIDTH}" height="${height}" fill="#fbf7f0"/>
+        <circle cx="${LEFT + 20}" cy="${y + 26}" r="7" fill="${tone.color}"/>
+        ${lines.map((line, index) => (change.strong
+    ? `<text x="${LEFT + 40}" y="${y + 34 + index * 32}" font-size="23" font-weight="700" fill="#2a1d14">${escape(line)}</text>`
+    : `<text x="${LEFT + 40}" y="${y + 34 + index * 32}" font-size="23" fill="#2a1d14">${escape(line)}</text>`)).join('')}
+        ${change.amount ? `<text x="${RIGHT - 16}" y="${y + 34}" text-anchor="end" font-size="23" font-weight="700" fill="${amountColor}">${signedMoney(change.amount)}</text>` : ''}`,
+    }
+  })
+  return [sectionTitle('Что изменилось'), ...rows, { height: 24, draw: () => '' }]
+}
+
+function metricValues(version, salePrice) {
+  const cost = version?.portion_cost == null ? null : Number(version.portion_cost)
+  const profit = cost == null ? null : salePrice - cost
+  const output = Number(version?.batch_output_quantity) > 0 ? `${decimal(version.batch_output_quantity)} ${unit(version.batch_output_unit)}` : '—'
+  return [
+    ['Себестоимость порции', cost == null ? '—' : `${money(cost)} UZS`],
+    ['Цена продажи', `${money(salePrice)} UZS`],
+    ['Прибыль с порции', profit == null ? '—' : `${signedAmount(profit)} UZS${salePrice > 0 ? ` (${decimal(Math.round((profit / salePrice) * 1000) / 10)}%)` : ''}`],
+    ['Порций в партии', decimal(version?.portion_count)],
+    ['Выход партии', output],
+  ]
+}
+
+function metricsBlocks(snapshot, columns) {
+  const salePrice = Number(snapshot.sale_price) || 0
+  const before = metricValues(snapshot.before, salePrice)
+  const after = metricValues(snapshot.after, salePrice)
+  return [...after.map(([label, value], index) => {
+    const previous = before[index][1]
+    const changed = !!snapshot.before && previous !== value
+    const height = 46
+    return {
+      height,
+      draw: y => columns.map(column => {
+        const shown = column.side === 'before' ? previous : value
+        return `${changed ? `<rect x="${column.x}" y="${y + 2}" width="${column.width}" height="${height - 4}" rx="6" fill="${TONES.changed.background}"/>` : ''}
+          <text x="${column.x + CELL_PADDING}" y="${y + 30}" font-size="20" fill="#7a6a5a">${label}</text>
+          <text x="${column.x + column.width - CELL_PADDING}" y="${y + 30}" text-anchor="end" font-size="22" font-weight="700" fill="#2a1d14">${escape(shown)}</text>
+          <rect x="${column.x}" y="${y + height - 1}" width="${column.width}" height="1" fill="#eee2d2"/>`
+      }).join(''),
+    }
+  }), { height: 22, draw: () => '' }]
+}
+
+function recipeCell(column, value, status, y, height, nameLines) {
+  const right = column.x + column.width - CELL_PADDING
+  if (!value) {
+    return `<rect x="${column.x}" y="${y + 2}" width="${column.width}" height="${height - 4}" rx="8" fill="${MISSING_BACKGROUND}"/>
+      <text x="${column.x + column.width / 2}" y="${y + height / 2 + 7}" text-anchor="middle" font-size="20" fill="#a08870">${column.side === 'before' ? 'не было' : 'удалено'}</text>`
+  }
+  const background = status === 'same' ? '' : TONES[status].background
+  return `${background ? `<rect x="${column.x}" y="${y + 2}" width="${column.width}" height="${height - 4}" rx="8" fill="${background}"/>` : ''}
+    ${nameLines.map((line, index) => `<text x="${column.x + CELL_PADDING}" y="${y + 32 + index * 28}" font-size="22" font-weight="600" fill="#2a1d14">${escape(line)}</text>`).join('')}
+    <text x="${right}" y="${y + 32}" text-anchor="end" font-size="22" font-weight="700" fill="#2a1d14">${value.total == null ? '—' : money(value.total)}</text>
+    <text x="${column.x + CELL_PADDING}" y="${y + 32 + nameLines.length * 28}" font-size="19" fill="#7a6a5a">${escape(value.detail)}</text>
+    <rect x="${column.x}" y="${y + height - 1}" width="${column.width}" height="1" fill="#eee2d2"/>`
+}
+
+function recipeBlocks(title, rows, describe, columns) {
+  if (rows.length === 0) return []
+  const body = rows.map(row => {
+    const values = { before: row.before ? describe(row.before) : null, after: row.after ? describe(row.after) : null }
+    const wrapped = Object.fromEntries(columns.map(column => [
+      column.side,
+      values[column.side] ? wrapText(values[column.side].name, charsFor(column.width - CELL_PADDING * 2 - TOTAL_WIDTH, 22)) : [],
+    ]))
+    const lineCount = Math.max(...Object.values(wrapped).map(lines => lines.length), 1)
+    const height = lineCount * 28 + 46
+    return {
+      height,
+      draw: y => columns.map(column => recipeCell(column, values[column.side], row.status, y, height, wrapped[column.side])).join(''),
+    }
+  })
+  return [sectionTitle(title), ...body, { height: 22, draw: () => '' }]
+}
+
+function textBlocks(title, before, after, hasBefore, columns) {
   const previous = String(before ?? '').trim()
   const current = String(after ?? '').trim()
   if (!previous && !current) return []
-  const changed = hasBefore && previous !== current
-  const parts = changed
-    ? [['Было', previous || '—', '#c4262c'], ['Стало', current || '—', '#1d7a52']]
-    : [['', current, '']]
-  const blocks = [{
-    height: 52,
-    keepWithNext: true,
-    draw: y => `<text x="${LEFT}" y="${y + 36}" font-size="28" font-weight="700" fill="#2a1d14">${escape(title)}</text>
-      ${changed ? '' : hasBefore ? `<text x="${RIGHT}" y="${y + 36}" text-anchor="end" font-size="19" fill="#a08870">без изменений</text>` : ''}`,
-  }]
-  for (const [label, text, color] of parts) {
-    if (label) {
-      blocks.push({
-        height: 36,
-        keepWithNext: true,
-        draw: y => `<text x="${LEFT}" y="${y + 26}" font-size="21" font-weight="700" fill="${color}">${label}</text>`,
-      })
-    }
-    for (const line of wrapText(text, charsFor(CONTENT_WIDTH, 24))) {
-      blocks.push({
-        height: TEXT_LINE_HEIGHT,
-        draw: y => `<text x="${LEFT}" y="${y + 27}" font-size="24" fill="#2a1d14">${escape(line)}</text>`,
-      })
-    }
+  const lineBlock = (text, x) => ({
+    height: TEXT_LINE_HEIGHT,
+    draw: y => `<text x="${x}" y="${y + 27}" font-size="23" fill="#2a1d14">${escape(text)}</text>`,
+  })
+  if (!hasBefore || previous === current) {
+    return [
+      sectionTitle(title, hasBefore ? 'без изменений' : ''),
+      ...wrapText(current, charsFor(CONTENT_WIDTH, 23)).map(line => lineBlock(line, LEFT)),
+      { height: 18, draw: () => '' },
+    ]
   }
-  blocks.push({ height: 18, draw: () => '' })
-  return blocks
-}
-
-function tile(x, width, y, label, value, detail, detailColor = '#7a6a5a') {
-  return `<rect x="${x}" y="${y}" width="${width}" height="${TILE_HEIGHT - 16}" rx="14" fill="#f6efe4"/>
-    <text x="${x + 20}" y="${y + 32}" font-size="19" fill="#7a6a5a">${escape(label)}</text>
-    <text x="${x + 20}" y="${y + 68}" font-size="29" font-weight="700" fill="#2a1d14">${escape(value)}</text>
-    <text x="${x + 20}" y="${y + 96}" font-size="19" font-weight="600" fill="${detailColor}">${escape(detail)}</text>`
-}
-
-function summaryBlock(snapshot) {
-  const before = snapshot.before
-  const after = snapshot.after
-  const salePrice = Number(snapshot.sale_price) || 0
-  const cost = after.portion_cost == null ? null : Number(after.portion_cost)
-  const previousCost = before?.portion_cost == null ? null : Number(before.portion_cost)
-  const costChange = cost == null || previousCost == null ? 0 : cost - previousCost
-  const profit = cost == null ? null : salePrice - cost
-  const gap = 16
-  const tileWidth = (CONTENT_WIDTH - gap * 3) / 4
-  const portionsChanged = before && Number(before.portion_count) !== Number(after.portion_count)
-  const tiles = [
-    ['Себестоимость порции', cost == null ? '—' : `${money(cost)} UZS`,
-      before ? (previousCost == null ? 'было: —' : `было: ${money(previousCost)}${costChange ? ` (${signedMoney(costChange)})` : ''}`) : '',
-      costChange > 0 ? '#c4262c' : costChange < 0 ? '#1d7a52' : '#7a6a5a'],
-    ['Цена продажи', `${money(salePrice)} UZS`, '', '#7a6a5a'],
-    ['Прибыль с порции', profit == null ? '—' : `${profit < 0 ? '−' : ''}${money(Math.abs(profit))} UZS`,
-      profit == null || salePrice <= 0 ? '' : `маржа ${decimal(Math.round((profit / salePrice) * 1000) / 10)}%`,
-      profit != null && profit < 0 ? '#c4262c' : '#1d7a52'],
-    ['Порций в партии', decimal(after.portion_count), portionsChanged ? `было: ${decimal(before.portion_count)}` : '', portionsChanged ? '#b45309' : '#7a6a5a'],
-  ]
-  return {
-    height: TILE_HEIGHT + 8,
-    draw: y => tiles.map(([label, value, detail, color], index) => tile(LEFT + index * (tileWidth + gap), tileWidth, y, label, value, detail, color)).join(''),
-  }
+  const maxChars = charsFor(COLUMN_WIDTH - CELL_PADDING * 2, 21)
+  const left = wrapText(previous || '—', maxChars)
+  const right = wrapText(current || '—', maxChars)
+  const leftSet = new Set(left)
+  const rightSet = new Set(right)
+  const rows = Array.from({ length: Math.max(left.length, right.length) }, (_, index) => ({
+    height: 34,
+    draw: y => columns.map(column => {
+      const line = (column.side === 'before' ? left : right)[index] ?? ''
+      const differs = line && !(column.side === 'before' ? rightSet : leftSet).has(line)
+      const tone = column.side === 'before' ? TONES.removed : TONES.added
+      return `${differs ? `<rect x="${column.x}" y="${y}" width="${column.width}" height="34" fill="${tone.background}"/>` : ''}
+        <text x="${column.x + CELL_PADDING}" y="${y + 25}" font-size="21" fill="#2a1d14">${escape(line)}</text>`
+    }).join(''),
+  }))
+  return [sectionTitle(title), ...rows, { height: 18, draw: () => '' }]
 }
 
 export function buildTechCardChangeBlocks(snapshot) {
   const before = snapshot.before
   const after = snapshot.after
+  const columns = columnsFor(!!before)
+  const band = columnBand(columns)
   return [
-    summaryBlock(snapshot),
-    ...tableBlocks('Ингредиенты', diffTechCardIngredients(before?.ingredients || [], after.ingredients || []), ingredientCell, ingredientCost, row => row.name),
-    ...tableBlocks('Включённые блюда', diffTechCardComponents(before?.components || [], after.components || []), componentCell, componentCost, row => [row.name, row.variant].filter(Boolean).join(' · ')),
-    ...textBlocks('Технология приготовления', before?.preparation_steps, after.preparation_steps, !!before),
-    ...textBlocks('Примечания', before?.notes, after.notes, !!before),
+    ...changesBlocks(snapshot),
+    ...(band ? [{ height: BAND_HEIGHT, keepWithNext: true, draw: band }] : []),
+    ...metricsBlocks(snapshot, columns),
+    ...recipeBlocks('Ингредиенты', diffTechCardIngredients(before?.ingredients || [], after.ingredients || []), describeIngredient, columns),
+    ...recipeBlocks('Включённые блюда', diffTechCardComponents(before?.components || [], after.components || []), describeComponent, columns),
+    ...textBlocks('Технология приготовления', before?.preparation_steps, after.preparation_steps, !!before, columns),
+    ...textBlocks('Примечания', before?.notes, after.notes, !!before, columns),
   ]
 }
 
@@ -268,11 +367,15 @@ function headerSvg(snapshot, height, pageNumber, pageCount) {
 
 export function buildTechCardChangeImageSvgs(snapshot) {
   if (!snapshot?.after) throw new Error('Invalid tech card notification snapshot')
+  const band = columnBand(columnsFor(!!snapshot.before))
+  const bandHeight = band ? BAND_HEIGHT : 0
   const roomOnPage = header => MAX_PAGE_HEIGHT - MARGIN * 2 - header - 48
-  const pages = paginateTechCardBlocks(buildTechCardChangeBlocks(snapshot), roomOnPage(HEADER_HEIGHT), roomOnPage(CONTINUATION_HEADER_HEIGHT))
+  const pages = paginateTechCardBlocks(buildTechCardChangeBlocks(snapshot), roomOnPage(HEADER_HEIGHT), roomOnPage(CONTINUATION_HEADER_HEIGHT) - bandHeight)
   return pages.map((blocks, index) => {
     const header = index === 0 ? HEADER_HEIGHT : CONTINUATION_HEADER_HEIGHT
     let y = MARGIN + header + 28
+    const repeatedBand = index > 0 && band ? band(y) : ''
+    if (repeatedBand) y += bandHeight
     const body = blocks.map(block => {
       const part = block.draw(y)
       y += block.height
@@ -284,6 +387,7 @@ export function buildTechCardChangeImageSvgs(snapshot) {
   <g font-family="Noto Sans">
   <rect x="${MARGIN}" y="${MARGIN}" width="${WIDTH - MARGIN * 2}" height="${height - MARGIN * 2}" rx="24" fill="white"/>
   ${headerSvg(snapshot, header, index + 1, pages.length)}
+  ${repeatedBand}
   ${body}
   </g></svg>`
   })
