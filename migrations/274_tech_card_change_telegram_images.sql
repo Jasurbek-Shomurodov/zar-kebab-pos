@@ -397,6 +397,6 @@ create trigger kick_tech_card_change_queue after insert on public.tech_card_chan
   referencing new table as new_rows for each statement
   execute function public.kick_tech_card_change_queue();
 
-commit;
-
 notify pgrst, 'reload schema';
+
+commit;

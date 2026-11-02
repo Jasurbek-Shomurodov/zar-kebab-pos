@@ -1103,7 +1103,7 @@ export default {
   },
   {
    "filename": "274_tech_card_change_telegram_images.sql",
-   "sha256": "c9519b16c12f192c2e432ef8db06385ed90ab446512e510407679580c70ae869"
+   "sha256": "62891f2a8bcc9e9d9c3b2ae727eefe672f1310dc3df074ce4116eb2eeb277e98"
   }
  ],
  "functions": [
