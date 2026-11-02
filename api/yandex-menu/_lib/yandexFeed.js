@@ -82,10 +82,18 @@ export function buildYandexMenuYml(categories, items, options = {}) {
       }
     }
   }
+  // The date tells Yandex the feed is a new version, so it changes with every build.
+  const date = (options.now || new Date()).toISOString().replace(/\.\d+Z$/, '+00:00')
   const yml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    '<yml_catalog>',
+    `<yml_catalog date="${date}">`,
     '  <shop>',
+    `    <name>${VENDOR}</name>`,
+    `    <company>${VENDOR}</company>`,
+    `    <url>${SITE_URL}</url>`,
+    '    <currencies>',
+    '      <currency id="UZS" rate="1"/>',
+    '    </currencies>',
     '    <categories>',
     ...categoryLines,
     '    </categories>',

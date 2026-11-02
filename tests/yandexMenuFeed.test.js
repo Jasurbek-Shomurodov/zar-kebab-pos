@@ -52,6 +52,11 @@ test('Yandex feed names variants, hides hidden ones, and skips WebP photos and z
   assert.doesNotMatch(yml, /Вода/)
 })
 
+test('Yandex feed opens with the dated YML catalog and shop header', () => {
+  const { yml } = buildYandexMenuYml(categories, items, { ...options, now: new Date('2026-11-02T08:48:45.123Z') })
+  assert.match(yml, /<yml_catalog date="2026-11-02T08:48:45\+00:00">\s*<shop>\s*<name>Zar Kebab<\/name>\s*<company>Zar Kebab<\/company>\s*<url>https:\/\/www\.zarkebab\.uz<\/url>\s*<currencies>\s*<currency id="UZS" rate="1"\/>\s*<\/currencies>\s*<categories>/)
+})
+
 function fakeSupabase({ categoryRows = categories, itemRows = items, error = null } = {}) {
   const query = rows => {
     const chain = {
@@ -78,7 +83,7 @@ test('Yandex feed endpoint serves cached XML', async () => {
   assert.equal(res.statusCode, 200)
   assert.match(res.headers['content-type'], /application\/xml/)
   assert.match(res.headers['cache-control'], /s-maxage=900/)
-  assert.match(res.body, /<yml_catalog>/)
+  assert.match(res.body, /<yml_catalog date="/)
 })
 
 test('Yandex feed endpoint never serves an empty feed that would wipe the Yandex price list', async () => {
