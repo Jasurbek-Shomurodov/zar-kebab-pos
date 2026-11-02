@@ -56,7 +56,7 @@ test('manual Investor report task sends the financial and unclosed-order photo a
   assert.match(dailySalary, /kind: 'openOrders'/)
   assert.equal(
     vercelConfig.functions?.['api/telegram/daily-salary.js']?.includeFiles,
-    '{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}'
+    '{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/NotoSans-{Regular,Italic,SemiBold,Bold,ExtraBold}.ttf}'
   )
 })
 

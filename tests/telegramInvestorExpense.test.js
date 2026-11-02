@@ -150,7 +150,7 @@ test('Bazaar expense PNG renderer is bundled with its fonts in the notification 
   const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
   assert.equal(
     vercelConfig.functions?.['api/telegram/employee-notification.js']?.includeFiles,
-    '{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/*.ttf}'
+    '{node_modules/@img/sharp-libvips-linux-x64/**,node_modules/notosans-fontface/fonts/NotoSans-{Regular,Italic,SemiBold,Bold,ExtraBold}.ttf}'
   )
 })
 
