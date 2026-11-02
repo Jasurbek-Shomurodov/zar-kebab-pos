@@ -66,6 +66,15 @@ test('language changes cannot restart ingredient data loaders', () => {
   assert.match(read('AGENTS.md'), /Language changes update presentation only/)
 })
 
+test('movement resolves keyless snapshot names once per distinct name, not per sold element', () => {
+  const sql = read('migrations/275_ingredient_movement_distinct_key_lookup.sql')
+  assert.match(sql, /public\.ingredient_catalog_key\(names\.name\)[\s\S]*from \(select distinct name from sold where product_key is null\) names/)
+  assert.equal(sql.match(/ingredient_catalog_key\(/g).length, 1)
+  assert.match(sql, /from movements m join public\.bazaar_product_catalog c\s+on c\.product_key = m\.product_key and c\.is_catalog_managed is true/)
+  assert.match(sql, /current_staff_can_access\('ingredients'\) is not true/)
+  assert.match(sql, /revoke all on function public\.get_ingredient_movement\(date, date\) from public, anon/)
+})
+
 test('movement is restricted to explicitly added ingredients at the database boundary', () => {
   const sql = read('migrations/188_managed_ingredient_movement.sql')
   assert.match(sql, /from movements m join public\.bazaar_product_catalog c\s+on c\.product_key = m\.product_key and c\.is_catalog_managed is true/)

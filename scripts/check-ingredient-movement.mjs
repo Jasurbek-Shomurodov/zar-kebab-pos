@@ -72,6 +72,17 @@ try {
   assert.equal(flour.paid, 25000)
   assert.equal(result.rows.find(row => row.unit === 'bag').used, 0)
   assert.equal(result.rows.find(row => row.identity === 'water').used, 0.15)
+  await db.exec(`
+    insert into bazaar_product_catalog values ('salt', 'Salt', true, 'groceries');
+    update order_item_tech_card_ingredient_snapshots
+    set ingredients = ingredients || '[{"name":"Salt", "unit":"kg", "quantity_per_portion":1, "snapshot_status":"captured"}, {"name":"Salt", "unit":"kg", "quantity_per_portion":1, "snapshot_status":"captured"}]'::jsonb;
+  `)
+  const beforeDistinctLookup = await report()
+  await db.exec(read('275_ingredient_movement_distinct_key_lookup.sql'))
+  await db.exec(read('275_ingredient_movement_distinct_key_lookup.sql'))
+  result = await report()
+  assert.deepEqual(result, beforeDistinctLookup)
+  assert.equal(result.rows.find(row => row.identity === 'salt').used, 6) // Keyless snapshots still resolve by name.
   await db.exec("update bazaar_product_catalog set product_name = 'Premium flour' where product_key = 'flour'; update menu_item_tech_card_ingredients set quantity = 9999;")
   result = await report()
   assert.equal(result.rows.find(row => row.unit === 'kg').used, 0.6)

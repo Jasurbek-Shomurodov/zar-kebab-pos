@@ -71,7 +71,7 @@
 - `180` SQL: `scripts/check-game-club-migration.mjs`.
 - `184` requires deletion reasons and snapshots them for Investor alerts. Apply before UI.
 - `185`: independent status-message tracking and minute cleanup retries. Apply before the Telegram sender. Tests: `tests/orderStatusDelivery.test.js`.
-- `186`–`188`: Ingredients access, writes, snapshot keys, and movement totals. Tests: `tests/ingredientsFeature.test.js`; SQL: `scripts/check-ingredient-movement.mjs`.
+- `186`–`188`/`275`: Ingredients access, writes, snapshot keys, movement. Tests: `tests/ingredientsFeature.test.js`; SQL: `scripts/check-ingredient-movement.mjs`.
 - `189`: ingredient Investor queue and minute dispatch. Tests: `tests/ingredientNotifications.test.js`; SQL: `scripts/check-ingredient-notifications.mjs`. Deploy the sender before applying.
 - `190`–`193`: ten-day income and monthly Busy Hours RPCs; apply before UI.
 - `195`/`196`: own/all dine-in KPI from `2026-09-16`; apply before UI. History preserved. SQL: `tests/employeeOpenedOrderKpi.test.js`.

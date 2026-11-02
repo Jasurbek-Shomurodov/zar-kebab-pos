@@ -47,7 +47,7 @@
 
 - Game Club (`game_club`) has a separate Dashboard/Reports revenue bucket. Immutable paid totals remain in Accounting, category, payment and range totals. Never reclassify historical take-away/delivery. Tests: `tests/gameClubOrders.test.js`.
 
-- Ingredients movement (`186`): `get_ingredient_movement(date,date)` returns purchases, theoretical paid-order recipe usage, purchase amounts, and bought-minus-used per ingredient/unit for at most 366 Tashkent dates. Missing/incomplete snapshots are counted; migration `188` excludes unmatched and unmanaged ingredients from rows. Excludes opening stock, waste, adjustments; not an on-hand balance. Compatible g/kg, ml/l, pcs/piece normalize; packages stay separate. Raw snapshots remain service-only.
+- Ingredients movement (`186`): `get_ingredient_movement(date,date)` returns purchases, theoretical paid-order recipe usage, purchase amounts, and bought-minus-used per ingredient/unit for at most 366 Tashkent dates. Missing/incomplete snapshots are counted; migration `188` excludes unmatched and unmanaged ingredients from rows. Excludes opening stock, waste, adjustments; not an on-hand balance. Compatible g/kg, ml/l, pcs/piece normalize; packages stay separate. Raw snapshots remain service-only. `275`: one lookup per name.
 
 - Migrations `187`–`188` add categories and restrict movement to explicitly added (`is_catalog_managed`) ingredients, including archived ones with history. Filters and sorting run locally without refetching.
 

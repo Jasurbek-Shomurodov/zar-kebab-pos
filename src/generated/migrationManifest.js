@@ -1104,6 +1104,10 @@ export default {
   {
    "filename": "274_tech_card_change_telegram_images.sql",
    "sha256": "62891f2a8bcc9e9d9c3b2ae727eefe672f1310dc3df074ce4116eb2eeb277e98"
+  },
+  {
+   "filename": "275_ingredient_movement_distinct_key_lookup.sql",
+   "sha256": "d7330bf51d2e2ff33b2eeb3e710e7f212e2c29df6c3f20e27e99cd5e9e6a2401"
   }
  ],
  "functions": [
@@ -1249,8 +1253,8 @@ export default {
   },
   {
    "name": "get_ingredient_movement",
-   "filename": "188_managed_ingredient_movement.sql",
-   "md5": "9c852d797d64fc32ae7fdd146bfad364"
+   "filename": "275_ingredient_movement_distinct_key_lookup.sql",
+   "md5": "bf64ff2a8febea1c591e581806401605"
   },
   {
    "name": "invoke_ingredient_investor_notifications",
