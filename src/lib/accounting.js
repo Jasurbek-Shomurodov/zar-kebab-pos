@@ -259,7 +259,9 @@ export function filterAccountingHistoryRows(rows = [], { type = 'all', category 
   return (rows || []).filter(row => {
     const entryType = normalizeExpenseEntryType(row?.entry_type)
     if (type !== 'all' && entryType !== type) return false
-    if (category !== 'all' && row?.category !== category) return false
+    if (category === 'salaries') {
+      if (!(row?.is_salary_payment || row?.is_salary_bonus || String(row?.category || '').startsWith('salary_'))) return false
+    } else if (category !== 'all' && row?.category !== category) return false
     if (!needle) return true
     return [
       row?.vendor,

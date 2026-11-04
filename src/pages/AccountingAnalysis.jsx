@@ -12,6 +12,9 @@ import {
   Hourglass,
   Loader2,
   ReceiptText,
+  ShoppingCart,
+  Receipt,
+  Package,
   PiggyBank,
   RefreshCw,
   ShoppingBasket,
@@ -65,6 +68,7 @@ import {
   buildMonthlySpending,
   buildPaybackSummary,
   buildPeriodTotals,
+  buildSalesIndicators,
   buildTrendBuckets,
   composeSalaryProfiles,
   getAccountingAnalysisSummary,
@@ -72,7 +76,12 @@ import {
   getPreviousAccountingPeriod,
   getTopExpenseCategories,
   getTrendIntervals,
+  groupSalaryCategories,
+  SALARY_GROUP_CATEGORY,
 } from '../lib/accountingAnalysis'
+import { BANK_FEE_CATEGORY, buildPaymentFeeEntries, isMissingPaymentFeesRpc, loadPaymentFees } from '../lib/paymentFees'
+import { isMissingCostAnomaliesRpc, loadCostAnomalies } from '../lib/costAnomalies'
+import { CostAnomaliesNotice, PaymentFeeRatesPanel } from '../components/AnalysisChecks'
 import { expenseCategoryLabel, expenseDescriptionLabel, expensePaymentMethodLabel, todayExpenseDate } from '../lib/expenses'
 import { formatCurrency, formatCurrencyWithPercentage } from '../lib/formatCurrency'
 import { formatLongDate, formatMonthYear } from '../lib/dateFormat'
@@ -92,8 +101,9 @@ const L = {
     incomeHelp: 'Tanlangan davrdagi savdo natijalari va tashqi tushumlar.',
     cafeIncome: 'Kafe daromadi',
     loyaltyIncome: 'Loyallik daromadi',
-    netProfit: 'Sof foyda',
+    netProfit: 'Yalpi foyda',
     netProfitSub: 'Kafe daromadi minus sotilgan mahsulot tannarxi',
+    ordersCount: 'Buyurtmalar', ordersCountSub: 'Kuniga {n} ta buyurtma', avgCheckSub: 'Kafe daromadi ÷ buyurtmalar', costOfSoldSub: 'Kafe daromadining {pct}', bankFees: 'Bank komissiyasi (taxminiy)',
     avgDailyCafeIncome: "Kafe o'rtacha kunlik daromadi",
     periodCafeIncome: 'Tanlangan davr kafe daromadi',
     investorSupport: 'Investor yordami',
@@ -175,8 +185,9 @@ const L = {
     incomeHelp: 'Результаты продаж и внешние поступления за выбранный период.',
     cafeIncome: 'Доход кафе',
     loyaltyIncome: 'Доход по лояльности',
-    netProfit: 'Чистая прибыль',
+    netProfit: 'Валовая прибыль',
     netProfitSub: 'Доход кафе минус себестоимость проданных товаров',
+    ordersCount: 'Заказы', ordersCountSub: '{n} заказов в день', avgCheckSub: 'Доход кафе ÷ заказы', costOfSoldSub: '{pct} дохода кафе', bankFees: 'Комиссия банка (расчётная)',
     avgDailyCafeIncome: 'Среднедневной доход кафе',
     periodCafeIncome: 'Доход кафе за выбранный период',
     investorSupport: 'Поддержка инвестора',
@@ -258,8 +269,9 @@ const L = {
     incomeHelp: 'Sales performance and external income for the selected period.',
     cafeIncome: 'Cafe income',
     loyaltyIncome: 'Loyalty income',
-    netProfit: 'Net Profit',
+    netProfit: 'Gross profit',
     netProfitSub: 'Cafe income minus cost of sold items',
+    ordersCount: 'Orders', ordersCountSub: '{n} orders a day', avgCheckSub: 'Cafe income ÷ orders', costOfSoldSub: '{pct} of cafe income', bankFees: 'Bank fees (estimated)',
     avgDailyCafeIncome: 'Avg daily cafe income',
     periodCafeIncome: 'Selected period cafe income',
     investorSupport: 'Investor support',
@@ -771,18 +783,60 @@ export default function AccountingAnalysis() {
   }, [dateFrom, trendTo, reloadKey])
   const dailyIncomeByDate = dailyIncome.key === `${dateFrom}|${trendTo}|${reloadKey}` ? dailyIncome.byDate : null
 
+  // Bank fee estimates for both compared periods and the sold-item cost check
+  // (migration 278), Monthly tab only. Without the migration both stay hidden
+  // and the analysis keeps its earlier totals.
+  const [feeVersion, setFeeVersion] = useState(0)
+  const checksKey = `${dateFrom}|${dateTo}|${reloadKey}|${feeVersion}`
+  const [fees, setFees] = useState({ key: '', status: 'idle', current: null, previous: null })
+  const [costChecks, setCostChecks] = useState({ key: '', status: 'idle', data: null })
+  useEffect(() => {
+    if (overall) return undefined
+    let active = true
+    const key = checksKey
+    setFees(current => (current.key === key ? current : { key, status: 'loading', current: null, previous: null }))
+    Promise.all([
+      loadPaymentFees(dateFrom, dateTo),
+      loadPaymentFees(previousPeriod.dateFrom, previousPeriod.dateTo),
+    ])
+      .then(([current, previous]) => { if (active) setFees({ key, status: 'ready', current, previous }) })
+      .catch(error => { if (active) setFees({ key, status: isMissingPaymentFeesRpc(error) ? 'missing' : 'error', current: null, previous: null }) })
+    return () => { active = false }
+  }, [overall, checksKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const costKey = `${dateFrom}|${dateTo}|${reloadKey}`
+  useEffect(() => {
+    if (overall) return undefined
+    let active = true
+    loadCostAnomalies(dateFrom, dateTo)
+      .then(data => { if (active) setCostChecks({ key: costKey, status: 'ready', data }) })
+      .catch(error => { if (active) setCostChecks({ key: costKey, status: isMissingCostAnomaliesRpc(error) ? 'missing' : 'error', data: null }) })
+    return () => { active = false }
+  }, [overall, costKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const feesForPeriod = fees.key === checksKey ? fees : { status: 'loading', current: null, previous: null }
+  const feesSettled = feesForPeriod.status !== 'loading' && feesForPeriod.status !== 'idle'
+  const costAnomalies = costChecks.key === costKey && costChecks.status === 'ready' ? costChecks.data : null
+
   const analysis = useMemo(() => {
     if (!data) return null
-    const currentEntries = buildAccountingPeriodEntries({ ...data.current, salaryProfiles: data.salaryProfiles }, dateFrom, dateTo)
-    const previousEntries = buildAccountingPeriodEntries({ ...data.previous, salaryProfiles: data.salaryProfiles }, previousPeriod.dateFrom, previousPeriod.dateTo)
+    const currentEntries = [
+      ...buildAccountingPeriodEntries({ ...data.current, salaryProfiles: data.salaryProfiles }, dateFrom, dateTo),
+      ...buildPaymentFeeEntries(feesForPeriod.current),
+    ]
+    const previousEntries = [
+      ...buildAccountingPeriodEntries({ ...data.previous, salaryProfiles: data.salaryProfiles }, previousPeriod.dateFrom, previousPeriod.dateTo),
+      ...buildPaymentFeeEntries(feesForPeriod.previous),
+    ]
     const summary = getAccountingAnalysisSummary(data.current.paidOrderSummary, currentEntries, dateFrom, dateTo)
     const previousSummary = getAccountingAnalysisSummary(data.previous.paidOrderSummary, previousEntries, previousPeriod.dateFrom, previousPeriod.dateTo)
     const dayCount = summary.cafeIncomeSummary.dayCount
     const indicators = buildAccountingIndicators(summary, { dayCount, allTimeBalance: data.allTimeBalance })
     const previousIndicators = buildAccountingIndicators(previousSummary, { dayCount: previousSummary.cafeIncomeSummary.dayCount })
-    const categories = getTopExpenseCategories(summary.expenseSummary.byCategory)
+    // Salary categories show as one slice; the P&L keeps every category.
+    const categories = getTopExpenseCategories(groupSalaryCategories(summary.expenseSummary.byCategory))
     return {
       summary,
+      sales: buildSalesIndicators(data.current.paidOrderSummary, dateFrom, dateTo),
+      previousSales: buildSalesIndicators(data.previous.paidOrderSummary, previousPeriod.dateFrom, previousPeriod.dateTo),
       entries: currentEntries,
       pnl: buildAccountingProfitAndLoss({
         cafeIncome: summary.cafeIncome,
@@ -802,9 +856,9 @@ export default function AccountingAnalysis() {
       }),
       daily: buildDailySpending(currentEntries, dateFrom, summary.cafeIncomeSummary.effectiveTo < dateTo ? summary.cafeIncomeSummary.effectiveTo : dateTo),
       largest: buildLargestPayments(currentEntries, dateFrom, dateTo),
-      comparison: buildCategoryComparison(summary.expenseSummary.byCategory, previousSummary.expenseSummary.byCategory),
+      comparison: buildCategoryComparison(groupSalaryCategories(summary.expenseSummary.byCategory), groupSalaryCategories(previousSummary.expenseSummary.byCategory)),
     }
-  }, [data, dateFrom, dateTo, previousPeriod])
+  }, [data, dateFrom, dateTo, previousPeriod, feesForPeriod.current, feesForPeriod.previous])
 
   function selectQuickRange(key) {
     const range = getAccountingQuickRange(key)
@@ -837,10 +891,12 @@ export default function AccountingAnalysis() {
   function categoryName(key) {
     if (key === '__other__') return l.other
     if (key === '__left__') return l.left
+    if (key === SALARY_GROUP_CATEGORY) return l.salaries
+    if (key === BANK_FEE_CATEGORY) return l.bankFees
     return expenseCategoryLabel(key, lang)
   }
 
-  const showData = !loading && analysis
+  const showData = !loading && analysis && feesSettled
   const indicators = analysis?.indicators
   const previousIndicators = analysis?.previousIndicators
   const accountingSummary = analysis?.summary
@@ -858,19 +914,19 @@ export default function AccountingAnalysis() {
     const text = {
       uz: {
         cafeIncome: ['Tanlangan davrdagi to‘langan buyurtmalardan olingan haqiqiy tushum.', ['Naqd, karta va terminal orqali olingan to‘lovlar', `Loyallik mablag‘i (${formatCurrency(loyaltyIncome)}) alohida ko‘rsatiladi va sarflanadigan tushumga qo‘shilmaydi`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Kafe daromadi', 'Sotilgan mahsulotlarning buyurtma vaqtida saqlangan tannarxi', `Foiz: sof foyda ÷ kafe daromadi = ${profitMarginPct == null ? '—' : `${String(profitMarginPct).replace('.', ',')}%`}`]],
+        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Kafe daromadi', 'Sotilgan mahsulotlarning buyurtma vaqtida saqlangan tannarxi', `Foiz: yalpi foyda ÷ kafe daromadi = ${profitMarginPct == null ? '—' : `${String(profitMarginPct).replace('.', ',')}%`}`]],
         average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} kun = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Tanlangan davrning barcha kalendar kunlari (savdo bo‘lmagan kunlar ham)', 'Faqat kafe daromadi; loyallik mablag‘i kiritilmaydi']],
         investor: ['Tanlangan davrdagi “Investor yordami” turidagi daromad yozuvlari yig‘indisi.', ['Investor yordami yozuvlari', `Boshqa daromad (${formatCurrency(otherIncomeTotal)}) alohida hisoblanadi va bu kartaga qo‘shilmaydi`]],
       },
       ru: {
         cafeIncome: ['Фактически полученные деньги по оплаченным заказам за выбранный период.', ['Оплаты наличными, картой и терминалом', `Оплата лояльностью (${formatCurrency(loyaltyIncome)}) показана отдельно и не входит в доступную выручку`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Доход кафе', 'Историческая себестоимость проданных позиций, сохранённая в заказах', `Процент: чистая прибыль ÷ доход кафе = ${profitMarginPct == null ? '—' : `${String(profitMarginPct).replace('.', ',')}%`}`]],
+        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Доход кафе', 'Историческая себестоимость проданных позиций, сохранённая в заказах', `Процент: валовая прибыль ÷ доход кафе = ${profitMarginPct == null ? '—' : `${String(profitMarginPct).replace('.', ',')}%`}`]],
         average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} дн. = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Все календарные дни выбранного периода, включая дни без продаж', 'Только доход кафе; оплата лояльностью не включена']],
         investor: ['Сумма записей дохода с категорией «Поддержка инвестора» за выбранный период.', ['Внесённая поддержка инвестора', `Другой доход (${formatCurrency(otherIncomeTotal)}) считается отдельно и в эту карточку не входит`]],
       },
       en: {
         cafeIncome: ['Money actually received from paid orders in the selected period.', ['Cash, card, and terminal payments', `Loyalty value (${formatCurrency(loyaltyIncome)}) is shown separately and is not spendable revenue`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Cafe income', 'Historical cost of sold items saved with the orders', `Percentage: net profit ÷ cafe income = ${profitMarginPct == null ? '—' : `${profitMarginPct}%`}`]],
+        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Cafe income', 'Historical cost of sold items saved with the orders', `Percentage: gross profit ÷ cafe income = ${profitMarginPct == null ? '—' : `${profitMarginPct}%`}`]],
         average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} days = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Every calendar day in the selected period, including days with no sales', 'Cafe income only; loyalty value is excluded']],
         investor: ['Total income entries categorized as Investor support in the selected period.', ['Recorded investor support', `Other income (${formatCurrency(otherIncomeTotal)}) is separate and excluded from this card`]],
       },
@@ -1027,6 +1083,8 @@ export default function AccountingAnalysis() {
                 onClick={loading ? null : () => setSelectedKpi(kpiDetails.investor)}
               />
             </div>
+            <SalesRow sales={loading ? null : analysis?.sales} previous={analysis?.previousSales} l={l} />
+            {costAnomalies && <div className="mt-3"><CostAnomaliesNotice anomalies={costAnomalies} lang={lang} /></div>}
           </section>
 
           {selectedKpi && (
@@ -1130,6 +1188,15 @@ export default function AccountingAnalysis() {
 
               <ChartCard title={l.methodsTitle} help="methods" description={l.methodsSub}>
                 <PaymentMethodFlow rows={analysis.summary.cashflow.rows} lang={lang} l={l} />
+                <PaymentFeeRatesPanel
+                  fees={feesForPeriod.current}
+                  status={feesForPeriod.status}
+                  periodStart={dateFrom}
+                  today={todayExpenseDate()}
+                  lang={lang}
+                  onSaved={() => setFeeVersion(value => value + 1)}
+                  onRetry={() => setFeeVersion(value => value + 1)}
+                />
               </ChartCard>
             </section>
           )}
@@ -1203,6 +1270,33 @@ function TotalTile({ label, value, change, goodWhenUp, vsLabel, tone, help = nul
       <LabelWithHelp label={label} help={help} />
       <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${tones[tone] || tones.blue}`}><RollingText text={formatCurrency(value)} /></p>
       <div className="mt-2"><ChangeBadge change={change} goodWhenUp={goodWhenUp} label={vsLabel} /></div>
+    </div>
+  )
+}
+
+// Orders, average check and cost of sold items for the picked range, each
+// against the previous period of the same length.
+function SalesRow({ sales, previous, l }) {
+  const tiles = [
+    { key: 'orders', icon: ShoppingCart, label: l.ordersCount, value: sales ? String(sales.orderCount) : '—', sub: sales ? fillText(l.ordersCountSub, { n: sales.ordersPerDay }) : '', change: sales && previous ? getPercentChange(sales.orderCount, previous.orderCount) : null, goodWhenUp: true },
+    { key: 'check', icon: Receipt, label: l.avgCheck, value: sales?.averageCheck != null ? formatCurrency(sales.averageCheck) : '—', sub: l.avgCheckSub, change: sales?.averageCheck != null && previous?.averageCheck != null ? getPercentChange(sales.averageCheck, previous.averageCheck) : null, goodWhenUp: true },
+    { key: 'cost', icon: Package, label: l.costOfSold, value: sales ? formatCurrency(sales.costTotal) : '—', sub: sales?.costPct != null ? fillText(l.costOfSoldSub, { pct: formatPct(sales.costPct) }) : '', change: sales && previous ? getPercentChange(sales.costTotal, previous.costTotal) : null, goodWhenUp: false },
+  ]
+  return (
+    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+      {tiles.map(tile => (
+        <div key={tile.key} className="ws-panel flex h-full flex-col">
+          <div className="flex items-start justify-between gap-2">
+            <span className="ws-caption">{tile.label}</span>
+            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]"><tile.icon size={15} aria-hidden="true" /></span>
+          </div>
+          {sales
+            ? <p className="mt-1 break-words text-lg font-semibold leading-tight tracking-[-.01em] text-[#22201d] tabular-nums">{tile.value}</p>
+            : <Shimmer className="mt-1 h-6 w-28 rounded-md" />}
+          <p className="ws-caption mt-1 leading-snug">{sales ? tile.sub : ''}</p>
+          {sales && <div className="mt-auto pt-2"><ChangeBadge change={tile.change} goodWhenUp={tile.goodWhenUp} label={l.vsPrevious} /></div>}
+        </div>
+      ))}
     </div>
   )
 }

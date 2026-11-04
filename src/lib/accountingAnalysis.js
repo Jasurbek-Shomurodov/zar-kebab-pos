@@ -1,4 +1,4 @@
-import { getAccountingPageSummaryFromOrderSummary } from './accounting.js'
+import { getAccountingPageSummaryFromOrderSummary, normalizeAccountingPaidOrderSummary } from './accounting.js'
 import {
   buildFinalizedEmployeeMealExpenseRows,
   buildSalaryBonusExpenseRows,
@@ -119,9 +119,23 @@ export function buildAccountingSankey({ cafeIncome = 0, investorSupport = 0, oth
   }
 }
 
+// Cook, waiter, manager, other and one-off salaries are one cost for the
+// owner: the spending breakdown, money flow and comparison show them as one
+// "Salaries" slice, which opens the history of every salary category.
+export const SALARY_GROUP_CATEGORY = 'salaries'
+
+export function groupSalaryCategories(byCategory = {}) {
+  const grouped = {}
+  for (const [key, value] of Object.entries(byCategory || {})) {
+    const target = String(key).startsWith('salary_') ? SALARY_GROUP_CATEGORY : key
+    grouped[target] = (grouped[target] || 0) + normalizeExpenseAmount(value)
+  }
+  return grouped
+}
+
 export function spendingGroupOfCategory(category) {
   const key = String(category || '')
-  if (key.startsWith('salary_')) return 'salaries'
+  if (key.startsWith('salary_') || key === SALARY_GROUP_CATEGORY) return 'salaries'
   if (key === 'products_bazaar') return 'bazaar'
   if (key === 'employee_meals') return 'meals'
   return 'other'
@@ -226,6 +240,24 @@ export function buildAccountingIndicators(summary = {}, { dayCount = 0, allTimeB
     foodCostPct: ratioPct(summary.productBazaarExpensesTotal, cafeIncome),
     payrollSharePct: ratioPct(summary.salaryExpensesTotal, spent),
     investorDependencePct: ratioPct(summary.investorSupportTotal, moneyIn),
+  }
+}
+
+// Order numbers for the picked range: orders, orders per calendar day so far,
+// average check, cost of sold items (saved on each order) and gross profit.
+export function buildSalesIndicators(paidOrderSummary = {}, dateFrom, dateTo) {
+  const summary = normalizeAccountingPaidOrderSummary(paidOrderSummary || {}, dateFrom, dateTo)
+  const days = summary.cafeIncomeSummary.dayCount
+  const orders = summary.orderCount
+  const grossProfit = summary.cafeIncome - summary.costTotal
+  return {
+    orderCount: orders,
+    ordersPerDay: days > 0 ? Math.round((orders / days) * 10) / 10 : 0,
+    averageCheck: orders > 0 ? Math.round(summary.cafeIncome / orders) : null,
+    costTotal: summary.costTotal,
+    costPct: ratioPct(summary.costTotal, summary.cafeIncome),
+    grossProfit,
+    grossMarginPct: ratioPct(grossProfit, summary.cafeIncome),
   }
 }
 
@@ -374,6 +406,7 @@ export function buildLargestPayments(entries = [], dateFrom, dateTo, limit = 10)
       && entry?.expense_date <= dateTo
       && spendingGroup(entry) !== 'salaries'
       && entry?.category !== 'employee_meals'
+      && !entry?.is_bank_fee_estimate
       && normalizeExpenseAmount(entry?.amount) > 0
     ))
     .map(entry => ({

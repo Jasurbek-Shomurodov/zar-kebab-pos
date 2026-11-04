@@ -1116,6 +1116,10 @@ export default {
   {
    "filename": "277_inventory_investor_notifications.sql",
    "sha256": "af80576658f1c6d9cc353d6740592030e9cb0b720357f03fbd315e9850f94973"
+  },
+  {
+   "filename": "278_payment_fees_and_cost_checks.sql",
+   "sha256": "44fba001fb871ed5730c364076c2b452d227b5c50fecf0364b27e20861d9bac4"
   }
  ],
  "functions": [
@@ -1748,6 +1752,26 @@ export default {
    "name": "queue_inventory_investor_notification",
    "filename": "277_inventory_investor_notifications.sql",
    "md5": "b301d8ac8c223d35d967ef16bdc924ec"
+  },
+  {
+   "name": "current_payment_fee_rates",
+   "filename": "278_payment_fees_and_cost_checks.sql",
+   "md5": "298278b4a0c3889796067ff16e5aa753"
+  },
+  {
+   "name": "set_payment_fee_rate",
+   "filename": "278_payment_fees_and_cost_checks.sql",
+   "md5": "0e0c6dc1619bd78ba02330fd4b579ab9"
+  },
+  {
+   "name": "get_accounting_payment_fees",
+   "filename": "278_payment_fees_and_cost_checks.sql",
+   "md5": "3bbf577fd65cebd9a3795acd191b564e"
+  },
+  {
+   "name": "get_accounting_cost_anomalies",
+   "filename": "278_payment_fees_and_cost_checks.sql",
+   "md5": "ee4500fd89f31794c4038dc9d0ab60ef"
   }
  ]
 }

@@ -41,6 +41,7 @@
 - KPIs use permission-checked aggregates, never full history. The all-time cash remainder excludes unpaid salary liability.
 - Order rows belong to reports, receipts and drilldowns.
 - Accounting: recording, spending/salary KPIs (no method-balance panel). Analysis/Estimate: `financial_analysis` (needs `expenses`; `230`); `229` growth; `231`/`233` bundles.
+- `278`: Gross profit; `buildSalesIndicators`; `salary_*`→`salaries`; dated fees → daily `__bank_fees__` estimates, not Accounting; cost>price alerts. `tests/financialAnalysisChecks.test.js`.
 - Owner profit `257`–`259` (`ownerProfit.js`): month at zero, salary when earned. Owner closes oldest month from the 4th (KPI/meal days final) or reopens latest with reason; alerts Investor. Locks its expenses, meals, bonuses, fines; remainder − `settled_amount`. `tests/ownerProfit.test.js`.
 
 ## Expenses and estimates
@@ -79,8 +80,5 @@ Migrations `097`, `160`–`163`, `182`.
 - Normalize only g→kg, ml→l; never mix counts with weights/volumes.
 - Bazaar history loads only on `/admin/bazaar`, never in POS hydration.
 
-- `204`: audit actor FK removed; history unchanged.
-
 - `210`: see [salary orders](salary-orders.md).
 
-- Custom calendars: `src/components/CalendarPicker.jsx`; ISO values/bounds preserved. Tests: `tests/calendarPicker.test.js`.

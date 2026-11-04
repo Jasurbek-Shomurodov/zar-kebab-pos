@@ -37,6 +37,7 @@
     "scripts/update-hoggish-assistant.cjs",
     "src/App.jsx",
     "src/components/AccountingKpi.jsx",
+    "src/components/AnalysisChecks.jsx",
     "src/components/AnimatedSearch.jsx",
     "src/components/AppShell.jsx",
     "src/components/AttendanceQrAccessSettings.jsx",
