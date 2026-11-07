@@ -12,6 +12,7 @@ import {
   canAdjustLoyaltyBalance,
   canCreateLoyaltyCard,
   canDeleteLoyaltyTransaction,
+  getLoyaltyTransactionDelta,
   canEditLoyaltyCard,
   canRemoveLoyaltyCard,
   createLoyaltyCardRecord,
@@ -362,16 +363,15 @@ export default function AdminLoyalty() {
     }
   }
 
+  // Direction comes from the balance flow (shared with the delete RPC), so a deduction
+  // saved with an unsigned amount still reads as a minus.
   function transactionAmount(tx) {
-    const signedAmount = Number(tx.amount) || 0
-    const amount = Math.abs(signedAmount)
-    const isCredit = signedAmount > 0 || (signedAmount === 0 && (tx.type === 'cashback_earned' || tx.type === 'manual_adjustment' && Number(tx.balance_after) >= Number(tx.balance_before)))
-    return `${isCredit ? '+' : '-'}${formatCurrency(amount)}`
+    const delta = getLoyaltyTransactionDelta(tx)
+    return `${delta >= 0 ? '+' : '-'}${formatCurrency(Math.abs(delta))}`
   }
 
   function transactionAmountClass(tx) {
-    const signedAmount = Number(tx.amount) || 0
-    return signedAmount > 0 || (signedAmount === 0 && (tx.type === 'cashback_earned' || tx.type === 'manual_adjustment' && Number(tx.balance_after) >= Number(tx.balance_before)))
+    return getLoyaltyTransactionDelta(tx) >= 0
       ? 'text-[#1d7a52]'
       : 'text-[#c4262c]'
   }

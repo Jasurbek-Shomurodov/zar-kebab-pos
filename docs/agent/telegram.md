@@ -46,7 +46,6 @@
 
 - Authenticated availability, creation, archival and variant visibility (`256`) queue immutable Russian Team events; edits/restores send nothing.
 - Unavailable snapshot: 04:05; 08:00 retries alone. `266`/`267`: 04:10 Google replies (paced, `deferred`), 04:20 menu sync + Investor PNG.
-- Google/Yandex menu names and descriptions fall back lang → en → ru → uz (`localizedText`); a dish with no name anywhere is skipped. Google rejects an empty label ("Request contains an invalid argument").
 - Public `/yandex-menu.yml` + `/yandex-photos` (JPEG): never empty.
 - `274`: real recipe saves → `tech_card_events` (БОЗОРлик, no fallback): before/after PNGs with prices (owner choice). Catalog sync silent.
 - Non-empty: one PNG (`menuAvailabilityImage.js`), at 04:05 in an album after the Team KPI PNG. Empty: text.

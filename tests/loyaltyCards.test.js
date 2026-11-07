@@ -305,6 +305,7 @@ test('manual balance adjustment is owner-only, reasoned, transactional and never
   const debit = adjustLoyaltyBalance({ role: 'owner', card: credit.card, amount: -10000, reason: 'Correction' })
   assert.equal(debit.card.balance, 65000)
   assert.equal(debit.card.total_redeemed, 12000)
+  assert.equal(debit.transaction.amount, -10000, 'a deduction is stored with its minus sign')
   assert.equal(debit.transaction.balance_before, 75000)
   assert.equal(debit.transaction.balance_after, 65000)
 

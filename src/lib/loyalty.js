@@ -273,7 +273,8 @@ export function adjustLoyaltyBalance({ role = 'owner', card, amount, reason, cre
     transaction: makeLoyaltyTransaction({
       loyaltyCardId: card.id,
       type: 'manual_adjustment',
-      amount: Math.abs(delta),
+      // Signed like redemptions: a deduction is stored as a negative amount.
+      amount: delta,
       balanceBefore: before,
       balanceAfter: after,
       reason: String(reason).trim(),
