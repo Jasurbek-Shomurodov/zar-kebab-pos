@@ -1,6 +1,6 @@
 import { calculateUnitPrice, PRICE_MODE_TOURIST } from '../../../src/lib/priceModes.js'
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../../../src/lib/nutrition.js'
-import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, publicVariants } from '../../_lib/posMenu.js'
+import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, localizedText, publicVariants } from '../../_lib/posMenu.js'
 import { json } from '../../telegram/_lib/http.js'
 import { getSupabaseAdmin } from '../../telegram/_lib/supabaseAdmin.js'
 
@@ -21,7 +21,7 @@ function offerId(value) {
 }
 
 function ru(row, key) {
-  return clean(row?.[`${key}_ru`]) || clean(row?.[`${key}_en`])
+  return localizedText(row, key, 'ru')
 }
 
 function priceRows(item) {

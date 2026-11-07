@@ -13,6 +13,17 @@ export function clean(value) {
   return String(value || '').replace(/\s+/g, ' ').trim()
 }
 
+// A stored text in the requested language, else the first filled translation (en, ru, uz).
+// Google rejects a menu label with an empty displayName, so a dish typed in one language only
+// still gets a name in every language it is published in.
+export function localizedText(row, key, lang) {
+  for (const code of [lang, 'en', 'ru', 'uz']) {
+    const value = clean(row?.[`${key}_${code}`])
+    if (value) return value
+  }
+  return ''
+}
+
 export function bySortOrder(a, b) {
   return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
 }

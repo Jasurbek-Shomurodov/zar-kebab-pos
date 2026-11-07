@@ -213,3 +213,17 @@ test('a lasting Google outage fails the menu sync after its retries', async () =
   await assert.rejects(runGoogleMenuSync({ env, fetchImpl, supabase, sleep: async () => {} }), /currently unavailable/)
   assert.equal(reads, 3)
 })
+
+test('a dish named in one language only is published with that name everywhere, never an empty label', () => {
+  const menu = buildGoogleFoodMenu(categories, [
+    ...items,
+    { id: 'broth', category_id: 'shash', sort_order: 2, price: 20000, name_en: '', name_ru: 'Булён', name_uz: 'Bulyon', description_ru: 'Наваристый' },
+    { id: 'blank', category_id: 'shash', sort_order: 3, price: 10000, name_en: ' ', name_ru: '', name_uz: null },
+  ], {}, { excludedCategories: excludedCategoryNames({}) })
+  const shash = menu.menus[0].sections[0].items
+  assert.deepEqual(shash.map(item => item.labels[0].displayName), ['Beef Shashleek', 'Булён'], 'unnamed dish skipped')
+  const broth = shash[1]
+  assert.deepEqual(broth.labels.map(label => label.displayName), ['Булён', 'Булён', 'Bulyon'])
+  assert.deepEqual(broth.labels.map(label => label.description), ['Наваристый', 'Наваристый', 'Наваристый'])
+  for (const label of broth.labels) assert.ok(label.displayName, `no empty ${label.languageCode} label`)
+})

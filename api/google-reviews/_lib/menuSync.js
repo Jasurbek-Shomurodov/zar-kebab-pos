@@ -2,7 +2,7 @@ import sharp from 'sharp'
 import { calculateUnitPrice, PRICE_MODE_TOURIST } from '../../../src/lib/priceModes.js'
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel, getItemKcal } from '../../../src/lib/nutrition.js'
 import { loadSalaryRows } from '../../../src/lib/salaryData.js'
-import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, publicVariants } from '../../_lib/posMenu.js'
+import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, localizedText, publicVariants } from '../../_lib/posMenu.js'
 import { getGoogleAccessToken, getGoogleBusinessConfig, googleLocationResource } from './googleBusiness.js'
 
 const GOOGLE_BUSINESS_API_URL = 'https://mybusiness.googleapis.com'
@@ -27,9 +27,7 @@ function money(units) {
   return { currencyCode: 'UZS', units: String(Math.max(0, Math.round(Number(units) || 0))) }
 }
 
-function localized(row, key, lang) {
-  return clean(row?.[`${key}_${lang}`]) || clean(row?.[`${key}_en`])
-}
+const localized = localizedText
 
 function subtitle(item, lang) {
   return [gramsLabel(item, lang) || millilitresLabel(item), kcalLabel(item, lang), servesLabel(item, lang)].filter(Boolean).join(' · ')
@@ -39,7 +37,7 @@ function itemLabels(item) {
   return LANGS.map(lang => {
     const label = { displayName: localized(item, 'name', lang).slice(0, 140), languageCode: lang }
     // Google drops line breaks, so the POS card subtitle leads the description with a dash.
-    const description = [subtitle(item, lang), clean(item[`description_${lang}`]) || clean(item.description_en)]
+    const description = [subtitle(item, lang), localized(item, 'description', lang)]
       .filter(Boolean).join(' — ')
     if (description) label.description = description.slice(0, 1000)
     return label
@@ -71,7 +69,8 @@ export function buildGoogleFoodMenu(categories, items, mediaKeysByUrl = {}, opti
   for (const category of [...categories].sort(bySortOrder)) {
     if (excluded.has(clean(category.name_en).toLowerCase())) continue
     const sectionItems = items
-      .filter(item => item.category_id === category.id)
+      // A dish with no name in any language cannot be published; it appears once it is named.
+      .filter(item => item.category_id === category.id && localized(item, 'name', 'en'))
       .sort(bySortOrder)
       .map(item => {
         const variants = publicVariants(item)
