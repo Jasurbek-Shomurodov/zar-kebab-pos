@@ -54,7 +54,7 @@ Critical invariants:
 
 - Order deletion always opens the shared `src/store/useOrderDeletion.jsx` reason dialog. Migration `184` requires a trimmed 1–1000 character reason in `delete_order_owner(text, text)` and snapshots it in the Investor delivery; deploy it before the frontend. Migration `202` rejects non-current Tashkent dates, even direct SQL; `232` lets owners delete older unpaid open orders. Date is `paid_at`, falling back to `created_at`. `canDeleteOrderToday` and `useOrderDeletionDate` hide Reports/cashier controls at midnight; the database rechecks at deletion and shares the daily KPI finalizer lock. Tests: `tests/orderDeletion.test.js`.
 
-- Ingredients catalog/add stays at `/admin/ingredients`; `/admin/ingredients/usage` lazy-loads Purchases & usage. Both require `ingredients`. Only the usage page mounts the movement loader; adding ingredients never requests purchases/usage.
+- Ingredients catalog/add stays at `/admin/ingredients`; `/admin/ingredients/usage` Purchases & usage, `/sheet` the sheet; all need `ingredients`. Only the usage page mounts the movement loader; adding ingredients never requests purchases/usage.
 
 - Language switching is presentation-only: preserve loaded data, forms, filters, and mounted pages. Data effects/callbacks must not depend on `lang`, translated labels, or translation callbacks unless the server response itself is language-specific. Store loader errors as codes/raw errors and localize during render. Ingredients regression coverage lives in `tests/ingredientsFeature.test.js`.
 

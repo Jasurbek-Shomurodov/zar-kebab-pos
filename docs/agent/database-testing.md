@@ -7,7 +7,7 @@
 - SQL migrations: `migrations/`
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
-- `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270`/`274` TG `271`/`272` menu `257`–9 owner `276`/`277` inventory `278`; `tests/employeeJobFunctions.test.js`.
+- `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270`/`274` TG `271`/`272` menu `257`–9 owner `276`/7 inventory `278`; `tests/employeeJobFunctions.test.js`.
 
 ## Workflow
 
@@ -71,7 +71,7 @@
 - `180` SQL: `scripts/check-game-club-migration.mjs`.
 - `184` requires deletion reasons and snapshots them for Investor alerts. Apply before UI.
 - `185`: independent status-message tracking and minute cleanup retries. Apply before the Telegram sender. Tests: `tests/orderStatusDelivery.test.js`.
-- `186`–`188`/`275`: Ingredients access, writes, snapshot keys, movement. Tests: `tests/ingredientsFeature.test.js`; SQL: `scripts/check-ingredient-movement.mjs`.
+- `186`–`188`/`275`/`279`: Ingredients access, writes, keys, movement, sheet. Tests: `tests/ingredientsFeature.test.js`; SQL: `scripts/check-ingredient-movement.mjs`.
 - `189`: ingredient Investor queue and minute dispatch. Tests: `tests/ingredientNotifications.test.js`; SQL: `scripts/check-ingredient-notifications.mjs`. Deploy the sender before applying.
 - `190`–`193`: ten-day income and monthly Busy Hours RPCs; apply before UI.
 - `195`/`196`: own/all dine-in KPI from `2026-09-16`; apply before UI. History preserved. SQL: `tests/employeeOpenedOrderKpi.test.js`.

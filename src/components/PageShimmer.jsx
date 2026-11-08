@@ -330,6 +330,50 @@ function IngredientUsagePage() {
   )
 }
 
+// Purchase sheet grid: pinned ingredient column, date columns and a day-total footer.
+function IngredientSheetGrid({ rows = 8, days = 10 }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#e4e1de]">
+      {Array.from({ length: rows + 2 }, (_, row) => (
+        <div key={row} className={`flex border-b border-[#e4e1de] last:border-b-0 ${row === 0 || row === rows + 1 ? 'bg-[#f6f5f3]' : 'bg-white'}`}>
+          <div className="w-[180px] flex-shrink-0 space-y-1.5 border-r border-[#e4e1de] px-3 py-2.5">
+            <Shimmer className={`h-3.5 ${row % 2 ? 'w-3/5' : 'w-4/5'}`} />
+            {row > 0 && row <= rows && <Shimmer className="h-2.5 w-2/5" />}
+          </div>
+          {Array.from({ length: days }, (_, day) => (
+            <div key={day} className="flex w-[76px] flex-shrink-0 items-center justify-center border-r border-[#e4e1de] py-2.5">
+              {(row === 0 || row === rows + 1 || (row + day) % 3 === 0) && <Shimmer className="h-3.5 w-8" />}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function IngredientSheetPage() {
+  return (
+    <div className="ws-panel">
+      <Shimmer className="h-7 w-56 max-w-full" />
+      <Shimmer className="mt-4 h-10 w-full rounded-[10px] sm:w-[420px]" />
+      <div className="my-4 space-y-2">
+        <Shimmer className="h-3 w-full" />
+        <Shimmer className="h-3 w-3/4" />
+      </div>
+      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.7fr)_auto]">
+        {[0, 1, 2].map(index => (
+          <div key={index} className="space-y-1.5">
+            <Shimmer className="h-3 w-20" />
+            <Shimmer className={`h-11 rounded-[10px] ${index === 2 ? 'w-48' : 'w-full'}`} />
+          </div>
+        ))}
+      </div>
+      <div className="mb-3 flex min-h-9 items-center"><Shimmer className="h-3 w-40" /></div>
+      <IngredientSheetGrid />
+    </div>
+  )
+}
+
 // Tech Cards list: KPI tiles, category tiles, search + filter, then image cards per category.
 function TechCardsList() {
   return (
@@ -558,9 +602,9 @@ function SalariesPage() {
 
 // Layouts that render inside the page's own `.ws-page` container, so the
 // skeleton has exactly the loaded page's width, padding and gaps.
-const PAGE_CONTAINER_LAYOUTS = new Set(['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage', 'inventory', 'employees'])
+const PAGE_CONTAINER_LAYOUTS = new Set(['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage', 'ingredientSheet', 'inventory', 'employees'])
 // Result-area layouts placed inside a page panel below its live toolbar: no extra container.
-const INLINE_LAYOUTS = new Set(['ingredientCards', 'ingredientMovementCards', 'inventoryCards', 'employeeCards'])
+const INLINE_LAYOUTS = new Set(['ingredientCards', 'ingredientMovementCards', 'ingredientSheetGrid', 'inventoryCards', 'employeeCards'])
 
 const LAYOUTS = {
   table: () => <><Toolbar /><TableRows /></>,
@@ -595,6 +639,8 @@ const LAYOUTS = {
   ingredientUsage: () => <IngredientUsagePage />,
   ingredientCards: () => <IngredientCards />,
   ingredientMovementCards: () => <IngredientMovementCards />,
+  ingredientSheet: () => <IngredientSheetPage />,
+  ingredientSheetGrid: () => <IngredientSheetGrid />,
   inventory: () => <InventoryPage />,
   inventoryCards: () => <InventoryCards />,
   employees: () => <EmployeesPage />,
@@ -620,6 +666,7 @@ export function layoutForPath(pathname = '') {
   if (pathname.startsWith('/admin/tech-cards/')) return 'techCardEditor'
   if (pathname.startsWith('/admin/tech-cards')) return 'techCards'
   if (pathname.startsWith('/admin/ingredients/usage')) return 'ingredientUsage'
+  if (pathname.startsWith('/admin/ingredients/sheet')) return 'ingredientSheet'
   if (pathname.startsWith('/admin/ingredients')) return 'ingredients'
   if (pathname.startsWith('/admin/inventory')) return 'inventory'
   if (pathname.startsWith('/waiter/order') || pathname.startsWith('/waiter/take-away') || pathname.startsWith('/cashier/bill')) return 'detail'

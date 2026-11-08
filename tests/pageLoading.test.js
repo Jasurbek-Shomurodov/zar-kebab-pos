@@ -33,12 +33,13 @@ test('page and tab data loads render page-shaped shimmers, not spinners', () => 
   // Salaries renders its static operations form immediately; only metric values and the delivery list shimmer.
   assert.doesNotMatch(source('src/pages/Salaries.jsx'), /<OperationalLoading/)
   assert.match(source('src/pages/Salaries.jsx'), /\{loading \? \(\s*<div className="space-y-2" aria-busy="true"/)
-  assert.match(source('src/components/PageShimmer.jsx'), /PAGE_CONTAINER_LAYOUTS = new Set\(\['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage', 'inventory', 'employees'\]\)/)
+  assert.match(source('src/components/PageShimmer.jsx'), /PAGE_CONTAINER_LAYOUTS = new Set\(\['salaries', 'estimate', 'techCards', 'techCardEditor', 'ingredients', 'ingredientUsage', 'ingredientSheet', 'inventory', 'employees'\]\)/)
   // Tech Cards and Ingredients shimmer in their own card layouts, not a generic table.
-  assert.match(source('src/components/PageShimmer.jsx'), /startsWith\('\/admin\/tech-cards\/'\)\) return 'techCardEditor'\s+if \(pathname\.startsWith\('\/admin\/tech-cards'\)\) return 'techCards'\s+if \(pathname\.startsWith\('\/admin\/ingredients\/usage'\)\) return 'ingredientUsage'\s+if \(pathname\.startsWith\('\/admin\/ingredients'\)\) return 'ingredients'/)
+  assert.match(source('src/components/PageShimmer.jsx'), /startsWith\('\/admin\/tech-cards\/'\)\) return 'techCardEditor'\s+if \(pathname\.startsWith\('\/admin\/tech-cards'\)\) return 'techCards'\s+if \(pathname\.startsWith\('\/admin\/ingredients\/usage'\)\) return 'ingredientUsage'\s+if \(pathname\.startsWith\('\/admin\/ingredients\/sheet'\)\) return 'ingredientSheet'\s+if \(pathname\.startsWith\('\/admin\/ingredients'\)\) return 'ingredients'/)
   assert.match(source('src/pages/TechCards.jsx'), /<OperationalLoading title=\{l\.title\} layout=\{menuItemId \? 'techCardEditor' : 'techCards'\} \/>/)
   assert.match(source('src/pages/BazaarIngredients.jsx'), /\{loading \? <OperationalLoading title=\{l\.title\} layout="ingredientCards" \/>/)
   assert.match(source('src/components/IngredientMovement.jsx'), /loading \? <OperationalLoading title=\{l\.loading\} layout="ingredientMovementCards" \/>/)
+  assert.match(source('src/components/IngredientPurchaseSheet.jsx'), /loading \? <OperationalLoading title=\{l\.loading\} layout="ingredientSheetGrid" \/>/)
   assert.match(source('src/components/PageShimmer.jsx'), /startsWith\('\/admin\/financial-analysis\/estimate'\)\) return 'estimate'/)
   assert.match(source('src/pages/AdminUsers.jsx'), /<PageShimmer layout="table"/)
   // Employees shimmer as employee cards (and KPI tiles before the page code loads), not a table.

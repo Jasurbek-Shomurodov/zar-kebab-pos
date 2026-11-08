@@ -138,6 +138,7 @@ const MIGRATION_HINTS = {
   save_bazaar_purchase: 'Run migrations/097_daily_bazaar.sql',
   delete_bazaar_purchase: 'Run migrations/097_daily_bazaar.sql',
   get_ingredient_movement: 'Run migrations/186_ingredients_feature_and_movement.sql',
+  get_ingredient_purchase_sheet: 'Run migrations/279_ingredient_purchase_sheet.sql',
   save_bazaar_ingredient: 'Run migrations/160_daily_bazaar_ingredient_catalog.sql',
   set_bazaar_ingredient_active: 'Run migrations/160_daily_bazaar_ingredient_catalog.sql',
   get_bazaar_ingredient_tech_card_usage: 'Run migrations/242_bazaar_ingredient_tech_card_usage.sql',
@@ -276,6 +277,7 @@ export async function runDbHealthChecks(dbClient = supabase, { manifestLoader = 
   checks.push(await checkRpc(dbClient, 'save_bazaar_purchase'))
   checks.push(await checkRpc(dbClient, 'delete_bazaar_purchase', { p_purchase_id: '00000000-0000-0000-0000-000000000000' }))
   checks.push(await checkRpc(dbClient, 'get_ingredient_movement', { p_date_from: null, p_date_to: null }))
+  checks.push(await checkRpc(dbClient, 'get_ingredient_purchase_sheet', { p_date_from: null, p_date_to: null }))
   checks.push(await checkRpc(dbClient, 'save_bazaar_ingredient'))
   checks.push(await checkRpc(dbClient, 'set_bazaar_ingredient_active', { p_product_key: '__db_health_check__', p_is_active: false }))
   checks.push(await checkRpc(dbClient, 'get_bazaar_ingredient_tech_card_usage', { p_product_key: '__db_health_check__' }))

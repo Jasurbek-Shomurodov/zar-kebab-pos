@@ -1120,6 +1120,10 @@ export default {
   {
    "filename": "278_payment_fees_and_cost_checks.sql",
    "sha256": "44fba001fb871ed5730c364076c2b452d227b5c50fecf0364b27e20861d9bac4"
+  },
+  {
+   "filename": "279_ingredient_purchase_sheet.sql",
+   "sha256": "77661cd134b6b892bd445af136b6abeae02a5e9b5b625c419faa503749ac17df"
   }
  ],
  "functions": [
@@ -1772,6 +1776,11 @@ export default {
    "name": "get_accounting_cost_anomalies",
    "filename": "278_payment_fees_and_cost_checks.sql",
    "md5": "ee4500fd89f31794c4038dc9d0ab60ef"
+  },
+  {
+   "name": "get_ingredient_purchase_sheet",
+   "filename": "279_ingredient_purchase_sheet.sql",
+   "md5": "df8b72183b022b4a3d0579afd9bc95f2"
   }
  ]
 }
