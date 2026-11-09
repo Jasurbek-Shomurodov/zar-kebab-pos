@@ -1,11 +1,9 @@
-import { calculateUnitPrice, PRICE_MODE_TOURIST } from '../../../src/lib/priceModes.js'
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../../../src/lib/nutrition.js'
 import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, localizedText, publicVariants } from '../../_lib/posMenu.js'
 import { json } from '../../telegram/_lib/http.js'
 import { getSupabaseAdmin } from '../../telegram/_lib/supabaseAdmin.js'
 
 const VENDOR = 'Zar Kebab'
-const TOURIST_SUFFIX = ' — для туристов'
 // Yandex Business takes JPEG/PNG photos only, so WebP menu photos go through /yandex-photos/<name>.jpg.
 const PICTURE_PATTERN = /\.(png|jpe?g)(\?|$)/i
 const WEBP_MENU_PHOTO = /\/menu\/products\/([A-Za-z0-9_-]+)\.webp(\?|$)/i
@@ -47,7 +45,7 @@ export function yandexPictureUrl(imageUrl) {
 }
 
 // Pure: POS categories/items (archived already removed) -> Yandex Business YML price list.
-// Russian names, UZS prices, and a "для туристов" copy of every price, like the Google menu.
+// Russian names and regular UZS prices only: Yandex never lists tourist prices.
 export function buildYandexMenuYml(categories, items, options = {}) {
   const excluded = options.excludedCategories || excludedCategoryNames()
   const categoryLines = []
@@ -63,22 +61,20 @@ export function buildYandexMenuYml(categories, items, options = {}) {
       const description = [subtitle, ru(item, 'description')].filter(Boolean).join(' — ').slice(0, 3000)
       const picture = yandexPictureUrl(item.image_url)
       for (const row of priceRows(item)) {
-        for (const tourist of [false, true]) {
-          const price = Math.round(tourist ? calculateUnitPrice(row.price, PRICE_MODE_TOURIST) : row.price)
-          // Yandex never publishes a zero price.
-          if (!(price > 0)) continue
-          offerBlocks.push([
-            `      <offer id="${offerId(row.id + (tourist ? '-t' : ''))}">`,
-            `        <name>${xml((row.name + (tourist ? TOURIST_SUFFIX : '')).slice(0, 250))}</name>`,
-            `        <vendor>${VENDOR}</vendor>`,
-            `        <categoryId>${categoryId}</categoryId>`,
-            `        <price>${price}</price>`,
-            '        <currencyId>UZS</currencyId>',
-            description && `        <description>${xml(description)}</description>`,
-            picture && `        <picture>${xml(picture)}</picture>`,
-            '      </offer>',
-          ].filter(Boolean).join('\n'))
-        }
+        const price = Math.round(row.price)
+        // Yandex never publishes a zero price.
+        if (!(price > 0)) continue
+        offerBlocks.push([
+          `      <offer id="${offerId(row.id)}">`,
+          `        <name>${xml(row.name.slice(0, 250))}</name>`,
+          `        <vendor>${VENDOR}</vendor>`,
+          `        <categoryId>${categoryId}</categoryId>`,
+          `        <price>${price}</price>`,
+          '        <currencyId>UZS</currencyId>',
+          description && `        <description>${xml(description)}</description>`,
+          picture && `        <picture>${xml(picture)}</picture>`,
+          '      </offer>',
+        ].filter(Boolean).join('\n'))
       }
     }
   }

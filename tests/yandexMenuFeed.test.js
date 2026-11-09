@@ -33,13 +33,13 @@ const items = [
 
 const options = { excludedCategories: excludedCategoryNames({}) }
 
-test('Yandex feed lists POS sections in order with UZS regular and tourist prices', () => {
+test('Yandex feed lists POS sections in order with regular UZS prices only', () => {
   const { yml, offers } = buildYandexMenuYml(categories, items, options)
-  assert.equal(offers, 6)
+  assert.equal(offers, 3)
   assert.match(yml, /<category id="1">Шашлык<\/category>\s*<category id="2">Напитки<\/category>/)
   assert.doesNotMatch(yml, /Приборы|Вилка/)
   assert.match(yml, /<offer id="zk-beef">\s*<name>Шашлык из говядины<\/name>\s*<vendor>Zar Kebab<\/vendor>\s*<categoryId>1<\/categoryId>\s*<price>35000<\/price>\s*<currencyId>UZS<\/currencyId>/)
-  assert.match(yml, /<offer id="zk-beef-t">\s*<name>Шашлык из говядины — для туристов<\/name>[\s\S]*?<price>42000<\/price>/)
+  assert.doesNotMatch(yml, /для туристов|<price>42000<\/price>|-t">/)
   assert.match(yml, /<description>150 г, 420 ккал — Говядина &amp; лук &lt;на углях&gt;<\/description>/)
   assert.match(yml, /<picture>https:\/\/cdn\.example\/beef\.jpg<\/picture>/)
 })
