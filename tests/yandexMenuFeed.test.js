@@ -24,7 +24,7 @@ const items = [
     ] }],
   },
   {
-    id: 'cola', category_id: 'drinks', sort_order: 1, price: 20000, name_ru: 'Кока-Кола',
+    id: 'cola', category_id: 'drinks', sort_order: 1, price: 20000, name_ru: 'Кока-Кола', millilitres: 500,
     option_groups: [{ id: 'variants', options: [{ id: '1l', label_ru: 'Кока-Кола 1L', price_delta: 5000 }] }],
   },
   { id: 'free', category_id: 'drinks', sort_order: 2, price: 0, name_ru: 'Вода' },
@@ -49,6 +49,7 @@ test('Yandex feed names variants, hides hidden ones, and skips WebP photos and z
   assert.match(yml, /<offer id="plov-kazy">\s*<name>Плов \(Казы\)<\/name>[\s\S]*?<price>55000<\/price>/)
   assert.doesNotMatch(yml, /Скрытый|plov\.webp/)
   assert.match(yml, /<offer id="cola-1l">\s*<name>Кока-Кола 1L<\/name>[\s\S]*?<price>25000<\/price>/)
+  assert.doesNotMatch(yml, /500 ml/, 'a variant must not inherit the parent volume')
   assert.doesNotMatch(yml, /Вода/)
 })
 

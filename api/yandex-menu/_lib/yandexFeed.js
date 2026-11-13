@@ -57,10 +57,13 @@ export function buildYandexMenuYml(categories, items, options = {}) {
     const categoryId = categoryLines.length + 1
     categoryLines.push(`      <category id="${categoryId}">${xml(ru(category, 'name'))}</category>`)
     for (const item of categoryItems) {
-      const subtitle = [gramsLabel(item, 'ru') || millilitresLabel(item), kcalLabel(item, 'ru'), servesLabel(item, 'ru')].filter(Boolean).join(', ')
-      const description = [subtitle, ru(item, 'description')].filter(Boolean).join(' — ').slice(0, 3000)
       const picture = yandexPictureUrl(item.image_url)
-      for (const row of priceRows(item)) {
+      const rows = priceRows(item)
+      // Variants are usually bottle sizes: the parent's volume would mislabel the other sizes.
+      const volume = publicVariants(item).length ? '' : millilitresLabel(item)
+      const subtitle = [gramsLabel(item, 'ru') || volume, kcalLabel(item, 'ru'), servesLabel(item, 'ru')].filter(Boolean).join(', ')
+      const description = [subtitle, ru(item, 'description')].filter(Boolean).join(' — ').slice(0, 3000)
+      for (const row of rows) {
         const price = Math.round(row.price)
         // Yandex never publishes a zero price.
         if (!(price > 0)) continue
