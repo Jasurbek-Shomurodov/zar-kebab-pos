@@ -53,7 +53,8 @@ function item(menu_item_id, name, quantity, price) {
   return { menu_item_id, name, quantity, price }
 }
 
-const now = new Date('2026-05-19T23:29:00')
+// Explicit restaurant offset: a bare local time would follow the machine's TZ.
+const now = new Date('2026-05-19T23:29:00+05:00')
 
 const orders = [
   order({
@@ -354,7 +355,7 @@ test('cancelled items never contribute to sold-item dashboard or report metrics'
 })
 
 test('dashboard day without sales returns zero and empty widget states', () => {
-  const empty = getDashboardDayOrders(orders, toRestaurantDateStr(new Date('2026-05-18T12:00:00')))
+  const empty = getDashboardDayOrders(orders, toRestaurantDateStr(new Date('2026-05-18T12:00:00+05:00')))
   const payments = getDashboardPaymentMethods(empty)
   const categories = getDashboardSalesByCategory(empty, menuItemMap, categoryMap, 'en')
   const orderTypes = getDashboardOrderTypePerformance(empty, 'en')
