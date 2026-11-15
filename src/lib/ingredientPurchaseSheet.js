@@ -49,3 +49,25 @@ export function averageUnitPrice(paid, quantity) {
   const amount = Number(quantity) || 0
   return amount > 0 ? Math.round((Number(paid) || 0) / amount) : 0
 }
+
+/**
+ * Splits sheet rows into category sections ordered by label, uncategorized
+ * last. Each section carries per-date and period spend for its rows; quantities
+ * are not summed because a category mixes units.
+ */
+export function groupSheetByCategory(rows = [], labelFor = category => category) {
+  const sections = new Map()
+  for (const row of rows) {
+    const category = row.category || 'uncategorized'
+    let section = sections.get(category)
+    if (!section) {
+      section = { category, label: labelFor(category), rows: [], days: {}, paid: 0 }
+      sections.set(category, section)
+    }
+    section.rows.push(row)
+    section.paid += row.paid
+    for (const [date, cell] of Object.entries(row.cells)) section.days[date] = (section.days[date] || 0) + cell.paid
+  }
+  return [...sections.values()].sort((left, right) =>
+    (left.category === 'uncategorized') - (right.category === 'uncategorized') || String(left.label).localeCompare(String(right.label)))
+}

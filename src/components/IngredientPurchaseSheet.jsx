@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Search, X } from 'lucide-react'
+import { ChevronDown, Search, X } from 'lucide-react'
 import DateRangePicker from './DateRangePicker'
 import BazaarCategoryPicker from './BazaarCategoryPicker'
 import { OperationalLoading } from './OperationalState'
@@ -7,12 +7,12 @@ import { supabase } from '../lib/supabase'
 import { todayBazaarDate, bazaarCategoryLabel, bazaarUnitLabel, bazaarPaymentMethodLabel, formatBazaarQuantity, getBazaarRange } from '../lib/bazaar'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatLongDate, formatTime } from '../lib/dateFormat'
-import { averageUnitPrice, buildPurchaseSheet, sheetDates } from '../lib/ingredientPurchaseSheet'
+import { averageUnitPrice, buildPurchaseSheet, groupSheetByCategory, sheetDates } from '../lib/ingredientPurchaseSheet'
 
 const COPY = {
-  en: { title: 'Purchase sheet', from: 'From', to: 'To', note: 'Daily Bazaar purchases of added ingredients: ingredients down the side, dates across the top. Tap a cell, an ingredient or a day total to see what was bought, by whom and for how much.', ingredient: 'Ingredient', total: 'Total', dayTotal: 'Spent per day', quantity: 'Quantity', amount: 'Amount', show: 'Show', search: 'Search ingredients…', category: 'Category', allCategories: 'All categories', uncategorized: 'Uncategorized', clear: 'Clear filters', results: 'Ingredients', empty: 'No ingredient purchases in this period.', noMatches: 'No ingredients match these filters.', loading: 'Loading purchases…', failed: 'Could not load purchases. Please try again.', range: 'Choose a valid range of at most 366 days.', retry: 'Try again', close: 'Close', bought: 'Bought', spent: 'Spent', avgPrice: 'Average price', purchases: 'Purchases', unitPrice: 'Price', normal: 'Usual price', above: 'above usual', below: 'below usual', buyer: 'Buyer', allDay: 'All purchases', period: 'Whole period' },
-  ru: { title: 'Таблица закупок', from: 'С', to: 'По', note: 'Закупки добавленных ингредиентов на базаре: ингредиенты по строкам, даты по столбцам. Нажмите на ячейку, ингредиент или итог дня, чтобы увидеть, что купили, кто и за сколько.', ingredient: 'Ингредиент', total: 'Итого', dayTotal: 'Потрачено за день', quantity: 'Количество', amount: 'Сумма', show: 'Показать', search: 'Поиск ингредиентов…', category: 'Категория', allCategories: 'Все категории', uncategorized: 'Без категории', clear: 'Сбросить фильтры', results: 'Ингредиенты', empty: 'За этот период закупок ингредиентов нет.', noMatches: 'Нет ингредиентов по выбранным фильтрам.', loading: 'Загрузка закупок…', failed: 'Не удалось загрузить закупки. Попробуйте ещё раз.', range: 'Выберите корректный период не более 366 дней.', retry: 'Повторить', close: 'Закрыть', bought: 'Куплено', spent: 'Потрачено', avgPrice: 'Средняя цена', purchases: 'Закупки', unitPrice: 'Цена', normal: 'Обычная цена', above: 'выше обычной', below: 'ниже обычной', buyer: 'Покупатель', allDay: 'Все закупки', period: 'Весь период' },
-  uz: { title: 'Xaridlar jadvali', from: 'Dan', to: 'Gacha', note: 'Qo‘shilgan masalliqlarning bozor xaridlari: masalliqlar qatorlarda, sanalar ustunlarda. Nima, kim tomonidan va qanchaga olinganini ko‘rish uchun katak, masalliq yoki kun jamisini bosing.', ingredient: 'Masalliq', total: 'Jami', dayTotal: 'Kunlik sarf', quantity: 'Miqdor', amount: 'Summa', show: 'Ko‘rsatish', search: 'Masalliqlarni qidirish…', category: 'Kategoriya', allCategories: 'Barcha kategoriyalar', uncategorized: 'Kategoriyasiz', clear: 'Filtrlarni tozalash', results: 'Masalliqlar', empty: 'Bu davrda masalliq xaridlari yo‘q.', noMatches: 'Bu filtrlarga mos masalliq topilmadi.', loading: 'Xaridlar yuklanmoqda…', failed: 'Xaridlarni yuklab bo‘lmadi. Qayta urinib ko‘ring.', range: '366 kundan oshmaydigan to‘g‘ri davrni tanlang.', retry: 'Qayta urinish', close: 'Yopish', bought: 'Xarid qilingan', spent: 'Sarflangan', avgPrice: 'O‘rtacha narx', purchases: 'Xaridlar', unitPrice: 'Narx', normal: 'Odatiy narx', above: 'odatiydan yuqori', below: 'odatiydan past', buyer: 'Xaridor', allDay: 'Barcha xaridlar', period: 'Butun davr' },
+  en: { title: 'Purchase sheet', from: 'From', to: 'To', note: 'Daily Bazaar purchases of added ingredients: ingredients down the side, dates across the top. Tap a cell, an ingredient or a day total to see what was bought, by whom and for how much.', ingredient: 'Ingredient', total: 'Total', dayTotal: 'Spent per day', quantity: 'Quantity', amount: 'Amount', show: 'Show', search: 'Search ingredients…', category: 'Category', allCategories: 'All categories', uncategorized: 'Uncategorized', clear: 'Clear filters', results: 'Ingredients', empty: 'No ingredient purchases in this period.', noMatches: 'No ingredients match these filters.', loading: 'Loading purchases…', failed: 'Could not load purchases. Please try again.', range: 'Choose a valid range of at most 366 days.', retry: 'Try again', close: 'Close', bought: 'Bought', spent: 'Spent', avgPrice: 'Average price', purchases: 'Purchases', unitPrice: 'Price', normal: 'Usual price', above: 'above usual', below: 'below usual', buyer: 'Buyer', allDay: 'All purchases', period: 'Whole period', collapse: 'Collapse', expand: 'Expand' },
+  ru: { title: 'Таблица закупок', from: 'С', to: 'По', note: 'Закупки добавленных ингредиентов на базаре: ингредиенты по строкам, даты по столбцам. Нажмите на ячейку, ингредиент или итог дня, чтобы увидеть, что купили, кто и за сколько.', ingredient: 'Ингредиент', total: 'Итого', dayTotal: 'Потрачено за день', quantity: 'Количество', amount: 'Сумма', show: 'Показать', search: 'Поиск ингредиентов…', category: 'Категория', allCategories: 'Все категории', uncategorized: 'Без категории', clear: 'Сбросить фильтры', results: 'Ингредиенты', empty: 'За этот период закупок ингредиентов нет.', noMatches: 'Нет ингредиентов по выбранным фильтрам.', loading: 'Загрузка закупок…', failed: 'Не удалось загрузить закупки. Попробуйте ещё раз.', range: 'Выберите корректный период не более 366 дней.', retry: 'Повторить', close: 'Закрыть', bought: 'Куплено', spent: 'Потрачено', avgPrice: 'Средняя цена', purchases: 'Закупки', unitPrice: 'Цена', normal: 'Обычная цена', above: 'выше обычной', below: 'ниже обычной', buyer: 'Покупатель', allDay: 'Все закупки', period: 'Весь период', collapse: 'Свернуть', expand: 'Развернуть' },
+  uz: { title: 'Xaridlar jadvali', from: 'Dan', to: 'Gacha', note: 'Qo‘shilgan masalliqlarning bozor xaridlari: masalliqlar qatorlarda, sanalar ustunlarda. Nima, kim tomonidan va qanchaga olinganini ko‘rish uchun katak, masalliq yoki kun jamisini bosing.', ingredient: 'Masalliq', total: 'Jami', dayTotal: 'Kunlik sarf', quantity: 'Miqdor', amount: 'Summa', show: 'Ko‘rsatish', search: 'Masalliqlarni qidirish…', category: 'Kategoriya', allCategories: 'Barcha kategoriyalar', uncategorized: 'Kategoriyasiz', clear: 'Filtrlarni tozalash', results: 'Masalliqlar', empty: 'Bu davrda masalliq xaridlari yo‘q.', noMatches: 'Bu filtrlarga mos masalliq topilmadi.', loading: 'Xaridlar yuklanmoqda…', failed: 'Xaridlarni yuklab bo‘lmadi. Qayta urinib ko‘ring.', range: '366 kundan oshmaydigan to‘g‘ri davrni tanlang.', retry: 'Qayta urinish', close: 'Yopish', bought: 'Xarid qilingan', spent: 'Sarflangan', avgPrice: 'O‘rtacha narx', purchases: 'Xaridlar', unitPrice: 'Narx', normal: 'Odatiy narx', above: 'odatiydan yuqori', below: 'odatiydan past', buyer: 'Xaridor', allDay: 'Barcha xaridlar', period: 'Butun davr', collapse: 'Yig‘ish', expand: 'Ochish' },
 }
 
 const DATE_LABELS = {
@@ -47,6 +47,7 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [mode, setMode] = useState('quantity')
   const [detail, setDetail] = useState(null)
+  const [collapsed, setCollapsed] = useState(() => new Set())
   useEffect(() => {
     const controller = new AbortController()
     let active = true
@@ -97,7 +98,23 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
     }
     return { days, total }
   }, [visibleRows])
+  // Category sections; labels are presentation only and never feed the loader.
+  const sections = useMemo(() => groupSheetByCategory(visibleRows, category => categoryName(category, lang, l)), [visibleRows, lang, l])
+  // Running row number (№) across sections, in display order.
+  const rowNumbers = useMemo(() => {
+    const numbers = new Map()
+    for (const section of sections) for (const row of section.rows) numbers.set(row.key, numbers.size + 1)
+    return numbers
+  }, [sections])
   const today = todayBazaarDate()
+  function toggleSection(category) {
+    setCollapsed(current => {
+      const next = new Set(current)
+      if (next.has(category)) next.delete(category)
+      else next.add(category)
+      return next
+    })
+  }
   const filtered = Boolean(query || categoryFilter !== 'all')
 
   function openCell(row, date) {
@@ -108,9 +125,11 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
     const lines = dates.flatMap(date => row.cells[date]?.lines || [])
     setDetail({ title: row.name, subtitle: `${l.period} · ${formatLongDate(from, lang)} – ${formatLongDate(to, lang)}`, unit: row.unit, quantity: row.quantity, paid: row.paid, lines, showDate: true, showName: false })
   }
-  function openDay(date) {
-    const lines = visibleRows.flatMap(row => row.cells[date]?.lines || [])
-    setDetail({ title: formatLongDate(date, lang), subtitle: l.allDay, paid: visibleTotals.days[date] || 0, lines, showDate: false, showName: true })
+  function openDay(date, section = null) {
+    const rows = section ? section.rows : visibleRows
+    const lines = rows.flatMap(row => row.cells[date]?.lines || [])
+    const paid = section ? section.days[date] || 0 : visibleTotals.days[date] || 0
+    setDetail({ title: formatLongDate(date, lang), subtitle: section ? section.label : l.allDay, paid, lines, showDate: false, showName: true })
   }
 
   return (
@@ -133,8 +152,9 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
             <BazaarCategoryPicker value={categoryFilter} ingredients={categoryRows} onChange={setCategoryFilter} lang={lang} allLabel={l.allCategories} uncategorizedLabel={l.uncategorized} />
           </div>
         </div>
-        <div className="ws-caption block font-medium">{l.show}
-          <div role="group" aria-label={l.show} className="ws-segmented mt-1.5 flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none">
+        <div className="ws-caption font-medium">
+          <span className="block">{l.show}</span>
+          <div role="group" aria-label={l.show} className="ws-segmented mt-1.5 flex w-full [&>button]:flex-1 lg:w-auto">
             {['quantity', 'amount'].map(option => (
               <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)}>{l[option]}</button>
             ))}
@@ -150,10 +170,12 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
       ) : loading ? <OperationalLoading title={l.loading} layout="ingredientSheetGrid" /> : !sheet.rows.length ? <p className="ws-empty">{l.empty}</p> : !visibleRows.length ? <p className="ws-empty">{l.noMatches}</p> : (
         // Ingredients down the side, dates across the top; the name column and header stay pinned while scrolling.
         <div className="max-h-[70vh] overflow-auto rounded-xl border border-[#e4e1de]">
-          <table className="border-separate border-spacing-0 text-sm">
+          <table className="min-w-full border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
-                <th scope="col" className="sticky left-0 top-0 z-30 min-w-[180px] max-w-[220px] border-b border-r border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-left text-xs font-semibold text-[#68655f]">{l.ingredient}</th>
+                <th scope="col" className="sticky left-0 top-0 z-30 min-w-[180px] max-w-[220px] border-b border-r border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-left text-xs font-semibold text-[#68655f]">
+                  <span className="inline-block w-7 text-right tabular-nums">№</span><span className="ml-2">{l.ingredient}</span>
+                </th>
                 {dates.map(date => (
                   <th key={date} scope="col" className={`sticky top-0 z-20 min-w-[76px] border-b border-r border-[#e4e1de] px-2 py-1.5 text-center text-xs font-semibold ${date === today ? 'bg-[#fff4ec] text-[#ff5a00]' : 'bg-[#f6f5f3] text-[#68655f]'}`}>
                     <span className="block tabular-nums text-[13px] text-inherit">{Number(date.slice(8))}.{date.slice(5, 7)}</span>
@@ -163,39 +185,69 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
                 <th scope="col" className="sticky top-0 z-20 min-w-[120px] border-b border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-right text-xs font-semibold text-[#68655f]">{l.total}</th>
               </tr>
             </thead>
-            <tbody>
-              {visibleRows.map(row => {
-                const unit = unitLabel(row.unit, lang)
-                return (
-                  <tr key={row.key} className="group">
-                    <th scope="row" className="sticky left-0 z-10 max-w-[220px] border-b border-r border-[#e4e1de] bg-white p-0 text-left font-normal">
-                      <button type="button" onClick={() => openRow(row)} className="block w-full px-3 py-2 text-left hover:bg-[#f6f5f3]">
-                        <span className="block truncate font-semibold text-[#22201d]">{row.name}</span>
-                        <span className="ws-caption block truncate">{categoryName(row.category, lang, l)} · {unit}</span>
+            {sections.map(section => {
+              const isCollapsed = collapsed.has(section.category)
+              return (
+                <tbody key={section.category}>
+                  <tr>
+                    <th scope="rowgroup" className="sticky left-0 z-10 border-b border-r border-[#e4e1de] bg-[#f6f5f3] p-0 text-left">
+                      <button type="button" onClick={() => toggleSection(section.category)} aria-expanded={!isCollapsed} aria-label={`${isCollapsed ? l.expand : l.collapse}: ${section.label}`}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left">
+                        <ChevronDown size={15} className={`shrink-0 text-[#68655f] transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                        <span className="min-w-0 truncate text-[13px] font-semibold uppercase tracking-wide text-[#22201d]">{section.label}</span>
+                        <span className="ws-caption shrink-0 tabular-nums">{section.rows.length}</span>
                       </button>
                     </th>
                     {dates.map(date => {
-                      const cell = row.cells[date]
+                      const paid = section.days[date] || 0
                       return (
-                        <td key={date} className={`border-b border-r border-[#e4e1de] p-0 text-center ${date === today ? 'bg-[#fff4ec]' : 'bg-white'}`}>
-                          {cell ? (
-                            <button type="button" onClick={() => openCell(row, date)} aria-label={`${row.name}, ${formatLongDate(date, lang)}: ${formatBazaarQuantity(cell.quantity)} ${unit}, ${formatCurrency(cell.paid)}`}
-                              className="block h-full w-full px-2 py-2 font-semibold tabular-nums text-[#ff5a00] hover:bg-orange-50">
-                              {mode === 'quantity' ? formatBazaarQuantity(cell.quantity) : compactAmount(cell.paid)}
-                              {cell.lines.length > 1 && <sup className="ml-0.5 text-[10px] font-medium text-[#68655f]">×{cell.lines.length}</sup>}
-                            </button>
-                          ) : <span aria-hidden="true" className="text-[#c9c5c0]">·</span>}
+                        <td key={date} className="border-b border-r border-[#e4e1de] bg-[#f6f5f3] p-0 text-center">
+                          {paid ? (
+                            <button type="button" onClick={() => openDay(date, section)} aria-label={`${section.label}, ${formatLongDate(date, lang)}: ${formatCurrency(paid)}`}
+                              className="block w-full px-2 py-2 text-xs font-semibold tabular-nums text-[#68655f] hover:bg-orange-50">{compactAmount(paid)}</button>
+                          ) : null}
                         </td>
                       )
                     })}
-                    <td className="border-b border-[#e4e1de] bg-white px-3 py-2 text-right tabular-nums">
-                      <span className="block font-semibold text-[#22201d]">{formatCurrency(row.paid)}</span>
-                      <span className="ws-caption block">{formatBazaarQuantity(row.quantity)} {unit}</span>
-                    </td>
+                    <td className="border-b border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(section.paid)}</td>
                   </tr>
-                )
-              })}
-            </tbody>
+                  {!isCollapsed && section.rows.map(row => {
+                    const unit = unitLabel(row.unit, lang)
+                    return (
+                      <tr key={row.key}>
+                        <th scope="row" className="sticky left-0 z-10 max-w-[220px] border-b border-r border-[#e4e1de] bg-white p-0 text-left font-normal">
+                          <button type="button" onClick={() => openRow(row)} className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-[#f6f5f3]">
+                            <span className="w-7 shrink-0 pt-px text-right text-xs font-medium tabular-nums text-[#68655f]">{rowNumbers.get(row.key)}</span>
+                            <span className="min-w-0">
+                              <span className="block truncate font-semibold text-[#22201d]">{row.name}</span>
+                              <span className="ws-caption block truncate">{unit}</span>
+                            </span>
+                          </button>
+                        </th>
+                        {dates.map(date => {
+                          const cell = row.cells[date]
+                          return (
+                            <td key={date} className={`border-b border-r border-[#e4e1de] p-0 text-center ${date === today ? 'bg-[#fff4ec]' : 'bg-white'}`}>
+                              {cell ? (
+                                <button type="button" onClick={() => openCell(row, date)} aria-label={`${row.name}, ${formatLongDate(date, lang)}: ${formatBazaarQuantity(cell.quantity)} ${unit}, ${formatCurrency(cell.paid)}`}
+                                  className="block h-full w-full px-2 py-2 font-semibold tabular-nums text-[#ff5a00] hover:bg-orange-50">
+                                  {mode === 'quantity' ? formatBazaarQuantity(cell.quantity) : compactAmount(cell.paid)}
+                                  {cell.lines.length > 1 && <sup className="ml-0.5 text-[10px] font-medium text-[#68655f]">×{cell.lines.length}</sup>}
+                                </button>
+                              ) : <span aria-hidden="true" className="text-[#c9c5c0]">·</span>}
+                            </td>
+                          )
+                        })}
+                        <td className="border-b border-[#e4e1de] bg-white px-3 py-2 text-right tabular-nums">
+                          <span className="block font-semibold text-[#22201d]">{formatCurrency(row.paid)}</span>
+                          <span className="ws-caption block">{formatBazaarQuantity(row.quantity)} {unit}</span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              )
+            })}
             <tfoot>
               <tr>
                 <th scope="row" className="sticky bottom-0 left-0 z-30 border-r border-t border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-left text-xs font-semibold text-[#22201d]">{l.dayTotal}</th>
