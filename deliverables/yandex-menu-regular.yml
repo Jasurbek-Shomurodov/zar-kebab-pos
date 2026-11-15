@@ -1,0 +1,1753 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<yml_catalog date="2026-11-12T17:21:25+00:00">
+  <shop>
+    <name>Zar Kebab</name>
+    <company>Zar Kebab</company>
+    <url>https://www.zarkebab.uz</url>
+    <currencies>
+      <currency id="UZS" rate="1"/>
+    </currencies>
+    <categories>
+      <category id="1">Завтраки</category>
+      <category id="2">Бизнес-ланч</category>
+      <category id="3">Шашлык</category>
+      <category id="4">Первые блюда</category>
+      <category id="5">Вторые блюда</category>
+      <category id="6">Комбо-наборы</category>
+      <category id="7">Салаты</category>
+      <category id="8">Гарниры</category>
+      <category id="9">Хлеб</category>
+      <category id="10">Напитки</category>
+      <category id="11">Газированные напитки</category>
+      <category id="12">Кофе</category>
+      <category id="13">Десерты</category>
+      <category id="14">Чай</category>
+      <category id="15">Алкоголь</category>
+    </categories>
+    <offers>
+      <offer id="zk-english-breakfast">
+        <name>Английский завтрак</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>65000</price>
+        <currencyId>UZS</currencyId>
+        <description>Сытный завтрак с яичницей, сосисками, фасолью, грибами и зеленью.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_english_breakfast-1791827878363-dbrmo7d9.jpg</picture>
+      </offer>
+      <offer id="zk-shakshuka">
+        <name>Шакшука</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <description>Яйца в насыщенном томатном соусе с зеленью и пряной подачей.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_shakshuka-1791828163589-nscod555.jpg</picture>
+      </offer>
+      <offer id="i1791828377891">
+        <name>Блинчики с мясным фаршем</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1791828377891-1791828433676-8ogmp0ll.jpg</picture>
+      </offer>
+      <offer id="zk-cottage-cheese-crepes">
+        <name>Блинчики с творогом</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>55000</price>
+        <currencyId>UZS</currencyId>
+        <description>Тонкие блинчики с нежной творожной начинкой, подаются со сметаной или вареньем.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/zk_cottage_cheese_crepes-1786539111333-5jpi8hk3.jpg</picture>
+      </offer>
+      <offer id="zk-syrniki">
+        <name>Сырники</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежные румяные сырники из рикотты с лёгкой подачей и свежей мятой.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_syrniki-1791827959936-qnhl9kfr.jpg</picture>
+      </offer>
+      <offer id="i1785756609839">
+        <name>Овсяная каша</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г — Нежная овсяная каша, приготовленная на молоке. Подаётся с мёдом, свежими фруктами.. Идеальный выбор для полезного и сытного завтрака.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785756609839-1791828071156-h9k39ont.jpg</picture>
+      </offer>
+      <offer id="i1785756837117">
+        <name>Классическая манная каша</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежная манная каша, приготовленная на молоке, подаётся со сливочным маслом. Лёгкий, вкусный и сытный завтрак.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1785756837117-1786539279161-ok1ncjo7.jpg</picture>
+      </offer>
+      <offer id="i1785756897075">
+        <name>Классический омлет</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежный и воздушный омлет из свежих яиц, подаётся горячим со свежей зеленью.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785756897075-1791828240494-cmqeqev8.jpg</picture>
+      </offer>
+      <offer id="i1791828604256">
+        <name>Сосиски с картофелем фри</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <description>Хрустящий картофель фри с сочной сосиской и горчицей. Отличный выбор для быстрого и вкусного перекуса!</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1791828604256-1791828652159-qc55who1.jpg</picture>
+      </offer>
+      <offer id="i1787034578692">
+        <name>Жареное яйцо</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>Классическая яичница из 2 яиц с нежным белком и аппетитным желтком.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787034578692-1787661996257-jxgc8a5h.png</picture>
+      </offer>
+      <offer id="i1787035908418">
+        <name>Масло</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>15000</price>
+        <currencyId>UZS</currencyId>
+        <description>100 г — Нежное сливочное масло с мягким вкусом. Порция — 50 г.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787035908418-1788345129369-d3z19yie.png</picture>
+      </offer>
+      <offer id="i1788071541521">
+        <name>Сосиска</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>15000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1788071541521-1793442395781-k0lo0k3y.png</picture>
+      </offer>
+      <offer id="i1782373232835">
+        <name>Сет &quot;Чечевица&quot;</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Сытный комбо-набор, в который входят чечевичный суп, шашлык из рубленого мяса, свежий салат, хлеб и освежающий компот. Вкусный и полноценный обед в одном наборе!</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1782373232835-1794123452340-0av7usbw.png</picture>
+      </offer>
+      <offer id="i1782372544198">
+        <name>Заркебаб сет</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Сытный комбо-набор с сочным шашлыком из куриных крылышек, рассыпчатым рисом, картофелем по-деревенски, свежим салатом и освежающим компотом. Вкусный и полноценный обед на любой день!</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1782372544198-1794123593925-noog486d.png</picture>
+      </offer>
+      <offer id="i1782383890290">
+        <name>Гўшт сай 2</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>50000</price>
+        <currencyId>UZS</currencyId>
+        <description>Сытный комбо-набор с нежным картофельным пюре, рисом, мясной подливой, свежим хлебом и освежающим компотом. Вкусный и полноценный обед на каждый день!</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1782383890290-1794124727579-qwlcghyg.png</picture>
+      </offer>
+      <offer id="i1782381887251">
+        <name>Сет «Куриный сай»</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежный куриный сай подаётся со свежей лепёшкой и домашним фруктовым компотом. Сытный и вкусный вариант для бизнес-ланча.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1782381887251-1794125326839-kjj09rzn.png</picture>
+      </offer>
+      <offer id="i1785832155579">
+        <name>Сет с олотской самсой</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>50000</price>
+        <currencyId>UZS</currencyId>
+        <description>6 традиционных олотских самс, фирменный соус и домашний компот. Отличный выбор для компании или семейного стола.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785832155579-1793372685733-gnbfabko.png</picture>
+      </offer>
+      <offer id="i1785831821783">
+        <name>Сет для любителей шашлыка</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>65000</price>
+        <currencyId>UZS</currencyId>
+        <description>2 шампура шашлыка из говяжьего фарша, манты, олотская самса, домашний компот, соус и свежий хлеб. Сытный набор для одного человека.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785831821783-1794124459284-sw46hp4x.png</picture>
+      </offer>
+      <offer id="i1785832213229">
+        <name>Сет с пловом</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Традиционный узбекский плов с домашним компотом, свежим салатом и горячим хлебом. Сытный и вкусный обед.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785832213229-1794123662121-ay4ua2zm.png</picture>
+      </offer>
+      <offer id="i1785832252990">
+        <name>Киевский сет</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Куриный суп, сочная котлета по-киевски, домашний компот, свежий салат и горячий хлеб. Отличный вариант полноценного обеда.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785832252990-1794123740046-ppl3tjvb.png</picture>
+      </offer>
+      <offer id="i1785832288791">
+        <name>Национальный обед</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Мастава, манты, олотская самса, домашний компот, соус и свежий хлеб. Лучшие блюда узбекской кухни в одном сете.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785832288791-1794123773300-ikfr68vc.png</picture>
+      </offer>
+      <offer id="i1782380337074">
+        <name>Сет &quot;Пельмени&quot;</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>2</categoryId>
+        <price>55000</price>
+        <currencyId>UZS</currencyId>
+        <description>Сытный комбо-набор с традиционным супом с чучварой, шашлыком из рубленого мяса, свежим хлебом, салатом и освежающим компотом. Вкусный и сытный обед на каждый день!</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1782380337074-1794124279613-9h5zjdec.png</picture>
+      </offer>
+      <offer id="m3">
+        <name>Шашлык из куриного филе</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>27000</price>
+        <currencyId>UZS</currencyId>
+        <description>180 г, 410 ккал — Нежный и сочный шашлык из куриного бедра, замаринованный в ароматных специях и приготовленный на углях.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/m3-1786540954813-jklkh093.jpg</picture>
+      </offer>
+      <offer id="i1781174552443">
+        <name>Овощной шашлык</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 270 ккал — Болгарский перец, кабачок, баклажан, кукуруза, помидоры, лук, лимон, растительное масло, соль, специи.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781174552443-1787587480975-rbgzxwg5.png</picture>
+      </offer>
+      <offer id="zk-lamb-ribs">
+        <name>Шашлык из говядины</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <description>150 г, 420 ккал — Нежные кусочки говядины, приготовленные на углях, подаются с лавашом, луком и капустным салатом</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_lamb_ribs-1786016403265-i4ij4lbr.jpg</picture>
+      </offer>
+      <offer id="i1780395842182">
+        <name>Куриные крылышки</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>28000</price>
+        <currencyId>UZS</currencyId>
+        <description>190 г, 450 ккал — Сочные куриные крылышки, замаринованные в ароматных специях и приготовленные на углях. Подаются с луком насыщенным дымным вкусом.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1780395842182-1786541103935-dclj6nyp.jpg</picture>
+      </offer>
+      <offer id="i1780399163257">
+        <name>Молотый шашлык</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>100 г, 210 ккал — Сочный шашлык из рубленого мяса, приготовленный на углях</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780399163257-1786016510052-1m51r4db.jpg</picture>
+      </offer>
+      <offer id="i1785853567550">
+        <name>Шашлык из корейки</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>95000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г — Нежная баранья корейка на кости, маринованная в фирменных специях и приготовленная на углях. Сочная, ароматная и с насыщенным мясным вкусом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785853567550-1787472234720-kdzagsfr.png</picture>
+      </offer>
+      <offer id="i1785853723033">
+        <name>Барбекю</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>165000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г — Три бараньи корейки, маринованные в фирменных специях и приготовленные на углях. Сочные, нежные и с насыщенным ароматом BBQ.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785853723033-1790270995038-76o601ym.png</picture>
+      </offer>
+      <offer id="i1793342039986">
+        <name>Рулет-шашлык</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>40000</price>
+        <currencyId>UZS</currencyId>
+        <description>160 г — Нежное и сочное мясо, аккуратно свернутое в рулет, нанизанное на шампур и приготовленное на гриле до золотистой корочки. Ароматные специи и аппетитный дымный аромат придают блюду насыщенный вкус. Каждый кусочек порадует своей сочностью и неповторимым ароматом. Подаётся со свежей зеленью, помидорами, острым перцем и лимоном.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793342039986-1793342297839-c71fqelm.png</picture>
+      </offer>
+      <offer id="i1793342318153">
+        <name>Шашлык «Наполеон»</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>3</categoryId>
+        <price>40000</price>
+        <currencyId>UZS</currencyId>
+        <description>160 г — Нежные и сочные тонкие слои говядины аккуратно сворачиваются, нанизываются на шампур и обжариваются на гриле до золотистой корочки. Ароматные специи и насыщенный дымный вкус придают блюду особую изысканность. Подаётся со свежей зеленью, помидорами, острым перцем и лимоном.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793342318153-1793343772073-vc4yhvm5.png</picture>
+      </offer>
+      <offer id="zk-mastava">
+        <name>Мастава</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>4</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 390 ккал — Традиционный узбекский рисовый суп с говядиной, картофелем, морковью, помидорами и свежей зеленью. Сытный, горячий и по-домашнему вкусный.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_mastava-1793439071068-0hyxq3zo.png</picture>
+      </offer>
+      <offer id="i1779040812644">
+        <name>Суп с тефтелями</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>4</categoryId>
+        <price>40000</price>
+        <currencyId>UZS</currencyId>
+        <description>говяжий фарш, лук, рис, специи, морковь, помидоры, картофель, соль</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779040812644-1793439211917-udj09e76.png</picture>
+      </offer>
+      <offer id="i1779039662758">
+        <name>Чечевичный суп</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>4</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежный и сытный чечевичный суп с картофелем, морковью, помидорами, чесноком и ароматными специями. Подаётся с хрустящими сухариками, которые делают вкус ещё насыщеннее.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779039662758-1793440204516-uby6db5c.png</picture>
+      </offer>
+      <offer id="i1780677222496">
+        <name>Пельменный суп</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>4</categoryId>
+        <price>42000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 420 ккал — Сытный горячий суп с говядиной, пельменями, картофелем, морковью, нутом и свежей зеленью. Насыщенный, ароматный и по-домашнему вкусный.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780677222496-1793440365984-54g8a85b.png</picture>
+      </offer>
+      <offer id="i1780646280551">
+        <name>Окрошка</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>4</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>400 г, 360 ккал — Лёгкое холодное блюдо, приготовленное из мяса, яиц, огурцов, картофеля, зелени и сузьмы</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780646280551-1793441068300-xesjfena.png</picture>
+      </offer>
+      <offer id="zk-shorva">
+        <name>Кайнатма шурпа</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>4</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 ml, 430 ккал — Традиционный наваристый суп, приготовленный на медленном огне с говядиной, картофелем, морковью, нутом и свежей зеленью. Обладает мягким вкусом и насыщенным ароматом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_shorva-1793441186956-3a6hyrrg.png</picture>
+      </offer>
+      <offer id="i1793958649023">
+        <name>Булён</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>4</categoryId>
+        <price>20000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793958649023-1793959975163-lm353z24.jpg</picture>
+      </offer>
+      <offer id="i1779094589474-option-1782757635126">
+        <name>Курутоб (1 человек)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>80000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежное национальное блюдо с сузьмой, свежими овощами, зеленью и ароматными специями, дополненное сочной говядиной. Сытное, насыщенное и с приятной лёгкой кислинкой.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779094589474-1788531604507-umb5dai8.png</picture>
+      </offer>
+      <offer id="i1779094589474-option-1782757673683">
+        <name>Курутоб (2-3 человека)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>145000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежное национальное блюдо с сузьмой, свежими овощами, зеленью и ароматными специями, дополненное сочной говядиной. Сытное, насыщенное и с приятной лёгкой кислинкой.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779094589474-1788531604507-umb5dai8.png</picture>
+      </offer>
+      <offer id="i1779094589474-option-1782757735368">
+        <name>Курутоб (4-5 человека)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>260000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежное национальное блюдо с сузьмой, свежими овощами, зеленью и ароматными специями, дополненное сочной говядиной. Сытное, насыщенное и с приятной лёгкой кислинкой.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779094589474-1788531604507-umb5dai8.png</picture>
+      </offer>
+      <offer id="i1783580486819-option-1787127000971">
+        <name>Плов</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>50000</price>
+        <currencyId>UZS</currencyId>
+        <description>Традиционный узбекский плов, приготовленный на льняном масле с рисом, мясом, морковью и ароматными специями.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1783580486819-1786539779204-o54mv187.jpg</picture>
+      </offer>
+      <offer id="i1783580486819-option-1787127042979">
+        <name>Плов (Казы)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>Традиционный узбекский плов, приготовленный на льняном масле с рисом, мясом, морковью и ароматными специями.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1783580486819-1786539779204-o54mv187.jpg</picture>
+      </offer>
+      <offer id="i1780904254807">
+        <name>Чучвара с фаршем</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Чучвара из тонкого теста с сочным мясным фаршем и ароматными специями. Подаётся с горячим бульоном или соусом сузьма, получается нежной и сытной.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1780904254807-1786540074672-wirvpzst.jpg</picture>
+      </offer>
+      <offer id="i1782228284663">
+        <name>Говяжий Кофте</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>Сочный кофте шашлык из нежной говядины. Подаётся с картофелем фри, рисом, свежим капустным салатом и фирменным соусом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1782228284663-1782727592704-vsot6f48.png</picture>
+      </offer>
+      <offer id="i1784781493917">
+        <name>Мясо по-французски</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>90000</price>
+        <currencyId>UZS</currencyId>
+        <description>320 г — Нежная говядина, запечённая с шампиньонами, помидорами и расплавленным сыром до золотистой корочки.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1784781493917-1786539897236-4ewvmvwm.jpg</picture>
+      </offer>
+      <offer id="i1783606193671">
+        <name>Казан кебаб</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>90000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежное мясо и румяная картошка, медленно приготовленные в казане. Сытное национальное блюдо с ароматными специями.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1783606193671-1791009515851-rea7g7jj.png</picture>
+      </offer>
+      <offer id="i1783858095607">
+        <name>Уйгурский лагман</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>55000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 420 ккал — Традиционное уйгурское блюдо из домашней тянутой лапши, говядины и свежих овощей. Подаётся с густой, ароматной подливой.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1783858095607-1786539920279-8qp2b4cw.jpg</picture>
+      </offer>
+      <offer id="i1784779843163">
+        <name>Сай с говядиной</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>70000</price>
+        <currencyId>UZS</currencyId>
+        <description>450 г — Нежная говядина, обжаренная на сильном огне с болгарским перцем, луком и ароматными специями.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1784779843163-1787201743895-olior53v.png</picture>
+      </offer>
+      <offer id="i1784780564944">
+        <name>Сай с курицей</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>55000</price>
+        <currencyId>UZS</currencyId>
+        <description>400 г — Нежное куриное филе, обжаренное на сильном огне с болгарским перцем, луком и ароматными специями.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1784780564944-1793014505321-tns17a52.png</picture>
+      </offer>
+      <offer id="i1784780809325">
+        <name>Тайское мясо</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>95000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г — Нежная говядина, обжаренная на сильном огне с болгарским перцем, луком, овощами и фирменным тайским сладко-острым соусом.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1784780809325-1786540322808-qglwgue0.jpg</picture>
+      </offer>
+      <offer id="i1784781996312">
+        <name>Медальоны под сливочным соусом</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>96000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г — Нежные медальоны из говяжьей вырезки, приготовленные в сливочном соусе с шампиньонами и ароматными специями.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1784781996312-1784782011244-nobxt7bo.png</picture>
+      </offer>
+      <offer id="i1784782369295">
+        <name>Бефстроганов</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>55000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежная говядина, приготовленная с шампиньонами и луком в сливочном соусе. Подаётся с картофельным пюре или картофелем фри.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1784782369295-1786540032944-285k00cm.jpg</picture>
+      </offer>
+      <offer id="i1784782809475">
+        <name>Бифштекс</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>50000</price>
+        <currencyId>UZS</currencyId>
+        <description>Сочный бифштекс из говядины, подаётся с картофельным пюре, рисом или гречкой и свежими овощами.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1784782809475-1786540202823-2itx2emd.jpg</picture>
+      </offer>
+      <offer id="i1784875439403">
+        <name>Долма</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>300 г — Традиционное блюдо из виноградных листьев с начинкой из мясного фарша и риса, приготовленное с ароматными специями.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1784875439403-1792129134963-xjt8jetp.png</picture>
+      </offer>
+      <offer id="i1785509024176">
+        <name>Сет с мантами</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>50000</price>
+        <currencyId>UZS</currencyId>
+        <description>450 г — 5 сочных уйгурских мантов подаются со свежей лепёшкой, фирменным соусом и домашним компотом. Сытный и вкусный выбор для полноценного обеда.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1785509024176-1786547807197-e35kt766.jpg</picture>
+      </offer>
+      <offer id="i1785828291998">
+        <name>Олотская самса</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>12000</price>
+        <currencyId>UZS</currencyId>
+        <description>Традиционная самса по рецепту Олотского района. Готовится из нежной говядины, лука и ароматных специй, запекается до золотистой хрустящей корочки. Сочная начинка и насыщенный вкус делают её отличным выбором.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785828291998-1785850149760-lekjr1oj.png</picture>
+      </offer>
+      <offer id="i1789890930069">
+        <name>Картошка по-домашнему</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г — Русский Золотистый хрустящий картофель, обжаренный с нежной говядиной, луком и ароматной зеленью. Простое, сытное и вкусное блюдо с настоящим домашним вкусом!</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1789890930069-1793015221857-zq3cj3rt.png</picture>
+      </offer>
+      <offer id="i1787060632414">
+        <name>Мясо с грибами</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>90000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежное мясо с ароматными грибами и расплавленным сыром, поданное на подушке из рассыпчатого риса. Гармоничное сочетание насыщенных вкусов для истинного удовольствия.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787060632414-1788194694481-9dpgtu78.png</picture>
+      </offer>
+      <offer id="i1787153682046">
+        <name>Osh 1kg</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>100000</price>
+        <currencyId>UZS</currencyId>
+        <description>Традиционный узбекский плов с ароматным рисом, нежным мясом, сладкой морковью и душистыми специями. Сытное блюдо с насыщенным вкусом, воплощающее лучшие традиции узбекской кухни.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787153682046-1787664351554-e0asncob.png</picture>
+      </offer>
+      <offer id="i1789887946305">
+        <name>Картошка с соусом терияки</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>65000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г — Хрустящий золотистый картофель, заправленный насыщенным кисло-сладким соусом терияки — идеальное сочетание хрустящей текстуры и яркого вкуса.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1789887946305-1789890114518-xgxo6jh0.png</picture>
+      </offer>
+      <offer id="i1791824249667">
+        <name>Куринный стейк с овощами</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>84000</price>
+        <currencyId>UZS</currencyId>
+        <description>500 г — Нежное куриное филе под фирменным сливочным соусом, с овощами-гриль и сочными томатами черри. Изысканное блюдо с мягким вкусом и эффектной подачей.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1791824249667-1791824362336-4npbhgxh.jpg</picture>
+      </offer>
+      <offer id="i1787201461035">
+        <name>Жареный лагман</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>450 г — Лапша ручной вытяжки, обжаренная с нежным мясом и свежими овощами до совершенства. Насыщенный вкус, аппетитный аромат и гармония традиций восточной кухни.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787201461035-1793249872825-gpdoectc.png</picture>
+      </offer>
+      <offer id="i1792128726626">
+        <name>Куриный стейк</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>89000</price>
+        <currencyId>UZS</currencyId>
+        <description>450 г — Нежное куриное филе под фирменным сливочным соусом, с овощами-гриль и сочными томатами черри. Изысканное блюдо с мягким вкусом и эффектной подачей.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792128726626-1792128815657-fn8w3kf0.png</picture>
+      </offer>
+      <offer id="i1792167135674">
+        <name>Домашняя котлета</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>67000</price>
+        <currencyId>UZS</currencyId>
+        <description>Сочная домашняя котлета с рассыпчатым рисом под насыщенным соусом, свежим зелёным салатом с кедровыми орешками и спелыми томатами черри. Гармония домашнего вкуса и изысканной подачи.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792167135674-1792167269642-rhh5fn1l.png</picture>
+      </offer>
+      <offer id="i1792926042468">
+        <name>Особое блюдо от шеф-повара</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>55000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежное мясо, обжаренное до золотистой корочки и покрытое расплавленным сыром, подаётся с нежным картофельным пюре, рассыпчатым рисом и свежими томатами черри. Гармония насыщенного вкуса и изысканной подачи.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792926042468-1792926126149-ssp5o7wa.png</picture>
+      </offer>
+      <offer id="i1789890377936">
+        <name>Мексиканская курица</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>56000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г — Нежная и сочная курица, приготовленная с ароматными мексиканскими специями, перцем и травами. Яркий вкус с лёгкой остротой, пряными и дымными нотками.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1789890377936-1793603580768-igw76fo2.jpg</picture>
+      </offer>
+      <offer id="i1793601655564">
+        <name>Паста Альфредо</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>86000</price>
+        <currencyId>UZS</currencyId>
+        <description>Паста Альфредо — это классическое итальянское блюдо, приготовленное из нежной пасты феттучини с насыщенным сливочным соусом из сливок, сливочного масла и сыра Пармезан. Она обладает нежной, бархатистой текстурой и восхитительным сырным вкусом, идеально подходящим для любителей пасты.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793601655564-1793601709719-p7cua2ju.jpg</picture>
+      </offer>
+      <offer id="i1794297643030">
+        <name>Удон с курицей</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>5</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>Обжаренная лапша удон с нежной курицей, овощами, кунжутом и ароматным соусом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1794297643030-1794297666796-ix0p9e6z.png</picture>
+      </offer>
+      <offer id="i1781345818133">
+        <name>Cет лайт</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>175000</price>
+        <currencyId>UZS</currencyId>
+        <description>950 г — Шашлык из бедра -1шт Куриные крылышки 1шт Молотый шашлык -2шт Кусковой шашлык -2шт Лепешка -2шт (Для 2-3 человека)</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781345818133-1787474948087-mx118o3k.png</picture>
+      </offer>
+      <offer id="i1781345889644">
+        <name>Сет комбо молотий</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>240000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.6 kg, 5290 ккал — Молотый шашлык — 10 шт. Горячая лепёшка — 2 шт. Рассчитано на 3–4 человека</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781345889644-1787475078733-z29ibi1j.png</picture>
+      </offer>
+      <offer id="i1781345939712">
+        <name>Сет қурутоб</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>85000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г — Курутоб — 1 шт Кока-кола 0,5 л - 1 шт (Для 1 человека)</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781345939712-1786548674735-nn7bf3q6.jpg</picture>
+      </offer>
+      <offer id="i1781939800333">
+        <name>Отличный сет</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>69000</price>
+        <currencyId>UZS</currencyId>
+        <description>Шашлык из куриного бедра - 1 Молотый шашлык - 2 Маленькая лепёшка - 1</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781939800333-1787475257441-34zvfimt.png</picture>
+      </offer>
+      <offer id="i1784037395251">
+        <name>Заркебаб aссорти</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>350000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.72 kg, 4700 ккал — 2 шашлыка из говядины — 360 г, 2 шашлыка из фарша — 240 г, 2 порции куриных крылышек — 360 г, 2 шашлыка из куриного филе — 360 г, 1 порция картофеля фри — 150 г 1 порция казан-кебаба — 250 г.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1784037395251-1784620928394-yqaq5cba.png</picture>
+      </offer>
+      <offer id="i1793029163842">
+        <name>Большое ассорти от шеф-повара</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>670000</price>
+        <currencyId>UZS</currencyId>
+        <description>4 kg — Большое ассорти блюд на гриле, идеально подходящее для компании. В набор входят 2 шашлыка из рубленого мяса, 2 порции куриных крылышек, 2 порции корейки, 4 кёфте, 2 стейка, 2 сосиски, 2 косточки с костным мозгом и порция хрустящего картофеля фри. Настоящее гастрономическое изобилие с сочным мясом, насыщенными вкусами и ароматом гриля.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793029163842-1793029426965-4zj31dai.png</picture>
+      </offer>
+      <offer id="i1793123309569">
+        <name>Зар Ассарти</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>540000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 kg — Кусовой шашлык — 2 шампура Люля-кебаб — 2 шампура Куриное филе — 2 шампура Люля-кебаб в лаваше — 2 шампура Кармыйка — 1 порция Куфте — 3 порции Аджика — 60 г Зелень микс — 100 г Помидоры — 150 г</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793123309569-1793123582687-apv2x4v0.png</picture>
+      </offer>
+      <offer id="i1793123881722">
+        <name>Шашлык ассорти</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>760000</price>
+        <currencyId>UZS</currencyId>
+        <description>Кусовая говядина — 2 шампурa Куриное филе — 4 шампура Люля-кебаб — 2 шампура Наполеон — 2 шампура Рулет — 2 шампура Куриные крылышки — 2 шампура Долма — 1 порция Картофель фри — 2 порции Овощи гриль — 1 порция Оливки — 40 г Аджика — 60 г Зелень микс — 100 г</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793123881722-1793441999558-ckliwpdd.png</picture>
+      </offer>
+      <offer id="i1794202983183">
+        <name>Восточный сет Zarkebab</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>6</categoryId>
+        <price>289000</price>
+        <currencyId>UZS</currencyId>
+        <description>-10 шт. люля-кебаба из рубленого мяса -1 чайник апельсинового чая -Иранская пахлава</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1794202983183-1794203102490-1pcz81he.png</picture>
+      </offer>
+      <offer id="zk-suzma-salad">
+        <name>Салат с сюзьмой</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>19000</price>
+        <currencyId>UZS</currencyId>
+        <description>150 г, 180 ккал — Нежная густая сюзьма со свежей зеленью и лёгкими специями. Отлично подходит к шашлыку, кебабам и горячим блюдам.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_suzma_salad-1782210367255-wdnjm9ta.png</picture>
+      </offer>
+      <offer id="i1791825226422">
+        <name>Салат «Оливье»</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>46000</price>
+        <currencyId>UZS</currencyId>
+        <description>Классический салат «Оливье» с нарезанными кубиками овощами, нежной говядиной, зелёным горошком и яйцами, заправленный майонезом. Вкусный салат с нежным и гармоничным вкусом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1791825226422-1791825312052-oeo9m67o.jpg</picture>
+      </offer>
+      <offer id="i1779036764969">
+        <name>Салат Цезарь</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>58000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 390 ккал — Mорковь айсберг, овощной бульон, жареная курица, персик, помидоры черри, майонез и сахар.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779036764969-1782194934038-ag0ddb49.png</picture>
+      </offer>
+      <offer id="zk-garden-salad">
+        <name>Свежий салат</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г, 80 ккал — Свежий салат из помидоров, красного лука, зелени и лёгких специй. Отлично подходит к шашлыку и горячим блюдам.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_garden_salad-1792167557509-85zabv66.png</picture>
+      </offer>
+      <offer id="m9">
+        <name>Ачичук</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>180 г, 120 ккал — Свежий салат из помидоров, красного лука, зелени и лёгких специй</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/m9-1790759431076-b3eokcy7.png</picture>
+      </offer>
+      <offer id="i1780638533152">
+        <name>Салат с бурратой</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 360 ккал — Свежий салат с помидорами черри, сыром буррата, рукколой и соусом песто</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780638533152-1790758477764-mdjo17j6.png</picture>
+      </offer>
+      <offer id="i1782389149074">
+        <name>Айран с овощами</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>20000</price>
+        <currencyId>UZS</currencyId>
+        <description>Лёгкое и освежающее блюдо из айрана, свежих огурцов, редиса и зелени. Особенно хорошо подходит для жаркой погоды.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1782389149074-1782389318668-1mpamlso.png</picture>
+      </offer>
+      <offer id="i1780639689683">
+        <name>Мужской каприз</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>50000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 480 ккал — Сытный салат с говяжьим языком, курицей, казы, колбасой, говядиной, сыром и маринованными огурцами. Заправляется нежным соусом и посыпается тёртым сыром.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1780639689683-1786540849343-p25yraxs.jpg</picture>
+      </offer>
+      <offer id="i1780641158794">
+        <name>Греческий салат</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>50000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 г, 230 ккал — Свежий овощной салат из листьев салата, огурцов, помидоров черри, красного и зелёного болгарского перца с заправкой из оливкового масла.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780641158794-1790759553776-5zz0nxxu.png</picture>
+      </offer>
+      <offer id="i1780642964998">
+        <name>Салат со стейком</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>95000</price>
+        <currencyId>UZS</currencyId>
+        <description>300 г, 520 ккал — Сочный стейк, красный лук, сладкий перец (красный или зелёный), свежие листья салата, сыр</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780642964998-1793604304958-x4pr6y61.jpg</picture>
+      </offer>
+      <offer id="i1780643843731">
+        <name>Хрустящий баклажан</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>55000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 320 ккал — Вкусный салат с хрустящим баклажаном, помидорами черри и рукколой</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780643843731-1782194127459-xth67ij6.png</picture>
+      </offer>
+      <offer id="i1780734778866">
+        <name>Салат с говяжьим языком</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>95000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г, 420 ккал — Нежные ломтики отварного говяжьего языка с помидорами черри, красным и зелёным болгарским перцем, свежими листьями салата, маринованными огурцами и сладкой кукурузой.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780734778866-1782193083633-b9o2nuwg.png</picture>
+      </offer>
+      <offer id="i1786777446706">
+        <name>Катык</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>15000</price>
+        <currencyId>UZS</currencyId>
+        <description>Традиционный катык — кисломолочный продукт с густой, нежной текстурой и приятным кисломолочным вкусом. Прекрасное дополнение к вашему обеду.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1786777446706-1786777470366-52cdfd25.jpg</picture>
+      </offer>
+      <offer id="i1786982803564">
+        <name>Лимон</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1786982803564-1786982921094-xfgrec3j.jpg</picture>
+      </offer>
+      <offer id="i1789891102596">
+        <name>Салат «Заркебаб»</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>54000</price>
+        <currencyId>UZS</currencyId>
+        <description>Ароматный салат с нежной говядиной, болгарским перцем и специальной смесью пряных специй. Подаётся с кунжутом сверху, который придаёт блюду приятный ореховый вкус и лёгкую хрустящую текстуру.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1789891102596-1789913349652-r9b7jmfq.png</picture>
+      </offer>
+      <offer id="i1792163092442">
+        <name>Салат со свёклой</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>7</categoryId>
+        <price>55000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792163092442-1792163131386-ayor4uv9.png</picture>
+      </offer>
+      <offer id="zk-fries">
+        <name>Картофель фри</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>8</categoryId>
+        <price>20000</price>
+        <currencyId>UZS</currencyId>
+        <description>120 г, 350 ккал — Золотистый картофель фри с хрустящей корочкой и мягкой серединкой. Подаётся с кетчупом, отлично подходит как гарнир или отдельная закуска.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_fries-1782194698836-wy7qjxwj.png</picture>
+      </offer>
+      <offer id="i1781921430073">
+        <name>Рис</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>8</categoryId>
+        <price>15000</price>
+        <currencyId>UZS</currencyId>
+        <description>200 г — Рассыпчатый отварной рис — классический гарнир.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781921430073-1783950751302-615fft9x.jpg</picture>
+      </offer>
+      <offer id="i1785399174862">
+        <name>Овощной гарнир</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>8</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <description>Свежие брокколи, болгарский перец, лук, шампиньоны и кукуруза, обжаренные с лёгкими специями. Полезный и вкусный гарнир, который отлично дополнит любое мясное блюдо.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785399174862-1785400714239-tsiamuwc.png</picture>
+      </offer>
+      <offer id="i1787208672252">
+        <name>Киевский котлет</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>8</categoryId>
+        <price>15000</price>
+        <currencyId>UZS</currencyId>
+        <description>110 г — Котлета по-киевски с нежной курицей и расплавленным сыром внутри, покрытая золотистой хрустящей панировкой. Хрустящая снаружи, сочная внутри.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787208672252-1787208994647-pgi7h669.png</picture>
+      </offer>
+      <offer id="i1787209033224">
+        <name>Kотлет</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>8</categoryId>
+        <price>15000</price>
+        <currencyId>UZS</currencyId>
+        <description>120 г — Сочная домашняя котлета из рубленого мяса с ароматными специями, обжаренная до золотистой корочки. Нежная внутри и насыщенная вкусом — классическое блюдо для сытного обеда</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787209033224-1787209331635-fjnx5c8w.png</picture>
+      </offer>
+      <offer id="i1792142864629">
+        <name>Племен</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>8</categoryId>
+        <price>40000</price>
+        <currencyId>UZS</currencyId>
+        <description>400 г, 500 ккал — Полуфабрикаты. Мясистые. 400 г.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792142864629-1792143712155-kgd9k95t.jpg</picture>
+      </offer>
+      <offer id="i1792143860117">
+        <name>Манти</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>8</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>430 г, 600 ккал — Полуфабрикаты манты с мясом. 430г.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792143860117-1792144023295-armal3lu.jpg</picture>
+      </offer>
+      <offer id="i1781183420696">
+        <name>Патыр</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>9</categoryId>
+        <price>18000</price>
+        <currencyId>UZS</currencyId>
+        <description>Традиционный бухарский патыр — свежеиспечённый хлеб с золотистой корочкой и мягкой, пышной текстурой. Насыщенный вкус и прекрасное дополнение к любому блюду.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781183420696-1782291330685-kqtmt737.png</picture>
+      </offer>
+      <offer id="i1786695051870-option-1786779215793">
+        <name>Хлеб 1/2</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>9</categoryId>
+        <price>4000</price>
+        <currencyId>UZS</currencyId>
+        <description>Запеченный в духовке</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1786695051870-1786696795198-q1ttlk9i.png</picture>
+      </offer>
+      <offer id="i1786695051870-option-1786779327921">
+        <name>Хлеб</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>9</categoryId>
+        <price>8000</price>
+        <currencyId>UZS</currencyId>
+        <description>Запеченный в духовке</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1786695051870-1786696795198-q1ttlk9i.png</picture>
+      </offer>
+      <offer id="i1791825018351">
+        <name>Хлебное ассорти</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>9</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>Ассорти свежей выпечки с разнообразием вкусов и текстур. Отличное дополнение к любому блюду.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1791825018351-1791825156313-31t4gr2b.jpg</picture>
+      </offer>
+      <offer id="i1781251954906">
+        <name>Компот “Болалик”</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.25 L — Домашний компот из свежих фруктов и ягод — натуральный, ароматный и освежающий.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781251954906-1786551209052-rvd91d0v.jpg</picture>
+      </offer>
+      <offer id="i1779434003604-option-1783523445693">
+        <name>МОХИТО С КИВИ</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.2 L — Освежающий мохито с лаймом, свежей мятой, льдом и фруктовым сиропом. Отличный выбор для жаркого дня.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779434003604-1787665620608-4uszqu7v.png</picture>
+      </offer>
+      <offer id="i1779434003604-option-1783523476443">
+        <name>МОХИТО (МАНГО МАРАКУЙЯ)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.2 L — Освежающий мохито с лаймом, свежей мятой, льдом и фруктовым сиропом. Отличный выбор для жаркого дня.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779434003604-1787665620608-4uszqu7v.png</picture>
+      </offer>
+      <offer id="i1779434003604-option-1783523499259">
+        <name>МОХИТО (КЛУБНИЧНЫЙ МОХИТО)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.2 L — Освежающий мохито с лаймом, свежей мятой, льдом и фруктовым сиропом. Отличный выбор для жаркого дня.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779434003604-1787665620608-4uszqu7v.png</picture>
+      </offer>
+      <offer id="i1779434003604-option-1783523517396">
+        <name>МОХИТО (ТАРХУНОВЫЙ МОХИТО)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.2 L — Освежающий мохито с лаймом, свежей мятой, льдом и фруктовым сиропом. Отличный выбор для жаркого дня.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779434003604-1787665620608-4uszqu7v.png</picture>
+      </offer>
+      <offer id="i1779434003604-option-1783523538075">
+        <name>МОХИТО (МАЛИНОВЫЙ МОХИТО)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.2 L — Освежающий мохито с лаймом, свежей мятой, льдом и фруктовым сиропом. Отличный выбор для жаркого дня.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779434003604-1787665620608-4uszqu7v.png</picture>
+      </offer>
+      <offer id="i1779434003604-option-1783523580605">
+        <name>МОХИТО (ГРАНАТОВЫЙ МОХИТО)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>60000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.2 L — Освежающий мохито с лаймом, свежей мятой, льдом и фруктовым сиропом. Отличный выбор для жаркого дня.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779434003604-1787665620608-4uszqu7v.png</picture>
+      </offer>
+      <offer id="i1787230854048-option-1787893717852">
+        <name>Малиновый Mохито (Океан Мохито)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>450 ml — Освежающие мохито со свежей мятой, сочным лаймом, газированной водой и разнообразием ярких фруктовых вкусов. Лёгкие, ароматные и идеально освежающие с каждым глотком.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787230854048-1787231199848-rar0faf0.png</picture>
+      </offer>
+      <offer id="i1787230854048-option-1787894075296">
+        <name>Малиновый Mохито (Тархун Мохито)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>450 ml — Освежающие мохито со свежей мятой, сочным лаймом, газированной водой и разнообразием ярких фруктовых вкусов. Лёгкие, ароматные и идеально освежающие с каждым глотком.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787230854048-1787231199848-rar0faf0.png</picture>
+      </offer>
+      <offer id="i1787230854048-option-1787894244067">
+        <name>Малиновый Mохито (Манго и маракуйя)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>450 ml — Освежающие мохито со свежей мятой, сочным лаймом, газированной водой и разнообразием ярких фруктовых вкусов. Лёгкие, ароматные и идеально освежающие с каждым глотком.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787230854048-1787231199848-rar0faf0.png</picture>
+      </offer>
+      <offer id="i1781112203589-option-1782536540722">
+        <name>Вико со вкусом вишни</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112203589-1786550216785-dfme23r6.jpg</picture>
+      </offer>
+      <offer id="i1781112203589-option-1782536594643">
+        <name>Вико со вкусом яблока</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112203589-1786550216785-dfme23r6.jpg</picture>
+      </offer>
+      <offer id="i1781112203589-option-1782758517313">
+        <name>Вико со вкусом граната</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112203589-1786550216785-dfme23r6.jpg</picture>
+      </offer>
+      <offer id="i1781112950018-option-1782536239135">
+        <name>Блисс со вкусом вишни</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112950018-1786550192927-drfegkz5.jpg</picture>
+      </offer>
+      <offer id="i1781112950018-option-1782536312676">
+        <name>Блис со вкусом ананаса</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112950018-1786550192927-drfegkz5.jpg</picture>
+      </offer>
+      <offer id="i1781112950018-option-1782536353202">
+        <name>Блисс мультифрукт</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112950018-1786550192927-drfegkz5.jpg</picture>
+      </offer>
+      <offer id="i1781112950018-option-1782536497147">
+        <name>Блисс со вкусом зелёного яблока</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112950018-1786550192927-drfegkz5.jpg</picture>
+      </offer>
+      <offer id="i1781112950018-option-1782827938440">
+        <name>Блисс (Bliss Лесные ягоды)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112950018-1786550192927-drfegkz5.jpg</picture>
+      </offer>
+      <offer id="i1781112950018-option-1782828248795">
+        <name>Блисс (Bliss Апельсиновый вкус)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112950018-1786550192927-drfegkz5.jpg</picture>
+      </offer>
+      <offer id="i1781112950018-option-1782828278556">
+        <name>Блисс (Bliss Лимон с мятой)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112950018-1786550192927-drfegkz5.jpg</picture>
+      </offer>
+      <offer id="i1781112950018-option-1782828605157">
+        <name>Блисс (Bliss Нежный персик)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781112950018-1786550192927-drfegkz5.jpg</picture>
+      </offer>
+      <offer id="i1781508355657">
+        <name>Компот “Болалик”- 500</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>12000</price>
+        <currencyId>UZS</currencyId>
+        <description>Домашний компот со вкусом детства, приготовленный из яблок, вишни и черешни. Натуральный фруктово-ягодный вкус, приятная свежесть и тёплые воспоминания о детстве</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781508355657-1786691570106-n7o40d65.png</picture>
+      </offer>
+      <offer id="zk-ayran-option-1787041012814">
+        <name>Айран-500</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>10</categoryId>
+        <price>20000</price>
+        <currencyId>UZS</currencyId>
+        <description>300 ml, 90 ккал — Традиционный айран на основе йогурта и воды с нежной текстурой и приятным кисломолочным вкусом. Освежающий напиток, который прекрасно дополняет любое блюдо.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_ayran-1782193394805-z8p41exk.png</picture>
+      </offer>
+      <offer id="i1781094719995-option-1782730064888">
+        <name>Кока-Кола 1,5L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>22000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094719995-1786549290044-rfsuo30u.jpg</picture>
+      </offer>
+      <offer id="i1781094719995-option-1782759269983">
+        <name>Кока-Кола 1L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>17000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094719995-1786549290044-rfsuo30u.jpg</picture>
+      </offer>
+      <offer id="i1781094719995-option-1783620595147">
+        <name>Кока-Кола 0.5 L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094719995-1786549290044-rfsuo30u.jpg</picture>
+      </offer>
+      <offer id="i1781094719995-option-1785327712377">
+        <name>Кока-Кола Zero 0.5L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094719995-1786549290044-rfsuo30u.jpg</picture>
+      </offer>
+      <offer id="i1781094719995-option-1787757970506">
+        <name>Кока-Кола Zero 1L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>17000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094719995-1786549290044-rfsuo30u.jpg</picture>
+      </offer>
+      <offer id="i1781093443757-option-1782730326868">
+        <name>Пепси 1,5L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781093443757-1786549500698-cv7t642f.jpg</picture>
+      </offer>
+      <offer id="i1781093443757-option-1782759315827">
+        <name>Пепси 1L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>20000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781093443757-1786549500698-cv7t642f.jpg</picture>
+      </offer>
+      <offer id="i1781093443757-option-1782831018517">
+        <name>Пепси 0,5l</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781093443757-1786549500698-cv7t642f.jpg</picture>
+      </offer>
+      <offer id="i1781093532144">
+        <name>Fuse Tea</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>18000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781093532144-1786550581327-tnfexwcq.jpg</picture>
+      </offer>
+      <offer id="i1781022362552-option-1783620466962">
+        <name>Бланк Блю без газа</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>500 ml</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781022362552-1786549519891-rmd5i1vf.jpg</picture>
+      </offer>
+      <offer id="i1781022362552-option-1783620487882">
+        <name>Бланк Блю с газом</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>500 ml</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781022362552-1786549519891-rmd5i1vf.jpg</picture>
+      </offer>
+      <offer id="i1781021545650">
+        <name>Боржоми</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>23000</price>
+        <currencyId>UZS</currencyId>
+        <description>500 ml</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781021545650-1786548998344-0u2f5wyd.jpg</picture>
+      </offer>
+      <offer id="i1781093871849">
+        <name>Фанта</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>16000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 ml</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781093871849-1786549945633-kld8dloj.jpg</picture>
+      </offer>
+      <offer id="i1781094551763">
+        <name>Zero Cola</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>12000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 ml</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094551763-1786550239346-uyjqqs71.jpg</picture>
+      </offer>
+      <offer id="i1781109036776">
+        <name>Adrenaline</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>27000</price>
+        <currencyId>UZS</currencyId>
+        <description>500 ml</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781109036776-1786548870065-qz09tdu0.jpg</picture>
+      </offer>
+      <offer id="i1781109832390-option-1782759144722">
+        <name>Red Bull 355ml</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>40000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 ml</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781109832390-1786549210544-44djm73s.jpg</picture>
+      </offer>
+      <offer id="i1781109832390-option-1784741060325">
+        <name>Red Bull 250ml</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 ml</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781109832390-1786549210544-44djm73s.jpg</picture>
+      </offer>
+      <offer id="i1781549936703-option-1782717468019">
+        <name>Hydrolife 1.5 L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781549936703-1786549464182-kxwmykrq.jpg</picture>
+      </offer>
+      <offer id="i1781549936703-option-1782733293844">
+        <name>Hydrolife 1 L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781549936703-1786549464182-kxwmykrq.jpg</picture>
+      </offer>
+      <offer id="i1781549936703-option-1782733307505">
+        <name>Hydrolife 0,5 L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>5000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781549936703-1786549464182-kxwmykrq.jpg</picture>
+      </offer>
+      <offer id="i1781549936703-option-1783620884396">
+        <name>Hydrolife (Газированная вода 1.5L)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>12000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781549936703-1786549464182-kxwmykrq.jpg</picture>
+      </offer>
+      <offer id="i1781549936703-option-1784880640416">
+        <name>Hydrolife (Газированная вода 0.5L)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>5000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781549936703-1786549464182-kxwmykrq.jpg</picture>
+      </offer>
+      <offer id="i1781549936703-option-1786624751247">
+        <name>Hydrolife (Gazlik suv 1l)</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781549936703-1786549464182-kxwmykrq.jpg</picture>
+      </offer>
+      <offer id="i1782829439467-option-1785677048077">
+        <name>Sprite 1.5L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>22000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 L — gazli shirin ta'm</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1782829439467-1786549798865-l1occkqv.jpg</picture>
+      </offer>
+      <offer id="i1782829439467-option-1785677108999">
+        <name>Sprite 1L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>17000</price>
+        <currencyId>UZS</currencyId>
+        <description>1.5 L — gazli shirin ta'm</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1782829439467-1786549798865-l1occkqv.jpg</picture>
+      </offer>
+      <offer id="i1786549344044">
+        <name>Chortoq</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>20000</price>
+        <currencyId>UZS</currencyId>
+        <description>Натуральная газированная лечебно-столовая минеральная вода. Подаётся охлаждённой.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1786549344044-1786549362277-kov8gd9e.jpg</picture>
+      </offer>
+      <offer id="i1781094876388-option-1782759223963">
+        <name>Фанта 1.5L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094876388-1786549712293-gxhwasxf.jpg</picture>
+      </offer>
+      <offer id="i1781094876388-option-1782759238239">
+        <name>Фанта 1L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>20000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094876388-1786549712293-gxhwasxf.jpg</picture>
+      </offer>
+      <offer id="i1781094876388-option-1783620416900">
+        <name>Фанта Дюшес 1.5L</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>1 L</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781094876388-1786549712293-gxhwasxf.jpg</picture>
+      </offer>
+      <offer id="i1790087359898">
+        <name>cappy</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>11</categoryId>
+        <price>13000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1790087359898-1790272412796-2c95j5tk.png</picture>
+      </offer>
+      <offer id="i1780411766263">
+        <name>Капучино</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>12</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 ml — Классический кофейный напиток на основе насыщенного эспрессо и нежного взбитого молока. Мягкий сливочный вкус, бархатная пенка и приятный кофейный аромат.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780411766263-1782289950994-qoxbdmsu.png</picture>
+      </offer>
+      <offer id="i1780412111537">
+        <name>Латте</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>12</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>300 ml — Мягкий кофейный напиток на основе одной порции эспрессо и большого количества подогретого молока. Обладает нежным вкусом, лёгкой молочной пенкой и приятным кофейным ароматом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780412111537-1782290034396-ecosxz7q.png</picture>
+      </offer>
+      <offer id="i1780684324506">
+        <name>Американо</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>12</categoryId>
+        <price>25000</price>
+        <currencyId>UZS</currencyId>
+        <description>Классический чёрный кофе, приготовленный на основе эспрессо и горячей воды. Обладает насыщенным кофейным вкусом, приятным ароматом и лёгкой горчинкой.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780684324506-1782290115992-enfm3smn.png</picture>
+      </offer>
+      <offer id="i1781091355249">
+        <name>Эспрессо</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>12</categoryId>
+        <price>21000</price>
+        <currencyId>UZS</currencyId>
+        <description>Крепкий и насыщенный кофе, приготовленный под высоким давлением из молотых кофейных зёрен. Обладает ярким ароматом, глубоким вкусом и лёгкой горчинкой.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781091355249-1782290189196-qtfaiypb.png</picture>
+      </offer>
+      <offer id="zk-honey-cake">
+        <name>Медовик</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>13</categoryId>
+        <price>28000</price>
+        <currencyId>UZS</currencyId>
+        <description>140 г, 430 ккал — Классический медовый торт с нежным кремом и золотистой крошкой.</description>
+        <picture>https://www.zarkebab.uz/yandex-photos/zk_honey_cake-1781341641639-leylvhag.jpg</picture>
+      </offer>
+      <offer id="i1780678722762">
+        <name>Сан-Себастьян</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>13</categoryId>
+        <price>40000</price>
+        <currencyId>UZS</currencyId>
+        <description>200 г, 520 ккал — Нежный десерт на основе сливочного сыра, жирных сливок, яиц и ванили. С карамелизированной корочкой сверху и мягкой кремовой текстурой внутри.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780678722762-1782282613036-xjz6e3wz.png</picture>
+      </offer>
+      <offer id="i1786516531928">
+        <name>Иранский пахлава</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>13</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <description>Мягкий и нежный ореховый десерт.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1786516531928-1792170380575-95kkp09f.png</picture>
+      </offer>
+      <offer id="i1793023303135">
+        <name>Фруктовое ассорти</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>13</categoryId>
+        <price>300000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793023303135-1793023400759-bamkotyw.png</picture>
+      </offer>
+      <offer id="i1793090227955">
+        <name>Шоколад не фандан</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>13</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>250 г — Нежный шоколадный фондан под сахарной пудрой, подаётся с кремовым ванильным мороженым, свежей клубникой, обжаренным миндалём и нотками фисташки. Изысканное сочетание вкусов для истинного наслаждения.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1793090227955-1793090399363-p7yycs2z.png</picture>
+      </offer>
+      <offer id="i1794462592560">
+        <name>Трайфл со вкусом банана</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>13</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежный многослойный десерт с мягкой бисквитной крошкой, воздушным ванильным кремом и насыщенной шоколадной глазурью, дополненный бананом. Идеальное сочетание нежности и шоколадного вкуса.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1794462592560-1794464312415-t7kkgicv.png</picture>
+      </offer>
+      <offer id="i1794464513127">
+        <name>Трайфл со вкусом малины</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>13</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Изысканный многослойный десерт с нежной бисквитной крошкой, воздушным кремом и шоколадной глазурью, украшенный малиной и миндальными лепестками. Гармония нежности, сладости и ягодной свежести.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1794464513127-1794464622772-qjxeorkg.png</picture>
+      </offer>
+      <offer id="m11">
+        <name>Чёрный чай</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>8000</price>
+        <currencyId>UZS</currencyId>
+        <description>350 ml — Ароматный, горячий и бодрящий традиционный чёрный чай.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/m11-1792170090839-z1dhb7v8.png</picture>
+      </offer>
+      <offer id="i1780385335358">
+        <name>Малиновый чай</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Горячий ароматный чай с насыщенным вкусом малины — согревающий и освежающий напиток.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780385335358-1792168703833-nny3u9e2.png</picture>
+      </offer>
+      <offer id="i1780393353550">
+        <name>Чай с лимоном</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>15000</price>
+        <currencyId>UZS</currencyId>
+        <description>Ароматный горячий чай со свежими дольками лимона и мятой.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1780393353550-1792169078765-v6mbxudx.png</picture>
+      </offer>
+      <offer id="i1781511572331">
+        <name>Имбирный чай</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Ароматный согревающий чай с имбирём и лимоном, обладающий ярким и освежающим вкусом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781511572331-1792169377751-jvvffpbs.png</picture>
+      </offer>
+      <offer id="i1781511774584">
+        <name>Фруктовый чай</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Ароматный согревающий чай с насыщенным вкусом фруктов и ягод.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781511774584-1792169800117-4a70fu0a.png</picture>
+      </offer>
+      <offer id="i1781512170906">
+        <name>Зелёный чай</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>8000</price>
+        <currencyId>UZS</currencyId>
+        <description>Лёгкий, ароматный и освежающий традиционный зелёный чай.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781512170906-1792169964056-h09lgrm2.png</picture>
+      </offer>
+      <offer id="i1792130271587">
+        <name>Чай с апельсином</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Ароматный чай с ярким, сладким цитрусовым вкусом апельсина. Освежающий напиток с приятным фруктовым ароматом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792130271587-1792130319503-ydgrky6y.png</picture>
+      </offer>
+      <offer id="i1792158775697">
+        <name>Чай Манго – Маракуйя</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Экзотический чай с ярким сладко-кислым вкусом маракуйи. Тропический аромат и освежающий вкус делают каждый глоток особенным.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792158775697-1792158819572-1werv413.png</picture>
+      </offer>
+      <offer id="i1792158887348">
+        <name>Клубничный -Малина чай</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Нежный чай со сладким вкусом клубники и приятным ягодным ароматом. Прекрасный выбор для лёгкого и приятного чаепития.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792158887348-1792159440000-b04nkg5c.png</picture>
+      </offer>
+      <offer id="i1792159707526">
+        <name>Чай Манго – Клубника</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Ароматный чай с гармоничным сочетанием сладкого тропического манго и сочной клубники. Яркий фруктовый вкус, объединяющий тропическую сладость и ягодную свежесть.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792159707526-1792159737697-ldej50i2.png</picture>
+      </offer>
+      <offer id="i1792159887490">
+        <name>Чай Манго – Апельсин</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Яркий чай, сочетающий тропическую сладость манго с освежающими цитрусовыми нотами апельсина. Ароматный фруктовый напиток с выразительным вкусом.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792159887490-1792159961557-81bb2obr.png</picture>
+      </offer>
+      <offer id="i1792162591680">
+        <name>Чай Клубника – Апельсин</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>14</categoryId>
+        <price>45000</price>
+        <currencyId>UZS</currencyId>
+        <description>Освежающий чай с сочетанием сладкой клубники и яркого апельсина. Гармония ягодной сладости и цитрусовой свежести в каждом глотке.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792162591680-1792162668901-66dp3mk7.png</picture>
+      </offer>
+      <offer id="i1781547264124">
+        <name>Наборы закусок разных видов</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>65000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1781547264124-1786611887097-6aac1v9r.png</picture>
+      </offer>
+      <offer id="i1781547437010">
+        <name>Sarbast</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781547437010-1786550867946-n7jei7j3.jpg</picture>
+      </offer>
+      <offer id="i1781547583722">
+        <name>Туборг</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>30000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://www.zarkebab.uz/yandex-photos/i1781547583722-1786551278132-yiifd32i.jpg</picture>
+      </offer>
+      <offer id="i1784057744244">
+        <name>Миндаль</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>15000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1784057744244-1786610936450-9ryzmey1.png</picture>
+      </offer>
+      <offer id="i1787471758083-option-1794331871854">
+        <name>Xортиця 500ml</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>95000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787471758083-1787849162935-64rcvw17.png</picture>
+      </offer>
+      <offer id="i1787471758083-option-1794368508317">
+        <name>Xортиця 750ml</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>115000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787471758083-1787849162935-64rcvw17.png</picture>
+      </offer>
+      <offer id="i1791448774702">
+        <name>Эксклюзивный</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>125000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1791448774702-1791827328878-i0yel7q9.jpg</picture>
+      </offer>
+      <offer id="i1787496889191">
+        <name>Kurt</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>20000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787496889191-1788196571873-rjcxkcl3.png</picture>
+      </offer>
+      <offer id="i1787757681085">
+        <name>Sarbast lite</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>35000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787757681085-1788196831510-o38z3tdg.png</picture>
+      </offer>
+      <offer id="i1788960170414">
+        <name>Гудаури вино</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>170000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1788960170414-1791827211596-klgbq70k.jpg</picture>
+      </offer>
+      <offer id="i1791654445779">
+        <name>Григорян</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>164000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1791654445779-1791827663514-5e9p7n71.jpg</picture>
+      </offer>
+      <offer id="i1791707593463">
+        <name>Царская</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>230000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1791707593463-1791827509195-kf0f38pq.jpg</picture>
+      </offer>
+      <offer id="i1792846925008-option-1793453685681">
+        <name>Ambarnaya 750ml</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>140000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792846925008-1792847134857-c0g7qrn3.png</picture>
+      </offer>
+      <offer id="i1792846925008-option-1793453708681">
+        <name>Ambarnaya 500ml</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>15</categoryId>
+        <price>115000</price>
+        <currencyId>UZS</currencyId>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1792846925008-1792847134857-c0g7qrn3.png</picture>
+      </offer>
+    </offers>
+  </shop>
+</yml_catalog>
