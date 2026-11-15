@@ -70,8 +70,9 @@ Read the feature's guide fully; read more only when a task crosses boundaries.
 
 ## Git publishing
 
-- When the user requests a commit and push, the approved destination for this repository is `origin` (`git@github.com:Jasurbek-Shomurodov/zar-kebab-pos.git`), including branch `main`. Do not ask for destination confirmation again while this remote remains unchanged.
-- This covers ordinary pushes of requested changes, never force pushes, unrelated changes, or secrets.
+- For a requested commit and push, the approved destination is `origin` (`git@github.com:Jasurbek-Shomurodov/zar-kebab-pos.git`), including `main`; don't re-confirm while this remote is unchanged.
+- Ordinary pushes of requested changes only: never force pushes, unrelated changes, or secrets.
+- Push only via a Haiku (`claude-haiku-5-5`) agent or session, never the default.
 
 ## Validation
 
