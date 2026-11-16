@@ -6,14 +6,14 @@
 - Helpers: `src/lib/menuItems.js`, `src/lib/menuPricing.js`, `src/lib/menuMedia.js`, `src/lib/menuItemCosts.js`, `src/lib/techCards.js`
 - Database: `src/lib/db.js`, migrations `139`, `149`–`151`, `154`–`156`, `223`, `241`, `242`
 - Focused tests: `tests/menuItems.test.js`, `tests/menuArchiveSafety.test.js`, `tests/menuStock.test.js`, `tests/menuMedia.test.js`, `tests/techCards.test.js`, `tests/techCardsFeature.test.js`, `tests/sourceGuards.menu.test.js`, `tests/sourceGuards.public-menu.test.js`, `tests/menuNameValidation.test.js`
-- Product/category names (uz/ru/en) must start with a capital or digit; Admin Menu blocks saving otherwise (`src/lib/menuItemText.js`). Admin Menu cards use `LuxMenuCard` (`MenuProductCards.jsx`).
+- Product/category names (uz/ru/en) start with a capital or digit; Admin Menu blocks saving (`src/lib/menuItemText.js`). Admin Menu cards: `LuxMenuCard` (`MenuProductCards.jsx`).
 
 ## Visibility
 
 - Public order: Corporate Sets (`c1789462941735`), Deals, others; card follows All.
 - `frozen_shop` (`272`): `/frozen-meals` only; POS sells.
 - `menu_items.available` affects waiter orderability only. Public/Telegram still show active unavailable meals.
-- `public_hidden` is owner-controlled. Non-owner saves preserve it; new products default visible.
+- `public_hidden` is owner-controlled; non-owner saves preserve it; new products visible.
 - Manage Menu may create unavailable products and change availability (DB-enforced).
 - `cashier_only`, schedules, category visibility, option visibility, and `deleted_at` are separate controls.
 - Schedules gate waiter ordering only; public/Telegram list scheduled rows all day with a time label (`isPublicMenu*`, `241`).
@@ -35,7 +35,7 @@
 
 - Availability changes, creation, and archival queue immutable Russian Team events with product/staff snapshots.
 - Ordinary edits/restoration send nothing; archival keeps `available`. Saves/toggles share the DB event.
-- The daily 08:00 Tashkent snapshot lists unavailable active products by Russian category or confirms all are available. See `telegram.md`.
+- Daily 08:00 Tashkent snapshot lists unavailable active products by Russian category or says all available. See `telegram.md`.
 
 ## Inventory
 
@@ -47,10 +47,10 @@
 ## Media and text
 
 - `media_urls[0]` is the cover and stays synchronized with `image_url`.
-- Gallery: images, GIF, MP4, WebM; new products need a still image (`222`). Cards use the cover; details the gallery.
+- Gallery: images, GIF, MP4, WebM; new products need a still (`222`). Cards: cover; details: gallery.
 - Delete old R2 media after save; clean temp uploads on cancel.
 - Upload errors render inside `ImageUploadField`, not `SortableItemCard`.
-- Trim localized text at editor/write/display/DB boundaries; keep internal spaces and line breaks.
+- Trim localized text at editor/write/display/DB boundaries; keep inner spaces/line breaks.
 - `estimated_prep_minutes`: 1–180 (default 15), not an order promise. `serves` (`271`): 0–100.
 - Manage Menu Archive buttons use a retryable in-app dialog.
 - Archive tab: Restore clears `deleted_at`; items restore after their category; restored categories stay hidden.
@@ -63,7 +63,8 @@
 - Batch output = read-only `calculateTechCardBatchOutput` (ingredient kg; ml as g; no pieces).
 - Save the card and complete ingredient list atomically with `save_menu_item_tech_card(payload jsonb)`. `183`/`236`: one sync per save for changed dishes and their includers; unchanged costs skipped, stops at convergence.
 - `tech_cards` permission: route/read; Manage Menu: writes.
-- Ingredient prices/recipes never enter public, waiter, cashier, order, or receipt payloads; Telegram only via `274` (owner-approved).
+- Ingredient prices/recipes never enter public, waiter, cashier, order or receipt payloads; Telegram only via `274` (owner-approved).
+- `280`: cost ≤ price (DB), `TechCardCostOverrunList`.
 - Saving a base recipe syncs the protected parent cost; a variant recipe syncs that option in protected `variant_costs`. Preserve order-item cost snapshots.
 - Variant recipes may be copied/scaled; keep destination/portion count explicit.
 - Components use `selected_options` for variants; empty means base.

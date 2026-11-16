@@ -35,7 +35,7 @@
   - Game Club type, permission and service checks: `179`
   - Game Club per-round Team queue/cron: `180`
   - Daily Team KPI image claims and legacy-delivery suppression: `181`
-- Tech Card cost sync `183`, targeted `236`. Tests: `tests/techCardCostSyncMigration.test.js`; SQL: `scripts/check-tech-card-*-sync.mjs`.
+- Tech Card cost sync `183`/`236`/`280`. Tests: `tests/techCardCostSyncMigration.test.js`; SQL: `scripts/check-tech-card-*-sync.mjs`.
 - Ingredient renames keep catalog keys and purchase snapshots: `182`.
 
 ## Invariants

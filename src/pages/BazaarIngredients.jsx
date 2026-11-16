@@ -18,6 +18,8 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { withWriteTimeout } from '../lib/writeTimeout'
 import { BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH, BAZAAR_ENTRY_UNITS, BAZAAR_PACKAGE_UNITS, bazaarPricePerPiece, normalizeBazaarPiecesPerUnit, bazaarCategoriesFor, bazaarCategoryLabel, bazaarUnitLabel, capitalizeBazaarIngredientName, capitalizeBazaarNameInput, normalizeBazaarProductKey } from '../lib/bazaar'
+import TechCardCostOverrunList from '../components/TechCardCostOverrunList'
+import { parseTechCardCostOverruns, techCardEditorPath } from '../lib/techCards'
 import { bazaarIngredientMatches, isBazaarIngredientNetworkError, runBazaarIngredientWriteWithRecovery } from '../lib/bazaarIngredientWrites'
 
 const INPUT = 'ws-input disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
@@ -82,6 +84,8 @@ export default function BazaarIngredients() {
   const navigate = useNavigate()
   // Archive confirmation: { ingredient, status: 'loading' | 'ready' | 'failed', usages: [{ menu_item_id, variant_option_id }] }.
   const [archiveCheck, setArchiveCheck] = useState(null)
+  // Tech Cards the DB refused to reprice because they would cost more than their selling price.
+  const [saveOverruns, setSaveOverruns] = useState([])
   const archiveDialogRef = useRef(null)
   const [ingredients, setIngredients] = useState([])
   // The ingredient open in the add/edit popup (no product_key = new); null while closed.
@@ -241,6 +245,7 @@ export default function BazaarIngredients() {
     if (saving) return
     setEditForm(null)
     setError('')
+    setSaveOverruns([])
   }
 
   // `form` is the popup draft (new or existing ingredient); a successful save closes the popup.
@@ -263,6 +268,7 @@ export default function BazaarIngredients() {
     setSaving(true)
     setError('')
     setNotice('')
+    setSaveOverruns([])
     try {
       const payload = {
         ...(form.product_key ? { product_key: form.product_key } : {}),
@@ -293,7 +299,9 @@ export default function BazaarIngredients() {
       setDraft(null)
       setNotice(l.saved)
     } catch (saveError) {
-      setError(errorMessage(saveError, l.saveFailed))
+      const overruns = parseTechCardCostOverruns(saveError)
+      if (overruns) setSaveOverruns(overruns)
+      else setError(errorMessage(saveError, l.saveFailed))
     } finally {
       setSaving(false)
     }
@@ -385,6 +393,12 @@ export default function BazaarIngredients() {
     if (row.variantId) params.set('variant', row.variantId)
     params.set('ingredient', archiveCheck?.ingredient.product_name || '')
     navigate(`/admin/tech-cards/${encodeURIComponent(row.menuItemId)}?${params}`)
+  }
+
+  // The recipe still holds the ingredient's saved name, so highlight that row.
+  function openOverrunTechCard(row) {
+    const ingredientName = ingredients.find(item => item.product_key === editForm?.product_key)?.product_name || editForm?.product_name || ''
+    navigate(techCardEditorPath(row.menuItemId, row.variantOptionId, ingredientName))
   }
 
   const archiveDialogOpen = !!archiveCheck
@@ -542,6 +556,11 @@ export default function BazaarIngredients() {
               {renderIngredientFields(editForm, setEditForm)}
             </fieldset>
             {displayedError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{displayedError}</p>}
+            {saveOverruns.length > 0 && (
+              <div className="mt-4">
+                <TechCardCostOverrunList overruns={saveOverruns} menuItems={state.menuItems} lang={lang} canOpen={canOpenTechCards} onOpen={openOverrunTechCard} />
+              </div>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={closeEditDialog} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
               <button type="submit" disabled={saving || !editDirty || !startsWithCapitalOrDigit(editForm.product_name)} className="ws-btn ws-btn-primary disabled:cursor-not-allowed disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{saving ? l.saving : l.save}</button>

@@ -19,6 +19,7 @@ import AppShell from '../components/AppShell'
 import BazaarIngredientPicker from '../components/BazaarIngredientPicker'
 import MenuItemPicker from '../components/MenuItemPicker'
 import TechCardPdfDownload from '../components/TechCardPdfDownload'
+import TechCardCostOverrunList from '../components/TechCardCostOverrunList'
 import MenuMedia from '../components/MenuMedia'
 import { getMenuItemOptionGroups } from '../components/MenuProductCards'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
@@ -45,6 +46,9 @@ import {
   getCompatibleTechCardUnits,
   formatTechCardUnitPrice,
   isTechCardComponentOverPrice,
+  isTechCardCostOverPrice,
+  parseTechCardCostOverruns,
+  techCardEditorPath,
   isTechCardEligibleMenuItem,
   normalizeTechCard,
   techCardFingerprint,
@@ -70,6 +74,7 @@ function labels(lang) {
     includedItem: 'Menyu taomi', includedTotal: 'Kiritilgan taomlar jami', openIncludedCard: 'Taom kartasini ochish', includedOverPrice: 'Bu qator sotuv narxidan qimmat. Taom kartasini tekshiring.', noDirectIngredients: 'Alohida masalliqlar yo‘q: tannarx kiritilgan taomlardan hisoblanadi.',
     batch: 'Partiya va porsiya', batchOutput: 'Tayyor mahsulot chiqishi', batchOutputHint: 'Masalliqlar og‘irligidan avtomatik hisoblanadi; dona masalliqlar kirmaydi.', portions: 'Partiyadagi porsiyalar',
     method: 'Tayyorlash usuli', methodPlaceholder: 'Tayyorlash bosqichlarini ketma-ket yozing…', preparationMethodRequired: 'Tayyorlash usulini kiriting.',
+    costOverPrice: (cost, price) => `Porsiya tannarxi (${cost}) sotuv narxidan (${price}) yuqori. Miqdor va birliklarni tekshiring (masalan, g va kg) — bunday kartani saqlab bo‘lmaydi.`,
     notes: 'Ichki izohlar', notesPlaceholder: 'Saqlash, harorat yoki oshpaz uchun boshqa eslatmalar…',
     salePrice: 'Sotuv narxi', savedCost: 'Saqlangan real tannarx', batchCost: 'Partiya tannarxi',
     portionCost: 'Bir porsiya tannarxi', outputPerPortion: 'Bir porsiya chiqishi', estimatedProfit: 'Taxminiy sof foyda',
@@ -94,6 +99,7 @@ function labels(lang) {
     includedItem: 'Позиция меню', includedTotal: 'Итого по включённым блюдам', openIncludedCard: 'Открыть техкарту блюда', includedOverPrice: 'Эта строка дороже цены продажи. Проверьте техкарту блюда.', noDirectIngredients: 'Отдельных ингредиентов нет: себестоимость считается по включённым блюдам.',
     batch: 'Партия и порции', batchOutput: 'Выход готового продукта', batchOutputHint: 'Считается автоматически по весу ингредиентов; штучные не учитываются.', portions: 'Порций из партии',
     method: 'Технология приготовления', methodPlaceholder: 'Опишите этапы приготовления по порядку…', preparationMethodRequired: 'Добавьте технологию приготовления.',
+    costOverPrice: (cost, price) => `Себестоимость порции (${cost}) выше цены продажи (${price}). Проверьте количество и единицы (например, г и кг) — такую техкарту сохранить нельзя.`,
     notes: 'Внутренние примечания', notesPlaceholder: 'Хранение, температура или другие заметки для кухни…',
     salePrice: 'Цена продажи', savedCost: 'Сохранённая себестоимость', batchCost: 'Стоимость партии',
     portionCost: 'Себестоимость порции', outputPerPortion: 'Выход на порцию', estimatedProfit: 'Расчётная чистая прибыль',
@@ -118,6 +124,7 @@ function labels(lang) {
     includedItem: 'Menu item', includedTotal: 'Included items total', openIncludedCard: 'Open this meal’s tech card', includedOverPrice: 'This line costs more than the selling price. Check this meal’s tech card.', noDirectIngredients: 'No direct ingredients: the cost comes from the included menu items.',
     batch: 'Batch and portions', batchOutput: 'Finished batch output', batchOutputHint: 'Calculated from ingredient weights; piece ingredients are not counted.', portions: 'Portions per batch',
     method: 'Preparation method', methodPlaceholder: 'Write the preparation steps in order…', preparationMethodRequired: 'Add the preparation method.',
+    costOverPrice: (cost, price) => `Cost per portion (${cost}) is higher than the selling price (${price}). Check quantities and units (e.g. g vs kg) — this tech card cannot be saved.`,
     notes: 'Internal notes', notesPlaceholder: 'Storage, temperature, or other kitchen notes…',
     salePrice: 'Selling price', savedCost: 'Saved real cost', batchCost: 'Batch cost',
     portionCost: 'Cost per portion', outputPerPortion: 'Output per portion', estimatedProfit: 'Estimated net profit',
@@ -288,6 +295,8 @@ export default function TechCards() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [saveNotice, setSaveNotice] = useState('')
+  // Dishes the DB refused because their Tech Card would cost more than their price.
+  const [saveOverruns, setSaveOverruns] = useState([])
   const [activeVariantOptionId, setActiveVariantOptionId] = useState('')
   const [copySourceOptionId, setCopySourceOptionId] = useState('')
   const [copyScale, setCopyScale] = useState('1')
@@ -487,10 +496,16 @@ export default function TechCards() {
       setSaveError(validationError)
       return
     }
+    const costError = techCardCostError(form)
+    if (costError) {
+      setSaveError(costError)
+      return
+    }
     const payload = buildTechCardPayload(form)
     setSaving(true)
     setSaveError('')
     setSaveNotice('')
+    setSaveOverruns([])
     try {
       const { error } = await supabase.rpc('save_menu_item_tech_card', { payload })
       if (error) throw error
@@ -507,10 +522,35 @@ export default function TechCards() {
       setOriginalFingerprint(techCardFingerprint(savedCard))
       setSaveNotice(l.saved)
     } catch (error) {
-      setSaveError(error?.message || l.listError)
+      const overruns = parseTechCardCostOverruns(error)
+      if (overruns) setSaveOverruns(overruns)
+      else setSaveError(error?.message || l.listError)
     } finally {
       setSaving(false)
     }
+  }
+
+  function techCardSellingPrice(variantOptionId) {
+    const variant = variantOptionId ? editorVariants.find(option => option.id === variantOptionId) : null
+    return Number(variant?.price ?? editorItem?.price ?? 0)
+  }
+
+  // Blocks a recipe whose portion cost is above the price it is sold at.
+  function techCardCostError(card) {
+    const portionCost = calculateTechCardSummary(card, activeItems).portionCost
+    const sellingPrice = techCardSellingPrice(card?.variant_option_id || '')
+    return isTechCardCostOverPrice(portionCost, sellingPrice)
+      ? l.costOverPrice(formatCurrency(Math.round(portionCost)), formatCurrency(sellingPrice))
+      : ''
+  }
+
+  function openOverrunTechCard(row) {
+    setSaveOverruns([])
+    if (row.menuItemId === menuItemId) {
+      setActiveVariantOptionId(row.variantOptionId)
+      return
+    }
+    navigate(techCardEditorPath(row.menuItemId, row.variantOptionId))
   }
 
   if (!loaded || loadError) {
@@ -562,6 +602,7 @@ export default function TechCards() {
     const validationError = validateTechCard(form, activeItems, {
       preparationMethodRequired: l.preparationMethodRequired,
     })
+    const costWarning = techCardCostError(form)
     const activeVariant = editorVariants.find(option => option.id === activeVariantOptionId)
     const price = Number(activeVariant?.price ?? editorItem.price ?? 0)
     const savedCost = activeVariantOptionId
@@ -571,7 +612,7 @@ export default function TechCards() {
       ? null
       : getSaleProfitSummary(price, summary.portionCost)
 
-    const saveDisabled = saving || !dirty || !!validationError
+    const saveDisabled = saving || !dirty || !!validationError || !!costWarning
     const ingredientColumns = 'sm:grid-cols-[minmax(140px,1.5fr)_90px_90px_minmax(120px,1fr)_110px_40px]'
     const componentColumns = 'sm:grid-cols-[minmax(0,1fr)_112px_140px_92px]'
     const fieldLabel = 'ws-caption mb-1 block sm:sr-only'
@@ -586,7 +627,7 @@ export default function TechCards() {
             type="button"
             onClick={saveCard}
             disabled={saveDisabled}
-            title={validationError || ''}
+            title={validationError || costWarning || ''}
             aria-label={saving ? l.saving : l.save}
             className="ws-btn ws-btn-primary !h-[38px]"
           >
@@ -616,6 +657,12 @@ export default function TechCards() {
               <div role={saveError ? 'alert' : 'status'} className={`ws-notice ${saveError ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
                 {saveError || saveNotice}
               </div>
+            )}
+
+            {saveOverruns.length > 0 && (
+              <section className="ws-panel">
+                <TechCardCostOverrunList overruns={saveOverruns} menuItems={activeItems} lang={lang} canOpen onOpen={openOverrunTechCard} />
+              </section>
             )}
 
             {editorVariants.length > 0 && (
@@ -919,7 +966,7 @@ export default function TechCards() {
                       type="button"
                       onClick={saveCard}
                       disabled={saveDisabled}
-                      title={validationError || ''}
+                      title={validationError || costWarning || ''}
                       className="ws-btn ws-btn-primary w-full"
                     >
                       {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
@@ -928,6 +975,7 @@ export default function TechCards() {
                   </div>
                 )}
                 {validationError && dirty && <p className="ws-notice ws-tone-caution text-[13px]">{validationError}</p>}
+                {costWarning && !validationError && <p role="alert" className="ws-notice ws-tone-negative text-[13px]">{costWarning}</p>}
               </aside>
             </div>
           </div>

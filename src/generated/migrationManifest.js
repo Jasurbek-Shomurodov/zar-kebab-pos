@@ -1124,6 +1124,10 @@ export default {
   {
    "filename": "279_ingredient_purchase_sheet.sql",
    "sha256": "77661cd134b6b892bd445af136b6abeae02a5e9b5b625c419faa503749ac17df"
+  },
+  {
+   "filename": "280_tech_card_cost_within_price.sql",
+   "sha256": "b29cad69bf6b27770a68e153b0edfa2968e5be8344f45974fdcfec37b5e3ecf3"
   }
  ],
  "functions": [
@@ -1474,8 +1478,8 @@ export default {
   },
   {
    "name": "sync_menu_item_tech_card_real_costs_for",
-   "filename": "236_targeted_tech_card_cost_sync.sql",
-   "md5": "7abb8fd2ac341ba59bfde1b2c44829cb"
+   "filename": "280_tech_card_cost_within_price.sql",
+   "md5": "ce2a936833b3ee033b1423a714e7d0d7"
   },
   {
    "name": "public_menu_price_settings",
@@ -1781,6 +1785,31 @@ export default {
    "name": "get_ingredient_purchase_sheet",
    "filename": "279_ingredient_purchase_sheet.sql",
    "md5": "df8b72183b022b4a3d0579afd9bc95f2"
+  },
+  {
+   "name": "tech_card_selling_price",
+   "filename": "280_tech_card_cost_within_price.sql",
+   "md5": "6ff45bb90fe195370bc3020f46d11f85"
+  },
+  {
+   "name": "tech_card_cost_overruns",
+   "filename": "280_tech_card_cost_within_price.sql",
+   "md5": "3dcae429877727db879c4d0aca0ecf9c"
+  },
+  {
+   "name": "raise_tech_card_cost_overruns",
+   "filename": "280_tech_card_cost_within_price.sql",
+   "md5": "e5aec419f82cd066a40c8db6d88917f7"
+  },
+  {
+   "name": "menu_item_option_price_signature",
+   "filename": "280_tech_card_cost_within_price.sql",
+   "md5": "9f5c15e5f483b0aab70f538f63a57056"
+  },
+  {
+   "name": "guard_menu_item_price_above_tech_card_cost",
+   "filename": "280_tech_card_cost_within_price.sql",
+   "md5": "c61ea263da01ea029b73f36a3720eff6"
   }
  ]
 }

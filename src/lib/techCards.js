@@ -384,3 +384,38 @@ export function techCardUnitLabel(unit, lang) {
   }
   return unitLabels[unit]?.[lang] || unitLabels[unit]?.en || unit
 }
+
+// A Tech Card may never cost more than it sells for (migration 280). The DB
+// marks the refusal with this hint and lists the dishes in `details`.
+export const TECH_CARD_COST_OVERRUN_HINT = 'TECH_CARD_COST_EXCEEDS_PRICE'
+
+export function isTechCardCostOverPrice(portionCost, sellingPrice) {
+  const price = Number(sellingPrice) || 0
+  return price > 0 && portionCost != null && Math.round(Number(portionCost)) > price
+}
+
+// Returns [{ menuItemId, variantOptionId, cost, price }] for a cost-overrun
+// refusal, or null for any other error.
+export function parseTechCardCostOverruns(error) {
+  if (!error || error.hint !== TECH_CARD_COST_OVERRUN_HINT) return null
+  let rows = []
+  try {
+    rows = JSON.parse(error.details || '[]')
+  } catch {
+    rows = []
+  }
+  return (Array.isArray(rows) ? rows : []).map(row => ({
+    menuItemId: String(row?.menu_item_id || ''),
+    variantOptionId: String(row?.variant_option_id || ''),
+    cost: Number(row?.cost) || 0,
+    price: Number(row?.price) || 0,
+  })).filter(row => row.menuItemId)
+}
+
+export function techCardEditorPath(menuItemId, variantOptionId = '', ingredientName = '') {
+  const params = new URLSearchParams()
+  if (variantOptionId) params.set('variant', variantOptionId)
+  if (ingredientName) params.set('ingredient', ingredientName)
+  const query = params.toString()
+  return `/admin/tech-cards/${encodeURIComponent(menuItemId)}${query ? `?${query}` : ''}`
+}

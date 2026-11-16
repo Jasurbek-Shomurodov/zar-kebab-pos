@@ -53,7 +53,8 @@ import {
 } from '../lib/permissions'
 import { getSaleProfitSummary } from '../lib/profit'
 import { getRequiredMenuItemCost, hasRequiredMenuItemCost, isTechCardMenuItemCost } from '../lib/menuItemCosts'
-import { isTechCardEligibleMenuItem } from '../lib/techCards'
+import { isTechCardEligibleMenuItem, parseTechCardCostOverruns, techCardEditorPath } from '../lib/techCards'
+import TechCardCostOverrunList from '../components/TechCardCostOverrunList'
 import {
   getMenuItemMediaUrls,
   hasMenuItemImage,
@@ -2176,7 +2177,9 @@ export default function AdminMenu() {
         },
       })
       if (result?.error) {
-        setMenuNotice({ tone: 'error', message: result.error.message || saveFailedLabel(lang) })
+        // A price below a Tech Card's cost is refused (migration 280): list the recipes to fix.
+        const overruns = parseTechCardCostOverruns(result.error)
+        setMenuNotice({ tone: 'error', message: result.error.message || saveFailedLabel(lang), overruns })
         return
       }
       await cleanupTrackedUploads(uploadedItemImageUrlsRef, mediaUrls)
@@ -2507,7 +2510,7 @@ export default function AdminMenu() {
       >
         <div className="min-h-full bg-[#f6f5f3]">
           <div className="ws-page">
-            {menuNotice && (
+            {menuNotice && !menuNotice.overruns && (
               <div role="alert" className="ws-notice ws-tone-negative">
                 {menuNotice.error ? formatWriteError(menuNotice.error, lang, menuNotice.actionType) : menuNotice.message}
               </div>
@@ -2874,10 +2877,13 @@ export default function AdminMenu() {
       >
         <div className="min-h-full bg-[#f6f5f3]">
           <div className="ws-page">
-            {menuNotice && (
+            {menuNotice && !menuNotice.overruns && (
               <div role="alert" className="ws-notice ws-tone-negative">
                 {menuNotice.error ? formatWriteError(menuNotice.error, lang, menuNotice.actionType) : menuNotice.message}
               </div>
+            )}
+            {menuNotice?.overruns && (
+              <TechCardCostOverrunList overruns={menuNotice.overruns} menuItems={state.menuItems} lang={lang} canOpen={canViewTechCards} onOpen={row => navigate(techCardEditorPath(row.menuItemId, row.variantOptionId))} />
             )}
             {!itemModal ? (
               <OperationalLoading layout="form"
@@ -3052,7 +3058,7 @@ export default function AdminMenu() {
     >
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page">
-          {menuNotice && (
+          {menuNotice && !menuNotice.overruns && (
             <div className={`ws-notice ${menuNotice.tone === 'success' ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
               {menuNotice.error ? formatWriteError(menuNotice.error, lang, menuNotice.actionType) : menuNotice.message}
             </div>
@@ -3869,10 +3875,13 @@ export default function AdminMenu() {
       {itemModal && (
         <Modal title={itemModal === 'new' ? t(lang, 'addItem') : t(lang, 'editItem')} onClose={closeItemModal} closeDisabled={savingItemForm}>
           <div className="space-y-3">
-            {menuNotice && (
+            {menuNotice && !menuNotice.overruns && (
               <div role="alert" className="ws-notice ws-tone-negative">
                 {menuNotice.error ? formatWriteError(menuNotice.error, lang, menuNotice.actionType) : menuNotice.message}
               </div>
+            )}
+            {menuNotice?.overruns && (
+              <TechCardCostOverrunList overruns={menuNotice.overruns} menuItems={state.menuItems} lang={lang} canOpen={canViewTechCards} onOpen={row => navigate(techCardEditorPath(row.menuItemId, row.variantOptionId))} />
             )}
             <div>
               <label className="ws-caption mb-1.5 block font-medium">{t(lang, 'category')}</label>
