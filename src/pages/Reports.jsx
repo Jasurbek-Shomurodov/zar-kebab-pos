@@ -9,15 +9,9 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
 import {
   getOrderDate,
-  getOrderItemCategoryId,
   getOrderItems,
-  getOrderLoyaltyIncomeTotal,
   getOrderPaymentBreakdown,
   getOrderPaymentSummary,
-  getOrderRevenueTotal,
-  getRestaurantHour,
-  getSoldOrderItems,
-  getOrderTotal,
   groupOrdersBySession,
   isCancelledOrderItem,
   isPaidOrder,
@@ -39,7 +33,6 @@ import {
   BarChart2, Clock, Tag, Users, ListOrdered, HelpCircle, Trash2, Truck, Pencil, Globe2, UserRound,
   FileSpreadsheet, Wallet, Scale, Receipt, Gift, RotateCcw, XCircle,
 } from 'lucide-react'
-import { getDailyCloseout } from '../lib/closeout'
 import { buildDailyReceiptRows, downloadPeriodReportWorkbook, periodReportFilename } from '../lib/periodReportExport'
 import { ALL_DISHES_KEY, getDishSalesAnalysis } from '../lib/dishSales'
 import { buildDishSalesExportRows, dishSalesExportFilename, downloadDishSalesWorkbook } from '../lib/dishSalesExport'
@@ -54,13 +47,22 @@ import {
   expensePaymentMethodLabel,
   normalizeExpenseAmount,
   normalizeExpenseEntryType,
-  summarizeExpenseCashflow,
+  summarizeExpenseCashflowFromIncome,
   summarizeExpenses,
 } from '../lib/expenses'
 import { formatLongDate, formatLongDateTime } from '../lib/dateFormat'
 import { getConfiguredServiceRatePct } from '../lib/serviceRates'
 import { canChangeCompletedOrderPaymentMethod, canDeleteOrderToday, canViewPage } from '../lib/permissions'
 import { collectPagedRows, loadOrdersForRange, mergeOrderHistory } from '../lib/orderHistory'
+import {
+  buildCloseoutFromOverview,
+  buildDishAnalysisFromRpc,
+  loadReportsDishSales,
+  loadReportsFilterOptions,
+  loadReportsItemSales,
+  loadReportsOrderPage,
+  loadReportsOverview,
+} from '../lib/reportsRpc'
 import { loadReportsAccountingBundle } from '../lib/accountingSummary'
 import { getAccountingQuickRange } from '../lib/accounting'
 import { RollingHold, RollingValue } from '../components/RollingNumber'
@@ -445,34 +447,22 @@ function DishMetric({ icon: Icon, iconCls, label, value, sub }) {
 // TAB 1 — BEST SELLING
 // ─────────────────────────────────────────────────────────────────────────────
 
-function BestSellingTab({ orders, menuItemMap, categories, lang }) {
+function BestSellingTab({ products, menuItemMap, categories, lang }) {
   const [sortBy, setSortBy] = useState('quantity') // 'quantity' | 'revenue'
 
-  const items = useMemo(() => {
-    const map = {}
-    orders.forEach(o => {
-      getSoldOrderItems(o).forEach(item => {
-        const key = item.menu_item_id || item.name || 'unknown'
-        const mi  = menuItemMap[item.menu_item_id]
-        const categoryId = getOrderItemCategoryId(item, mi)
-        if (!map[key]) {
-          map[key] = {
-            name:     item.name || mi?.name_en || mi?.name_uz || 'Unknown',
-            menuItem: mi || null,
-            image:    item.image_url || mi?.image_url || null,
-            categoryId,
-            quantity: 0,
-            revenue:  0,
-          }
-        }
-        map[key].quantity += Number(item.quantity) || 1
-        map[key].revenue  += getOrderItemUnitPrice(item) * (Number(item.quantity) || 1)
-      })
-    })
-    return Object.values(map).sort((a, b) =>
-      sortBy === 'revenue' ? b.revenue - a.revenue : b.quantity - a.quantity
-    )
-  }, [orders, menuItemMap, sortBy])
+  const items = useMemo(() => (
+    (products || []).map(p => {
+      const mi = menuItemMap[p.menu_item_id]
+      return {
+        name: p.item_name || mi?.name_en || mi?.name_uz || mi?.name_ru || 'Unknown',
+        menuItem: mi || null,
+        image: mi?.image_url || null,
+        categoryId: mi?.category_id || null,
+        quantity: Number(p.qty) || 0,
+        revenue: Number(p.revenue) || 0,
+      }
+    }).sort((a, b) => sortBy === 'revenue' ? b.revenue - a.revenue : b.quantity - a.quantity)
+  ), [products, menuItemMap, sortBy])
 
   const maxQty = items[0]?.quantity || 1
   const maxRev = items[0]?.revenue  || 1
@@ -555,7 +545,7 @@ function BestSellingTab({ orders, menuItemMap, categories, lang }) {
 // TAB 2 — DISH SALES ANALYSIS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, filterLabel }) {
+function DishSalesTab({ reportArgs, loadExportOrders, menuItems, categories, lang, dateFrom, dateTo, filterLabel }) {
   const [selectedDishKey, setSelectedDishKey] = useState(ALL_DISHES_KEY)
   const [exportState, setExportState] = useState('idle')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -563,9 +553,19 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
   const [activeSectionKey, setActiveSectionKey] = useState('')
   const pickerRef = useRef(null)
 
+  const [dishRpc, setDishRpc] = useState(null)
+  const [dishError, setDishError] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    loadReportsDishSales({ ...reportArgs, dishKey: selectedDishKey })
+      .then(data => { if (!cancelled) { setDishRpc(data); setDishError('') } })
+      .catch(error => { if (!cancelled) setDishError(error?.message || 'Could not load dish sales') })
+    return () => { cancelled = true }
+  }, [reportArgs, selectedDishKey])
+
   const analysis = useMemo(() => (
-    getDishSalesAnalysis({ orders, menuItems, selectedDishKey })
-  ), [orders, menuItems, selectedDishKey])
+    buildDishAnalysisFromRpc(dishRpc, menuItems, selectedDishKey)
+  ), [dishRpc, menuItems, selectedDishKey])
 
   useEffect(() => {
     if (selectedDishKey === ALL_DISHES_KEY) return
@@ -690,9 +690,8 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
     setExportState('busy')
     try {
       // Always export every dish, independent of the dish picker selection.
-      const allAnalysis = selectedDishKey === ALL_DISHES_KEY
-        ? analysis
-        : getDishSalesAnalysis({ orders, menuItems, selectedDishKey: ALL_DISHES_KEY })
+      const { paidSessions } = await loadExportOrders()
+      const allAnalysis = getDishSalesAnalysis({ orders: paidSessions, menuItems, selectedDishKey: ALL_DISHES_KEY })
       const rows = buildDishSalesExportRows(allAnalysis, {
         dishName: dish => dishDisplayName(dish, lang),
         categoryName: dish => dishCategoryLabel(dish, categories, lang),
@@ -1061,28 +1060,21 @@ function DishSalesTab({ orders, menuItems, categories, lang, dateFrom, dateTo, f
 // TAB 3 — SALES BY CATEGORY
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ByCategoryTab({ orders, categories, menuItemMap, lang }) {
+function ByCategoryTab({ categoryRows, categories, lang }) {
   const data = useMemo(() => {
-    const map = {}
-    let totalRev = 0
-    orders.forEach(o => {
-      getSoldOrderItems(o).forEach(item => {
-        const mi  = menuItemMap[item.menu_item_id]
-        const categoryId = getOrderItemCategoryId(item, mi)
-        const cat = categoryId ? categories.find(c => c.id === categoryId) : null
-        const key = cat?.id || '__uncategorized__'
-        const lbl = cat ? getCategoryName(cat, lang) : 'Uncategorized'
-        if (!map[key]) map[key] = { label: lbl, image: cat?.image_url || null, revenue: 0, qty: 0 }
-        const rev = getOrderItemUnitPrice(item) * (Number(item.quantity) || 1)
-        map[key].revenue += rev
-        map[key].qty     += Number(item.quantity) || 1
-        totalRev         += rev
-      })
-    })
-    return Object.values(map)
-      .map(d => ({ ...d, pct: totalRev > 0 ? Math.round(d.revenue / totalRev * 100) : 0 }))
-      .sort((a, b) => b.revenue - a.revenue)
-  }, [orders, categories, menuItemMap, lang])
+    const totalRev = (categoryRows || []).reduce((sum, r) => sum + (Number(r.revenue) || 0), 0)
+    return (categoryRows || []).map(r => {
+      const cat = r.category_id ? categories.find(c => c.id === r.category_id) : null
+      const revenue = Number(r.revenue) || 0
+      return {
+        label: cat ? getCategoryName(cat, lang) : 'Uncategorized',
+        image: cat?.image_url || null,
+        revenue,
+        qty: Number(r.qty) || 0,
+        pct: totalRev > 0 ? Math.round(revenue / totalRev * 100) : 0,
+      }
+    }).sort((a, b) => b.revenue - a.revenue)
+  }, [categoryRows, categories, lang])
 
   if (data.length === 0) return <EmptyState lang={lang} />
 
@@ -1125,20 +1117,16 @@ function ByCategoryTab({ orders, categories, menuItemMap, lang }) {
 // TAB 3 — SALES BY HOUR
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ByHourTab({ orders, lang }) {
+function ByHourTab({ hourlyRows, lang }) {
   const { hours, peakIdx } = useMemo(() => {
     const hrs = Array.from({ length: 24 }, (_, h) => ({ hour: h, revenue: 0, count: 0 }))
-    orders.forEach(o => {
-      const d = getOrderDate(o)
-      if (!d) return
-      const h = getRestaurantHour(d)
-      hrs[h].revenue += getOrderRevenueTotal(o)
-      hrs[h].count   += 1
-    })
-    const active  = hrs.filter(h => h.count > 0)
+    for (const r of hourlyRows || []) {
+      const h = Number(r.hour)
+      if (h >= 0 && h < 24) { hrs[h].revenue = Number(r.revenue) || 0; hrs[h].count = Number(r.orders) || 0 }
+    }
     const peakIdx = hrs.reduce((best, h, i) => h.revenue > hrs[best].revenue ? i : best, 0)
     return { hours: hrs, peakIdx }
-  }, [orders])
+  }, [hourlyRows])
 
   const activeHours = hours.filter(h => h.count > 0)
   if (activeHours.length === 0) return <EmptyState lang={lang} />
@@ -1202,32 +1190,28 @@ function ByHourTab({ orders, lang }) {
 // TAB 4 — PAYMENT METHODS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PaymentMethodsTab({ orders, lang }) {
+function PaymentMethodsTab({ paymentRows, lang }) {
   const { data, totalRevenue, loyaltyIncome } = useMemo(() => {
     const map = {}
     let totalPaymentValue = 0
     let cashIncome = 0
     let loyalty = 0
-    orders.forEach(o => {
-      const breakdown = getOrderPaymentBreakdown(o)
-      const rows = breakdown.length > 0 ? breakdown : [{ method: getPaymentMethod(o), amount: getOrderRevenueTotal(o) }]
-      rows.forEach(row => {
-        const key = (row.method || '').toLowerCase()
-        const m   = PAY_CFG[key] ? key : 'unknown'
-        const rev = Number(row.amount) || 0
-        if (!map[m]) map[m] = { method: m, revenue: 0, count: 0 }
-        map[m].revenue += rev
-        map[m].count   += 1
-        totalPaymentValue += rev
-        if (m === 'loyalty_card') loyalty += rev
-        else cashIncome += rev
-      })
-    })
+    for (const r of paymentRows || []) {
+      const key = (r.method || '').toLowerCase()
+      const m = PAY_CFG[key] ? key : 'unknown'
+      const rev = Number(r.revenue) || 0
+      if (!map[m]) map[m] = { method: m, revenue: 0, count: 0 }
+      map[m].revenue += rev
+      map[m].count += Number(r.rows_count) || 0
+      totalPaymentValue += rev
+      if (m === 'loyalty_card') loyalty += rev
+      else cashIncome += rev
+    }
     const rows = Object.values(map)
       .map(d => ({ ...d, pct: totalPaymentValue > 0 ? Math.round(d.revenue / totalPaymentValue * 100) : 0 }))
       .sort((a, b) => b.revenue - a.revenue)
     return { data: rows, totalRevenue: cashIncome, loyaltyIncome: loyalty }
-  }, [orders])
+  }, [paymentRows])
 
   if (data.length === 0) return <EmptyState lang={lang} />
 
@@ -1304,29 +1288,24 @@ function PaymentMethodsTab({ orders, lang }) {
 // TAB 5 — ORDER TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
-function OrderTypesTab({ orders, lang }) {
+function OrderTypesTab({ typeRows, lang }) {
   const data = useMemo(() => {
-    const totalRevenue = orders.reduce((sum, order) => sum + getOrderRevenueTotal(order), 0)
-    return ORDER_TYPE_KEYS
-      .map(type => {
-        const rows = orders.filter(order => inferOrderType(order) === type)
-        const revenue = rows.reduce((sum, order) => sum + getOrderRevenueTotal(order), 0)
-        const items = rows.reduce(
-          (sum, order) => sum + getSoldOrderItems(order).reduce((itemSum, item) => itemSum + (Number(item.quantity) || 1), 0),
-          0
-        )
-        return {
-          type,
-          label: ORDER_TYPE_LABELS[type]?.[lang] || ORDER_TYPE_LABELS[type]?.en || type,
-          orders: rows.length,
-          revenue,
-          items,
-          pct: totalRevenue > 0 ? Math.round(revenue / totalRevenue * 100) : 0,
-        }
-      })
-  }, [orders, lang])
+    const totalRevenue = (typeRows || []).reduce((sum, r) => sum + (Number(r.revenue) || 0), 0)
+    return ORDER_TYPE_KEYS.map(type => {
+      const row = (typeRows || []).find(r => r.type === type)
+      const revenue = Number(row?.revenue) || 0
+      return {
+        type,
+        label: ORDER_TYPE_LABELS[type]?.[lang] || ORDER_TYPE_LABELS[type]?.en || type,
+        orders: Number(row?.orders) || 0,
+        revenue,
+        items: Number(row?.items) || 0,
+        pct: totalRevenue > 0 ? Math.round(revenue / totalRevenue * 100) : 0,
+      }
+    })
+  }, [typeRows, lang])
 
-  if (orders.length === 0) return <EmptyState lang={lang} />
+  if ((typeRows || []).length === 0) return <EmptyState lang={lang} />
 
   const colors = {
     dine_in: '#ff5a00',
@@ -1381,20 +1360,20 @@ function OrderTypesTab({ orders, lang }) {
 // TAB 6 — WAITER PERFORMANCE
 // ─────────────────────────────────────────────────────────────────────────────
 
-function WaiterPerformanceTab({ orders, lang }) {
-  const data = useMemo(() => {
-    const map = {}
-    orders.forEach(o => {
-      const w = o.waiter_name || o.waiter_email || 'Unknown'
-      if (!map[w]) map[w] = { name: w, revenue: 0, orders: 0, items: 0 }
-      map[w].revenue += getOrderRevenueTotal(o)
-      map[w].orders  += 1
-      map[w].items   += getSoldOrderItems(o).reduce((s, i) => s + (Number(i.quantity) || 1), 0)
-    })
-    return Object.values(map)
-      .map(d => ({ ...d, avg: d.orders > 0 ? Math.round(d.revenue / d.orders) : 0 }))
-      .sort((a, b) => b.revenue - a.revenue)
-  }, [orders])
+function WaiterPerformanceTab({ waiterRows, lang }) {
+  const data = useMemo(() => (
+    (waiterRows || []).map(r => {
+      const revenue = Number(r.revenue) || 0
+      const orderCount = Number(r.orders) || 0
+      return {
+        name: r.name,
+        revenue,
+        orders: orderCount,
+        items: Number(r.items) || 0,
+        avg: orderCount > 0 ? Math.round(revenue / orderCount) : 0,
+      }
+    }).sort((a, b) => b.revenue - a.revenue)
+  ), [waiterRows])
 
   if (data.length === 0) return <EmptyState lang={lang} />
 
@@ -1776,29 +1755,45 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, serviceRateS
   )
 }
 
-function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selectedOrder, onSelect, serviceRateSettings }) {
+function OrderHistoryTab({ reportArgs, reloadKey, menuItemMap, lang, navigate, selectedOrder, onSelect, serviceRateSettings }) {
   const [page,      setPage]      = useState(1)
   const [search,    setSearch]    = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filterPay, setFilterPay] = useState('all')
+  const [result,    setResult]    = useState({ total: 0, rows: [], loading: true, error: '' })
 
-  // Apply in-tab filters on top of the already date/table/waiter filtered orders
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return allOrders.filter(o => {
-      const matchPay = filterPay === 'all' || (getPaymentMethod(o) || '').toLowerCase() === filterPay
-      const matchQ   = !q ||
-        (o.id          && String(o.id).toLowerCase().includes(q)) ||
-        (orderTableLabel(o, lang).toLowerCase().includes(q)) ||
-        (o.waiter_name && o.waiter_name.toLowerCase().includes(q)) ||
-        (o.opened_by_name && o.opened_by_name.toLowerCase().includes(q)) ||
-        (o.completed_by_name && o.completed_by_name.toLowerCase().includes(q)) ||
-        getOrderItems(o).some(i => (i.name || '').toLowerCase().includes(q))
-      return matchPay && matchQ
+  // Search text is debounced; every filter, sort and page is a server query.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  useEffect(() => { setPage(1) }, [reportArgs, debouncedSearch, filterPay])
+
+  useEffect(() => {
+    let cancelled = false
+    setResult(current => ({ ...current, loading: true, error: '' }))
+    loadReportsOrderPage({
+      ...reportArgs,
+      paymentMethod: filterPay,
+      status: 'all',
+      search: debouncedSearch,
+      sort: 'date_desc',
+      limit: PAGE_SIZE,
+      offset: (page - 1) * PAGE_SIZE,
     })
-  }, [allOrders, search, filterPay])
+      .then(data => {
+        if (!cancelled) setResult({ total: Number(data?.total) || 0, rows: data?.rows || [], loading: false, error: '' })
+      })
+      .catch(error => {
+        if (!cancelled) setResult(current => ({ ...current, loading: false, error: error?.message || 'Could not load orders' }))
+      })
+    return () => { cancelled = true }
+  }, [reportArgs, reloadKey, debouncedSearch, filterPay, page])
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const pageOrders = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalCount = result.total
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const pageOrders = result.rows.map(row => row.session)
   function resetPage() { setPage(1) }
 
   return (
@@ -1879,7 +1874,7 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
                     <span><PaymentMethodBadges order={order} lang={lang} /></span>
                     <span className="text-center text-sm tabular-nums text-[#68655f]">{loyaltyUsed > 0 ? formatCurrency(loyaltyUsed) : '—'}</span>
                     <span className="text-center text-sm tabular-nums text-[#68655f]">{servicePct}%</span>
-                    <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(getOrderTotal(order))}</span>
+                    <span className="text-right font-semibold tabular-nums text-sm text-[#22201d]">{formatCurrency(Number(order.total) || 0)}</span>
                     <div className="flex justify-end">
                       <button
                         onClick={e => { e.stopPropagation(); onSelect(isSelected ? null : order) }}
@@ -1909,7 +1904,7 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
                       <div className="mt-1.5"><PaymentMethodBadges order={order} lang={lang} /></div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
-                      <span className="font-semibold tabular-nums text-[#22201d] text-base">{formatCurrency(getOrderTotal(order))}</span>
+                      <span className="font-semibold tabular-nums text-[#22201d] text-base">{formatCurrency(Number(order.total) || 0)}</span>
                       <button type="button" className="ws-btn ws-btn-outline ws-btn-sm">{lang === 'uz' ? 'Batafsil' : lang === 'ru' ? 'Детали' : 'Details'}</button>
                     </div>
                   </div>
@@ -1921,9 +1916,9 @@ function OrderHistoryTab({ orders, allOrders, menuItemMap, lang, navigate, selec
           {/* Pagination */}
           <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-[#f6f5f3] border-t border-[#e4e1de]">
             <p className="ws-caption tabular-nums">
-              {filtered.length === 0
+              {totalCount === 0
                 ? (lang === 'uz' ? "Buyurtma yo'q" : lang === 'ru' ? 'Нет заказов' : 'No orders')
-                : `${lang === 'uz' ? "Ko'rsatilmoqda" : lang === 'ru' ? 'Показано' : 'Showing'} ${Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)}–${Math.min(page * PAGE_SIZE, filtered.length)} ${lang === 'uz' ? 'dan' : lang === 'ru' ? 'из' : 'of'} ${filtered.length} ${lang === 'uz' ? 'ta buyurtma' : lang === 'ru' ? 'заказов' : 'orders'}`
+                : `${lang === 'uz' ? "Ko'rsatilmoqda" : lang === 'ru' ? 'Показано' : 'Showing'} ${Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–${Math.min(page * PAGE_SIZE, totalCount)} ${lang === 'uz' ? 'dan' : lang === 'ru' ? 'из' : 'of'} ${totalCount} ${lang === 'uz' ? 'ta buyurtma' : lang === 'ru' ? 'заказов' : 'orders'}`
               }
             </p>
             <div className="flex items-center gap-1">
@@ -2005,15 +2000,39 @@ export default function Reports() {
   const [employeeMealSnapshots, setEmployeeMealSnapshots] = useState([])
   const [expensesError, setExpensesError] = useState('')
   const [expenseBreakdownOpen, setExpenseBreakdownOpen] = useState(false)
-  const [historyOrders, setHistoryOrders] = useState([])
-  const [ordersError, setOrdersError] = useState('')
-  const [loadedHistoryRange, setLoadedHistoryRange] = useState('')
-  const [settledHistoryRange, setSettledHistoryRange] = useState('')
   const [settledExpenseRange, setSettledExpenseRange] = useState('')
   const reportRange = `${dateFrom}:${dateTo}`
+  const [reportsVersion, setReportsVersion] = useState(0)
+  const reportArgs = useMemo(
+    () => ({ dateFrom, dateTo, tableId: tableFilter, waiterName: waiterFilter }),
+    [dateFrom, dateTo, tableFilter, waiterFilter]
+  )
+  const reportsKey = `${reportRange}|${tableFilter}|${waiterFilter}|${reportsVersion}`
+  const [reportsState, setReportsState] = useState({ key: '', overview: null, items: null, options: null, error: '' })
+  // Overview, items and filter choices come from SQL readers; the page waits for these only.
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      loadReportsOverview(reportArgs),
+      loadReportsItemSales(reportArgs),
+      loadReportsFilterOptions(reportArgs),
+    ])
+      .then(([overview, items, options]) => {
+        if (!cancelled) setReportsState({ key: reportsKey, overview, items, options, error: '' })
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setReportsState({ key: reportsKey, overview: null, items: null, options: null, error: error?.message || 'Could not load reports' })
+        }
+      })
+    return () => { cancelled = true }
+    // reportArgs is derived from the fields inside reportsKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportsKey])
   // Compare during render so applying dates hides stale results before effects run.
-  const reportsLoading = settledHistoryRange !== reportRange ||
+  const reportsLoading = reportsState.key !== reportsKey ||
     (canViewExpenses && settledExpenseRange !== reportRange)
+  const reportsError = reportsState.key === reportsKey ? reportsState.error : ''
 
   // ── Lookups ────────────────────────────────────────────────────────────────
 
@@ -2023,15 +2042,7 @@ export default function Reports() {
     return m
   }, [state.menuItems])
 
-  const reportOrders = useMemo(
-    () => mergeOrderHistory(historyOrders, state.orders, dateFrom, dateTo),
-    [historyOrders, state.orders, dateFrom, dateTo]
-  )
-
-  const uniqueWaiters = useMemo(() => {
-    const s = new Set(reportOrders.map(o => o.waiter_name).filter(Boolean))
-    return [...s]
-  }, [reportOrders])
+  const uniqueWaiters = reportsState.options?.waiters || []
 
   const dishExportFilterLabel = useMemo(() => {
     const parts = []
@@ -2040,52 +2051,38 @@ export default function Reports() {
     return parts.join(', ')
   }, [tableFilter, waiterFilter, state.tables])
 
-  // ── Base date-filtered order sets ─────────────────────────────────────────
+  // ── Excel only: full-range rows, loaded when an export is requested ─────
   //
-  // Grouping is applied once here. Both KPI cards and all tabs read from
-  // these two lists so they are always in sync.
-
-  const allDateFiltered = useMemo(() => {
-    return groupOrdersBySession([...reportOrders])
-      .filter(o => {
-        const matchDate   = matchesRange(o, dateFrom, dateTo)
-        const matchTable  = tableFilter  === 'all' || o.table_id === tableFilter
-        const matchWaiter = waiterFilter === 'all' || o.waiter_name === waiterFilter
-        return matchDate && matchTable && matchWaiter
-      })
+  // Every figure on screen comes from the SQL readers. The Excel files still need
+  // per-order rows (daily receipts, every dish), so they load the range on demand.
+  async function loadExportOrders() {
+    const rows = await loadOrdersForRange(dateFrom, dateTo)
+    const reportOrders = mergeOrderHistory(rows, state.orders, dateFrom, dateTo)
+    const paidSessions = groupOrdersBySession([...reportOrders])
+      .filter(o => (
+        matchesRange(o, dateFrom, dateTo) &&
+        (tableFilter === 'all' || o.table_id === tableFilter) &&
+        (waiterFilter === 'all' || o.waiter_name === waiterFilter) &&
+        isPaidOrder(o)
+      ))
       .sort((a, b) => new Date(getOrderDate(b) || 0) - new Date(getOrderDate(a) || 0))
-  }, [reportOrders, dateFrom, dateTo, tableFilter, waiterFilter])
-
-  // Paid subset — used for KPI cards and all analytics tabs
-  const filteredForAnalytics = useMemo(() =>
-    allDateFiltered.filter(isPaidOrder),
-    [allDateFiltered]
-  )
+    return { reportOrders, paidSessions }
+  }
 
   // ── KPI ───────────────────────────────────────────────────────────────────
 
-  const kpiRevenue   = filteredForAnalytics.reduce((s, o) => s + getOrderRevenueTotal(o), 0)
-  const kpiLoyaltyIncome = filteredForAnalytics.reduce((s, o) => s + getOrderLoyaltyIncomeTotal(o), 0)
-  const kpiOrders    = filteredForAnalytics.length
+  const overview = useMemo(() => reportsState.overview || {}, [reportsState.overview])
+  const kpiRevenue   = Number(overview.kpi?.revenue) || 0
+  const kpiLoyaltyIncome = Number(overview.kpi?.loyalty) || 0
+  const kpiOrders    = Number(overview.kpi?.orders) || 0
   const kpiAvg       = kpiOrders > 0 ? Math.round(kpiRevenue / kpiOrders) : 0
-  const priceModeBreakdown = useMemo(() => {
-    const rows = {
-      regular: { mode: 'regular', orders: 0, revenue: 0 },
-      tourist: { mode: 'tourist', orders: 0, revenue: 0 },
-    }
-    filteredForAnalytics.forEach(order => {
-      const mode = normalizePriceMode(order.price_mode)
-      rows[mode].orders += 1
-      rows[mode].revenue += getOrderRevenueTotal(order)
-    })
-    return Object.values(rows)
-  }, [filteredForAnalytics])
+  const priceModeBreakdown = useMemo(() => ['regular', 'tourist'].map(mode => {
+    const row = (overview.price_modes || []).find(r => r.mode === mode)
+    return { mode, orders: Number(row?.orders) || 0, revenue: Number(row?.revenue) || 0 }
+  }), [overview])
   const closeout = useMemo(
-    () => getDailyCloseout(reportOrders, dateFrom, dateTo, {
-      tableId: tableFilter,
-      waiterName: waiterFilter,
-    }),
-    [reportOrders, dateFrom, dateTo, tableFilter, waiterFilter]
+    () => buildCloseoutFromOverview(overview, dateFrom, dateTo),
+    [overview, dateFrom, dateTo]
   )
   const salaryExpenses = useMemo(() => (
     buildSalaryPaymentExpenseRows(salaryProfiles, dateFrom, dateTo)
@@ -2113,36 +2110,16 @@ export default function Reports() {
       ))
   ), [allExpenses])
   const expenseSummary = useMemo(() => summarizeExpenses(allExpenses), [allExpenses])
+  const incomeByMethod = useMemo(() => Object.fromEntries(
+    (overview.payment_methods || []).map(row => [row.method, Number(row.revenue) || 0])
+  ), [overview])
   const expenseCashflow = useMemo(
-    () => summarizeExpenseCashflow(filteredForAnalytics, allExpenses, { includeIncomeEntries: false }),
-    [filteredForAnalytics, allExpenses]
+    () => summarizeExpenseCashflowFromIncome(incomeByMethod, allExpenses, { includeIncomeEntries: false }),
+    [incomeByMethod, allExpenses]
   )
   const cashflowLeft = kpiRevenue - expenseSummary.total
   const netIncome = cashflowLeft
   const employeeMealTotal = expenseSummary.byCategory.employee_meals || 0
-
-  useEffect(() => {
-    let cancelled = false
-    setOrdersError('')
-    setLoadedHistoryRange('')
-    setSettledHistoryRange('')
-    loadOrdersForRange(dateFrom, dateTo)
-      .then(rows => {
-        if (!cancelled) {
-          setHistoryOrders(rows)
-          setLoadedHistoryRange(`${dateFrom}:${dateTo}`)
-        }
-      })
-      .catch(error => {
-        if (cancelled) return
-        setHistoryOrders([])
-        setOrdersError(error?.message || 'Could not load complete order history')
-      })
-      .finally(() => {
-        if (!cancelled) setSettledHistoryRange(`${dateFrom}:${dateTo}`)
-      })
-    return () => { cancelled = true }
-  }, [dateFrom, dateTo])
 
   useEffect(() => {
     let cancelled = false
@@ -2235,9 +2212,10 @@ export default function Reports() {
   }
 
   async function exportCloseout() {
-    if (reportsLoading || ordersError || exportState === 'busy') return
+    if (reportsLoading || reportsError || exportState === 'busy') return
     setExportState('busy')
     try {
+      const { reportOrders } = await loadExportOrders()
       const expenseRows = expenseBreakdownRows.map(expense => ({
         date: formatLongDate(expense.expense_date, lang, expense.expense_date),
         type: expense.is_salary_payment
@@ -2288,7 +2266,7 @@ export default function Reports() {
     try {
       const result = await dispatch({ type: 'DELETE_ORDER', payload: { orderId: order.id } })
       if (!result?.error) {
-        setHistoryOrders(current => current.filter(row => row.id !== order.id))
+        setReportsVersion(version => version + 1)
         setSelectedOrder(null)
         setConfirmDeleteOrderId('')
       }
@@ -2339,18 +2317,7 @@ export default function Reports() {
             payload: { orderIds, paymentMethod: paymentMethodDraft.legacy },
           })
       if (result?.error) return
-      setHistoryOrders(current => current.map(row => {
-        if (!orderIds.includes(row.id)) return row
-        if (changes.length > 0) return applyIndividualPaymentMethodChanges(row, changes)
-        return {
-          ...row,
-          payment_method: paymentMethodDraft.legacy,
-          payments: (row.payments || []).map(payment => payment.method === 'loyalty_card'
-            ? payment
-            : { ...payment, method: paymentMethodDraft.legacy }
-          ),
-        }
-      }))
+      setReportsVersion(version => version + 1)
       setSelectedOrder(current => current?.id === order.id
         ? (changes.length > 0
             ? applyIndividualPaymentMethodChanges(current, changes)
@@ -2456,7 +2423,7 @@ export default function Reports() {
         <button
           type="button"
           onClick={exportCloseout}
-          disabled={reportsLoading || Boolean(ordersError)}
+          disabled={reportsLoading || Boolean(reportsError)}
           aria-label={l.exportReportTitle}
           title={l.exportReportTitle}
           className="ws-btn ws-btn-outline !h-[38px]"
@@ -2501,9 +2468,10 @@ export default function Reports() {
             {/* Filters fall back to the page when the top bar is too narrow (.zk-filters-in-page). */}
             <div className="zk-filters-in-page">{renderFilters(false)}</div>
 
-            {ordersError && (
-              <div className="ws-notice ws-tone-negative" role="alert">
-                {ordersError}
+            {reportsError && (
+              <div className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-2" role="alert">
+                <span>{reportsError}</span>
+                <button type="button" onClick={() => setReportsVersion(version => version + 1)} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button>
               </div>
             )}
             {exportState === 'error' && (
@@ -2522,7 +2490,7 @@ export default function Reports() {
               <ReportsSkeleton canViewExpenses={canViewExpenses} lang={lang} overview={activeTab === 'overview'} />
             )}
             <RollingHold hold={reportsLoading}>
-            <div hidden={reportsLoading || Boolean(ordersError)} className="space-y-5">
+            <div hidden={reportsLoading || Boolean(reportsError)} className="space-y-5">
             {activeTab === 'overview' && (
               <div className="space-y-5">
                 <ReportGroupTitle icon={TrendingUp} title={l.salesGroup} />
@@ -2635,36 +2603,32 @@ export default function Reports() {
               </div>
             )}
 
-            {/* Detail tabs — all use filteredForAnalytics, the same orders as Overview */}
+            {/* Detail tabs — SQL readers with the same date/table/waiter scope as Overview */}
             {activeTab === 'best_selling'       && (
-              <BestSellingTab orders={filteredForAnalytics} menuItemMap={menuItemMap} categories={state.categories} lang={lang} />
+              <BestSellingTab products={reportsState.items?.by_product || []} menuItemMap={menuItemMap} categories={state.categories} lang={lang} />
             )}
             {activeTab === 'dish_sales'         && (
-              ordersError ? (
-                <CompactEmpty label={lang === 'ru' ? 'История продаж не загружена. Обновите страницу, чтобы повторить.' : lang === 'uz' ? 'Sotuv tarixi yuklanmadi. Qayta urinish uchun sahifani yangilang.' : 'Sales history could not load. Refresh the page to retry.'} />
-              ) : loadedHistoryRange !== `${dateFrom}:${dateTo}` ? (
-                <CompactEmpty label={lang === 'ru' ? 'Загрузка продаж за выбранный период…' : lang === 'uz' ? 'Tanlangan davr sotuvlari yuklanmoqda…' : 'Loading sales for the selected period…'} />
-              ) : <DishSalesTab orders={filteredForAnalytics} menuItems={state.menuItems} categories={state.categories} lang={lang} dateFrom={dateFrom} dateTo={dateTo} filterLabel={dishExportFilterLabel} />
+              <DishSalesTab reportArgs={reportArgs} loadExportOrders={loadExportOrders} menuItems={state.menuItems} categories={state.categories} lang={lang} dateFrom={dateFrom} dateTo={dateTo} filterLabel={dishExportFilterLabel} />
             )}
             {activeTab === 'by_category'        && (
-              <ByCategoryTab  orders={filteredForAnalytics} categories={state.categories} menuItemMap={menuItemMap} lang={lang} />
+              <ByCategoryTab  categoryRows={reportsState.items?.by_category || []} categories={state.categories} lang={lang} />
             )}
             {activeTab === 'by_hour'            && (
-              <ByHourTab      orders={filteredForAnalytics} lang={lang} />
+              <ByHourTab      hourlyRows={overview.hourly || []} lang={lang} />
             )}
             {activeTab === 'payment_methods'    && (
-              <PaymentMethodsTab orders={filteredForAnalytics} lang={lang} />
+              <PaymentMethodsTab paymentRows={overview.payment_methods || []} lang={lang} />
             )}
             {activeTab === 'order_types'        && (
-              <OrderTypesTab orders={filteredForAnalytics} lang={lang} />
+              <OrderTypesTab typeRows={overview.order_types || []} lang={lang} />
             )}
             {activeTab === 'waiter_performance' && (
-              <WaiterPerformanceTab orders={filteredForAnalytics} lang={lang} />
+              <WaiterPerformanceTab waiterRows={overview.waiters || []} lang={lang} />
             )}
             {activeTab === 'order_history'      && (
               <OrderHistoryTab
-                orders={filteredForAnalytics}
-                allOrders={filteredForAnalytics}
+                reportArgs={reportArgs}
+                reloadKey={reportsVersion}
                 menuItemMap={menuItemMap}
                 lang={lang}
                 navigate={navigate}
@@ -2704,7 +2668,7 @@ export default function Reports() {
                 canChangePaymentMethod={canChangePaymentMethod}
                 paymentMethodOrderId={paymentMethodOrderId}
                 onPaymentSplitSaved={result => {
-                  setHistoryOrders(current => current.map(row => applyPaymentSplit(row, result)))
+                  setReportsVersion(version => version + 1)
                   setSelectedOrder(current => applyPaymentSplit(current, result))
                   setPaymentMethodOrderId('')
                 }}

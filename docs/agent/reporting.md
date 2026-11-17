@@ -53,7 +53,7 @@
 
 - Ten-day income (`190`–`191`): latest 20 periods (1–10, 11–20, 21–end) through a selected month. Scans at most eight indexed months, excludes today/future periods, caches, hides empty months, starts choices at the earliest order month, and uses stable month colors. Zero periods in active months remain. Tests: `tests/weeklyIncome.test.js`.
 
-- Reports: skeletons/disabled export until orders/expenses settle. Ignore cancelled reads. Totals only on Overview; Excel `periodReportExport.test.js`.
+- Reports: overview, item, dish and order-list data: SQL readers (`281`–`283`, `src/lib/reportsRpc.js`), Closeout included. Only Excel loads the full range.
 
 - Dish Analysis: All dishes ranks 30 direct sellers. Selection shows description, sources, hours/log; hides global rankings. Add frozen `tech_card_component_snapshot` quantities × parent quantity; deduplicate orders. No inferred recipes/legacy contents or added set revenue. Tests: `tests/dishSales.test.js`, Excel `dishSalesExport.test.js`.
 

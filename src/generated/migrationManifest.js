@@ -1128,6 +1128,18 @@ export default {
   {
    "filename": "280_tech_card_cost_within_price.sql",
    "sha256": "b29cad69bf6b27770a68e153b0edfa2968e5be8344f45974fdcfec37b5e3ecf3"
+  },
+  {
+   "filename": "281_reports_session_core.sql",
+   "sha256": "6d3afcd1ac0f8387d3fad4a3ed20ccb56a77d918d6fe5050959fdc1a9fd275cf"
+  },
+  {
+   "filename": "282_reports_dish_sale_context.sql",
+   "sha256": "e62d571753fa6d564a081c5062188be083c840991aed92313a4a017f85651e96"
+  },
+  {
+   "filename": "283_reports_readers_fast.sql",
+   "sha256": "4343cde8d6bdec3181113ba5a427922ab8e2cb8c6606feb31971457e903aa083"
   }
  ],
  "functions": [
@@ -1810,6 +1822,66 @@ export default {
    "name": "guard_menu_item_price_above_tech_card_cost",
    "filename": "280_tech_card_cost_within_price.sql",
    "md5": "c61ea263da01ea029b73f36a3720eff6"
+  },
+  {
+   "name": "reports_infer_order_type",
+   "filename": "281_reports_session_core.sql",
+   "md5": "4f36b2d8f8c4b4fa243427ea59ec375f"
+  },
+  {
+   "name": "reports_escape_like",
+   "filename": "281_reports_session_core.sql",
+   "md5": "6350bb4294baba4369f0fb2211456620"
+  },
+  {
+   "name": "reports_require_access",
+   "filename": "281_reports_session_core.sql",
+   "md5": "c7472907c756347c34c74aa6ec1b5ea9"
+  },
+  {
+   "name": "reports_session_money",
+   "filename": "283_reports_readers_fast.sql",
+   "md5": "78438fffe16544d6a2078c22502bd121"
+  },
+  {
+   "name": "reports_normalize_payment_method",
+   "filename": "281_reports_session_core.sql",
+   "md5": "060d442f49eac64cd0ebd7f82565994b"
+  },
+  {
+   "name": "reports_session_payments",
+   "filename": "281_reports_session_core.sql",
+   "md5": "30b78c53655c1e73740270639640e230"
+  },
+  {
+   "name": "reports_session_items",
+   "filename": "281_reports_session_core.sql",
+   "md5": "50cf0064d45a62eb6f2c28c50036cddd"
+  },
+  {
+   "name": "get_reports_overview",
+   "filename": "283_reports_readers_fast.sql",
+   "md5": "e7cd90690a2b9ca933b56f58e34df269"
+  },
+  {
+   "name": "get_reports_item_sales",
+   "filename": "281_reports_session_core.sql",
+   "md5": "45d46a5bf18e2643c024ce6818dfae62"
+  },
+  {
+   "name": "get_reports_order_page",
+   "filename": "283_reports_readers_fast.sql",
+   "md5": "38ceaa145feac716dbdedad8a3f02849"
+  },
+  {
+   "name": "get_reports_dish_sales",
+   "filename": "282_reports_dish_sale_context.sql",
+   "md5": "3cfa4db86dc01b44796ac113e08430bc"
+  },
+  {
+   "name": "get_reports_filter_options",
+   "filename": "283_reports_readers_fast.sql",
+   "md5": "89f87dadb9b6211de7c7c6091794b16d"
   }
  ]
 }

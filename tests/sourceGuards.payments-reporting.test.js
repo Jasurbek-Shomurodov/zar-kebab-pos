@@ -39,7 +39,8 @@ test('delete-paid-orders editors can change completed-order payment methods indi
   assert.match(reports, /type: 'CHANGE_PAID_ORDER_PAYMENT_METHODS'/)
   assert.match(reports, /paymentId: payment\.id/)
   assert.match(reports, /payment\.method !== 'loyalty_card'/)
-  assert.match(reports, /setHistoryOrders\(current => current\.map\(row =>/)
+  // A saved method change re-queries the readers so the list and totals update.
+  assert.match(reports, /if \(result\?\.error\) return\n      setReportsVersion\(version => version \+ 1\)/)
   assert.doesNotMatch(reports, /Edit completed order/)
   assert.match(appContext, /'CHANGE_PAID_ORDER_PAYMENT_METHOD'/)
   assert.match(appContext, /'CHANGE_PAID_ORDER_PAYMENT_METHODS'/)
@@ -102,11 +103,13 @@ test('reports closeout localizes labels and date while filter controls stay alig
 
   assert.match(reports, /cash: 'Наличные'/)
   assert.match(reports, /<SummaryRow [^>]*?label=\{l\.cash\}/)
-  assert.match(reports, /getDailyCloseout\(reportOrders,\s*dateFrom,\s*dateTo,\s*\{/)
+  assert.match(reports, /buildCloseoutFromOverview\(overview, dateFrom, dateTo\)/)
   assert.match(reports, /tableId:\s*tableFilter/)
   assert.match(reports, /waiterName:\s*waiterFilter/)
-  assert.match(reports, /\[reportOrders,\s*dateFrom,\s*dateTo,\s*tableFilter,\s*waiterFilter\]/)
-  assert.doesNotMatch(reports, /getDailyCloseout\(reportOrders,\s*dateTo\)/)
+  // Closeout follows the table/waiter filters through the overview reader's key.
+  assert.match(reports, /const reportsKey = `\$\{reportRange\}\|\$\{tableFilter\}\|\$\{waiterFilter\}\|\$\{reportsVersion\}`/)
+  assert.match(reports, /\[overview, dateFrom, dateTo\]/)
+  assert.doesNotMatch(reports, /buildCloseoutFromOverview\(overview, dateTo\)/)
   assert.match(reports, /tableFilter\s+=== 'all' \|\| o\.table_id === tableFilter/)
   assert.match(reports, /waiterFilter === 'all' \|\| o\.waiter_name === waiterFilter/)
   assert.match(reports, /formatLongDate\(closeout\.dateFrom, lang, closeout\.dateFrom\)/)
@@ -114,7 +117,7 @@ test('reports closeout localizes labels and date while filter controls stay alig
   assert.match(exportCloseout, /closeout\.dateFrom/)
   assert.match(exportCloseout, /closeout\.dateTo/)
   assert.match(reports, /<div className="flex flex-wrap items-stretch gap-2">\s*<DateRangePicker/)
-  assert.match(reports, /headerActions=\{\([\s\S]*?onClick=\{exportCloseout\}[\s\S]*?disabled=\{reportsLoading \|\| Boolean\(ordersError\)\}[\s\S]*?className="ws-btn ws-btn-outline !h-\[38px\]"/)
+  assert.match(reports, /headerActions=\{\([\s\S]*?onClick=\{exportCloseout\}[\s\S]*?disabled=\{reportsLoading \|\| Boolean\(reportsError\)\}[\s\S]*?className="ws-btn ws-btn-outline !h-\[38px\]"/)
   // Date picker and both selects share one control height: 44px in the page, 38px in the top bar.
   assert.match(reports, /const control = compact \? '!h-\[38px\]' : '!h-11'/)
   assert.equal((reports.match(/className=\{`ws-input \$\{control\} !w-auto max-w-\[200px\]`\}/g) || []).length, 2)
@@ -757,7 +760,8 @@ test('paid order deletion is routed through feature-gated RPC and wired to cashi
   assert.match(reports, /canDeleteOrder/)
   assert.match(reports, /canDeleteOrderToday/)
   assert.match(reports, /type: 'DELETE_ORDER'/)
-  assert.match(reports, /setHistoryOrders\(current => current\.filter\(row => row\.id !== order\.id\)\)/)
+  // A deleted order leaves the list and totals: the readers are queried again.
+  assert.match(reports, /if \(!result\?\.error\) \{\n        setReportsVersion\(version => version \+ 1\)/)
 })
 
 test('owner and admin Cashier access includes moving bills back to tables', () => {

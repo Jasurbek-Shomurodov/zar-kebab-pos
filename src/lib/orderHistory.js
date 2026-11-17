@@ -38,6 +38,28 @@ export async function collectPagedRows(loadPage, pageSize = ORDER_HISTORY_PAGE_S
   }
 }
 
+// Fetches pages a few at a time instead of one round trip after another. Stops
+// at the first short page, so it never over-reads past the end of the range.
+export async function collectPagedRowsConcurrent(loadPage, pageSize = ORDER_HISTORY_PAGE_SIZE, concurrency = 4) {
+  const rows = []
+  for (let offset = 0; ; offset += pageSize * concurrency) {
+    const batch = await Promise.all(
+      Array.from({ length: concurrency }, (_, i) => {
+        const from = offset + i * pageSize
+        return loadPage(from, from + pageSize - 1)
+      })
+    )
+    let done = false
+    for (const result of batch) {
+      if (result?.error) throw result.error
+      const page = result?.data || []
+      rows.push(...page)
+      if (page.length < pageSize) { done = true; break }
+    }
+    if (done) return rows
+  }
+}
+
 function isMissingPaymentsRelation(error) {
   return /order_payments|schema cache|relation/i.test(error?.message || '')
 }
@@ -72,8 +94,23 @@ async function queryPaidOrderPages(dbClient, select, bounds, pageSize) {
   return [...withPaidTimestamp, ...legacyPaid]
 }
 
+async function queryPaidTimestampPages(dbClient, select, bounds, pageSize) {
+  return collectPagedRowsConcurrent(
+    (from, to) => dbClient
+      .from('orders')
+      .select(select)
+      .not('paid_at', 'is', null)
+      .gte('paid_at', bounds.instantFrom)
+      .lt('paid_at', bounds.instantToExclusive)
+      .order('paid_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, to),
+    pageSize
+  )
+}
+
 async function queryOrdersWithoutPaidTimestamp(dbClient, select, bounds, pageSize) {
-  return collectPagedRows(
+  return collectPagedRowsConcurrent(
     (from, to) => dbClient
       .from('orders')
       .select(select)
@@ -81,6 +118,7 @@ async function queryOrdersWithoutPaidTimestamp(dbClient, select, bounds, pageSiz
       .gte('created_at', bounds.instantFrom)
       .lt('created_at', bounds.instantToExclusive)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(from, to),
     pageSize
   )
@@ -137,15 +175,17 @@ export async function loadOrdersForRange(dateFrom, dateTo, options = {}) {
   const bounds = getOrderHistoryRangeBounds(dateFrom, dateTo)
   let paidOrders
   let ordersWithoutPaidTimestamp
+  // The unpaid-timestamp query already covers every legacy paid row (it has no
+  // status filter), so only two queries run, both page-concurrent.
   try {
     ;[paidOrders, ordersWithoutPaidTimestamp] = await Promise.all([
-      queryPaidOrderPages(dbClient, ORDER_HISTORY_SELECT, bounds, pageSize),
+      queryPaidTimestampPages(dbClient, ORDER_HISTORY_SELECT, bounds, pageSize),
       queryOrdersWithoutPaidTimestamp(dbClient, ORDER_HISTORY_SELECT, bounds, pageSize),
     ])
   } catch (error) {
     if (!isMissingPaymentsRelation(error)) throw error
     ;[paidOrders, ordersWithoutPaidTimestamp] = await Promise.all([
-      queryPaidOrderPages(dbClient, ORDER_HISTORY_SELECT_WITHOUT_PAYMENTS, bounds, pageSize),
+      queryPaidTimestampPages(dbClient, ORDER_HISTORY_SELECT_WITHOUT_PAYMENTS, bounds, pageSize),
       queryOrdersWithoutPaidTimestamp(dbClient, ORDER_HISTORY_SELECT_WITHOUT_PAYMENTS, bounds, pageSize),
     ])
   }

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 
 import {
   collectPagedRows,
+  collectPagedRowsConcurrent,
   getOrderHistoryRangeBounds,
   mergeOrderHistory,
   mergePaidOrderHistory,
@@ -111,4 +112,28 @@ test('live paid orders replace fetched history without admitting unpaid or out-o
     ['new', 300],
     ['same', 150],
   ])
+})
+
+test('concurrent order paging reads every page, reads each batch then stops at the first short page, and keeps order', async () => {
+  const source = Array.from({ length: 2_305 }, (_, index) => ({ id: `order-${index}` }))
+  const calls = []
+  const rows = await collectPagedRowsConcurrent(async (from, to) => {
+    calls.push(from)
+    return { data: source.slice(from, to + 1), error: null }
+  }, 500, 4)
+
+  assert.equal(rows.length, 2_305)
+  assert.deepEqual(rows.map(row => row.id), source.map(row => row.id))
+  assert.deepEqual([...new Set(calls)].sort((a, b) => a - b).slice(0, 6), [0, 500, 1000, 1500, 2000, 2500])
+})
+
+test('order range load runs one unpaid-timestamp query instead of an overlapping legacy query', () => {
+  const source = readFileSync(new URL('../src/lib/orderHistory.js', import.meta.url), 'utf8')
+  const loader = source.slice(
+    source.indexOf('export async function loadOrdersForRange'),
+    source.indexOf('export function mergeOrderHistory'),
+  )
+  assert.doesNotMatch(loader, /queryPaidOrderPages/)
+  assert.match(loader, /queryPaidTimestampPages/)
+  assert.match(loader, /queryOrdersWithoutPaidTimestamp/)
 })

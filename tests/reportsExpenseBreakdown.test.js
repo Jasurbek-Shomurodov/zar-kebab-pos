@@ -14,7 +14,7 @@ test('reports left-after-expenses card opens a period expense breakdown', () => 
   assert.match(reports, /expenseCategoryLabel\(expense\.category, lang\)/)
   assert.match(reports, /expensePaymentMethodLabel\(expense\.payment_method, lang\)/)
   assert.match(reports, /\[expense\.vendor, expenseDescriptionLabel\(expense\.description, lang\)\]\.filter\(Boolean\)\.join\(' · '\)/)
-  assert.match(reports, /summarizeExpenseCashflow\(filteredForAnalytics, allExpenses, \{ includeIncomeEntries: false \}\)/)
+  assert.match(reports, /summarizeExpenseCashflowFromIncome\(incomeByMethod, allExpenses, \{ includeIncomeEntries: false \}\)/)
   assert.match(reports, /const cashflowLeft = kpiRevenue - expenseSummary\.total/)
   assert.match(reports, /const netIncome = cashflowLeft/)
 })

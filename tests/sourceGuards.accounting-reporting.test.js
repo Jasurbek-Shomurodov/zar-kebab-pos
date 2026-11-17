@@ -626,7 +626,9 @@ test('Accounting overview uses a summary while historical pages retain complete 
   assert.match(estimate, /state\.orders\.filter\(order => isPaidOrder\(order\) && matchesRange\(order, today, today\)\)/)
   assert.match(estimate, /if \(requestId !== loadRequestRef\.current\) return/)
   assert.match(reports, /loadOrdersForRange\(dateFrom, dateTo\)/)
-  assert.match(reports, /mergeOrderHistory\(historyOrders, state\.orders, dateFrom, dateTo\)/)
+  // Screen figures come from the SQL readers; the Excel path still merges live POS orders.
+  assert.match(reports, /mergeOrderHistory\(rows, state\.orders, dateFrom, dateTo\)/)
+  assert.match(reports, /loadReportsOverview\(reportArgs\)/)
   // Today's paid orders come from hydration (state.orders); the Dashboard fetches only yesterday.
   assert.match(dashboard, /loadPaidOrdersForRange\(yesterday, yesterday\)/)
   assert.match(dashboard, /mergePaidOrderHistory\(yesterdayHistoryOrders, state\.orders, yesterdayStr\(\), todayStr\(\)\)/)
