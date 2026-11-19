@@ -174,7 +174,8 @@ export async function generateReviewReply(review, options = {}) {
     // The free tier allows only a few requests per minute; wait the delay Gemini suggests
     // and retry, unless that would run past the caller's deadline.
     const dailyQuota = response.status === 429 && isGeminiDailyQuota(payload)
-    const delayMs = response.status === 429 && !dailyQuota ? geminiRetryDelayMs(payload) : null
+    // 503 means Gemini is briefly overloaded; it is worth the same paced retry.
+    const delayMs = (response.status === 429 && !dailyQuota) || response.status === 503 ? geminiRetryDelayMs(payload) : null
     const fitsDeadline = !options.deadline || now() + delayMs < options.deadline
     if (delayMs == null || attempt >= maxRetries || !fitsDeadline) {
       const error = new Error(payload?.error?.message || `Gemini request failed (${response.status})`)
