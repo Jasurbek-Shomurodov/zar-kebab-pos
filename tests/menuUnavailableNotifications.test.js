@@ -263,20 +263,27 @@ test('non-empty daily unavailable-product snapshot is sent as one tracked image 
   assert.doesNotMatch(dailyCron, /sendDailyUnavailableMenuImage|Image not sent:/)
 })
 
-test('the morning run pairs the Team KPI image with the unavailable-product snapshot in one album', () => {
+test('the morning run sends Team KPI, unavailable dishes and the Google Maps report as one album', () => {
   const sender = dailyCron.match(/async function sendDailyUnavailableMenuSnapshot[\s\S]*?\n}\n/)?.[0] || ''
   // Only a photo snapshot joins the album; the empty-menu text never does.
-  assert.ok(sender.indexOf('items.length === 0') < sender.indexOf('prepareCompanion?.()'))
+  assert.ok(sender.indexOf('items.length === 0') < sender.indexOf('prepareCompanions?.()'))
   const album = dailyCron.match(/async function sendTeamMorningAlbum[\s\S]*?\n}\n/)?.[0] || ''
-  assert.match(album, /sendTelegramMediaGroup\(chatId, \[\s*\{ photo: kpi\.photo/)
-  assert.match(album, /getTelegramMediaGroupMessageIds\(response, 2\)/)
-  assert.match(album, /kpi\.finish\(kpiMessageId\)/)
+  assert.match(album, /kpi \? \[\{ photo: kpi\.photo[\s\S]*\{ photo, filename: `unavailable-menu-[\s\S]*google \? \[\{ photo: google\.photo/, 'KPI, snapshot, Google, in that order')
+  assert.match(album, /sendTelegramMediaGroup\(chatId, photos\)/)
+  assert.match(album, /getTelegramMediaGroupMessageIds\(response, photos\.length\)/)
+  assert.match(album, /kpi\.finish\(messageIds\[0\]\)/)
+  assert.match(album, /google\.finish\(messageIds\.at\(-1\)\)/)
+  assert.match(album, /await google\?\.fail\(error\)/, 'a failed album records the Google error; its claim stays held')
+  const companions = dailyCron.match(/function prepareMorningAlbumCompanions[\s\S]*?\n}\n/)?.[0] || ''
+  assert.match(companions, /google: kpiDate \? await prepareGoogleDigestCompanion/, 'only the 04:05 run adds the Google report')
   const mainRun = dailyCron.slice(dailyCron.indexOf('const catchUpDates = await loadKpiCatchUpDates'))
   const loop = mainRun.slice(0, mainRun.indexOf('deliverAutomaticKpiBonuses(supabase, results)'))
   assert.match(loop, /if \(businessDate === notificationDate\)[\s\S]*sendDailyUnavailableMenuNotification\(\s*supabase,\s*getTashkentDate\(now\),\s*businessDate\s*\)/)
-  // The 08:00 retry sends the snapshot alone.
+  // A Google report that missed the album goes alone, at 04:05 and again at the 08:00 retry.
+  assert.match(mainRun, /const googleDigest = await sendGoogleDigestAlone\(supabase, getTashkentDate\(now\)\)/)
   const retry = dailyCron.slice(dailyCron.indexOf("cronTask === 'unavailable-products'"))
   assert.match(retry, /sendDailyUnavailableMenuNotification\(supabase, businessDate\),/)
+  assert.match(retry, /sendGoogleDigestAlone\(supabase, businessDate\)/)
 })
 
 test('the 04:05 report run sends one duplicate-safe unavailable-product snapshot; 08:00 only retries', () => {

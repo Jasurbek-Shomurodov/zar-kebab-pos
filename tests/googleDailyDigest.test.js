@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildGoogleDigestBlocks, buildGoogleDigestSvg, drawableText } from '../api/google-reviews/_lib/dailyDigestImage.js'
-import { loadHeldReviewDrafts, saveGoogleDigestPart, sendGoogleDailyDigest } from '../api/google-reviews/_lib/dailyDigest.js'
+import { loadHeldReviewDrafts, prepareGoogleDailyDigest, saveGoogleDigestPart, sendGoogleDailyDigest } from '../api/google-reviews/_lib/dailyDigest.js'
 
 const reviews = {
   mode: 'publish', averageRating: 4.8, totalReviewCount: 214, found: 3,
@@ -122,7 +122,7 @@ function fakeSupabase({ chatId = '-100500', enabled = true } = {}) {
   return { from, rows }
 }
 
-test('the day image goes to the Investor group once, with yesterday for comparison', async () => {
+test('the day image goes to the Team group once, with yesterday for comparison', async () => {
   const supabase = fakeSupabase()
   await saveGoogleDigestPart(supabase, 'reviews', { averageRating: 4.7, totalReviewCount: 211, results: [] }, '2026-10-27')
   await saveGoogleDigestPart(supabase, 'reviews', reviews, '2026-10-28')
@@ -144,7 +144,21 @@ test('the day image goes to the Investor group once, with yesterday for comparis
   assert.equal(sent.length, 1, 'never sent twice for a date')
 })
 
-test('an unknown send outcome is held, and a missing Investor group skips', async () => {
+test('a prepared digest claims the date for the morning album and records its message id', async () => {
+  const supabase = fakeSupabase()
+  await saveGoogleDigestPart(supabase, 'menu', menu, '2026-10-28')
+  const render = async () => Buffer.from('png')
+  assert.equal((await prepareGoogleDailyDigest(supabase, { date: '2026-10-28', render })).result.status, 'skipped')
+  const prepared = await prepareGoogleDailyDigest(supabase, { date: '2026-10-28', chatId: '-100500', render })
+  assert.equal(prepared.filename, 'google-maps-2026-10-28.png')
+  assert.ok(supabase.rows.get('2026-10-28').send_attempted_at, 'claimed before the album is sent')
+  assert.equal((await prepareGoogleDailyDigest(supabase, { date: '2026-10-28', chatId: '-100500', render })).result.status, 'held')
+  assert.equal((await sendGoogleDailyDigest(supabase, { date: '2026-10-28', render, send: async () => assert.fail('never resent') })).status, 'held')
+  assert.deepEqual(await prepared.finish('91'), { status: 'sent', messageId: 91 })
+  assert.equal(supabase.rows.get('2026-10-28').telegram_message_id, 91)
+})
+
+test('an unknown send outcome is held, and a missing Team group skips', async () => {
   const supabase = fakeSupabase()
   await saveGoogleDigestPart(supabase, 'menu', menu, '2026-10-28')
   let attempts = 0

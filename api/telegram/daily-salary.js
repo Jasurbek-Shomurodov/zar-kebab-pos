@@ -29,6 +29,7 @@ import {
 import { renderDailyUnavailableMenuImage } from './_lib/menuAvailabilityImage.js'
 import { notifyAutomaticKpiBonus, retryLateCheckinFineDeliveries } from './employee-notification.js'
 import { prepareTeamDailyKpi } from './_lib/teamDailyKpiDelivery.js'
+import { prepareGoogleDailyDigest, sendGoogleDailyDigest } from '../google-reviews/_lib/dailyDigest.js'
 import {
   getInclusiveCalendarDayCount,
   getOrderPayments,
@@ -503,43 +504,84 @@ function getTashkentClockTime(now = new Date()) {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now)
 }
 
-async function sendDailyUnavailableMenuSnapshot(chatId, items, businessDate, prepareCompanion) {
+async function sendDailyUnavailableMenuSnapshot(chatId, items, businessDate, prepareCompanions) {
   const snapshotTime = getTashkentClockTime()
   if (items.length === 0) {
     return sendTelegramMessage(chatId, buildDailyUnavailableMenuTeamMessage(items, businessDate, snapshotTime))
   }
   const photo = await renderDailyUnavailableMenuImage(items, businessDate, snapshotTime)
-  const companion = await prepareCompanion?.()
-  if (companion) return sendTeamMorningAlbum(chatId, companion, photo, businessDate)
+  const companions = await prepareCompanions?.()
+  if (companions?.kpi || companions?.google) return sendTeamMorningAlbum(chatId, companions, photo, businessDate)
   return sendTelegramPhoto(chatId, photo, { filename: `unavailable-menu-${businessDate}.png` })
 }
 
-// The Team KPI image leads one album with the unavailable-dishes snapshot.
-// Each photo keeps its own tracked message id; a KPI bookkeeping error is
-// logged (its claim stays held) so the snapshot is still recorded as sent.
-async function sendTeamMorningAlbum(chatId, kpi, photo, businessDate) {
-  const response = await sendTelegramMediaGroup(chatId, [
-    { photo: kpi.photo, filename: kpi.filename },
+// One album: the Team KPI image, the unavailable-dishes snapshot, then the Google Maps
+// AI-bot report. Each photo keeps its own tracked message id; a companion's bookkeeping
+// error is logged (its claim stays held) so the snapshot is still recorded as sent.
+async function sendTeamMorningAlbum(chatId, { kpi, google }, photo, businessDate) {
+  const photos = [
+    ...(kpi ? [{ photo: kpi.photo, filename: kpi.filename }] : []),
     { photo, filename: `unavailable-menu-${businessDate}.png` },
-  ])
-  const [kpiMessageId, unavailableMessageId] = getTelegramMediaGroupMessageIds(response, 2)
-  await kpi.finish(kpiMessageId).catch(error => {
-    console.error('[telegram/daily-salary] Team KPI album photo sent but delivery status was not persisted:', error)
-  })
+    ...(google ? [{ photo: google.photo, filename: google.filename }] : []),
+  ]
+  let response
+  try {
+    response = await sendTelegramMediaGroup(chatId, photos)
+  } catch (error) {
+    await google?.fail(error).catch(() => {})
+    throw error
+  }
+  const messageIds = getTelegramMediaGroupMessageIds(response, photos.length)
+  const unavailableMessageId = messageIds[kpi ? 1 : 0]
+  if (kpi) {
+    await kpi.finish(messageIds[0]).catch(error => {
+      console.error('[telegram/daily-salary] Team KPI album photo sent but delivery status was not persisted:', error)
+    })
+  }
+  if (google) {
+    await google.finish(messageIds.at(-1)).catch(error => {
+      console.error('[telegram/daily-salary] Google Maps album photo sent but delivery status was not persisted:', error)
+    })
+  }
   return { result: { message_id: unavailableMessageId } }
 }
 
 // A KPI image that cannot be prepared falls back to its own per-event send.
-function prepareTeamKpiCompanion(supabase, kpiDate, chatId) {
+async function prepareTeamKpiCompanion(supabase, kpiDate, chatId) {
   if (!kpiDate) return null
-  return async () => {
-    try {
-      const prepared = await prepareTeamDailyKpi(supabase, kpiDate, chatId)
-      return prepared.result ? null : prepared
-    } catch (error) {
-      console.error('[telegram/daily-salary] Team KPI image could not join the morning album:', error)
-      return null
-    }
+  try {
+    const prepared = await prepareTeamDailyKpi(supabase, kpiDate, chatId)
+    return prepared.result ? null : prepared
+  } catch (error) {
+    console.error('[telegram/daily-salary] Team KPI image could not join the morning album:', error)
+    return null
+  }
+}
+
+// The Google tasks finish before 04:05; a digest that cannot join is sent alone afterwards.
+async function prepareGoogleDigestCompanion(supabase, businessDate, chatId) {
+  try {
+    const prepared = await prepareGoogleDailyDigest(supabase, { date: businessDate, chatId })
+    return prepared.result ? null : prepared
+  } catch (error) {
+    console.error('[telegram/daily-salary] Google Maps report could not join the morning album:', error)
+    return null
+  }
+}
+
+function prepareMorningAlbumCompanions(supabase, businessDate, kpiDate, chatId) {
+  return async () => ({
+    kpi: await prepareTeamKpiCompanion(supabase, kpiDate, chatId),
+    google: kpiDate ? await prepareGoogleDigestCompanion(supabase, businessDate, chatId) : null,
+  })
+}
+
+// Best effort and at most once per date: never fails the morning reports.
+async function sendGoogleDigestAlone(supabase, businessDate) {
+  try {
+    return await sendGoogleDailyDigest(supabase, { date: businessDate })
+  } catch (error) {
+    return { status: 'failed', error: String(error?.message || error).slice(0, 500) }
   }
 }
 
@@ -557,7 +599,7 @@ async function sendDailyUnavailableMenuNotification(supabase, businessDate, kpiD
       target.chatId,
       items,
       businessDate,
-      prepareTeamKpiCompanion(supabase, kpiDate, target.chatId)
+      prepareMorningAlbumCompanions(supabase, businessDate, kpiDate, target.chatId)
     )
     telegramMessageId = getTelegramMessageId(response)
     await markDailyUnavailableMenuDeliverySent(
@@ -1240,11 +1282,14 @@ export default async function handler(req, res) {
       // After the watchdog, so a recovered report records the day itself.
       const breakEvenRun = await ensureDailyBreakEven(supabase, notificationDate)
         .catch(error => ({ businessDate: notificationDate, status: 'failed', error: String(error?.message || error).slice(0, 1000) }))
+      // The Google Maps report goes alone if it missed the 04:05 album.
+      const googleDigest = await sendGoogleDigestAlone(supabase, businessDate)
       if (watchdogRun.status === 'rejected') throw watchdogRun.reason
       if (unavailableRun.status === 'rejected') throw unavailableRun.reason
       return json(res, 200, {
         ok: true,
         ...unavailableRun.value,
+        googleDigest,
         dailySalaryWatchdog: watchdogRun.value,
         dailyBreakEven: breakEvenRun,
       })
@@ -1386,6 +1431,8 @@ export default async function handler(req, res) {
         dailyUnavailableMenu = { status: 'failed', error: String(error?.message || error).slice(0, 1000) }
       }
     }
+    // Normally already in the album; otherwise (empty snapshot text, no KPI) it goes alone.
+    const googleDigest = await sendGoogleDigestAlone(supabase, getTashkentDate(now))
 
     const notificationSummaryRun = dailySummaryRuns.find(
       run => run.businessDate === notificationDate
@@ -1421,6 +1468,7 @@ export default async function handler(req, res) {
       kpiRuns,
       dailySummaryRuns,
       dailyUnavailableMenu,
+      googleDigest,
       dailyPayrollGroupRuns,
       dailyPayrollGroupSentCount: dailyPayrollGroupRuns.filter(result => result.status === 'sent').length,
       dailyPayrollGroupFailedCount: dailyPayrollGroupRuns.filter(result => result.status === 'failed').length,

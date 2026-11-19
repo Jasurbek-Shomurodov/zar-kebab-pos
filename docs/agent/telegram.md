@@ -45,10 +45,10 @@
 ## Menu availability
 
 - Authenticated availability, creation, archival and variant visibility (`256`) queue immutable Russian Team events; edits/restores send nothing.
-- Unavailable snapshot: 04:05; 08:00 retries alone. `266`/`267`: 04:10 Google replies (paced, `deferred`), 04:20 menu sync + Investor PNG.
+- Unavailable snapshot: 04:05; 08:00 retries alone. `266`/`267`/`284`: 03:40 Google replies, 03:52 menu sync.
 - Public `/yandex-menu.yml` + `/yandex-photos` (JPEG): never empty, no tourist prices.
 - `274`: real recipe saves → `tech_card_events` (БОЗОРлик, no fallback): before/after PNGs with prices (owner choice). Catalog sync silent.
-- Non-empty: one PNG (`menuAvailabilityImage.js`), 04:05 album after Team KPI PNG. Empty: text.
+- Non-empty: one PNG (`menuAvailabilityImage.js`); 04:05 album: Team KPI, it, Google PNG. Empty: text; Google PNG alone.
 - Exclude archived products/categories; keep exact sent snapshots.
 
 ## Investor

@@ -80,7 +80,10 @@ export async function runGoogleReviewBot(options = {}) {
         now,
         deadline,
       })
-      if (publish && !needsApproval) await publishReviewReply(review.name, generated.reply, accessToken, fetchImpl)
+      if (publish && !needsApproval) {
+        await publishReviewReply(review.name, generated.reply, accessToken, fetchImpl)
+        if (options.onPublished) await options.onPublished({ review, ...about, reply: generated.reply })
+      }
       results.push({
         reviewId,
         ...about,

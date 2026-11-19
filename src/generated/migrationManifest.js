@@ -1140,6 +1140,10 @@ export default {
   {
    "filename": "283_reports_readers_fast.sql",
    "sha256": "4343cde8d6bdec3181113ba5a427922ab8e2cb8c6606feb31971457e903aa083"
+  },
+  {
+   "filename": "284_google_jobs_before_morning_album.sql",
+   "sha256": "2558ca511086bf1a11b0e11c8da04220cbd97eb5a50b0f9dcbfc5d176fa2772a"
   }
  ],
  "functions": [

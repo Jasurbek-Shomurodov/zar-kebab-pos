@@ -115,11 +115,19 @@ test('reply generation has safe templates and sanitizes model output', async () 
         assert.equal(options.headers['x-goog-api-key'], 'key')
         const body = JSON.parse(options.body)
         assert.match(body.contents[0].parts[0].text, /untrusted data/)
-        return response(geminiReply('Спасибо за ваш отзыв!'))
+        return response(geminiReply('Спасибо за ваш отзыв! Ждём вас в Zar Kebab.'))
       },
     },
   )
-  assert.deepEqual(generated, { reply: 'Спасибо за ваш отзыв!', source: 'gemini' })
+  assert.deepEqual(generated, { reply: 'Спасибо за ваш отзыв! Ждём вас в Zar Kebab.', source: 'gemini' })
+
+  // Cut-off answers and the model's own checklist are never posted.
+  const gemini = payload => ({ apiKey: 'key', fetchImpl: async () => response(payload) })
+  const truncated = geminiReply('Dear Sri, the Zar Kebab team will investigate whether')
+  truncated.candidates[0].finishReason = 'MAX_TOKENS'
+  await assert.rejects(generateReviewReply({ starRating: 'ONE', comment: 'Bad' }, gemini(truncated)), /incomplete \(MAX_TOKENS\)/)
+  await assert.rejects(generateReviewReply({ starRating: 'ONE', comment: 'Bad' }, gemini(geminiReply('1-3 short sentences? Mention Zar Kebab? Yes.'))), /finished guest reply/)
+  await assert.rejects(generateReviewReply({ starRating: 'ONE', comment: 'Bad' }, gemini(geminiReply('Sorry about that.'))), /finished guest reply/)
 })
 
 test('template replies match the review language or are skipped', async () => {
@@ -165,7 +173,7 @@ test('replies use the guest original text, not the Google translation', async ()
         assert.doesNotMatch(input, /Very tasty/)
         assert.match(input, /exactly the same language and script/)
         assert.match(input, /Always mention Zar Kebab by name, and never name individual staff/)
-        return response(geminiReply('Rahmat!'))
+        return response(geminiReply('Rahmat! Zar Kebab sizni kutadi.'))
       },
     },
   )
@@ -388,6 +396,18 @@ test('266 runs review replies and the menu sync right after the 04:05 reports, i
   assert.doesNotMatch(migration, /invoke_zar_kebab_daily_reports/, 'never chained into the report job')
 })
 
+test('284 moves both Google jobs before the 04:05 album, and the menu task no longer sends the image', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const migration = await readFile(new URL('../migrations/284_google_jobs_before_morning_album.sql', import.meta.url), 'utf8')
+  assert.match(migration, /'zar-kebab-google-review-replies',\s*'40 22 \* \* \*'/, '03:40 Tashkent')
+  assert.match(migration, /'zar-kebab-google-menu-sync',\s*'52 22 \* \* \*'/, '03:52 Tashkent, done before 04:05 with a 300 s cap')
+  assert.doesNotMatch(migration, /invoke_zar_kebab_daily_reports/)
+  const vercel = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'))
+  assert.ok(vercel.functions['api/google-reviews/run.js'].maxDuration <= 600)
+  const run = await readFile(new URL('../api/google-reviews/run.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(run, /sendGoogleDailyDigest/)
+})
+
 test('rating-only reviews are answered in a language chosen from the reviewer name', async () => {
   const cases = [
     ['Jami Mustafa', 'en'], ['Eric F', 'en'], ['Gianni Minoia', 'en'], ['Jon Smith', 'en'], ['Leroy Brown', 'en'],
@@ -410,4 +430,27 @@ test('rating-only reviews are answered in a language chosen from the reviewer na
   assert.match(prompt, /Reviewer name: "Gianni Minoia"/)
   assert.match(prompt, /choose the language from the reviewer's name/)
   assert.match(prompt, /Never default to Russian for a non-Russian name/)
+})
+
+test('each posted reply is reported to the Team group with the review, its photos and our reply', async () => {
+  const { createTeamReplyNotifier, buildReviewReplyMessage } = await import('../api/google-reviews/_lib/teamNotifications.js')
+  const supabase = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { chat_id: '-100team', is_enabled: true }, error: null }) }) }) }) }
+  const texts = []
+  const photos = []
+  const notify = createTeamReplyNotifier(supabase, {
+    sendText: async (chatId, text) => { texts.push({ chatId, text }); return { result: { message_id: 5 } } },
+    sendPhoto: async (chatId, photo, { caption }) => { photos.push({ chatId, caption }) },
+    fetchImpl: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) }),
+  })
+  const review = { reviewer: { displayName: 'Harry <b>' }, reviewMedia: [{ googleUrl: 'https://lh3.example/p.jpg' }] }
+  assert.deepEqual(await notify({ review, rating: 2, comment: 'Prices differ', reply: 'Sorry from Zar Kebab' }), { status: 'sent', messageId: 5 })
+  assert.equal(texts[0].chatId, '-100team')
+  assert.match(texts[0].text, /🔴 ⭐⭐ 2\/5 · Harry &lt;b&gt;/)
+  assert.match(texts[0].text, /Отзыв:<\/b>\nPrices differ/)
+  assert.match(texts[0].text, /Наш ответ:<\/b>\nSorry from Zar Kebab/)
+  assert.deepEqual(photos, [{ chatId: '-100team', caption: 'Фото из отзыва' }])
+  assert.match(buildReviewReplyMessage({ review: {}, rating: 5, comment: '', reply: 'x' }), /🟢 ⭐⭐⭐⭐⭐ 5\/5[\s\S]*без текста/)
+
+  const failing = createTeamReplyNotifier(supabase, { sendText: async () => { throw new Error('down') } })
+  assert.equal((await failing({ review: {}, rating: 5, comment: '', reply: 'x' })).status, 'failed', 'never throws after Google already has the reply')
 })

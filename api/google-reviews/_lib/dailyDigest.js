@@ -1,6 +1,6 @@
 import { restaurantTodayStr } from '../../../src/lib/analytics.js'
 import { formatLongDate } from '../../../src/lib/dateFormat.js'
-import { loadIngredientInvestorTarget } from '../../telegram/_lib/ingredientNotifications.js'
+import { loadGoogleTeamTarget } from './teamNotifications.js'
 import { sendTelegramPhoto } from '../../telegram/_lib/telegram.js'
 import { renderGoogleDigestImage } from './dailyDigestImage.js'
 
@@ -35,44 +35,68 @@ export async function loadHeldReviewDrafts(supabase, { days = 60, now = new Date
   return drafts
 }
 
-// Sends the day's image to the Investor group, alongside the daily reports, at most once.
-export async function sendGoogleDailyDigest(supabase, options = {}) {
+function digestCaption(date) {
+  return `🤖 <b>ИИ-бот Zar Kebab</b> о Google Maps: отзывы и меню, ${formatLongDate(date, 'ru', date)}`
+}
+
+// Claims the day's digest and renders its image but leaves the send to the caller, so the
+// 04:05 morning run can add it to the Team album. Returns { result } when there is nothing to send.
+// The claim comes first: a timeout leaves the outcome unknown, so it is held, never resent.
+export async function prepareGoogleDailyDigest(supabase, options = {}) {
   const date = options.date || googleDigestDate()
-  const env = options.env || process.env
-  const send = options.send || sendTelegramPhoto
   const render = options.render || renderGoogleDigestImage
+  const chatId = String(options.chatId || '').trim()
+  if (!chatId) return { result: { status: 'skipped', reason: 'Team group is not configured' } }
 
-  const chatId = await loadIngredientInvestorTarget(supabase, env)
-  if (!chatId) return { status: 'skipped', reason: 'Investor group is not configured' }
-
-  // Claim the send first: a timeout leaves the outcome unknown, so it is held, never resent.
   const { data: claimed, error: claimError } = await supabase.from(TABLE)
     .update({ send_attempted_at: new Date().toISOString(), telegram_chat_id: chatId })
     .eq('digest_date', date)
     .is('send_attempted_at', null)
     .select('digest_date, reviews, menu, highlights, title')
   if (claimError) throw claimError
-  if (!claimed?.length) return { status: 'held', reason: 'Already sent or attempted for this date' }
+  if (!claimed?.length) return { result: { status: 'held', reason: 'Already sent or attempted for this date' } }
 
-  const { data: previous, error: previousError } = await supabase.from(TABLE)
-    .select('digest_date, reviews').lt('digest_date', date).order('digest_date', { ascending: false }).limit(1)
-  if (previousError) throw previousError
-
-  try {
-    const photo = await render(claimed[0], previous?.[0] || null)
-    const response = await send(chatId, photo, {
-      caption: `🤖 <b>ИИ-бот Zar Kebab</b> о Google Maps: отзывы и меню, ${formatLongDate(date, 'ru', date)}`,
-      filename: `google-maps-${date}.png`,
-    })
-    const messageId = Number(response?.result?.message_id) || null
-    const { error } = await supabase.from(TABLE)
-      .update({ telegram_message_id: messageId, sent_at: new Date().toISOString(), send_error: null })
-      .eq('digest_date', date)
-    if (error) throw error
-    return { status: 'sent', messageId }
-  } catch (sendError) {
+  const fail = async sendError => {
     const message = String(sendError?.message || sendError).slice(0, 500)
     await supabase.from(TABLE).update({ send_error: message }).eq('digest_date', date)
     return { status: 'failed', error: message }
+  }
+  try {
+    const { data: previous, error: previousError } = await supabase.from(TABLE)
+      .select('digest_date, reviews').lt('digest_date', date).order('digest_date', { ascending: false }).limit(1)
+    if (previousError) throw previousError
+    const photo = await render(claimed[0], previous?.[0] || null)
+    return {
+      photo,
+      filename: `google-maps-${date}.png`,
+      caption: digestCaption(date),
+      fail,
+      async finish(messageId) {
+        const id = Number(messageId) || null
+        const { error } = await supabase.from(TABLE)
+          .update({ telegram_message_id: id, sent_at: new Date().toISOString(), send_error: null })
+          .eq('digest_date', date)
+        if (error) throw error
+        return { status: 'sent', messageId: id }
+      },
+    }
+  } catch (error) {
+    return { result: await fail(error) }
+  }
+}
+
+// Sends the day's image alone to the Zar Kebab Team group at most once: the fallback when
+// it could not join the 04:05 album (empty unavailable-dishes text, Google tasks still running).
+export async function sendGoogleDailyDigest(supabase, options = {}) {
+  const env = options.env || process.env
+  const send = options.send || sendTelegramPhoto
+  const chatId = await loadGoogleTeamTarget(supabase, env)
+  const prepared = await prepareGoogleDailyDigest(supabase, { ...options, chatId })
+  if (prepared.result) return prepared.result
+  try {
+    const response = await send(chatId, prepared.photo, { caption: prepared.caption, filename: prepared.filename })
+    return await prepared.finish(response?.result?.message_id)
+  } catch (sendError) {
+    return prepared.fail(sendError)
   }
 }

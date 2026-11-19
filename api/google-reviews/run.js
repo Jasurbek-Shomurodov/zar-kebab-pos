@@ -3,7 +3,8 @@ import { getSupabaseAdmin } from '../telegram/_lib/supabaseAdmin.js'
 import { isGoogleReviewBotConfigured, runGoogleReviewBot } from './_lib/runReviewBot.js'
 import { runGoogleMenuSync } from './_lib/menuSync.js'
 import { serveYandexMenuFeed, serveYandexMenuPhoto } from '../yandex-menu/_lib/yandexFeed.js'
-import { googleDigestDate, loadHeldReviewDrafts, saveGoogleDigestPart, sendGoogleDailyDigest } from './_lib/dailyDigest.js'
+import { createTeamReplyNotifier } from './_lib/teamNotifications.js'
+import { googleDigestDate, loadHeldReviewDrafts, saveGoogleDigestPart } from './_lib/dailyDigest.js'
 
 function requireCronSecret(req) {
   const expected = process.env.CRON_SECRET
@@ -43,16 +44,15 @@ export default async function handler(req, res) {
       // Menu sync: today's POS menu changes (prices, names, descriptions, photos) to Google Maps.
       result = task === 'menu'
         ? await runGoogleMenuSync({ supabase })
-        : await runGoogleReviewBot({ heldDrafts: await loadHeldReviewDrafts(supabase) })
+        : await runGoogleReviewBot({ heldDrafts: await loadHeldReviewDrafts(supabase), onPublished: createTeamReplyNotifier(supabase) })
     } catch (error) {
       failure = error
       result = { error: String(error?.message || error).slice(0, 500) }
     }
     await recordPart(supabase, task === 'menu' ? 'menu' : 'reviews', result, date)
-    // The menu sync runs last (04:20), so it sends the day's image for both tasks.
-    const digest = task === 'menu' ? await sendGoogleDailyDigest(supabase, { date }) : undefined
+    // The day's image is sent by the 04:05 morning run, inside the Team album.
     if (failure) throw failure
-    return json(res, 200, { ok: true, task, ...result, ...(digest ? { digest } : {}) })
+    return json(res, 200, { ok: true, task, ...result })
   } catch (error) {
     const status = Number(error?.status) || 500
     if (status >= 500) console.error('[google-reviews] run failed:', error)
