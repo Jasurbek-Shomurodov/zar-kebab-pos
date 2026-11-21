@@ -71,11 +71,76 @@ export function formatMenuTimeWindow(entity) {
 }
 
 export function menuTimeWindowLabel(entity, lang = 'en') {
-  const range = formatMenuTimeWindow(entity)
+  const range = [formatMenuWeekdays(entity, lang), formatMenuTimeWindow(entity)].filter(Boolean).join(' ')
   if (!range) return ''
   if (lang === 'uz') return `Mavjud: ${range}`
   if (lang === 'ru') return `Доступно: ${range}`
   return `Available ${range}`
+}
+
+const MENU_WEEKDAY_LABELS = {
+  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  ru: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+  uz: ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'],
+}
+
+export const MENU_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]
+
+// ISO weekdays (1 = Monday ... 7 = Sunday), sorted and de-duplicated.
+// An empty result, or all seven days, means "every day".
+export function normalizeMenuWeekdays(value) {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.map(Number).filter(day => Number.isInteger(day) && day >= 1 && day <= 7))].sort((a, b) => a - b)
+}
+
+function getScheduleWeekdays(entity) {
+  const days = normalizeMenuWeekdays(entity?.visible_weekdays ?? entity?.visibleWeekdays)
+  return days.length === 7 ? [] : days
+}
+
+function isoWeekdayFromDate(date = new Date()) {
+  const current = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(current.getTime())) return isoWeekdayFromDate(new Date())
+  return current.getDay() || 7
+}
+
+export function isWithinMenuWeekdays(entity, date = new Date()) {
+  const days = getScheduleWeekdays(entity)
+  return days.length === 0 || days.includes(isoWeekdayFromDate(date))
+}
+
+// Editor form keeps the selected days (all seven by default); the DB stores NULL for every day.
+export function categoryFormWeekdays(category) {
+  const days = normalizeMenuWeekdays(category?.visible_weekdays ?? category?.visibleWeekdays)
+  return days.length ? days : [...MENU_WEEKDAYS]
+}
+
+export function nullableMenuWeekdays(value) {
+  const days = normalizeMenuWeekdays(value)
+  return days.length === 0 || days.length === MENU_WEEKDAYS.length ? null : days
+}
+
+// Full schedule: weekdays and the time window must both allow the row.
+export function isWithinMenuSchedule(entity, date = new Date()) {
+  return isWithinMenuWeekdays(entity, date) && isWithinMenuTimeWindow(entity, date)
+}
+
+// "Mon–Fri", "Sat, Sun", "Mon, Wed–Fri". Empty when every day.
+export function formatMenuWeekdays(entity, lang = 'en') {
+  const days = getScheduleWeekdays(entity)
+  if (days.length === 0) return ''
+  const names = MENU_WEEKDAY_LABELS[lang] || MENU_WEEKDAY_LABELS.en
+  const runs = []
+  for (const day of days) {
+    const last = runs[runs.length - 1]
+    if (last && day === last[1] + 1) last[1] = day
+    else runs.push([day, day])
+  }
+  return runs.map(([start, end]) => {
+    if (start === end) return names[start - 1]
+    if (end === start + 1) return `${names[start - 1]}, ${names[end - 1]}`
+    return `${names[start - 1]}–${names[end - 1]}`
+  }).join(', ')
 }
 
 export function isHiddenMenuCategory(category) {
@@ -129,7 +194,7 @@ export function isCustomerMenuCategory(category, date = new Date()) {
   return isActiveMenuCategory(category) &&
     !isHiddenMenuCategory(category) &&
     !isFrozenShopMenuCategory(category) &&
-    isWithinMenuTimeWindow(category, date)
+    isWithinMenuSchedule(category, date)
 }
 
 // The public and Telegram menus are display-only: a scheduled category stays
@@ -142,7 +207,7 @@ export function isWaiterMenuCategory(category, date = new Date(), profileId = ''
   return isActiveMenuCategory(category) &&
     !isWaiterHiddenMenuCategory(category) &&
     (
-      isWithinMenuTimeWindow(category, date) ||
+      isWithinMenuSchedule(category, date) ||
       hasMenuCategoryScheduleOverride(category, profileId) ||
       (orderType === 'game_club' && category.always_visible_game_club === true) ||
       (orderType === 'take_away' && category.always_visible_take_away === true) ||

@@ -4,7 +4,7 @@
 
 - DB/health: `src/lib/db.js`, `src/lib/dbHealth.js`
 - Tools: `migrations/migrate.js`, `scripts/check-db-health.js`
-- SQL migrations: `migrations/` (`281`–`283` Reports readers, `284` Google cron)
+- SQL migrations: `migrations/` (`281`–`283` Reports readers, `284` Google cron, `285` days)
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
 - `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270`/`274` TG `271`/`272` menu `257`–9 owner `276`/7 inventory `278`; `tests/employeeJobFunctions.test.js`.
@@ -17,7 +17,7 @@
   - settings, payments, kitchen submit, tables/reservations: `011`, `012`, `018`–`020`
   - kitchen idempotency and durable receipts: `096`, `128`
   - Bazaar, costs, fines, media, stock: `097`–`106`
-  - salary/Telegram tracking and historical financial freezing: `107`–`119`
+  - salary/Telegram tracking, historical financial freezing: `107`–`119`
   - menu permissions, estimates, archival, stale items, Team catalog events: `121`–`127`, `167`–`168`, `223`
   - KPI and Tourist service: `129`–`130`
   - Tech Cards, access, components, stock, variant recipes, fractional included dishes: `139`–`140`, `149`–`151`, `154`–`156`, `159`

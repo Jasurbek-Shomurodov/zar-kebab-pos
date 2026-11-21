@@ -4,7 +4,7 @@
 
 - Pages: `src/pages/AdminMenu.jsx`, `src/pages/TechCards.jsx`, `src/pages/PublicMenu.jsx`, `src/pages/TelegramMiniApp.jsx`
 - Helpers: `src/lib/menuItems.js`, `src/lib/menuPricing.js`, `src/lib/menuMedia.js`, `src/lib/menuItemCosts.js`, `src/lib/techCards.js`
-- Database: `src/lib/db.js`, migrations `139`, `149`–`151`, `154`–`156`, `223`, `241`, `242`
+- Database: `src/lib/db.js`, migrations `139`, `149`–`151`, `154`–`156`, `223`, `241`, `242`, `285`
 - Focused tests: `tests/menuItems.test.js`, `tests/menuArchiveSafety.test.js`, `tests/menuStock.test.js`, `tests/menuMedia.test.js`, `tests/techCards.test.js`, `tests/techCardsFeature.test.js`, `tests/sourceGuards.menu.test.js`, `tests/sourceGuards.public-menu.test.js`, `tests/menuNameValidation.test.js`
 - Product/category names (uz/ru/en) start with a capital or digit; Admin Menu blocks saving (`src/lib/menuItemText.js`). Admin Menu cards: `LuxMenuCard` (`MenuProductCards.jsx`).
 
@@ -17,6 +17,7 @@
 - Manage Menu may create unavailable products and change availability (DB-enforced).
 - `cashier_only`, schedules, category visibility, option visibility, and `deleted_at` are separate controls.
 - Schedules gate waiter ordering only; public/Telegram list scheduled rows all day with a time label (`isPublicMenu*`, `241`).
+- Category `visible_weekdays` (`285`) + time = `isWithinMenuSchedule`.
 - `deleted_at` is the archive boundary. Archived products/categories never reappear because of availability behavior.
 - Archive/restore requires Manage Menu (any role; `223`). Telegram says archived, not deleted.
 - `stock_count` is shelf inventory, never visibility/orderability.
@@ -47,12 +48,12 @@
 ## Media and text
 
 - `media_urls[0]` is the cover and stays synchronized with `image_url`.
-- Gallery: images, GIF, MP4, WebM; new products need a still (`222`). Cards: cover; details: gallery.
+- Gallery: image/GIF/MP4/WebM; new products need a still (`222`). Cards: cover; details: gallery.
 - Delete old R2 media after save; clean temp uploads on cancel.
 - Upload errors render inside `ImageUploadField`, not `SortableItemCard`.
 - Trim localized text at editor/write/display/DB boundaries; keep inner spaces/line breaks.
 - `estimated_prep_minutes`: 1–180 (default 15), not an order promise. `serves` (`271`): 0–100.
-- Manage Menu Archive buttons use a retryable in-app dialog.
+- Archive buttons: retryable in-app dialog.
 - Archive tab: Restore clears `deleted_at`; items restore after their category; restored categories stay hidden.
 
 ## Tech Cards
@@ -77,4 +78,4 @@
 - Used ingredients cannot archive; dialog lists cards (`242`, ids only), links `?variant=&ingredient=`.
 - PDF: `TechCardPdfDownload.jsx`.
 - `205`: Take Away/Delivery/Game Club schedule overrides (`always_visible_*`); seeds Game Club lunch. Test: `tests/gameClubCategorySchedule.test.js`.
-- Prune stale selections after staff load; translate errors on render (`tests/categoryScheduleAccess.test.js`).
+- Prune stale staff picks; translate errors on render.

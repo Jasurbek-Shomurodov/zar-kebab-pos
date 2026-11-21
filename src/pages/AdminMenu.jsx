@@ -33,7 +33,12 @@ import {
   isDeletedMenuItem,
   isFrozenShopMenuCategory,
   isPublicHiddenMenuItem,
+  categoryFormWeekdays,
+  formatMenuWeekdays,
+  MENU_WEEKDAYS,
+  nullableMenuWeekdays,
 } from '../lib/menuItems'
+import MenuWeekdayPicker from '../components/MenuWeekdayPicker'
 import {
   Plus, Edit2, Trash2, Archive, X, UtensilsCrossed,
   Search, LayoutGrid, List, Tag, FolderOpen, GripVertical,
@@ -841,13 +846,11 @@ function menuScheduleLabels(lang) {
   }
 }
 
-function scheduleBadgeLabel(entity) {
+function scheduleBadgeLabel(entity, lang = 'en') {
   const from = String(entity?.visible_from_time || entity?.visibleFromTime || '').slice(0, 5)
   const until = String(entity?.visible_until_time || entity?.visibleUntilTime || '').slice(0, 5)
-  if (from && until) return `${from}-${until}`
-  if (from) return `${from}+`
-  if (until) return `<${until}`
-  return ''
+  const time = from && until ? `${from}-${until}` : from ? `${from}+` : until ? `<${until}` : ''
+  return [formatMenuWeekdays(entity, lang), time].filter(Boolean).join(' ')
 }
 
 function nullableMenuTime(value) {
@@ -1141,7 +1144,7 @@ const CAT_READ_ONLY_GRID = 'grid grid-cols-[48px_minmax(180px,1fr)_minmax(0,1.4f
 
 function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibility, visibilityPending, sortIndex, canDelete = false, readOnly = false }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id })
-  const scheduleLabel = scheduleBadgeLabel(cat)
+  const scheduleLabel = scheduleBadgeLabel(cat, lang)
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1292,6 +1295,7 @@ const blankCat = {
   frozen_shop: false,
   visible_from_time: '',
   visible_until_time: '',
+  visible_weekdays: [...MENU_WEEKDAYS],
   always_visible_take_away: false,
   always_visible_delivery: false,
   always_visible_game_club: false,
@@ -1321,6 +1325,7 @@ function getCategoryFormFingerprint(value = {}) {
     frozen_shop: !!value.frozen_shop,
     visible_from_time: nullableMenuTime(value.visible_from_time),
     visible_until_time: nullableMenuTime(value.visible_until_time),
+    visible_weekdays: nullableMenuWeekdays(value.visible_weekdays),
     always_visible_take_away: !!value.always_visible_take_away,
     always_visible_delivery: !!value.always_visible_delivery,
     always_visible_game_club: !!value.always_visible_game_club,
@@ -1869,7 +1874,7 @@ export default function AdminMenu() {
     [sortedCategories]
   )
   const categoryHiddenCount = realSortedCats.filter(c => c.hidden).length
-  const categoryScheduledCount = realSortedCats.filter(c => scheduleBadgeLabel(c)).length
+  const categoryScheduledCount = realSortedCats.filter(c => scheduleBadgeLabel(c, lang)).length
 
   const sortedItems = useMemo(() =>
     state.menuItems
@@ -2038,6 +2043,7 @@ export default function AdminMenu() {
       frozen_shop: isFrozenShopMenuCategory(category),
       visible_from_time: String(category.visible_from_time || category.visibleFromTime || '').slice(0, 5),
       visible_until_time: String(category.visible_until_time || category.visibleUntilTime || '').slice(0, 5),
+      visible_weekdays: categoryFormWeekdays(category),
       always_visible_profile_ids: normalizeCategoryAlwaysVisibleProfileIds(category.always_visible_profile_ids),
     }
     setCatForm(nextForm)
@@ -2321,6 +2327,7 @@ export default function AdminMenu() {
           frozen_shop: !!catForm.frozen_shop,
           visible_from_time: nullableMenuTime(catForm.visible_from_time),
           visible_until_time: nullableMenuTime(catForm.visible_until_time),
+          visible_weekdays: nullableMenuWeekdays(catForm.visible_weekdays),
           ...(isOwner ? {
             always_visible_profile_ids: eligibleCategoryProfileIds(catForm.always_visible_profile_ids, categoryOverrideProfiles),
           } : {}),
@@ -2703,6 +2710,12 @@ export default function AdminMenu() {
                         <Field label={scheduleLabels.until} type="time" value={catForm.visible_until_time || ''} onChange={setCF('visible_until_time')} />
                       </div>
                       <p className="ws-caption mt-2">{scheduleLabels.hint}</p>
+                      <MenuWeekdayPicker
+                        lang={lang}
+                        value={catForm.visible_weekdays}
+                        disabled={savingCatForm}
+                        onChange={days => setCatForm(current => ({ ...current, visible_weekdays: days }))}
+                      />
                       <fieldset className="mt-4 border-t border-[#e4e1de] pt-3">
                         <legend className="float-left w-full ws-caption font-medium">
                           {lang === 'uz' ? 'Ushbu buyurtmalar uchun vaqtdan tashqari ham ko‘rsatish' : lang === 'ru' ? 'Показывать вне расписания для заказов' : 'Always show outside schedule for'}

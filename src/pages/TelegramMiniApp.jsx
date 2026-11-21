@@ -10,7 +10,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { formatMenuTimeWindow, isFrozenShopMenuCategory, isPublicMenuCategory, isPublicMenuItem } from '../lib/menuItems'
+import { formatMenuTimeWindow, formatMenuWeekdays, isFrozenShopMenuCategory, isPublicMenuCategory, isPublicMenuItem } from '../lib/menuItems'
 import { formatCurrency } from '../lib/formatCurrency'
 import { getCategoryName, getItemDesc, getItemName } from '../lib/i18n'
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
@@ -249,8 +249,10 @@ function MenuView({ categories, items, lang }) {
                 }`}
               >
                 {category.id === 'all' ? l.all : getCategoryName(category, lang)}
-                {formatMenuTimeWindow(category) && (
-                  <span className="ml-1.5 text-[11px] font-bold tabular-nums opacity-70">{formatMenuTimeWindow(category)}</span>
+                {category.id !== 'all' && (formatMenuWeekdays(category, lang) || formatMenuTimeWindow(category)) && (
+                  <span className="ml-1.5 text-[11px] font-bold tabular-nums opacity-70">
+                    {[formatMenuWeekdays(category, lang), formatMenuTimeWindow(category)].filter(Boolean).join(' ')}
+                  </span>
                 )}
               </button>
             ))}

@@ -1144,6 +1144,10 @@ export default {
   {
    "filename": "284_google_jobs_before_morning_album.sql",
    "sha256": "2558ca511086bf1a11b0e11c8da04220cbd97eb5a50b0f9dcbfc5d176fa2772a"
+  },
+  {
+   "filename": "285_menu_category_weekdays.sql",
+   "sha256": "f28188f27ab9185403a0fd5485f6afa172f0121c06d67c6c38cef2d1cb88a46a"
   }
  ],
  "functions": [
