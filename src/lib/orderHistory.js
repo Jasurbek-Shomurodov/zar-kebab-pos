@@ -74,6 +74,7 @@ async function queryPaidOrderPages(dbClient, select, bounds, pageSize) {
         .gte('paid_at', bounds.instantFrom)
         .lt('paid_at', bounds.instantToExclusive)
         .order('paid_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(from, to),
       pageSize
     ),
@@ -86,6 +87,7 @@ async function queryPaidOrderPages(dbClient, select, bounds, pageSize) {
         .gte('created_at', bounds.instantFrom)
         .lt('created_at', bounds.instantToExclusive)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .range(from, to),
       pageSize
     ),
@@ -133,6 +135,7 @@ async function queryActiveOrderPages(dbClient, select, pageSize) {
       .is('paid_at', null)
       .or('status.not.in.(paid,completed,cancelled),status.is.null')
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(from, to),
     pageSize
   )
