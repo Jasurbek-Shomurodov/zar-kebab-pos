@@ -223,6 +223,11 @@ export function AppProvider({ children }) {
 
   const recoverFromIdleRef = useRef(() => {})
   const refreshPOSDataRef = useRef(() => Promise.resolve())
+  const retryPOSLoadRef = useRef(() => {})
+
+  // Re-runs the first load after it failed, so a screen can offer Retry without a page
+  // reload (which would throw away the cart, the open bill and every filter).
+  const retryPOSLoad = useCallback(function retryPOSLoad() { retryPOSLoadRef.current() }, [])
 
   const refreshPOSData = useCallback(function refreshPOSData() {
     return Promise.resolve()
@@ -667,16 +672,20 @@ export function AppProvider({ children }) {
       return trackedRequest
     }
 
-    dispatch({ type: 'SET_LOADING' })
-    hydratePOSData()
-      .then(() => {
-        if (mounted) connectRealtime()
-      })
-      .catch(err => {
-        if (!mounted) return
-        console.error('[db] initial load failed:', err)
-        dispatch({ type: 'SET_LOAD_ERROR', payload: err?.message || 'Failed to load POS data' })
-      })
+    const runInitialLoad = () => {
+      dispatch({ type: 'SET_LOADING' })
+      hydratePOSData()
+        .then(() => {
+          if (mounted) connectRealtime()
+        })
+        .catch(err => {
+          if (!mounted) return
+          console.error('[db] initial load failed:', err)
+          dispatch({ type: 'SET_LOAD_ERROR', payload: err?.message || 'Failed to load POS data' })
+        })
+    }
+    retryPOSLoadRef.current = runInitialLoad
+    runInitialLoad()
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', handleResume)
@@ -691,6 +700,7 @@ export function AppProvider({ children }) {
       mounted = false
       recoverFromIdleRef.current = () => {}
       refreshPOSDataRef.current = () => Promise.resolve()
+      retryPOSLoadRef.current = () => {}
       if (reconnectTimer) clearTimeout(reconnectTimer)
       if (backOnlineTimer) clearTimeout(backOnlineTimer)
       if (realtimeStableTimer) clearTimeout(realtimeStableTimer)
@@ -709,7 +719,7 @@ export function AppProvider({ children }) {
   const { guardedDispatch, deletionDialog } = useOrderDeletion(dbDispatch, state.lang)
 
   return (
-    <AppContext.Provider value={{ state, dispatch: guardedDispatch, refreshPOSData, pendingKitchenSubmission }}>
+    <AppContext.Provider value={{ state, dispatch: guardedDispatch, refreshPOSData, retryPOSLoad, pendingKitchenSubmission }}>
       {state.connectionNotice && (
         <div role="alert" className={`fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-toast max-w-[calc(100vw-2rem)] -translate-x-1/2 break-words rounded-xl px-4 py-2 text-center text-sm font-semibold shadow-lg ${
           state.connectionNotice.tone === 'error'

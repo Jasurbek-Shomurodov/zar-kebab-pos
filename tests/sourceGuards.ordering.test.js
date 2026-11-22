@@ -153,7 +153,7 @@ test('WaiterTables refreshes operational data whenever the waiter returns', () =
   assert.match(appContext, /refreshPOSDataRef\.current = \(\) =>/)
   assert.match(appContext, /loadOperationalTableData\(\)/)
   assert.match(appContext, /if \(tableRefreshPromise\) return tableRefreshPromise/)
-  assert.match(appContext, /value=\{\{ state, dispatch: guardedDispatch, refreshPOSData, pendingKitchenSubmission \}\}/)
+  assert.match(appContext, /value=\{\{ state, dispatch: guardedDispatch, refreshPOSData, retryPOSLoad, pendingKitchenSubmission \}\}/)
   assert.match(appContext, /useOrderDeletion\(dbDispatch, state.lang\)/)
   assert.match(db, /export async function loadOperationalTableData\(\)/)
   assert.doesNotMatch(performHydration, /refreshSupabaseSession\(\)/)

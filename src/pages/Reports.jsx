@@ -2025,7 +2025,7 @@ function ReportsSkeleton({ canViewExpenses, lang, overview }) {
 export default function Reports() {
   const { state, dispatch } = useApp()
   const { profile } = useAuth()
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const navigate     = useNavigate()
   const lang         = state.lang
   const deletionDate = useOrderDeletionDate()
@@ -2421,7 +2421,7 @@ export default function Reports() {
               lang={lang}
               title={l.reportsLoadFailed}
               actionLabel={l.reload}
-              onAction={() => window.location.reload()}
+              onAction={retryPOSLoad}
             />
           )}
         </div>

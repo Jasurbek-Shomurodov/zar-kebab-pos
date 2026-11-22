@@ -137,14 +137,14 @@ html:has(.zk-lux), html:has(.zk-lux) body, .lux-no-scrollbar { scrollbar-width: 
 html:has(.zk-lux)::-webkit-scrollbar, html:has(.zk-lux) body::-webkit-scrollbar, .lux-no-scrollbar::-webkit-scrollbar { display: none; }
 
 /* Product page opens and closes by morphing the tapped photo (View Transitions). */
-::view-transition-group(zk-dish) { animation-duration: .42s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-group(zk-dish) { animation-duration: .3s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
 /* Waiter cart: the panel grows from the cart button and shrinks back into it. */
-::view-transition-group(zk-cart) { animation-duration: .38s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+::view-transition-group(zk-cart) { animation-duration: .28s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
 ::view-transition-old(zk-cart), ::view-transition-new(zk-cart) { height: 100%; object-fit: cover; }
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: .32s; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .28s; }
 /* The details card rises from the bottom on open. On close PublicMenu hides it before the
    transition starts, so only the photo animates back into its menu card. */
-::view-transition-new(zk-dish-card) { animation: zk-card-rise .46s cubic-bezier(.2, .8, .2, 1) both; }
+::view-transition-new(zk-dish-card) { animation: zk-card-rise .3s cubic-bezier(.2, .8, .2, 1) both; }
 @keyframes zk-card-rise { from { opacity: 0; transform: translateY(72px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }

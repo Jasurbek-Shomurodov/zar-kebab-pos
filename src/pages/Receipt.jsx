@@ -533,7 +533,7 @@ export function TableReceipt() {
   const navigate    = useNavigate()
   const location    = useLocation()
   const { state } = useApp()
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const lang     = state.lang
   const screenLabels = L[lang] || L.en
   const settings = state.settings
@@ -600,7 +600,7 @@ export function TableReceipt() {
         description={screenLabels.loadFailedHint}
         actionLabel={screenLabels.reload}
         // The app data has no loader a page can call.
-        onAction={() => window.location.reload()}
+        onAction={retryPOSLoad}
       />
     )
   }

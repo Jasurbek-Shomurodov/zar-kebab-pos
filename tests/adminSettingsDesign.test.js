@@ -85,7 +85,7 @@ test('bulk apply counts failures and cannot be pressed twice', () => {
 })
 
 test('Tables shows the shared loading and error states and names its icon actions', () => {
-  assert.match(tables, /const \{ loaded, loadError \} = useAppDataStatus\(\)/)
+  assert.match(tables, /const \{ loaded, loadError, retry: retryPOSLoad \} = useAppDataStatus\(\)/)
   assert.match(tables, /<OperationalLoading title=\{l\.title\} layout="table"/)
   assert.match(tables, /<OperationalError lang=\{lang\}/)
   assert.doesNotMatch(tables, /<h1/)

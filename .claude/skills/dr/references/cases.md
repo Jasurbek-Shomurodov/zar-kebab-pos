@@ -15,6 +15,7 @@ Tokens: `src/styles/workspace.css`, `tailwind.config.js`, dark remap in
 
 | Date | Commit | Scope | Findings (S0/S1/S2) | Checks run | Not run |
 |---|---|---|---|---|---|
+| 2026-11-22 | 16686c4 | full (9 reviewers, 33 screens x 7 widths x light/dark x uz/ru/en in Chrome, 14 dialogs at 320x568, 667x375, 375x330) | about 30 / 120 / 60 reviewed; measured before -> after: contrast 511 -> 15 (hero text on photos and one avatar), text under 12px 40 -> 0, wrapped money 57 -> 19 (amounts inside sentences), page scroll 0 -> 0 | npm test, test:coverage, docs:check, build, audit; live sweep and dialog fit | /login, /checkin-qr, /checkin-screen and print output (no signed-out session; minting and printing avoided); coarse-pointer sizes (measured with a fine pointer) |
 
 ## LAY — layout and frames
 

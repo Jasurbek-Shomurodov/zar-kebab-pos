@@ -623,7 +623,7 @@ function PaidTodaySummary({ orders, lang, methodTotals = {}, onOpenReceipt }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CashierTables() {
   const { state, dispatch } = useApp()
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const { profile } = useAuth()
   const navigate            = useNavigate()
   const lang                = state.lang
@@ -882,7 +882,7 @@ export default function CashierTables() {
               lang={lang}
               title={l.loadFailed}
               actionLabel={l.reload}
-              onAction={() => window.location.reload()}
+              onAction={retryPOSLoad}
             />
           )}
         </div>

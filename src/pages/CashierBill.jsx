@@ -107,7 +107,7 @@ export default function CashierBill() {
   const { state, dispatch } = useApp()
   const cashierAttention = useCashierAttentionCount()
   const { profile } = useAuth()
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const lang = state.lang
   const deletionDate = useOrderDeletionDate()
   const canDeleteOrder = candidate => canDeleteOrderToday(profile || { role: state.user?.role }, candidate, deletionDate)
@@ -745,7 +745,7 @@ export default function CashierBill() {
               lang={lang}
               title={lang === 'uz' ? 'Hisobni yuklab bo‘lmadi' : lang === 'ru' ? 'Не удалось загрузить счёт' : 'Could not load bill'}
               actionLabel={lang === 'uz' ? 'Qayta yuklash' : lang === 'ru' ? 'Перезагрузить' : 'Reload'}
-              onAction={() => window.location.reload()}
+              onAction={retryPOSLoad}
             />
           )}
         </div>

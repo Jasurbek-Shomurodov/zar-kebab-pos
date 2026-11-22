@@ -232,7 +232,7 @@ export default function KitchenCheckReceipt() {
   const location = useLocation()
   const navigate = useNavigate()
   const { state } = useApp()
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const params = new URLSearchParams(location.search)
   const autoPrint = params.get('print') === '1'
   const backPath = sanitizeBackPath(params.get('back')) || '/waiter/tables'
@@ -358,7 +358,7 @@ export default function KitchenCheckReceipt() {
             description={l.loadFailedHint}
             actionLabel={lookupFailed ? l.retry : l.reload}
             // The app data has no loader a page can call; a failed round lookup is re-run in place.
-            onAction={lookupFailed ? () => setLookupVersion(version => version + 1) : () => window.location.reload()}
+            onAction={lookupFailed ? () => setLookupVersion(version => version + 1) : retryPOSLoad}
           />
           <button type="button" onClick={goBack} className="ws-btn ws-btn-ghost min-h-11">{l.back}</button>
         </div>

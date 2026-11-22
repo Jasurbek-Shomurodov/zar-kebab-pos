@@ -102,7 +102,7 @@ test('waiter tables: no dead action, guarded writes, two-step reservation cancel
   const tables = read('src/pages/WaiterTables.jsx')
   assert.doesNotMatch(tables, /viewKitchen/)
   assert.doesNotMatch(tables, /if \(status === 'preparing'\) return/)
-  assert.match(tables, /const \{ loaded, loadError \} = useAppDataStatus\(\)/)
+  assert.match(tables, /const \{ loaded, loadError, retry: retryPOSLoad \} = useAppDataStatus\(\)/)
   assert.match(tables, /<OperationalError[\s\S]*?<OperationalLoading layout="cards"/)
   assert.match(tables, /const \[confirmingId, setConfirmingId\] = useState\(null\)/)
   assert.match(tables, /onClick=\{\(\) => setConfirmingId\(table\.id\)\}/)

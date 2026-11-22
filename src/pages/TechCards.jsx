@@ -274,7 +274,7 @@ function CategoryFilterTile({ category, label, count, selected, onClick }) {
 export default function TechCards() {
   const { state, dispatch } = useApp()
   const { profile } = useAuth()
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const { menuItemId } = useParams()
   const navigate = useNavigate()
   // Links from the Ingredients archive warning open a variant recipe and highlight the ingredient to replace.
@@ -566,7 +566,7 @@ export default function TechCards() {
         {!loaded ? (
           <OperationalLoading title={l.title} layout={menuItemId ? 'techCardEditor' : 'techCards'} />
         ) : (
-          <OperationalError title={l.listError} description={loadError} lang={lang} actionLabel={l.reload} onAction={() => window.location.reload()} />
+          <OperationalError title={l.listError} description={loadError} lang={lang} actionLabel={l.reload} onAction={retryPOSLoad} />
         )}
       </AppShell>
     )

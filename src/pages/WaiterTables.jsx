@@ -615,7 +615,7 @@ export default function WaiterTables() {
   const [guestEntryBusy, setGuestEntryBusy] = useState(false)
   const [guestEntryError, setGuestEntryError] = useState('')
   const guestEntryRequestRef = useRef(false)
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   // One table write at a time per card: a second tap while it is in flight does nothing.
   const [busyTableId, setBusyTableId] = useState(null)
   const [failedTableId, setFailedTableId] = useState(null)
@@ -953,7 +953,7 @@ export default function WaiterTables() {
               lang={lang}
               title={tr(lang, 'loadFailedTitle')}
               actionLabel={tr(lang, 'reload')}
-              onAction={() => window.location.reload()}
+              onAction={retryPOSLoad}
             />
           ) : !loaded ? (
             // Counts and cards are data: a skeleton, never "0 tables", while they load.

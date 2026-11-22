@@ -643,7 +643,7 @@ export default function WaiterOrder() {
   const requestedPriceMode  = state.settings?.touristMenuEnabled === false
     ? DEFAULT_PRICE_MODE
     : normalizePriceMode(location.state?.priceMode)
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const { profile, signOut } = useAuth()
   const role                = (profile?.role || state.user?.role || '').toLowerCase()
   const staffUserId         = profile?.id || ''
@@ -1404,7 +1404,7 @@ export default function WaiterOrder() {
               lang={lang}
               title={lang === 'uz' ? 'Buyurtmani yuklab bo‘lmadi' : lang === 'ru' ? 'Не удалось загрузить заказ' : 'Could not load order'}
               actionLabel={lang === 'uz' ? 'Qayta yuklash' : lang === 'ru' ? 'Перезагрузить' : 'Reload'}
-              onAction={() => window.location.reload()}
+              onAction={retryPOSLoad}
             />
           )}
         </div>

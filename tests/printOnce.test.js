@@ -172,7 +172,7 @@ test('receipt: app data status, shared money format, real restaurant name, 10px 
   const tableReceipt = receipt.slice(receipt.indexOf('export function TableReceipt()'), receipt.indexOf('export default function Receipt()'))
 
   // K8: no "Order not found" before the orders have loaded; a failed load is retryable.
-  assert.match(tableReceipt, /const \{ loaded, loadError \} = useAppDataStatus\(\)/)
+  assert.match(tableReceipt, /const \{ loaded, loadError, retry: retryPOSLoad \} = useAppDataStatus\(\)/)
   assert.ok(tableReceipt.indexOf('if (!loaded) return <OperationalLoading layout="form"') > 0)
   assert.ok(tableReceipt.indexOf('if (!loaded) return') < tableReceipt.indexOf('if (loadError)'))
   assert.ok(tableReceipt.indexOf('if (loadError)') < tableReceipt.indexOf('if (!data) return <NotFound'))

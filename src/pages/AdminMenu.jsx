@@ -1780,7 +1780,7 @@ function getItemFormFingerprint(form = {}) {
 export default function AdminMenu() {
   const { state, dispatch } = useApp()
   const { profile } = useAuth()
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const lang = state.lang
   const canEditMenu = canEditMenuForProfile(profile || { role: state.user?.role })
   const isOwner = normalizeRole(profile?.role || state.user?.role) === 'owner'
@@ -2525,7 +2525,7 @@ export default function AdminMenu() {
               description={loadError}
               lang={lang}
               actionLabel={lang === 'uz' ? 'Qayta yuklash' : lang === 'ru' ? 'Перезагрузить' : 'Reload'}
-              onAction={() => window.location.reload()}
+              onAction={retryPOSLoad}
             />
           )}
         </div>

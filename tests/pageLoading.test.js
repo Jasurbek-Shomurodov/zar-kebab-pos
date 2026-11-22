@@ -75,3 +75,15 @@ test('cashier attention badge uses the Cashier page bill grouping in the drawer 
   assert.match(source('src/components/UnifiedSidebar.jsx'), /item\.key === 'cashier' && <AttentionBadge count=\{cashierAttention\}/)
   assert.match(source('src/pages/CashierTables.jsx'), /const key = cashierBillKey\(order\)/)
 })
+
+test('a failed first load is retried in place, never by reloading the page', () => {
+  // A reload throws away the waiter's cart, the open bill and every filter.
+  const context = source('src/store/AppContext.jsx')
+  assert.match(context, /retryPOSLoadRef\.current = runInitialLoad/)
+  assert.match(source('src/store/appHooks.js'), /retry: retryPOSLoad/)
+  for (const page of ['WaiterTables', 'WaiterOrder', 'CashierTables', 'CashierBill', 'Receipt', 'KitchenCheckReceipt', 'AdminMenu', 'AdminTables', 'TechCards', 'Reports']) {
+    const pageSource = source(`src/pages/${page}.jsx`)
+    assert.doesNotMatch(pageSource, /window\.location\.reload\(/, `${page} retries without a page reload`)
+    assert.match(pageSource, /retry: retryPOSLoad \} = useAppDataStatus\(\)/, `${page} uses the shared retry`)
+  }
+})

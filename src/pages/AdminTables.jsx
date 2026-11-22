@@ -516,7 +516,7 @@ const CONFIRMS = {
 export default function AdminTables() {
   const { state, dispatch } = useApp()
   const { profile } = useAuth()
-  const { loaded, loadError } = useAppDataStatus()
+  const { loaded, loadError, retry: retryPOSLoad } = useAppDataStatus()
   const navigate = useNavigate()
   const lang = state.lang || 'en'
   const l = L[lang] || L.en
@@ -960,7 +960,7 @@ export default function AdminTables() {
           {!loaded ? (
             <OperationalLoading title={l.title} layout="table" className="!p-0" />
           ) : loadError ? (
-            <OperationalError lang={lang} onAction={() => window.location.reload()} />
+            <OperationalError lang={lang} onAction={retryPOSLoad} />
           ) : (
             <>
               {notice && (

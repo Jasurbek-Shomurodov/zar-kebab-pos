@@ -3,11 +3,13 @@ import { useApp } from './AppContext'
 import { countCashierAttentionBills } from '../lib/cashierBills'
 
 export function useAppDataStatus() {
-  const { state } = useApp()
+  const { state, retryPOSLoad } = useApp()
   return {
     loaded: state.loaded,
     loadError: state.loadError,
     connectionNotice: state.connectionNotice,
+    // Re-runs the first load; use it as the Retry action of a load-error screen.
+    retry: retryPOSLoad,
   }
 }
 
