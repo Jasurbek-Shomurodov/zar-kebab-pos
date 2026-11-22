@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /sb/
 
 Sitemap: https://www.zarkebab.uz/sitemap.xml

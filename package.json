@@ -19,6 +19,7 @@
     "test:coverage": "mkdir -p coverage && node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-include=\"api/**\" --test-coverage-include=\"bots/**\" --test-coverage-include=\"mcp/**\" --test-coverage-include=\"migrations/**\" --test-coverage-include=\"scripts/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info && node scripts/check-coverage-floor.mjs",
     "prebuild": "node scripts/build-migration-manifest.js && node scripts/update-hoggish-assistant.cjs",
     "build": "vite build",
+    "postbuild": "node scripts/prerender-public-seo.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

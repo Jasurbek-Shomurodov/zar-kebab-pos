@@ -14,7 +14,7 @@
 - `frozen_shop` (`272`): `/frozen-meals` only; POS sells.
 - `menu_items.available` affects waiter orderability only. Public/Telegram still show active unavailable meals.
 - `public_hidden` is owner-controlled; non-owner saves preserve it; new products visible.
-- Manage Menu may create unavailable products and change availability (DB-enforced).
+- Manage Menu may create unavailable products/toggle availability (DB-enforced).
 - `cashier_only`, schedules, category visibility, option visibility, and `deleted_at` are separate controls.
 - Schedules gate waiter ordering only; public/Telegram list scheduled rows all day with a time label (`isPublicMenu*`, `241`).
 - Category `visible_weekdays` (`285`) + time = `isWithinMenuSchedule`.
@@ -36,7 +36,11 @@
 
 - Availability changes, creation, and archival queue immutable Russian Team events with product/staff snapshots.
 - Ordinary edits/restoration send nothing; archival keeps `available`. Saves/toggles share the DB event.
-- Daily 08:00 Tashkent snapshot lists unavailable active products by Russian category or says all available. See `telegram.md`.
+- Daily 08:00 snapshot of unavailable active products: `telegram.md`.
+
+## Public SEO
+
+- Postbuild `scripts/prerender-public-seo.mjs`: crawler HTML for home, dishes, sections, sitemap. Copy `src/lib/publicSeo.js`; no prices/costs.
 
 ## Inventory
 
@@ -48,13 +52,12 @@
 ## Media and text
 
 - `media_urls[0]` is the cover and stays synchronized with `image_url`.
-- Gallery: image/GIF/MP4/WebM; new products need a still (`222`). Cards: cover; details: gallery.
+- Gallery: image/GIF/MP4/WebM; new products need a still (`222`).
 - Delete old R2 media after save; clean temp uploads on cancel.
 - Upload errors render inside `ImageUploadField`, not `SortableItemCard`.
 - Trim localized text at editor/write/display/DB boundaries; keep inner spaces/line breaks.
 - `estimated_prep_minutes`: 1–180 (default 15), not an order promise. `serves` (`271`): 0–100.
-- Archive buttons: retryable in-app dialog.
-- Archive tab: Restore clears `deleted_at`; items restore after their category; restored categories stay hidden.
+- Archive: retryable in-app dialog; Restore clears `deleted_at`, items after their category; restored categories stay hidden.
 
 ## Tech Cards
 
@@ -77,5 +80,5 @@
 - `186`: `/admin/ingredients` Team access, movement totals (see reporting); canonical snapshot keys.
 - Used ingredients cannot archive; dialog lists cards (`242`, ids only), links `?variant=&ingredient=`.
 - PDF: `TechCardPdfDownload.jsx`.
-- `205`: Take Away/Delivery/Game Club schedule overrides (`always_visible_*`); seeds Game Club lunch. Test: `tests/gameClubCategorySchedule.test.js`.
+- `205`: Take Away/Delivery/Game Club schedule overrides (`always_visible_*`).
 - Prune stale staff picks; translate errors on render.

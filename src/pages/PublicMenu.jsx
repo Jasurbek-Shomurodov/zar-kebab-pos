@@ -18,6 +18,7 @@ import {
 import { isFrozenShopMenuCategory, isPublicMenuCategory, isPublicMenuItem, isTouristHiddenMenuCategory, menuTimeWindowLabel } from '../lib/menuItems'
 import { useApp } from '../store/AppContext'
 import { findMenuItemByLinkKey, getMenuItemPublicPath } from '../lib/menuLinks'
+import { PUBLIC_MENU_SEO, PUBLIC_SITE_ORIGIN, menuItemSeo } from '../lib/publicSeo'
 import { getMenuItemForPriceMode } from '../lib/priceModes'
 import { loadPublicMenuPriceSettings } from '../lib/db'
 import LanguageSwitcher from '../components/LanguageSwitcher'
@@ -54,27 +55,6 @@ const PUBLIC_CONTACTS = {
   },
 }
 
-const PUBLIC_MENU_SEO = {
-  uz: {
-    title: 'Zar Kebab — O‘zbek, Uyg‘ur va Turk restorani',
-    heading: 'Zar Kebab — Toshkentdagi O‘zbek, Uyg‘ur va Turk restorani',
-    description: 'Nonushta · Tushlik · Kechki ovqat. Zar Kebab — Toshkentdagi O‘zbek, Uyg‘ur va Turk restorani. Menyu · Joy band qilish · Aksiyalar · Aloqa. +998 91-509-55-45. Har kuni 08:00 dan 01:00 gacha.',
-    locale: 'uz_UZ',
-  },
-  ru: {
-    title: 'Zar Kebab — узбекская, уйгурская и турецкая кухня',
-    heading: 'Zar Kebab — ресторан узбекской, уйгурской и турецкой кухни в Ташкенте',
-    description: 'Завтрак · Обед · Ужин. Zar Kebab — узбекская, уйгурская и турецкая кухня в Ташкенте. Меню · Бронирование · Акции · Контакты. +998 91-509-55-45. Ежедневно с 08:00 до 01:00.',
-    locale: 'ru_RU',
-  },
-  en: {
-    title: 'Zar Kebab — Uzbek, Uyghur & Turkish restaurant',
-    heading: 'Zar Kebab — Uzbek, Uyghur & Turkish restaurant in Tashkent',
-    description: 'Breakfast · Lunch · Dinner. Zar Kebab — Uzbek, Uyghur and Turkish restaurant in Tashkent. Menu · Reservations · Promotions · Contacts. +998 91-509-55-45. Open daily from 08:00 to 01:00.',
-    locale: 'en_US',
-  },
-}
-
 const PUBLIC_SITE_COPY = {
   uz: {
     menu: 'Menyu',
@@ -87,7 +67,7 @@ const PUBLIC_SITE_COPY = {
     company: 'Restoran',
     information: 'Ma’lumot',
     address: 'Manzil',
-    hours: 'Har kuni 08:00–01:00',
+    hours: 'Har kuni 08:00–23:30',
     rights: 'Barcha huquqlar himoyalangan.',
     about: 'Ko‘mirda pishirilgan kaboblar hamda o‘zbek, uyg‘ur va turk oshxonasining eng sevimli taomlari — nonushtadan kechki ovqatgacha, Toshkentda.',
   },
@@ -102,7 +82,7 @@ const PUBLIC_SITE_COPY = {
     company: 'Ресторан',
     information: 'Информация',
     address: 'Адрес',
-    hours: 'Ежедневно 08:00–01:00',
+    hours: 'Ежедневно 08:00–23:30',
     rights: 'Все права защищены.',
     about: 'Шашлык на углях и любимые блюда узбекской, уйгурской и турецкой кухни — от завтрака до позднего ужина, в Ташкенте.',
   },
@@ -117,7 +97,7 @@ const PUBLIC_SITE_COPY = {
     company: 'Restaurant',
     information: 'Information',
     address: 'Address',
-    hours: 'Open daily 08:00–01:00',
+    hours: 'Open daily 08:00–23:30',
     rights: 'All rights reserved.',
     about: 'Charcoal-grilled kebabs and the much-loved dishes of Uzbek, Uyghur and Turkish cooking — from breakfast to a late dinner, in Tashkent.',
   },
@@ -348,19 +328,19 @@ const DETAIL_LANGUAGE_CLASS = '!h-11 !rounded-full !border-white/25 !bg-black/40
 const HERO_COPY = {
   uz: {
     eyebrow: 'O‘zbek · Uyg‘ur · Turk oshxonasi',
-    tagline: 'Ko‘mirda pishirilgan kaboblar va milliy taomlar. Har kuni 08:00 dan 01:00 gacha, Toshkentda.',
+    tagline: 'Ko‘mirda pishirilgan kaboblar va milliy taomlar. Har kuni 08:00 dan 23:30 gacha, Toshkentda.',
     menu: 'Menyuni ko‘rish',
     reserve: 'Stol band qilish',
   },
   ru: {
     eyebrow: 'Узбекская · уйгурская · турецкая кухня',
-    tagline: 'Шашлык на углях и национальные блюда. Ежедневно с 08:00 до 01:00, Ташкент.',
+    tagline: 'Шашлык на углях и национальные блюда. Ежедневно с 08:00 до 23:30, Ташкент.',
     menu: 'Смотреть меню',
     reserve: 'Забронировать стол',
   },
   en: {
     eyebrow: 'Uzbek · Uyghur · Turkish kitchen',
-    tagline: 'Charcoal-grilled kebabs and national dishes. Open daily 08:00–01:00 in Tashkent.',
+    tagline: 'Charcoal-grilled kebabs and national dishes. Open daily 08:00–23:30 in Tashkent.',
     menu: 'View menu',
     reserve: 'Reserve a table',
   },
@@ -637,26 +617,29 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   useEffect(() => {
     if (premium) return
 
+    // A dish link (/menu/item/<key>) is its own search result, matching the prerendered page.
+    const itemSeo = detailItem && !sectionPage ? menuItemSeo(detailItem, lang) : null
     const pageTitle = corporateSets
       ? `${siteCopy.corporateSets} — Zar Kebab`
       : frozenMeals ? `${siteCopy.frozenMeals} — Zar Kebab` : seo.title
-    document.title = pageTitle
-    const pageDescription = frozenMeals ? siteCopy.frozenMealsIntro : seo.description
+    document.title = itemSeo?.title || pageTitle
+    const pageDescription = itemSeo?.description || (frozenMeals ? siteCopy.frozenMealsIntro : seo.description)
     const description = document.querySelector('meta[name="description"]')
     description?.setAttribute('content', pageDescription)
 
-    document.querySelector('meta[property="og:title"]')?.setAttribute('content', pageTitle)
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', itemSeo?.title || pageTitle)
     document.querySelector('meta[property="og:description"]')?.setAttribute('content', pageDescription)
     document.querySelector('meta[property="og:locale"]')?.setAttribute('content', seo.locale)
-    document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', pageTitle)
+    document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', itemSeo?.title || pageTitle)
     document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', pageDescription)
     document.documentElement.lang = lang
 
     const canonical = document.querySelector('link[rel="canonical"]')
-    canonical?.setAttribute('href', corporateSets
-      ? 'https://www.zarkebab.uz/corporate-sets'
-      : frozenMeals ? 'https://www.zarkebab.uz/frozen-meals' : 'https://www.zarkebab.uz/')
-  }, [corporateSets, frozenMeals, lang, premium, seo.description, seo.locale, seo.title, siteCopy.corporateSets, siteCopy.frozenMeals, siteCopy.frozenMealsIntro])
+    canonical?.setAttribute('href', itemSeo?.url || (corporateSets
+      ? `${PUBLIC_SITE_ORIGIN}/corporate-sets`
+      : frozenMeals ? `${PUBLIC_SITE_ORIGIN}/frozen-meals` : `${PUBLIC_SITE_ORIGIN}/`))
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', itemSeo?.url || canonical?.getAttribute('href') || `${PUBLIC_SITE_ORIGIN}/`)
+  }, [corporateSets, detailItem, frozenMeals, lang, premium, sectionPage, seo.description, seo.locale, seo.title, siteCopy.corporateSets, siteCopy.frozenMeals, siteCopy.frozenMealsIntro])
 
   // Links such as /menu#public-menu-deals arrive before the menu renders.
   useEffect(() => {

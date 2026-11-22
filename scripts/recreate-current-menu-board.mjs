@@ -137,7 +137,7 @@ const svg = `<?xml version="1.0" encoding="UTF-8"?>
     <text x="265" y="195" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="800" letter-spacing="2" fill="#d8a72a">40,000 UZS</text>
   </g>
   <text x="1728" y="1198" text-anchor="end" font-family="Arial,sans-serif" font-size="34" font-weight="800" letter-spacing="2" fill="#0d3156">2-ЭТАЖ · 2nd FLOOR</text>
-  <text x="1728" y="1232" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#0d3156">Ежедневно · Open daily 08:00–01:00</text>
+  <text x="1728" y="1232" text-anchor="end" font-family="Arial,sans-serif" font-size="13" fill="#0d3156">Ежедневно · Open daily 08:00–23:30</text>
   <line x1="92" y1="${height - 68}" x2="${width - 92}" y2="${height - 68}" stroke="#d8a72a" stroke-width="2"/>
   <text x="110" y="${height - 39}" font-family="Arial,sans-serif" font-size="13" fill="#0d3156">ZAR KEBAB · CURRENT MENU</text>
   <text x="${width / 2}" y="${height - 39}" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" fill="#0d3156">Prices in UZS · Narxlar UZSda</text>
@@ -171,7 +171,7 @@ const editableHtml = `<!doctype html>
   <div class="inner"></div>
   <header class="header"><img class="logo" src="data:image/png;base64,${logo}"><div class="title">MENU · МЕНЮ · MENYU</div><div class="subtitle">TRADITIONAL UZBEK &amp; EUROPEAN CUISINE</div></header>
   <main class="columns">
-    ${htmlColumns.map((ids, index) => `<div class="column">${ids.map(id => htmlSection(groupById.get(id))).join('')}${index === 2 ? `<div class="osh-feature"><div class="osh-title">ОШ · OSH</div><div class="osh-rule"></div><div class="osh-price">40,000 UZS</div></div><div class="floor">2-ЭТАЖ · 2nd FLOOR</div><div class="hours">Ежедневно · Open daily 08:00–01:00</div>` : ''}</div>`).join('')}
+    ${htmlColumns.map((ids, index) => `<div class="column">${ids.map(id => htmlSection(groupById.get(id))).join('')}${index === 2 ? `<div class="osh-feature"><div class="osh-title">ОШ · OSH</div><div class="osh-rule"></div><div class="osh-price">40,000 UZS</div></div><div class="floor">2-ЭТАЖ · 2nd FLOOR</div><div class="hours">Ежедневно · Open daily 08:00–23:30</div>` : ''}</div>`).join('')}
   </main>
   <footer class="footer"><span>ZAR KEBAB · CURRENT MENU</span><span>Prices in UZS · Narxlar UZSda</span><span>Updated ${new Date().toISOString().slice(0, 10)}</span></footer>
 </div></body></html>`
