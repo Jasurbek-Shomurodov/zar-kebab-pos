@@ -715,7 +715,7 @@ export function AppProvider({ children }) {
           state.connectionNotice.tone === 'error'
             ? 'bg-red-600 text-white'
             : state.connectionNotice.tone === 'success'
-              ? 'bg-emerald-600 text-white'
+              ? 'bg-[#1d7a52] text-white'
               : 'bg-[#1F2937] text-white'
         }`}>
           {state.connectionNotice.error

@@ -375,7 +375,7 @@ export default function AccountingHistory() {
                           <td className={`whitespace-nowrap px-4 py-3 text-right text-sm font-semibold tabular-nums ${tone.text}`}>{formatCurrency(row.amount)}</td>
                           <td className="px-4 py-3 text-sm text-[#22201d]">{expensePaymentMethodLabel(row.payment_method, lang)}</td>
                           <td className="max-w-[220px] px-4 py-3 text-sm text-[#22201d]">{row.vendor || '—'}</td>
-                          <td className="max-w-[260px] px-4 py-3 text-sm text-[#22201d] [overflow-wrap:anywhere]">{expenseDescriptionLabel(row.description, lang) || (row.is_salary_payment ? l.salaryPayment : row.is_salary_bonus ? l.salaryBonus : '—')}</td>
+                          <td className="min-w-[11rem] max-w-[260px] break-words px-4 py-3 text-sm text-[#22201d]">{expenseDescriptionLabel(row.description, lang) || (row.is_salary_payment ? l.salaryPayment : row.is_salary_bonus ? l.salaryBonus : '—')}</td>
                           <td className="px-4 py-3 text-sm text-[#68655f]">{row.created_by_name || '—'}</td>
                           {canDelete && <td className="px-4 py-3">
                             {dailyBazaarTotal ? (

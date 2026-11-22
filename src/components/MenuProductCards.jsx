@@ -322,7 +322,7 @@ export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpen
         <div className="mt-auto flex flex-wrap items-center justify-between gap-x-1">
           <div className="min-w-[70px] flex-1">
             {pricing.discounted && <span className="lux-muted block whitespace-nowrap text-xs tabular-nums line-through">{formatPrice(pricing.oldPrice)}</span>}
-            <span className={`mt-1 block text-[13px] font-black leading-tight tabular-nums ${pricing.discounted ? 'lux-gold' : 'lux-title'}`}>
+            <span className={`mt-1 block whitespace-nowrap text-[13px] font-black leading-tight tabular-nums ${pricing.discounted ? 'lux-gold' : 'lux-title'}`}>
               {formatPrice(pricing.price)}{pricing.maxPrice > pricing.price ? ` – ${formatPrice(pricing.maxPrice)}` : ''}{priceUnit}
             </span>
           </div>
