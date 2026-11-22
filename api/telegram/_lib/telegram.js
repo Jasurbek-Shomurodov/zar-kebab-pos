@@ -166,11 +166,12 @@ export async function sendTelegramPhoto(chatId, photo, {
   caption = '',
   filename = 'report.png',
   parseMode = 'HTML',
+  contentType = 'image/png',
 } = {}) {
   if (!chatId || !photo) return { skipped: true }
   const form = new FormData()
   form.append('chat_id', String(chatId))
-  form.append('photo', new Blob([photo], { type: 'image/png' }), filename)
+  form.append('photo', new Blob([photo], { type: contentType }), filename)
   if (caption) {
     form.append('caption', caption)
     form.append('parse_mode', parseMode)

@@ -407,7 +407,9 @@ test('combined salary and Team automatic KPI deliveries are forced to Russian', 
     employeeNotification.indexOf('async function deliverEmployeeSalaryEvent')
   )
 
-  assert.match(salaryDelivery, /sendTelegramPhoto\([\s\S]*?renderEmployeePayrollImage\(salaryProfile, notificationDate\)/)
+  assert.match(salaryDelivery, /sendEmployeePayrollPhoto\([\s\S]*?renderEmployeePayrollImage\(salaryProfile, notificationDate\)/)
+  // Only a rejected upload (IMAGE_PROCESS_FAILED) retries, once, as an opaque JPEG.
+  assert.match(salaryDelivery, /IMAGE_PROCESS_FAILED[\s\S]*?toOpaqueJpeg\(png\)[\s\S]*?contentType: 'image\/jpeg'/)
   const imageRenderer = fs.readFileSync(new URL('../api/telegram/_lib/employeePayrollImages.js', import.meta.url), 'utf8')
   assert.match(imageRenderer, /formatLongDate\(date, 'ru', date\)/)
   assert.match(imageRenderer, /return buildEmployeePayrollCalendarSvg\(profile, date, startDate\)/)

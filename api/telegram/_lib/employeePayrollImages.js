@@ -39,6 +39,9 @@ async function render(svg) {
 }
 export const renderTeamKpiImage = event => render(buildTeamKpiImageSvg(event))
 export const renderEmployeePayrollImage = (profile, date) => render(buildEmployeePayrollImageSvg(profile, date))
+// Telegram sometimes rejects a valid RGBA PNG with IMAGE_PROCESS_FAILED; an
+// opaque JPEG of the same calendar is the one-time fallback.
+export const toOpaqueJpeg = png => sharp(png).flatten({ background: '#faf8f0' }).jpeg({ quality: 92 }).toBuffer()
 
 export function buildTeamDailyKpiImageSvg(date, items) {
   const sorted = [...items].sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'ru'))

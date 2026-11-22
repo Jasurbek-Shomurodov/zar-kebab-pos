@@ -20,25 +20,26 @@
 
 - Salary payments: employee privately (receipt confirmation), Salary group (no confirmation).
 - Salary group target is `salary_events`; env fallback never uses Team or completed-orders groups.
-- Payment, accrued bonus, fine, absence, and rate change notify employee and Salary group; automatic KPI uses combined summaries.
-- Rate-change messages: previous/new salary, effective date, effective KPI status.
+- Payment, accrued bonus, fine, absence, rate change notify employee + Salary group; automatic KPI uses combined summaries.
+- Rate changes: old/new salary, effective date, KPI status.
 - KPI changes notify Salary group from immutable rate/basis/account snapshots (`196`); no-op saves stay silent.
 
 ## Team events
 
 - No backfill. Manual bonus, fine, and absence notify Team; salary payments and rate changes have terminal skipped Team status.
-- Team messages show amount, full fine/absence detail and author, never salary balance; automatic events name the system.
-- Bonuses omit payment method; private manual bonuses/fines use Russian long dates.
+- Team messages: amount, full fine/absence detail, author, never salary balance; automatic events name the system.
+- Bonuses omit payment method; private manual bonuses/fines: RU long dates.
 
 ## Payroll privacy
 
 - Private RU PNG calendars: MTD salary, KPI, bonuses, fines, absences from joining to the completed day, before payments. Dated `getSalaryBalance()` gives remaining pay and all-time payments (negative = advance). Ranges ≤62 days.
-- Salary group gets only the aggregate daily salary/KPI report, no per-employee KPI.
-- Game Club paid revenue has its own text/PNG bucket, excluded from other buckets.
+- Calendar `IMAGE_PROCESS_FAILED` → one JPEG retry; 08:00 watchdog resends failed, not pending, once KPI is final.
+- Salary group: aggregate daily salary/KPI report only, no per-employee KPI.
+- Game Club paid revenue: own text/PNG bucket, excluded elsewhere.
 - `180`: Game Club rounds send Team RU date, actor, menu, items, total, + paid daily income snapshot at send (Tashkent paid_at, created_at fallback; saved totals). Read errors queue; cron retries; unknown sends held. No costs/tenders.
 - Daily/MTD cafe income uses immutable `orders.total`. Cash/terminal uses payment rows; QR maps to terminal; card/loyalty stay distinct.
-- `daily-salary.js` loads MTD cafe income orders via `loadSalaryRows` (by `id`); unpaged caps at 1000 rows (cf. `get_dashboard_monthly_average_income`).
-- Daily soliq: 4% of paid cafe revenue, in expenses, deducted from net profit.
+- `daily-salary.js` pages MTD cafe income orders via `loadSalaryRows` (by `id`); unpaged reads cap at 1000 rows.
+- Daily soliq: 4% of paid cafe revenue, an expense cut from net profit.
 - Break-even `263`: album/watchdog (`task=break-even`) save once.
 - Team KPI: one RU PNG per finalized date (all awards, total, date, system author); `181` claims dates; unknown sends held. No text/sales/rate/balance. Deletes edit it.
 

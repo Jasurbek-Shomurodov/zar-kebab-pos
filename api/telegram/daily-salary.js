@@ -3,7 +3,7 @@ import { drainIngredientNotifications } from './_lib/ingredientNotifications.js'
 import { drainTechCardChangeNotifications } from './_lib/techCardChangeNotifications.js'
 import { retractDeletedOrderStatusMessages } from './_lib/orderStatusDelivery.js'
 import { drainGameClubNotifications } from './_lib/gameClubNotifications.js'
-import { renderEmployeePayrollImage } from './_lib/employeePayrollImages.js'
+import { renderEmployeePayrollImage, toOpaqueJpeg } from './_lib/employeePayrollImages.js'
 import { json, methodNotAllowed, getBearerToken } from './_lib/http.js'
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
 import {
@@ -331,10 +331,11 @@ async function verifyDailySalaryCronDelivery(supabase, businessDate) {
     .eq('business_date', businessDate)
     .maybeSingle()
   if (error) throw error
-  if (delivery?.status === 'sent' && delivery?.telegram_message_id) {
-    return { status: 'healthy' }
-  }
   if (dailySalaryRunCanStillBeActive(delivery)) return { status: 'in_progress' }
+  if (delivery?.status === 'sent' && delivery?.telegram_message_id) {
+    // A sent album means KPI was finalized, so failed private images can retry.
+    return { status: 'healthy', employeeImages: await retryEmployeeSalaryImages(supabase, businessDate) }
+  }
   // Recover only known failures/unstarted reports. A pending send can have an
   // unknown Telegram outcome and must not be replayed by the watchdog.
   if (!delivery || ['failed', 'skipped'].includes(delivery.status)) {
@@ -342,6 +343,7 @@ async function verifyDailySalaryCronDelivery(supabase, businessDate) {
       await recordMissingCheckinAbsences(supabase, businessDate)
       await finalizeEmployeeMealDate(supabase, businessDate)
       const kpiResults = await finalizeDailyKpiDate(supabase, businessDate)
+      const employeeImages = await retryEmployeeSalaryImages(supabase, businessDate)
       await sendDailyInvestorReportAlbum(supabase, businessDate, kpiResults)
       const recovered = await supabase
         .from('daily_payroll_group_notification_deliveries')
@@ -350,7 +352,7 @@ async function verifyDailySalaryCronDelivery(supabase, businessDate) {
         .maybeSingle()
       if (recovered.error) throw recovered.error
       if (recovered.data?.status === 'sent' && recovered.data?.telegram_message_id) {
-        return { status: 'recovered' }
+        return { status: 'recovered', employeeImages }
       }
     } catch (recoveryError) {
       console.error('[telegram/daily-salary] watchdog report recovery failed:', recoveryError)
@@ -1184,10 +1186,9 @@ async function sendDailySalaryNotifications(supabase, notificationDate) {
 
     let telegramMessageId = ''
     try {
-      const response = await sendTelegramPhoto(
+      const response = await sendEmployeePayrollPhoto(
         link.chat_id,
-        await renderEmployeePayrollImage(salaryProfile, notificationDate),
-        { filename: 'daily-salary.png' }
+        await renderEmployeePayrollImage(salaryProfile, notificationDate)
       )
       telegramMessageId = getTelegramMessageId(response)
       const sentAt = new Date().toISOString()
@@ -1218,11 +1219,47 @@ async function sendDailySalaryNotifications(supabase, notificationDate) {
       } else {
         console.error('[telegram/daily-salary] message sent but delivery status was not persisted:', error)
       }
-      results.push({ salaryProfileId: link.salary_profile_id, status: 'failed' })
+      results.push({
+        salaryProfileId: link.salary_profile_id,
+        status: 'failed',
+        error: String(error?.message || error).slice(0, 300),
+      })
     }
   }
 
   return results
+}
+
+// IMAGE_PROCESS_FAILED is a rejected upload (no message exists), so one JPEG
+// retry cannot duplicate the employee's daily image.
+async function sendEmployeePayrollPhoto(chatId, png) {
+  try {
+    return await sendTelegramPhoto(chatId, png, { filename: 'daily-salary.png' })
+  } catch (error) {
+    if (!/IMAGE_PROCESS_FAILED/.test(String(error?.message || error))) throw error
+    return sendTelegramPhoto(chatId, await toOpaqueJpeg(png), {
+      filename: 'daily-salary.jpg',
+      contentType: 'image/jpeg',
+    })
+  }
+}
+
+// Only called once the date's KPI is finalized. Failed (known-outcome) private
+// images resend; pending sends with an unknown outcome stay held by claimDelivery.
+function retryEmployeeSalaryImages(supabase, businessDate) {
+  return sendDailySalaryNotifications(supabase, businessDate)
+    .then(results => ({
+      sentCount: results.filter(result => result.status === 'sent').length,
+      failedCount: results.filter(result => result.status === 'failed').length,
+    }))
+    .catch(error => ({ status: 'failed', error: String(error?.message || error).slice(0, 300) }))
+}
+
+function describeFailedEmployeeSalaryImages(results) {
+  const failed = (results || []).filter(result => result.status === 'failed')
+  if (failed.length === 0) return ''
+  const reasons = [...new Set(failed.map(result => result.error).filter(Boolean))].join('; ')
+  return `${failed.length} of ${results.length} employee salary images failed${reasons ? `: ${reasons}` : ''}`
 }
 
 export default async function handler(req, res) {
@@ -1399,6 +1436,16 @@ export default async function handler(req, res) {
           sentCount: summaryResults.filter(result => result.status === 'sent').length,
           failedCount,
           payrollGroupStatus: payrollGroupResult.status,
+          ...(failedCount > 0 || payrollGroupResult.status === 'failed'
+            ? {
+                error: [
+                  describeFailedEmployeeSalaryImages(summaryResults),
+                  payrollGroupResult.status === 'failed'
+                    ? `Salary group report failed: ${payrollGroupResult.error || 'unknown error'}`
+                    : '',
+                ].filter(Boolean).join('; ').slice(0, 1000),
+              }
+            : {}),
           bazaarStatus: bazaarResult.status,
           ingredientConsumptionStatus: ingredientConsumptionResult.status,
           results: summaryResults,

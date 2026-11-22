@@ -81,7 +81,7 @@ function deliveryDatabase(rows, writes = []) {
   }
 }
 
-function watchdogDependencies(calls) {
+function watchdogDependencies(calls, employeeImageDates = []) {
   return {
     CRON_FAILURE_ALERT_MARKER: '[cron-failure-alerted]',
     dailySalaryRunCanStillBeActive: row => row?.status === 'pending' && row.active,
@@ -96,9 +96,30 @@ function watchdogDependencies(calls) {
     buildDailySalaryWatchdogMessage: () => 'failed',
     getTelegramMessageId: response => String(response.result.message_id),
     markDailySalaryWatchdogAlerted: async () => calls.push('record-alert'),
+    retryEmployeeSalaryImages: async (db, date) => { employeeImageDates.push(date); return { sentCount: 0, failedCount: 0 } },
     console: { error() {} },
   }
 }
+
+test('watchdog retries failed private salary images only after KPI finalization, never during a run', async () => {
+  const dates = []
+  const verify = loadFunction('verifyDailySalaryCronDelivery', 'async function loadUnavailableMenuItems', watchdogDependencies([], dates))
+  const healthy = await verify(deliveryDatabase([{ status: 'sent', telegram_message_id: '123' }]), '2026-11-21')
+  assert.equal(healthy.status, 'healthy')
+  assert.deepEqual(dates, ['2026-11-21'])
+
+  const activeDates = []
+  const activeVerify = loadFunction('verifyDailySalaryCronDelivery', 'async function loadUnavailableMenuItems', watchdogDependencies([], activeDates))
+  assert.equal((await activeVerify(deliveryDatabase([{ status: 'pending', active: true }]), '2026-11-21')).status, 'in_progress')
+  assert.deepEqual(activeDates, [])
+
+  const failedKpiDates = []
+  const dependencies = watchdogDependencies([], failedKpiDates)
+  dependencies.finalizeDailyKpiDate = async () => { throw new Error('guard failure') }
+  const failedKpiVerify = loadFunction('verifyDailySalaryCronDelivery', 'async function loadUnavailableMenuItems', dependencies)
+  await failedKpiVerify(deliveryDatabase([null]), '2026-11-21')
+  assert.deepEqual(failedKpiDates, [])
+})
 
 test('watchdog recovers previously alerted failures and verifies durable delivery', async () => {
   const calls = []
@@ -107,7 +128,7 @@ test('watchdog recovers previously alerted failures and verifies durable deliver
     { status: 'failed', error_message: '[cron-failure-alerted] error' },
     { status: 'sent', telegram_message_id: '123' },
   ])
-  assert.deepEqual(await verify(db, '2026-09-16'), { status: 'recovered' })
+  assert.deepEqual(await verify(db, '2026-09-16'), { status: 'recovered', employeeImages: { sentCount: 0, failedCount: 0 } })
   assert.deepEqual(calls, ['absences', 'meal', 'kpi', 'album'])
 })
 
