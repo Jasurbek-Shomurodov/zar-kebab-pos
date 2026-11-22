@@ -25,9 +25,29 @@ export default function ImageLoadShimmer({
       setLoaded(true)
       return undefined
     }
-    const timer = window.setTimeout(() => setTimedOut(true), timeoutMs)
-    return () => window.clearTimeout(timer)
-  }, [src, timeoutMs])
+    let timer = 0
+    const startTimer = () => {
+      if (!timer) timer = window.setTimeout(() => setTimedOut(true), timeoutMs)
+    }
+    // A lazy image does not start downloading until it is near the viewport, so the
+    // timeout must not run while it is still far down the page: wait until it is close.
+    let observer = null
+    if (loading === 'lazy' && image && typeof IntersectionObserver === 'function') {
+      observer = new IntersectionObserver(entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          observer.disconnect()
+          startTimer()
+        }
+      }, { rootMargin: '300px' })
+      observer.observe(image)
+    } else {
+      startTimer()
+    }
+    return () => {
+      observer?.disconnect()
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [src, timeoutMs, loading])
 
   if (!src || failed) {
     return fallback

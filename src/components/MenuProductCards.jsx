@@ -309,29 +309,29 @@ export function ProductCard({ item, qty, onAdd, onIncrement, onDecrement, onOpen
   return (
     <>
     {compactMobileGrid && !readOnly && (
-      <div data-menu-product-card className={`flex h-full flex-col gap-1 rounded-xl border bg-white p-2 sm:hidden ${inCart ? 'border-orange-300' : 'border-[#E5E7EB]'}`}>
-        <button type="button" onClick={() => onOpenDetail(item)} className="flex w-full min-w-0 items-center gap-2 text-left">
-          <span data-menu-product-image className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-orange-50">
+      <div data-menu-product-card className={`lux-glass flex h-full flex-col gap-1 rounded-xl p-2 sm:hidden ${inCart ? 'ring-2 ring-[#E2AB64]/70' : ''}`}>
+        <button type="button" onClick={() => onOpenDetail(item)} className="flex min-h-11 w-full min-w-0 items-center gap-2 text-left">
+          <span data-menu-product-image className="h-10 w-10 shrink-0 overflow-hidden rounded-lg" style={{ background: 'rgb(120 90 60 / 10%)' }}>
             <SafeMenuImage src={item.image_url} alt="" className="h-full w-full object-cover" loading={eager ? 'eager' : 'lazy'} fallbackIconSize={24} />
           </span>
           <span className="min-w-0">
-            <span className="line-clamp-2 text-[13px] font-bold leading-tight text-[#1F2937]">{getItemName(item, lang)}</span>
+            <span className="lux-title line-clamp-2 text-[13px] font-bold leading-tight">{getItemName(item, lang)}</span>
 
           </span>
         </button>
         <div className="mt-auto flex flex-wrap items-center justify-between gap-x-1">
           <div className="min-w-[70px] flex-1">
-            {pricing.discounted && <span className="block text-[10px] text-gray-400 line-through">{formatPrice(pricing.oldPrice)}</span>}
-            <span className="mt-1 block text-[12px] font-black leading-tight text-[#ff5a00]">
+            {pricing.discounted && <span className="lux-muted block whitespace-nowrap text-xs tabular-nums line-through">{formatPrice(pricing.oldPrice)}</span>}
+            <span className={`mt-1 block text-[13px] font-black leading-tight tabular-nums ${pricing.discounted ? 'lux-gold' : 'lux-title'}`}>
               {formatPrice(pricing.price)}{pricing.maxPrice > pricing.price ? ` – ${formatPrice(pricing.maxPrice)}` : ''}{priceUnit}
             </span>
           </div>
           <div className="ml-auto flex shrink-0 items-center">
           {inCart && <>
-            <button type="button" aria-label={`${lang === 'ru' ? 'Уменьшить' : lang === 'uz' ? 'Kamaytirish' : 'Decrease'}: ${getItemName(item, lang)}`} onClick={() => onDecrement(item)} className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-50 text-gray-600"><Minus size={18} /></button>
-            <span className="min-w-5 text-center text-sm font-black text-[#ff5a00]">{formatMenuQuantity(qty, item)}</span>
+            <button type="button" aria-label={`${lang === 'ru' ? 'Уменьшить' : lang === 'uz' ? 'Kamaytirish' : 'Decrease'}: ${getItemName(item, lang)}`} onClick={() => onDecrement(item)} className="lux-chip lux-chip-static flex h-11 w-11 items-center justify-center rounded-lg"><Minus size={18} aria-hidden="true" /></button>
+            <span className="lux-title min-w-5 px-1 text-center text-sm font-black tabular-nums">{formatMenuQuantity(qty, item)}</span>
           </>}
-          <button type="button" disabled={unavailable} aria-label={`${unavailable ? labels.unavailable : lang === 'ru' ? 'Добавить' : lang === 'uz' ? "Qo'shish" : 'Add'}: ${getItemName(item, lang)}`} onClick={e => inCart ? onIncrement(item, cartAnimationPayload(e)) : onAdd(item, cartAnimationPayload(e))} className="flex h-11 w-16 max-[359px]:w-14 items-center justify-center rounded-lg bg-orange-50 text-[#ff5a00] disabled:opacity-40"><Plus size={20} /></button>
+          <button type="button" disabled={unavailable} aria-label={`${unavailable ? labels.unavailable : lang === 'ru' ? 'Добавить' : lang === 'uz' ? "Qo'shish" : 'Add'}: ${getItemName(item, lang)}`} onClick={e => inCart ? onIncrement(item, cartAnimationPayload(e)) : onAdd(item, cartAnimationPayload(e))} className="lux-primary flex h-11 w-16 max-[359px]:w-14 items-center justify-center rounded-lg disabled:opacity-40"><Plus size={20} aria-hidden="true" /></button>
           </div>
         </div>
       </div>
@@ -501,7 +501,7 @@ function EditorialPrice({ amount, formatPrice, className = '' }) {
   const [value, currency] = splitCurrency(formatPrice(amount))
   return (
     <span className={`whitespace-nowrap tabular-nums ${className}`}>
-      {value}{currency && <span className="ml-0.5 text-[0.72em] font-normal tracking-wide opacity-60">{currency}</span>}
+      {value}{currency && <span className="ml-0.5 text-[length:max(0.72em,12px)] font-normal tracking-wide opacity-75">{currency}</span>}
     </span>
   )
 }
@@ -527,7 +527,7 @@ function LuxDishPhoto({ item, name, description, eager = false, discountPct = 0,
         )}
       </div>
       {discountPct > 0 && (
-        <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide sm:left-2.5 sm:top-2.5">
+        <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide sm:left-2.5 sm:top-2.5">
           −{discountPct}%
         </span>
       )}
@@ -542,22 +542,23 @@ function LuxPriceRow({ item, lang, pricing, formatPrice }) {
   const facts = [gramsLabel(item, lang) || millilitresLabel(item, lang), kcalLabel(item, lang), servesLabel(item, lang)].filter(Boolean)
   return (
     <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-0.5 px-1.5 pb-1 pt-2.5 sm:px-2 sm:pb-1.5 sm:pt-3">
-      <p className="lux-muted flex min-w-0 items-center gap-1.5 whitespace-nowrap pb-px text-[11.5px] sm:text-[12.5px]">
+      {/* Facts wrap inside the card (a 140px card at 320 cannot hold weight, calories and servings on one line). */}
+      <p className="lux-muted flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 pb-px text-xs sm:text-[12.5px]">
         {facts.map((fact, index) => (
-          <React.Fragment key={fact}>
+          <span key={fact} className="inline-flex items-center gap-1.5 whitespace-nowrap">
             {index > 0 && <span aria-hidden="true" className="h-[3px] w-[3px] rounded-full bg-current opacity-60" />}
-            <span>{fact}</span>
-          </React.Fragment>
+            {fact}
+          </span>
         ))}
       </p>
       <p className="lux-title ml-auto flex flex-shrink-0 flex-col items-end text-right text-[14px] font-semibold leading-tight sm:text-[15px]">
         {pricing.discounted && (
-          <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="lux-muted text-[11px] font-normal line-through" />
+          <EditorialPrice amount={pricing.oldPrice} formatPrice={formatPrice} className="lux-muted text-xs font-normal line-through" />
         )}
         <span className={pricing.discounted ? 'lux-gold' : ''}>
           <EditorialPrice amount={pricing.price} formatPrice={formatPrice} />
           {pricing.maxPrice > pricing.price && <> – <EditorialPrice amount={pricing.maxPrice} formatPrice={formatPrice} /></>}
-          {priceUnit && <span className="lux-muted text-[0.8em]">{priceUnit}</span>}
+          {priceUnit && <span className="lux-muted text-[length:max(0.8em,12px)]">{priceUnit}</span>}
         </span>
       </p>
     </div>
@@ -600,14 +601,14 @@ export function PublicDishCard({ item, onOpenDetail, lang, eager = false, format
           onClick={copyProductLink}
           title={copyLabel}
           aria-label={copyLabel}
-          className="lux-on-photo absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full transition-opacity sm:right-2.5 sm:top-2.5 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+          className="lux-on-photo absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full transition-opacity sm:right-2 sm:top-2 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
         >
-          {copied ? <Check size={15} /> : <Copy size={14} />}
+          {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
         </button>
       </LuxDishPhoto>
       {scheduleLabel && (
-        <p className="lux-gold flex items-center gap-1 px-1.5 pt-2 text-[11px] font-medium tabular-nums sm:px-2">
-          <Clock3 size={11} /> {scheduleLabel}
+        <p className="lux-gold flex items-center gap-1 px-1.5 pt-2 text-xs font-medium tabular-nums sm:px-2">
+          <Clock3 size={12} aria-hidden="true" /> {scheduleLabel}
         </p>
       )}
       <LuxPriceRow item={item} lang={lang} pricing={pricing} formatPrice={formatPrice} />
@@ -665,7 +666,7 @@ function LuxOrderCard({ item, qty, onAdd, onIncrement, onDecrement, onOpenDetail
           </span>
         )}
         {unavailable && (
-          <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide">
+          <span className="lux-on-photo pointer-events-none absolute left-2 top-2 rounded-full px-2.5 py-1 text-xs font-semibold">
             {labels.unavailable}
           </span>
         )}
@@ -673,14 +674,14 @@ function LuxOrderCard({ item, qty, onAdd, onIncrement, onDecrement, onOpenDetail
       <LuxPriceRow item={item} lang={lang} pricing={pricing} formatPrice={formatPrice} />
       <div className="px-1 pb-1 pt-2 sm:px-1.5 sm:pb-1.5" onClick={event => event.stopPropagation()}>
         {inCart ? (
-          <div className="lux-soft flex h-12 items-center justify-between rounded-full p-1">
+          <div className="lux-soft flex h-[52px] items-center justify-between rounded-full p-[3px]">
             <button
               type="button"
               aria-label={`${labels.decrease}: ${name}`}
               onClick={() => onDecrement(item)}
-              className="lux-chip lux-chip-static flex h-10 w-14 items-center justify-center rounded-full transition-transform active:scale-95 sm:w-16"
+              className="lux-chip lux-chip-static flex h-11 w-14 items-center justify-center rounded-full transition-transform active:scale-95 sm:w-16"
             >
-              <Minus size={18} />
+              <Minus size={18} aria-hidden="true" />
             </button>
             <span className="lux-title min-w-6 text-center text-[17px] font-semibold tabular-nums">{formatMenuQuantity(qty, item)}</span>
             <button
@@ -688,9 +689,9 @@ function LuxOrderCard({ item, qty, onAdd, onIncrement, onDecrement, onOpenDetail
               disabled={unavailable}
               aria-label={`${labels.add}: ${name}`}
               onClick={event => onIncrement(item, cartAnimationPayload(event))}
-              className="lux-primary flex h-10 w-14 items-center justify-center rounded-full transition-transform active:scale-95 disabled:opacity-40 sm:w-16"
+              className="lux-primary flex h-11 w-14 items-center justify-center rounded-full transition-transform active:scale-95 disabled:opacity-40 sm:w-16"
             >
-              <Plus size={18} />
+              <Plus size={18} aria-hidden="true" />
             </button>
           </div>
         ) : (
@@ -698,7 +699,7 @@ function LuxOrderCard({ item, qty, onAdd, onIncrement, onDecrement, onOpenDetail
             type="button"
             disabled={unavailable}
             onClick={event => onAdd(item, cartAnimationPayload(event))}
-            className="lux-cta flex h-12 w-full items-center justify-center gap-1.5 rounded-full text-[14px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            className="lux-cta flex h-[52px] w-full items-center justify-center gap-1.5 rounded-full text-[14px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             {!unavailable && <Plus size={15} />}
             {unavailable ? labels.unavailable : labels.add}
@@ -742,7 +743,7 @@ const PUBLIC_DETAIL_PALETTES = {
     title: '#1F1A15',
     body: '#4A423A',
     muted: '#7A6E62',
-    gold: '#B07A3A',
+    gold: '#8A5A22',
     backdropOpacity: 0.35,
     backdropVeil: 'radial-gradient(ellipse at center, rgb(246 240 231 / 40%) 0%, rgb(246 240 231 / 94%) 75%)',
     photoFade: 'linear-gradient(0deg, #F6F0E7 0%, rgb(246 240 231 / 0%) 100%)',
@@ -826,6 +827,8 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
     add: lang === 'uz' ? "Savatga qo'shish" : lang === 'ru' ? 'Добавить в корзину' : 'Add to cart',
     chooseOption: lang === 'uz' ? 'Variantni tanlang' : lang === 'ru' ? 'Выберите вариант' : 'Choose an option',
     unavailable: lang === 'uz' ? 'Mavjud emas' : lang === 'ru' ? 'Недоступно' : 'Unavailable',
+    decrease: lang === 'uz' ? 'Kamaytirish' : lang === 'ru' ? 'Уменьшить' : 'Decrease',
+    increase: lang === 'uz' ? 'Ko‘paytirish' : lang === 'ru' ? 'Увеличить' : 'Increase',
   }
 
   function addToCart() {
@@ -930,7 +933,7 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
           )}
 
           {category && (
-            <p className="text-[10px] font-medium uppercase tracking-[0.3em]" style={{ color: ui.gold }}>{getCategoryName(category, lang)}</p>
+            <p className="text-xs font-medium uppercase tracking-[0.3em]" style={{ color: ui.gold }}>{getCategoryName(category, lang)}</p>
           )}
           <div className={`mt-1.5 flex items-start justify-between gap-4 md:flex-col md:gap-2 ${stackPrice ? 'flex-col gap-1' : ''}`}>
             <h1 className="zk-serif min-w-0 text-[32px] font-semibold leading-[1.02] sm:text-[40px] lg:text-[46px]" style={{ color: ui.title }}>{name}</h1>
@@ -978,7 +981,7 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
                       type="button"
                       aria-pressed={active}
                       onClick={() => setSelectedOptions(current => ({ ...current, [group.id]: option.id }))}
-                      className="h-10 flex-shrink-0 whitespace-nowrap rounded-[14px] px-4 text-[13px] font-medium transition-all"
+                      className="h-11 flex-shrink-0 whitespace-nowrap rounded-[14px] px-4 text-[13px] font-medium transition-all"
                       style={active ? chipActive : chipIdle}
                     >
                       {option.label}
@@ -1030,12 +1033,12 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    aria-label="−"
+                    aria-label={`${labels.decrease}: ${name}`}
                     onClick={() => setQty(current => Math.max(menuQuantityStep(item), changeMenuQuantity(current, item, -1)))}
-                    className="flex h-10 w-10 items-center justify-center rounded-full"
+                    className="flex h-11 w-11 items-center justify-center rounded-full"
                     style={chipIdle}
                   >
-                    <Minus size={16} />
+                    <Minus size={16} aria-hidden="true" />
                   </button>
                   {soldByWeight ? (
                     <input
@@ -1054,13 +1057,13 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
                   )}
                   <button
                     type="button"
-                    aria-label="+"
+                    aria-label={`${labels.increase}: ${name}`}
                     disabled={unavailable}
                     onClick={() => setQty(current => changeMenuQuantity(current, item, 1))}
-                    className="flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-40"
+                    className="flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-40"
                     style={chipActive}
                   >
-                    <Plus size={16} />
+                    <Plus size={16} aria-hidden="true" />
                   </button>
                 </div>
               </div>

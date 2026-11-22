@@ -26,7 +26,6 @@ import ThemeToggle from '../components/ThemeToggle'
 import { useTheme } from '../lib/theme'
 import MenuCategoryScroller, { menuCategorySectionId } from '../components/MenuCategoryScroller'
 import {
-  ProductCard as MenuProductCard,
   PublicDishCard,
   PublicDishDetailPage,
 } from '../components/MenuProductCards'
@@ -103,18 +102,22 @@ const PUBLIC_SITE_COPY = {
   },
 }
 
+// Page jumps glide only when the guest has not asked for reduced motion.
+function pageScrollBehavior() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+}
+
 function navigateToPublicSection(event, sectionId) {
   const target = document.getElementById(sectionId)
   if (!target) return
   event.preventDefault()
-  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  target.scrollIntoView({ behavior: pageScrollBehavior(), block: 'start' })
   window.history.replaceState(null, '', `#${sectionId}`)
 }
 
 function HeaderSelect({ value, onChange, options, ariaLabel, icon: Icon, className = '' }) {
   return (
-    <label className={`lux-chip relative inline-flex h-9 items-center rounded-full text-xs font-black ${className}`}>
+    <label className={`lux-chip relative inline-flex h-11 items-center rounded-full text-xs font-black ${className}`}>
       {Icon && (
         <Icon
           size={15}
@@ -128,7 +131,7 @@ function HeaderSelect({ value, onChange, options, ariaLabel, icon: Icon, classNa
         onChange={event => onChange(event.target.value)}
         aria-label={ariaLabel}
         title={ariaLabel}
-        className={`h-full cursor-pointer appearance-none rounded-full bg-transparent py-0 pr-3 text-xs font-black uppercase outline-none ${Icon ? 'pl-8' : 'pl-3'}`}
+        className={`h-full cursor-pointer appearance-none rounded-full bg-transparent py-0 pr-3 text-xs font-black outline-none ${Icon ? 'pl-8' : 'pl-3'}`}
       >
         {options.map(option => (
           <option key={option.value} value={option.value}>
@@ -144,7 +147,7 @@ function CompactCurrencySelect({ value, onChange, ariaLabel }) {
   return (
     <label
       title={`${ariaLabel}: ${value}`}
-      className="lux-chip relative flex h-9 w-9 items-center justify-center rounded-full"
+      className="lux-chip relative flex h-11 w-11 items-center justify-center rounded-full"
     >
       <Coins size={16} strokeWidth={2.5} aria-hidden="true" />
       <select
@@ -197,7 +200,7 @@ function MapChooserSheet({ open, lang, onClose }) {
         onClick={event => event.stopPropagation()}
         className="lux-glass zk-sheet-in w-full max-w-[380px] rounded-[28px] p-3"
       >
-        <p className="lux-gold px-3 pb-2 pt-1 text-center text-[11px] font-medium uppercase tracking-[0.26em]">{copy.title}</p>
+        <p className="lux-gold px-3 pb-2 pt-1 text-center text-xs font-medium uppercase tracking-[0.26em]">{copy.title}</p>
         <div className="space-y-2">
           {MAP_APPS.map((app, index) => (
             <a
@@ -230,25 +233,25 @@ function PublicContactButtons({ className = '', onOpenMap }) {
         target="_blank"
         rel="noreferrer"
         aria-label={PUBLIC_CONTACTS.telegram.label}
-        className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
+        className="lux-chip flex h-11 w-11 items-center justify-center rounded-full"
       >
-        <Send size={16} />
+        <Send size={16} aria-hidden="true" />
       </a>
       <a
         href={PUBLIC_CONTACTS.phone.href}
         aria-label={PUBLIC_CONTACTS.phone.label}
-        className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
+        className="lux-chip flex h-11 w-11 items-center justify-center rounded-full"
       >
-        <Phone size={16} />
+        <Phone size={16} aria-hidden="true" />
       </a>
       <a
         href={PUBLIC_CONTACTS.instagram.href}
         target="_blank"
         rel="noreferrer"
         aria-label={PUBLIC_CONTACTS.instagram.label}
-        className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
+        className="lux-chip flex h-11 w-11 items-center justify-center rounded-full"
       >
-        <Instagram size={16} />
+        <Instagram size={16} aria-hidden="true" />
       </a>
       <a
         href={PUBLIC_CONTACTS.location.googleMapsHref}
@@ -256,9 +259,9 @@ function PublicContactButtons({ className = '', onOpenMap }) {
         rel="noreferrer"
         onClick={onOpenMap}
         aria-label={PUBLIC_CONTACTS.location.label}
-        className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
+        className="lux-chip flex h-11 w-11 items-center justify-center rounded-full"
       >
-        <MapPin size={16} />
+        <MapPin size={16} aria-hidden="true" />
       </a>
     </div>
   )
@@ -275,26 +278,26 @@ function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenF
             <p className="zk-serif lux-body mt-4 max-w-xs text-[19px] font-medium leading-snug">{copy.about}</p>
           </div>
           <div>
-            <h2 className="lux-gold text-[11px] font-medium uppercase tracking-[0.26em]">{copy.company}</h2>
-            <nav className="lux-body mt-4 flex flex-col items-start gap-3 text-sm">
-              <a href="/menu" onClick={onOpenMenu} className="hover:text-[#ff5a00]">{copy.menu}</a>
-              <a href="/corporate-sets" onClick={onOpenCorporateSets} className="hover:text-[#ff5a00]">{copy.corporateSets}</a>
-              <a href="/frozen-meals" onClick={onOpenFrozenMeals} className="hover:text-[#ff5a00]">{copy.frozenMeals}</a>
-              <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="hover:text-[#ff5a00]">{copy.promotions}</a>
-              <a href="/vacancies" onClick={onOpenVacancies} className="hover:text-[#ff5a00]">{copy.vacancies}</a>
+            <h2 className="lux-gold text-xs font-medium uppercase tracking-[0.26em]">{copy.company}</h2>
+            <nav className="lux-body mt-2 flex flex-col items-start text-sm">
+              <a href="/menu" onClick={onOpenMenu} className="inline-flex min-h-11 items-center hover:underline">{copy.menu}</a>
+              <a href="/corporate-sets" onClick={onOpenCorporateSets} className="inline-flex min-h-11 items-center hover:underline">{copy.corporateSets}</a>
+              <a href="/frozen-meals" onClick={onOpenFrozenMeals} className="inline-flex min-h-11 items-center hover:underline">{copy.frozenMeals}</a>
+              <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="inline-flex min-h-11 items-center hover:underline">{copy.promotions}</a>
+              <a href="/vacancies" onClick={onOpenVacancies} className="inline-flex min-h-11 items-center hover:underline">{copy.vacancies}</a>
             </nav>
           </div>
           <div>
-            <h2 className="lux-gold text-[11px] font-medium uppercase tracking-[0.26em]">{copy.information}</h2>
-            <div className="lux-body mt-4 space-y-3 text-sm">
-              <p className="flex items-center gap-2"><Clock3 size={16} className="lux-gold" />{copy.hours}</p>
-              <a href={PUBLIC_CONTACTS.location.googleMapsHref} target="_blank" rel="noreferrer" onClick={onOpenMap} className="flex items-start gap-2 hover:text-[#ff5a00]"><MapPin size={16} className="lux-gold mt-0.5 flex-shrink-0" />{PUBLIC_CONTACTS.location.label}</a>
+            <h2 className="lux-gold text-xs font-medium uppercase tracking-[0.26em]">{copy.information}</h2>
+            <div className="lux-body mt-2 text-sm">
+              <p className="flex min-h-11 items-center gap-2"><Clock3 size={16} className="lux-gold" />{copy.hours}</p>
+              <a href={PUBLIC_CONTACTS.location.googleMapsHref} target="_blank" rel="noreferrer" onClick={onOpenMap} className="flex min-h-11 items-center gap-2 hover:underline"><MapPin size={16} aria-hidden="true" className="lux-gold flex-shrink-0" />{PUBLIC_CONTACTS.location.label}</a>
             </div>
           </div>
           <div className="col-span-2 lg:col-span-1">
-            <h2 className="lux-gold text-[11px] font-medium uppercase tracking-[0.26em]">{copy.contacts}</h2>
-            <a href={PUBLIC_CONTACTS.phone.href} className="zk-serif lux-title mt-3 block text-[24px] font-semibold hover:text-[#ff5a00]">{PUBLIC_CONTACTS.phone.label}</a>
-            <PublicContactButtons className="mt-4 !justify-start" onOpenMap={onOpenMap} />
+            <h2 className="lux-gold text-xs font-medium uppercase tracking-[0.26em]">{copy.contacts}</h2>
+            <a href={PUBLIC_CONTACTS.phone.href} className="zk-serif lux-title mt-2 inline-flex min-h-11 items-center text-[24px] font-semibold hover:underline">{PUBLIC_CONTACTS.phone.label}</a>
+            <PublicContactButtons className="mt-3 !justify-start" onOpenMap={onOpenMap} />
           </div>
         </div>
         <div className="lux-line lux-muted mt-9 flex flex-col gap-2 border-t pt-5 text-xs sm:flex-row sm:items-center sm:justify-between">
@@ -307,7 +310,7 @@ function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenF
 }
 
 function MenuSectionHeader({ title, subtitle = '', tone = 'default' }) {
-  const titleClass = tone === 'deal' ? 'text-[#ff5a00]' : 'lux-title'
+  const titleClass = tone === 'deal' ? 'text-[#cc4800]' : 'lux-title'
 
   return (
     <div className="mb-6 flex flex-col items-center text-center sm:mb-9">
@@ -382,7 +385,7 @@ function PublicMenuHero({ lang, onViewMenu, headerOffset = 0, heroRef, theme = '
       {/* Bottom edge melts into the page colour so the categories start on the photo. */}
       <div className="absolute inset-x-0 -bottom-px -z-10 h-28 sm:h-36" style={{ background: 'linear-gradient(0deg, var(--lux-page) 0%, var(--lux-page) 6px, transparent 100%)' }} />
       <div className="mx-auto flex min-h-[400px] max-w-[1280px] flex-col justify-end px-5 pb-[92px] pt-14 sm:min-h-[78vh] sm:px-8 sm:pb-[132px] sm:pt-24 lg:max-h-[820px]">
-        <p className="text-[10px] font-medium uppercase tracking-[0.26em] text-[#E7C98F] sm:text-xs sm:tracking-[0.32em]">{copy.eyebrow}</p>
+        <p className="text-xs font-medium uppercase tracking-[0.26em] text-[#E7C98F] sm:tracking-[0.32em]">{copy.eyebrow}</p>
         <h1 className="zk-serif mt-2 text-[52px] font-semibold leading-[0.9] text-white sm:mt-4 sm:text-[104px] lg:text-[128px]" style={{ textShadow: '0 4px 24px rgb(0 0 0 / 35%)' }}>Zar Kebab</h1>
         <p className="mt-3 max-w-[520px] text-[14px] font-light leading-relaxed text-white/85 sm:mt-5 sm:text-[17px]">{copy.tagline}</p>
         <div className="mt-5 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
@@ -449,18 +452,19 @@ function MobileSearchPage({
               type="button"
               onClick={onClose}
               aria-label={labels.close}
-              className="lux-chip flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+              className="lux-chip flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={18} aria-hidden="true" />
             </button>
             <h1 className="zk-serif lux-title text-[26px] font-semibold">{labels.title}</h1>
           </div>
 
           <div className="lux-input relative flex h-12 items-center rounded-full">
-            <Search size={18} className="lux-muted pointer-events-none absolute left-4" />
+            <Search size={18} aria-hidden="true" className="lux-muted pointer-events-none absolute left-4" />
             <input
               ref={inputRef}
               type="text"
+              aria-label={labels.placeholder}
               value={value}
               onChange={event => onChange(event.target.value)}
               placeholder={labels.placeholder}
@@ -471,9 +475,9 @@ function MobileSearchPage({
                 type="button"
                 onClick={() => onChange('')}
                 aria-label={labels.clear}
-                className="lux-muted absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition-colors hover:text-[#ff5a00]"
+                className="lux-muted absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -483,7 +487,7 @@ function MobileSearchPage({
       <div className="flex-1 overflow-y-auto px-4 py-5">
         <div className="mx-auto max-w-[1280px] pb-6">
           <section className="mb-7">
-            <h2 className="lux-gold mb-3 text-[11px] font-medium uppercase tracking-[0.26em]">{labels.categories}</h2>
+            <h2 className="lux-gold mb-3 text-xs font-medium uppercase tracking-[0.26em]">{labels.categories}</h2>
             <div className="flex flex-wrap gap-2" role="list" aria-label={labels.categories}>
               {categories.map(category => {
                 const active = selectedCategoryId === category.id
@@ -496,7 +500,7 @@ function MobileSearchPage({
                     type="button"
                     aria-pressed={active}
                     onClick={() => onSelectCategory(category.id)}
-                    className="lux-chip inline-flex min-h-10 items-center rounded-full px-4 text-sm font-medium"
+                    className="lux-chip inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium"
                   >
                     {name}
                   </button>
@@ -511,11 +515,11 @@ function MobileSearchPage({
                 <UtensilsCrossed size={28} className="text-orange-300" />
               </div>
               <p className="zk-serif lux-title text-[22px] font-semibold">{labels.emptyTitle}</p>
-              <p className="mt-1 max-w-[260px] text-sm text-[#8A94A6]">{labels.emptyText}</p>
+              <p className="lux-muted mt-1 max-w-[260px] text-sm">{labels.emptyText}</p>
             </div>
           ) : (
             <section>
-              <h2 className="lux-gold mb-3 text-[11px] font-medium uppercase tracking-[0.26em]">{labels.dishes}</h2>
+              <h2 className="lux-gold mb-3 text-xs font-medium uppercase tracking-[0.26em]">{labels.dishes}</h2>
               <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-6 sm:gap-y-11 md:grid-cols-3 xl:grid-cols-4">
                 {items.map((item, index) => (
                   <PublicDishCard
@@ -962,7 +966,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   function openCorporateSets(event) {
     event.preventDefault()
     if (corporateSets) {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({ top: 0, behavior: pageScrollBehavior() })
       return
     }
     navigateWithTransition('/corporate-sets')
@@ -971,7 +975,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
   function openFrozenMeals(event) {
     event.preventDefault()
     if (frozenMeals) {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({ top: 0, behavior: pageScrollBehavior() })
       return
     }
     navigateWithTransition('/frozen-meals')
@@ -1020,15 +1024,16 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                 type="button"
                 onClick={openSearch}
                 aria-label={lang === 'uz' ? 'Qidirish' : lang === 'ru' ? 'Поиск' : 'Search'}
-                className="lux-chip flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full active:scale-95"
+                className="lux-chip flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:scale-95"
               >
-                <Search size={17} />
+                <Search size={17} aria-hidden="true" />
               </button>
-              <ThemeToggle lang={lang} variant="lux" className="ml-1.5 mr-auto !h-9 !w-9" />
+              <ThemeToggle lang={lang} variant="lux" className="ml-1 mr-auto !h-11 !w-11" />
 
-              <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-0.5 min-[360px]:gap-1 min-[400px]:gap-2">
-                <img src={getBrandLogo(lang)} alt="Zar Kebab" className="h-7 w-auto object-contain min-[360px]:h-8 min-[400px]:h-9" />
-                <span className="whitespace-nowrap text-[7px] font-black uppercase tracking-[0.03em] text-[#ff5a00] min-[360px]:text-[8px] min-[360px]:tracking-[0.08em] min-[400px]:text-[10px] min-[400px]:tracking-[0.14em]">Zar Kebab</span>
+              <div className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-center gap-1 min-[480px]:gap-2">
+                <img src={getBrandLogo(lang)} alt="Zar Kebab" className="h-7 w-auto object-contain min-[400px]:h-8 min-[480px]:h-9" />
+                {/* Never under 12px. At 320 the four 44px controls leave about 64px in the middle, so only there the logo alone carries the name. */}
+                <span className="lux-gold hidden whitespace-nowrap text-xs font-black uppercase tracking-normal min-[360px]:inline min-[480px]:tracking-[0.1em]">Zar Kebab</span>
               </div>
 
               <div className="flex items-center gap-1 min-[400px]:gap-1.5">
@@ -1047,7 +1052,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                     ariaLabel={lang === 'uz' ? 'Valyuta' : lang === 'ru' ? 'Валюта' : 'Currency'}
                   />
                 </div>
-                {premium ? <LanguageSwitcher value={lang} onChange={setPremiumLang} compact variant="lux" /> : <LanguageSwitcher compact variant="lux" />}
+                {premium ? <LanguageSwitcher value={lang} onChange={setPremiumLang} compact variant="lux" className="!h-11" /> : <LanguageSwitcher compact variant="lux" className="!h-11" />}
               </div>
             </div>
 
@@ -1063,19 +1068,19 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                 </button>
                 {!premium && (
                   <nav className="hidden items-center gap-5 lg:flex" aria-label={siteCopy.company}>
-                    <a href="/menu" onClick={openMenuHome} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.menu}</a>
-                    <a href="/corporate-sets" onClick={openCorporateSets} aria-current={corporateSets ? 'page' : undefined} className={`text-sm font-semibold transition-colors hover:text-[#ff5a00] ${corporateSets ? 'text-[#ff5a00]' : 'lux-title'}`}>{siteCopy.corporateSets}</a>
-                    <a href="/frozen-meals" onClick={openFrozenMeals} aria-current={frozenMeals ? 'page' : undefined} className={`text-sm font-semibold transition-colors hover:text-[#ff5a00] ${frozenMeals ? 'text-[#ff5a00]' : 'lux-title'}`}>{siteCopy.frozenMeals}</a>
-                    <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.promotions}</a>
-                    <a href="/vacancies" onClick={openVacancies} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.vacancies}</a>
-                    <a href="#public-menu-contacts" onClick={event => navigateToPublicSection(event, 'public-menu-contacts')} className="lux-title text-sm font-semibold transition-colors hover:text-[#ff5a00]">{siteCopy.contacts}</a>
+                    <a href="/menu" onClick={openMenuHome} className="lux-title inline-flex min-h-11 items-center text-sm font-semibold hover:underline">{siteCopy.menu}</a>
+                    <a href="/corporate-sets" onClick={openCorporateSets} aria-current={corporateSets ? 'page' : undefined} className={`inline-flex min-h-11 items-center text-sm font-semibold hover:underline ${corporateSets ? 'lux-gold' : 'lux-title'}`}>{siteCopy.corporateSets}</a>
+                    <a href="/frozen-meals" onClick={openFrozenMeals} aria-current={frozenMeals ? 'page' : undefined} className={`inline-flex min-h-11 items-center text-sm font-semibold hover:underline ${frozenMeals ? 'lux-gold' : 'lux-title'}`}>{siteCopy.frozenMeals}</a>
+                    <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="lux-title inline-flex min-h-11 items-center text-sm font-semibold hover:underline">{siteCopy.promotions}</a>
+                    <a href="/vacancies" onClick={openVacancies} className="lux-title inline-flex min-h-11 items-center text-sm font-semibold hover:underline">{siteCopy.vacancies}</a>
+                    <a href="#public-menu-contacts" onClick={event => navigateToPublicSection(event, 'public-menu-contacts')} className="lux-title inline-flex min-h-11 items-center text-sm font-semibold hover:underline">{siteCopy.contacts}</a>
                   </nav>
                 )}
               </div>
 
               <div className="flex items-center gap-2.5 justify-self-center sm:gap-3">
                 <img src={getBrandLogo(lang)} alt="Zar Kebab" className="h-10 w-auto object-contain sm:h-12" />
-                <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.15em] text-[#ff5a00] sm:text-xs">Zar Kebab</span>
+                <span className="lux-gold whitespace-nowrap text-xs font-black uppercase tracking-[0.15em]">Zar Kebab</span>
               </div>
 
               <div className="flex items-center gap-2 justify-self-end">
@@ -1083,11 +1088,11 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                   type="button"
                   onClick={openSearch}
                   aria-label={lang === 'uz' ? 'Qidirish' : lang === 'ru' ? 'Поиск' : 'Search'}
-                  className="lux-chip flex h-10 w-10 items-center justify-center rounded-full"
+                  className="lux-chip flex h-11 w-11 items-center justify-center rounded-full"
                 >
-                  <Search size={17} />
+                  <Search size={17} aria-hidden="true" />
                 </button>
-                <ThemeToggle lang={lang} variant="lux" className="!h-10 !w-10" />
+                <ThemeToggle lang={lang} variant="lux" className="!h-11 !w-11" />
                 <div className="hidden lg:block">
                   <HeaderSelect
                     value={menuCurrency}
@@ -1100,7 +1105,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                     ariaLabel={lang === 'uz' ? 'Valyuta' : lang === 'ru' ? 'Валюта' : 'Currency'}
                   />
                 </div>
-                {premium ? <LanguageSwitcher value={lang} onChange={setPremiumLang} variant="lux" /> : <LanguageSwitcher variant="lux" />}
+                {premium ? <LanguageSwitcher value={lang} onChange={setPremiumLang} variant="lux" className="!h-11" /> : <LanguageSwitcher variant="lux" className="!h-11" />}
               </div>
             </div>
           </div>
@@ -1138,31 +1143,41 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
         </div>}
 
         {loading ? (
-          // Placeholders mirror PublicDishCard: photo, title, subtitle, price.
-          <div className="grid grid-cols-2 gap-x-3 gap-y-7 pt-4 sm:gap-x-6 sm:gap-y-11 sm:pt-6 md:grid-cols-3 xl:grid-cols-4" aria-hidden="true">
-            {Array.from({ length: 8 }).map((_, idx) => (
-              <div key={idx} className="lux-glass rounded-[24px] p-1.5 sm:rounded-[28px] sm:p-2">
-                <div className="zk-shimmer aspect-square w-full !rounded-[19px] sm:!rounded-[22px]" />
-                <div className="px-1.5 pb-1.5 pt-3 sm:px-2 sm:pb-2">
-                  <div className="zk-shimmer h-[18px] w-3/4 !rounded-md sm:h-5" />
-                  <div className="zk-shimmer mt-2 h-3 w-full !rounded-md" />
-                  <div className="zk-shimmer ml-auto mt-2.5 h-3.5 w-2/5 !rounded-md" />
+          // Placeholder mirrors a real category section: centred heading and rule, then
+          // PublicDishCard frames (square photo that carries the name, facts left, price right).
+          <div className="pb-12 pt-4 sm:pb-16 sm:pt-6" aria-hidden="true">
+            <div className="mb-6 flex flex-col items-center sm:mb-9">
+              <div className="zk-shimmer h-[34px] w-40 !rounded-md sm:h-12 sm:w-56" />
+              <span className="mt-3 h-px w-14 bg-[#C9A86A] sm:mt-4 sm:w-20" />
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-6 sm:gap-y-11 md:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <div key={idx} className="lux-glass rounded-[24px] p-1.5 sm:rounded-[28px] sm:p-2">
+                  <div className="zk-shimmer aspect-square w-full !rounded-[19px] sm:!rounded-[22px]" />
+                  <div className="flex items-end justify-between gap-3 px-1.5 pb-1 pt-2.5 sm:px-2 sm:pb-1.5 sm:pt-3">
+                    <div className="zk-shimmer h-3 w-1/4 !rounded-md" />
+                    <div className="zk-shimmer h-4 w-2/5 !rounded-md" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : error ? (
-          <div className="rounded-[28px] border border-red-100 bg-red-50 p-10 text-center">
-            <p className="font-semibold text-red-700">
+          <div className="lux-glass rounded-[28px] p-10 text-center" role="alert">
+            <p className="zk-serif lux-title text-[22px] font-semibold">
               {lang === 'uz'
-                ? 'Menyuni yuklab bo‘lmadi.'
+                ? 'Menyuni yuklab bo‘lmadi'
                 : lang === 'ru'
-                  ? 'Не удалось загрузить меню.'
-                  : 'Could not load the menu.'}
+                  ? 'Не удалось загрузить меню'
+                  : 'Could not load the menu'}
+            </p>
+            <p className="lux-muted mt-1 text-sm">
+              {lang === 'uz' ? 'Internetni tekshirib, qayta urinib ko‘ring.' : lang === 'ru' ? 'Проверьте интернет и попробуйте ещё раз.' : 'Check your connection and try again.'}
             </p>
             <button
-              onClick={() => window.location.reload()}
-              className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-black text-red-700 shadow-sm"
+              type="button"
+              onClick={() => refreshPublicMenu({ showLoading: true })}
+              className="lux-cta mt-5 inline-flex h-11 items-center justify-center rounded-full px-7 text-sm font-semibold"
             >
               {lang === 'uz' ? 'Qayta urinish' : lang === 'ru' ? 'Попробовать снова' : 'Try again'}
             </button>
@@ -1173,14 +1188,13 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
               <UtensilsCrossed size={28} className="text-orange-300" />
             </div>
             <p className="lux-title font-black">
-              {lang === 'uz' ? 'Menyu hozircha mavjud emas' : lang === 'ru' ? 'Меню пока недоступно' : 'Menu is not available yet'}
+              {lang === 'uz' ? 'Menyu hozircha mavjud emas' : lang === 'ru' ? 'Меню пока недоступно' : 'The menu is not available yet'}
             </p>
-            <p className="mt-1 text-sm text-[#8A94A6]">
+            <p className="lux-muted mt-1 text-sm">
               {lang === 'uz' ? 'Iltimos, keyinroq qayta urinib ko‘ring.' : lang === 'ru' ? 'Пожалуйста, попробуйте позже.' : 'Please try again later.'}
             </p>
           </div>
         ) : (
-          groupedSections ? (
             <div className="space-y-16 pb-12 pt-4 sm:space-y-24 sm:pb-16 sm:pt-6">
               {groupedSections.filter(section => section.cat.id === CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)}
               {groupedSections.filter(section => section.cat.id !== CORPORATE_SETS_CATEGORY_ID).map(renderCategorySection)}
@@ -1204,23 +1218,6 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
                 </section>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-              {displayItems.map((item, index) => (
-                <MenuProductCard
-                  key={item.id}
-                  item={item}
-                  qty={0}
-                  lang={lang}
-                  eager={index < 8}
-                  onOpenDetail={openDetail}
-                  readOnly
-                  formatPrice={priceFormatter}
-                  linkBasePath={menuBasePath}
-                />
-              ))}
-            </div>
-          )
         )}
       </main>
       {!premium && <PublicMenuFooter copy={siteCopy} lang={lang} onOpenMenu={openMenuHome} onOpenCorporateSets={openCorporateSets} onOpenFrozenMeals={openFrozenMeals} onOpenVacancies={openVacancies} onOpenMap={openMapChooser} />}

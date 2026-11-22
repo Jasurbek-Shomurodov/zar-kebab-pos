@@ -75,7 +75,7 @@ function WorkspaceCategoryChip({ category, active, title, count, onClick }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex h-9 flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-full border pl-1.5 pr-2.5 text-sm font-medium transition-colors ${
+      className={`flex h-10 flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-full border pl-1.5 pr-2.5 text-sm font-medium transition-colors ${
         active
           ? 'border-[#ff5a00] bg-white text-[#ff5a00]'
           : 'border-[#e4e1de] bg-white text-[#22201d] hover:bg-[#ebe8e5]'
@@ -121,7 +121,7 @@ function LargeCategoryCard({ category, active, title, onClick }) {
       </div>
 
       <div className="flex min-h-[38px] items-center justify-center px-1.5 py-1.5 sm:min-h-[48px] sm:px-2 md:min-h-[52px] lg:min-h-[54px] xl:min-h-[58px] xl:px-2.5 xl:py-2.5">
-        <p className={`line-clamp-2 text-[10.5px] font-extrabold leading-tight sm:text-[12px] md:text-[13px] xl:text-sm ${active ? 'text-[#ff4d00]' : 'text-[#1F2937]'}`}>
+        <p className={`line-clamp-2 text-xs font-extrabold leading-tight md:text-[13px] xl:text-sm ${active ? 'text-[#ff4d00]' : 'text-[#1F2937]'}`}>
           {title}
         </p>
       </div>
@@ -137,7 +137,7 @@ function CategoryChip({ category, active, title, count, onClick }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex h-10 w-auto min-w-fit max-w-none flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-2.5 py-1 text-sm font-black transition-all sm:h-11 sm:min-w-[96px] sm:gap-2 sm:rounded-2xl sm:px-3 ${
+      className={`flex h-11 w-auto min-w-fit max-w-none flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-2.5 py-1 text-sm font-black transition-all sm:min-w-[96px] sm:gap-2 sm:rounded-2xl sm:px-3 ${
         active
           ? 'border-[#ff5a1f] bg-[#fff4ed] text-[#ff4d00] shadow-sm'
           : 'border-[#E5E7EB] bg-white text-[#1F2937] hover:border-orange-200 hover:bg-orange-50/40'
@@ -152,9 +152,9 @@ function CategoryChip({ category, active, title, count, onClick }) {
           <UtensilsCrossed size={15} className={active ? 'text-[#ff4d00]' : 'text-orange-300'} />
         )}
       </span>
-      <span className="max-w-none flex-shrink-0 whitespace-nowrap text-[11px] leading-tight sm:text-[12px]">{title}</span>
+      <span className="max-w-none flex-shrink-0 whitespace-nowrap text-xs leading-tight">{title}</span>
       {Number.isFinite(count) && (
-        <span className={`flex h-5 min-w-5 flex-shrink-0 items-center justify-center rounded-md px-1 text-[11px] font-black tabular-nums leading-none sm:h-6 sm:min-w-6 sm:rounded-lg sm:px-1.5 sm:text-[12px] ${active ? 'bg-white/90 text-[#ff4d00]' : 'bg-[#E8F1FF] text-[#2563EB]'}`}>
+        <span className={`flex h-5 min-w-5 flex-shrink-0 items-center justify-center rounded-md px-1 text-xs font-black tabular-nums leading-none sm:h-6 sm:min-w-6 sm:rounded-lg sm:px-1.5 ${active ? 'bg-white/90 text-[#ff4d00]' : 'bg-[#E8F1FF] text-[#2563EB]'}`}>
           {count}
         </span>
       )}
@@ -171,7 +171,7 @@ function LuxCategoryPill({ category, active, title, onClick }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className="lux-chip flex h-10 flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-full pl-1.5 pr-4 text-[13px] font-medium sm:h-11 sm:text-sm"
+      className="lux-chip flex h-11 flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-full pl-1.5 pr-4 text-[13px] font-medium sm:text-sm"
     >
       <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-8 sm:w-8" style={{ background: 'rgb(255 255 255 / 18%)' }}>
         {isAll ? <LayoutGrid size={14} /> : category.image_url ? <CategoryImage src={category.image_url} alt="" active={active} /> : <UtensilsCrossed size={14} />}
@@ -179,6 +179,11 @@ function LuxCategoryPill({ category, active, title, onClick }) {
       {title}
     </button>
   )
+}
+
+// Category jumps glide only when the guest has not asked for reduced motion.
+function scrollBehavior() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 }
 
 function isScrollableElement(element) {
@@ -227,6 +232,7 @@ export default function MenuCategoryScroller({
   const sentinelRef = useRef(null)
   const rowRef = useRef(null)
   const collapsedRowRef = useRef(null)
+  const collapsedBarRef = useRef(null)
   const activeRef = useRef(activeCategoryId)
   const pendingCategoryRef = useRef(null)
   const pendingCategoryTimerRef = useRef(null)
@@ -240,6 +246,12 @@ export default function MenuCategoryScroller({
   }, [])
 
   const cards = useMemo(() => categories || [], [categories])
+
+  // The collapsed bar repeats every chip. While it is faded out it must not take
+  // keyboard focus or be read twice by a screen reader.
+  useEffect(() => {
+    if (collapsedBarRef.current) collapsedBarRef.current.inert = !collapsed
+  }, [collapsed])
 
   // Swap rows in place: the bar that takes over starts at the same horizontal position.
   // Only where both rows are actually shown (the public fixed bar): a hidden row reports
@@ -319,9 +331,9 @@ export default function MenuCategoryScroller({
       : 0
     if (categoryId === 'all') {
       if (root === window) {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
+        window.scrollTo({ top: 0, behavior: scrollBehavior() })
       } else {
-        scroller.scrollTo({ top: 0, behavior: 'smooth' })
+        scroller.scrollTo({ top: 0, behavior: scrollBehavior() })
       }
       return true
     }
@@ -337,7 +349,7 @@ export default function MenuCategoryScroller({
         scrollOffset,
         stickyBarOffset,
       })
-      window.scrollTo({ top: target, behavior: 'smooth' })
+      window.scrollTo({ top: target, behavior: scrollBehavior() })
     } else {
       const rootRect = scroller.getBoundingClientRect()
       const target = getMenuCategoryScrollTarget({
@@ -347,7 +359,7 @@ export default function MenuCategoryScroller({
         scrollOffset,
         stickyBarOffset,
       })
-      scroller.scrollTo({ top: target, behavior: 'smooth' })
+      scroller.scrollTo({ top: target, behavior: scrollBehavior() })
     }
     return true
   }
@@ -482,6 +494,8 @@ export default function MenuCategoryScroller({
       </div>
 
       <div
+        ref={collapsedBarRef}
+        aria-hidden={collapsed ? undefined : true}
         className={`${collapsedPosition === 'fixed' ? 'fixed left-0 right-0' : 'sticky -mx-1 overflow-hidden'} z-30 border-b ${workspace ? 'border-[#e4e1de]' : 'border-[#E5E7EB]'} ${collapsedSurfaceClass} px-1 py-1.5 backdrop-blur transition-all duration-200 ${
           collapsed ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
         } ${compactMobile ? 'max-sm:hidden' : ''} ${collapsedClassName}`}

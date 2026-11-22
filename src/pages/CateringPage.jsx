@@ -57,7 +57,7 @@ function SectionTitle({ eyebrow, title, text, tone = 'dark' }) {
   const light = tone === 'light'
   return (
     <div className="mx-auto mb-8 max-w-2xl text-center">
-      {eyebrow && <p className="mb-2 text-xs font-black uppercase tracking-[0.22em] text-[#b8892f]">{eyebrow}</p>}
+      {eyebrow && <p className={`mb-2 text-xs font-black uppercase tracking-[0.22em] ${light ? 'text-[#e3b65a]' : 'text-[#7a5a17]'}`}>{eyebrow}</p>}
       <h2 className={`text-3xl font-black tracking-tight sm:text-4xl ${light ? 'text-white' : 'text-[#18392f]'}`}>{title}</h2>
       {text && <p className={`mt-3 text-base leading-7 ${light ? 'text-[#f7e6c8]' : 'text-[#6d6256]'}`}>{text}</p>}
     </div>
@@ -89,7 +89,7 @@ function FoodVisual() {
         ))}
       </div>
       <div className="absolute -bottom-5 left-5 rounded-2xl border border-[#f4d9a4] bg-white px-4 py-3 shadow-xl">
-        <p className="text-xs font-black uppercase tracking-wide text-[#b8892f]">для команд</p>
+        <p className="text-xs font-black uppercase tracking-wide text-[#7a5a17]">для команд</p>
         <p className="text-lg font-black text-[#17372e]">от 10 до 300+ гостей</p>
       </div>
     </div>
@@ -113,9 +113,9 @@ export default function CateringPage() {
             <img src={getBrandLogo('ru')} alt="Zar Kebab" className="h-12 w-auto max-w-[150px] object-contain" />
           </a>
           <nav className="hidden items-center gap-6 text-sm font-bold text-[#4d463c] md:flex">
-            <a href="#services" className="hover:text-[#b8892f]">Услуги</a>
-            <a href="#packages" className="hover:text-[#b8892f]">Форматы</a>
-            <a href="#contacts" className="hover:text-[#b8892f]">Контакты</a>
+            <a href="#services" className="inline-flex min-h-11 items-center hover:text-[#7a5a17]">Услуги</a>
+            <a href="#packages" className="inline-flex min-h-11 items-center hover:text-[#7a5a17]">Форматы</a>
+            <a href="#contacts" className="inline-flex min-h-11 items-center hover:text-[#7a5a17]">Контакты</a>
           </nav>
           <ContactButton href={PHONE_HREF} variant="secondary">
             <Phone size={16} />
@@ -225,7 +225,7 @@ export default function CateringPage() {
         <section className="px-4 py-12 sm:px-6">
           <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div className="rounded-[34px] border border-[#ead8bc] bg-white p-7 shadow-sm">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.22em] text-[#b8892f]">качество</p>
+              <p className="mb-2 text-xs font-black uppercase tracking-[0.22em] text-[#7a5a17]">качество</p>
               <h2 className="text-3xl font-black text-[#18392f]">Качество и свежесть каждый день</h2>
               <p className="mt-4 text-base leading-8 text-[#6d6256]">
                 Мы готовим блюда из свежих продуктов, следим за чистотой кухни и подачей. Для корпоративных заказов можем заранее согласовать меню, порции и график доставки.

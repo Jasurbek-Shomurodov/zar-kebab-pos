@@ -183,16 +183,16 @@ export default function PublicVacancies() {
     <div className="zk-lux public-page-enter min-h-screen">
       <header className="lux-header sticky top-0 z-40 border-b">
         <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:h-20 sm:px-6">
-          <Link to={selectedPosition ? '/vacancies' : '/menu'} onClick={returnFromPage} className="lux-muted inline-flex min-w-0 items-center gap-2 justify-self-start text-xs font-medium uppercase tracking-[0.18em] transition-colors hover:text-[#ff5a00]">
-            <ArrowLeft size={16} />
+          <Link to={selectedPosition ? '/vacancies' : '/menu'} onClick={returnFromPage} aria-label={selectedPosition ? copy.backToVacancies : copy.back} className="lux-muted -ml-2 inline-flex min-h-11 min-w-11 items-center justify-center gap-2 justify-self-start rounded-full px-2 text-sm font-medium hover:underline sm:justify-start">
+            <ArrowLeft size={18} aria-hidden="true" className="flex-shrink-0" />
             <span className="hidden sm:inline">{selectedPosition ? copy.backToVacancies : copy.back}</span>
           </Link>
-          <Link to="/menu" onClick={returnToMenu} aria-label="Zar Kebab" className="flex items-center gap-2.5 justify-self-center sm:gap-3">
+          <Link to="/menu" onClick={returnToMenu} aria-label="Zar Kebab" className="flex min-h-11 items-center gap-2.5 justify-self-center sm:gap-3">
             <img src={getBrandLogo(lang)} alt="" className="h-11 w-auto object-contain sm:h-14" />
-            <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-[0.15em] text-[#ff5a00] sm:text-xs">Zar Kebab</span>
+            <span className="lux-gold whitespace-nowrap text-xs font-black uppercase tracking-[0.15em]">Zar Kebab</span>
           </Link>
           <div className="flex items-center gap-2 justify-self-end">
-            <ThemeToggle lang={lang} variant="lux" className="!h-10 !w-10" />
+            <ThemeToggle lang={lang} variant="lux" className="!h-11 !w-11" />
             <LanguageSwitcher variant="lux" />
           </div>
         </div>
@@ -206,7 +206,7 @@ export default function PublicVacancies() {
                 <div className="flex max-w-3xl items-start gap-4 sm:gap-5">
                   <span className="lux-glass lux-gold flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full sm:h-16 sm:w-16"><selectedPosition.Icon size={26} /></span>
                   <div>
-                    <p className="lux-gold text-[11px] font-medium uppercase tracking-[0.3em]">{copy.eyebrow}</p>
+                    <p className="lux-gold text-xs font-medium uppercase tracking-[0.3em]">{copy.eyebrow}</p>
                     <h1 className="zk-serif lux-title mt-2 text-[44px] font-semibold leading-none sm:text-[64px]">{selectedPosition.title}</h1>
                     <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
                       <span className="lux-chip inline-flex items-center gap-1.5 rounded-full px-3 py-2"><Clock3 size={14} />{copy.fullTime}</span>
@@ -242,7 +242,7 @@ export default function PublicVacancies() {
           <div className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 sm:py-16">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end">
               <div className="max-w-3xl">
-                <p className="lux-gold text-[11px] font-medium uppercase tracking-[0.3em]">{copy.eyebrow}</p>
+                <p className="lux-gold text-xs font-medium uppercase tracking-[0.3em]">{copy.eyebrow}</p>
                 <h1 className="zk-serif lux-title mt-3 text-[46px] font-semibold leading-[0.98] sm:text-[72px]">{copy.title}</h1>
                 <p className="lux-body mt-4 max-w-2xl text-base font-light leading-relaxed sm:text-lg">{copy.intro}</p>
               </div>
@@ -261,11 +261,11 @@ export default function PublicVacancies() {
                 <span className="lux-soft lux-gold flex h-12 w-12 items-center justify-center rounded-full"><Icon size={21} /></span>
                 <h3 className="zk-serif lux-title mt-5 text-[28px] font-semibold leading-none">{title}</h3>
                 <p className="lux-body mt-3 min-h-16 text-sm font-light leading-relaxed">{text}</p>
-                <div className="mt-5 flex flex-wrap gap-2 text-[11px] font-medium">
+                <div className="mt-5 flex flex-wrap gap-2 text-xs font-medium">
                   <span className="lux-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"><Clock3 size={13} />{copy.fullTime}</span>
                   <span className="lux-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"><MapPin size={13} />{copy.tashkent}</span>
                 </div>
-                <span className="lux-gold mt-5 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em]">{copy.positionDetails}<ArrowRight size={14} /></span>
+                <span className="lux-gold mt-5 inline-flex items-center gap-1.5 text-sm font-semibold">{copy.positionDetails}<ArrowRight size={14} aria-hidden="true" /></span>
               </Link>
             ))}
           </div>
