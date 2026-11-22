@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react'
-import { CheckCircle2, Copy, Loader2, Plus, Send, X } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { Check, CheckCircle2, Copy, Loader2, Plus, Send } from 'lucide-react'
 import CalendarPicker from './CalendarPicker'
+import WorkspaceDialog from './WorkspaceDialog'
 import { supabase } from '../lib/supabase'
 import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
 import {
@@ -40,6 +41,10 @@ const LABELS = {
     lifecycleTelegramFailed: 'Xodim o‘zgarishi saqlandi, lekin ZarKebab Investor guruhiga xabar yuborilmadi.',
     telegramBotMissing: 'VITE_TELEGRAM_BOT_USERNAME sozlanmagan.',
     telegramCopy: 'Nusxalash',
+    linkFailed: 'Telegram havolasini yaratib bo‘lmadi. Qayta urinib ko‘ring.',
+    createFailed: 'Xodimni saqlab bo‘lmadi. Qayta urinib ko‘ring.',
+    copyFailed: 'Nusxalab bo‘lmadi. Havolani maydondan qo‘lda nusxalang.',
+    telegramCopied: 'Nusxalandi',
     newTelegramTitle: 'Telegram (majburiy)',
     newTelegramHelp: 'Xodim havolani ochib, botda «Start» ni bossin. Telegram ulanmaguncha xodim qo‘shilmaydi.',
     newTelegramConnect: 'Telegramni ulash',
@@ -67,6 +72,10 @@ const LABELS = {
     lifecycleTelegramFailed: 'Изменение сотрудника сохранено, но сообщение в группу ZarKebab Investor не отправлено.',
     telegramBotMissing: 'Не настроен VITE_TELEGRAM_BOT_USERNAME.',
     telegramCopy: 'Копировать',
+    linkFailed: 'Не удалось создать ссылку Telegram. Попробуйте ещё раз.',
+    createFailed: 'Не удалось сохранить сотрудника. Попробуйте ещё раз.',
+    copyFailed: 'Не удалось скопировать. Скопируйте ссылку из поля вручную.',
+    telegramCopied: 'Скопировано',
     newTelegramTitle: 'Telegram (обязательно)',
     newTelegramHelp: 'Сотрудник открывает ссылку и нажимает «Start» в боте. Без подключённого Telegram сотрудника добавить нельзя.',
     newTelegramConnect: 'Подключить Telegram',
@@ -94,6 +103,10 @@ const LABELS = {
     lifecycleTelegramFailed: 'The employee change was saved, but the ZarKebab Investor group notification was not sent.',
     telegramBotMissing: 'VITE_TELEGRAM_BOT_USERNAME is not configured.',
     telegramCopy: 'Copy',
+    linkFailed: 'Could not create the Telegram link. Try again.',
+    createFailed: 'Could not save the employee. Try again.',
+    copyFailed: 'Could not copy. Copy the link from the field by hand.',
+    telegramCopied: 'Copied',
     newTelegramTitle: 'Telegram (required)',
     newTelegramHelp: 'The employee opens the link and presses Start in the bot. An employee cannot be added until Telegram is connected.',
     newTelegramConnect: 'Connect Telegram',
@@ -125,7 +138,10 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
   const [form, setForm] = useState(emptyForm)
   const [registration, setRegistration] = useState(null)
   const [saving, setSaving] = useState('')
+  // An error code; translated at render so a language switch re-labels it.
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+  const nameRef = useRef(null)
 
   const pendingToken = registration?.status === 'pending' ? registration.token : ''
   useEffect(() => {
@@ -155,7 +171,7 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
   async function createTelegramLink() {
     const botUsername = String(import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim()
     if (!botUsername) {
-      setError(l.telegramBotMissing)
+      setError('telegramBotMissing')
       return
     }
     if (!canManage) return
@@ -164,9 +180,11 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
     const { data: token, error: registrationError } = await supabase.rpc('create_employee_telegram_registration')
     setSaving('')
     if (registrationError) {
-      setError(registrationError.message)
+      console.error('[employees] Telegram registration link failed:', registrationError)
+      setError('linkFailed')
       return
     }
+    setCopied(false)
     setRegistration({ token, url: buildEmployeeTelegramStartUrl(botUsername, token), status: 'pending', username: '', errorCode: '' })
   }
 
@@ -174,8 +192,9 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
     if (!registration?.url) return
     try {
       await navigator.clipboard.writeText(registration.url)
+      setCopied(true)
     } catch {
-      setError(registration.url)
+      setError('copyFailed')
     }
   }
 
@@ -186,7 +205,7 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
     const employeeName = String(form.employee_name || '').trim()
     const amount = normalizeExpenseAmount(form.salary_amount)
     if (!isExpenseEntryDateAllowed(form.joined_at)) {
-      setError(l.salaryDateLimit)
+      setError('salaryDateLimit')
       return
     }
     if (!employeeName || !EMPLOYEE_JOB_FUNCTIONS.some(item => item.value === form.job_function) || !form.joined_at || amount <= 0) return
@@ -212,7 +231,8 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
     if (createError) {
       const errorCode = employeeCreationErrorCode(createError)
       if (!errorCode) {
-        setError(createError.message)
+        console.error('[employees] employee creation failed:', createError)
+        setError('createFailed')
         return
       }
       setRegistration(current => ({
@@ -229,7 +249,6 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
   }
 
   const busy = Boolean(saving)
-  const close = () => { if (saving !== 'create') onClose() }
   const status = registration?.token ? registration.status : ''
   const telegramError = {
     employee_telegram_not_linked: l.newTelegramRequired,
@@ -239,112 +258,108 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
     employee_details_invalid: l.employeeDetailsInvalid,
   }[registration?.errorCode || '']
 
+  const errorText = error ? l[error] || l.createFailed : ''
+
   return (
-    <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-      <button type="button" aria-label={l.cancel} onClick={close}
-        className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
-      <form role="dialog" aria-modal="true" aria-labelledby="new-employee-title" onSubmit={createSalaryProfile}
-        onKeyDown={event => { if (event.key === 'Escape') close() }}
-        className="ws-dialog relative flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden">
-        <div className="flex items-start justify-between gap-3 border-b border-[#e4e1de] px-6 pb-4 pt-6">
-          <div className="min-w-0">
-            <h2 id="new-employee-title" className="ws-display !text-[22px]">{l.add}</h2>
-            <p className="ws-caption mt-0.5">{l.addHelp}</p>
+    <WorkspaceDialog
+      as="form"
+      panelProps={{ onSubmit: createSalaryProfile }}
+      size="lg"
+      title={l.add}
+      description={l.addHelp}
+      onClose={onClose}
+      closeLabel={l.cancel}
+      busy={saving === 'create'}
+      initialFocusRef={nameRef}
+      bodyClassName="space-y-4"
+      notice={errorText && <p role="alert" className="ws-notice ws-tone-negative break-words">{errorText}</p>}
+      footer={(
+        <>
+          <button type="button" onClick={onClose} disabled={saving === 'create'} className="ws-btn ws-btn-outline">{l.cancel}</button>
+          <button type="submit"
+            disabled={!canManage || busy || !canCreateEmployee({ ...form, salary_amount: normalizeExpenseAmount(form.salary_amount) }, registration)}
+            className="ws-btn ws-btn-primary">
+            {saving === 'create' ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}{l.save}
+          </button>
+        </>
+      )}
+    >
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
+        <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
+          {l.employeeName}
+          <input ref={nameRef} type="text" value={form.employee_name} maxLength={120} disabled={busy}
+            onChange={event => setForm(current => ({ ...current, employee_name: event.target.value }))} className={FIELD} />
+        </label>
+        <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
+          {l.jobFunction}
+          <select value={form.job_function} required disabled={busy}
+            onChange={event => setForm(current => ({ ...current, job_function: event.target.value }))} className={FIELD}>
+            <option value="" disabled>{l.selectJobFunction}</option>
+            {EMPLOYEE_JOB_FUNCTIONS.map(item => (
+              <option key={item.value} value={item.value}>{employeeJobFunctionLabel(item.value, lang)}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+        <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
+          {l.salaryAmount}
+          <div className="relative min-w-0">
+            <input type="text" inputMode="numeric" value={formatMoneyInput(form.salary_amount)} disabled={busy}
+              onChange={event => setForm(current => ({ ...current, salary_amount: normalizeMoneyInput(event.target.value) }))}
+              className={`${FIELD} pr-12 tabular-nums`} />
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-[#68655f]">UZS</span>
           </div>
-          <button type="button" onClick={close} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
+        </label>
+        <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
+          {l.salaryUnit}
+          <select value={form.salary_unit} disabled={busy}
+            onChange={event => setForm(current => ({ ...current, salary_unit: event.target.value }))} className={FIELD}>
+            {SALARY_RATE_UNITS.map(unit => <option key={unit} value={unit}>{UNIT_LABELS[unit]?.[lang] || UNIT_LABELS[unit]?.en || unit}</option>)}
+          </select>
+        </label>
+        <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
+          {l.effectiveDate}
+          <CalendarPicker value={form.joined_at} lang={lang} min={getExpenseEntryMinDate(today)} disabled={busy} className={FIELD}
+            onChange={value => setForm(current => ({ ...current, joined_at: value }))} />
+        </label>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-3 rounded-[10px] bg-[#efece9] p-3" data-testid="new-employee-telegram">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="min-w-[12rem] flex-1">
+            <p className="text-sm font-semibold text-[#22201d]">{l.newTelegramTitle}</p>
+            <p className="ws-caption mt-0.5">{l.newTelegramHelp}</p>
+          </div>
+          {status !== 'linked' && (
+            <button type="button" onClick={createTelegramLink} disabled={busy}
+              className={`ws-btn ${status ? 'ws-btn-outline' : 'ws-btn-primary'} ws-btn-sm whitespace-nowrap`}>
+              {saving === 'telegram' ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
+              {status ? l.newTelegramNewLink : l.newTelegramConnect}
+            </button>
+          )}
         </div>
-
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
-              {l.employeeName}
-              <input type="text" value={form.employee_name} maxLength={120} autoFocus disabled={busy}
-                onChange={event => setForm(current => ({ ...current, employee_name: event.target.value }))} className={FIELD} />
-            </label>
-            <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
-              {l.jobFunction}
-              <select value={form.job_function} required disabled={busy}
-                onChange={event => setForm(current => ({ ...current, job_function: event.target.value }))} className={FIELD}>
-                <option value="" disabled>{l.selectJobFunction}</option>
-                {EMPLOYEE_JOB_FUNCTIONS.map(item => (
-                  <option key={item.value} value={item.value}>{employeeJobFunctionLabel(item.value, lang)}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
-              {l.salaryAmount}
-              <div className="relative min-w-0">
-                <input type="text" inputMode="numeric" value={formatMoneyInput(form.salary_amount)} disabled={busy}
-                  onChange={event => setForm(current => ({ ...current, salary_amount: normalizeMoneyInput(event.target.value) }))}
-                  className={`${FIELD} pr-12 tabular-nums`} />
-                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-[#68655f]">UZS</span>
-              </div>
-            </label>
-            <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
-              {l.salaryUnit}
-              <select value={form.salary_unit} disabled={busy}
-                onChange={event => setForm(current => ({ ...current, salary_unit: event.target.value }))} className={FIELD}>
-                {SALARY_RATE_UNITS.map(unit => <option key={unit} value={unit}>{UNIT_LABELS[unit]?.[lang] || UNIT_LABELS[unit]?.en || unit}</option>)}
-              </select>
-            </label>
-            <label className="ws-caption flex min-w-0 flex-col gap-1.5 font-medium">
-              {l.effectiveDate}
-              <CalendarPicker value={form.joined_at} lang={lang} min={getExpenseEntryMinDate(today)} disabled={busy}
-                onChange={value => setForm(current => ({ ...current, joined_at: value }))} />
-            </label>
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-3 rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-3" data-testid="new-employee-telegram">
-            <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-[#22201d]">{l.newTelegramTitle}</p>
-                <p className="ws-caption mt-0.5">{l.newTelegramHelp}</p>
-              </div>
-              {status !== 'linked' && (
-                <button type="button" onClick={createTelegramLink} disabled={busy}
-                  className={`ws-btn ${status ? 'ws-btn-outline' : 'ws-btn-primary'} ws-btn-sm`}>
-                  {saving === 'telegram' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  {status ? l.newTelegramNewLink : l.newTelegramConnect}
-                </button>
-              )}
-            </div>
-            {status === 'pending' && registration.url && (
-              <div className="flex min-w-0 items-center gap-2">
-                <input readOnly value={registration.url} aria-label={l.newTelegramTitle} onFocus={event => event.target.select()}
-                  className="ws-input min-w-0 flex-1 font-mono !text-xs" />
-                <button type="button" onClick={copyTelegramLink} className="ws-btn ws-btn-outline ws-btn-sm">
-                  <Copy size={14} />{l.telegramCopy}
-                </button>
-              </div>
-            )}
-            {status === 'pending' && <p className="ws-notice ws-tone-caution" role="status">{l.newTelegramWaiting}</p>}
-            {status === 'linked' && (
-              <p className="ws-notice ws-tone-positive flex items-center gap-2" role="status">
-                <CheckCircle2 size={15} />
-                {l.newTelegramLinked}{registration.username ? ` · @${registration.username}` : ''}
-              </p>
-            )}
-            {(status === 'expired' || status === 'consumed') && !telegramError && (
-              <p className="ws-notice ws-tone-caution" role="status">{l.newTelegramExpired}</p>
-            )}
-            {telegramError && <p className="ws-notice ws-tone-negative" role="alert">{telegramError}</p>}
-          </div>
-        </div>
-
-        <div className="border-t border-[#e4e1de] px-6 py-4">
-          {error && <p role="alert" className="ws-notice ws-tone-negative mb-3 break-words">{error}</p>}
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={close} disabled={saving === 'create'} className="ws-btn ws-btn-outline">{l.cancel}</button>
-            <button type="submit"
-              disabled={!canManage || busy || !canCreateEmployee({ ...form, salary_amount: normalizeExpenseAmount(form.salary_amount) }, registration)}
-              className="ws-btn ws-btn-primary">
-              {saving === 'create' ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}{l.save}
+        {status === 'pending' && registration.url && (
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <input readOnly value={registration.url} aria-label={l.newTelegramTitle} onFocus={event => event.target.select()}
+              className="ws-input min-w-[10rem] flex-1 font-mono !text-xs" />
+            <button type="button" onClick={copyTelegramLink} className="ws-btn ws-btn-outline ws-btn-sm whitespace-nowrap">
+              {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}{copied ? l.telegramCopied : l.telegramCopy}
             </button>
           </div>
-        </div>
-      </form>
-    </div>
+        )}
+        {status === 'pending' && <p className="ws-notice ws-tone-caution" role="status">{l.newTelegramWaiting}</p>}
+        {status === 'linked' && (
+          <p className="ws-notice ws-tone-positive flex items-center gap-2" role="status">
+            <CheckCircle2 size={15} aria-hidden="true" />
+            {l.newTelegramLinked}{registration.username ? ` · @${registration.username}` : ''}
+          </p>
+        )}
+        {(status === 'expired' || status === 'consumed') && !telegramError && (
+          <p className="ws-notice ws-tone-caution" role="status">{l.newTelegramExpired}</p>
+        )}
+        {telegramError && <p className="ws-notice ws-tone-negative" role="alert">{telegramError}</p>}
+      </div>
+    </WorkspaceDialog>
   )
 }

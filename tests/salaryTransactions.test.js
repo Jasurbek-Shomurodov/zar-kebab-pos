@@ -46,3 +46,36 @@ test('salary absences sort by newest absence date regardless of database row ord
     ['july-26', 'july-25', 'july-24', 'june-28', 'june-20']
   )
 })
+
+test('every payroll entry kind has one tone shared by all salary screens', async () => {
+  const { SALARY_ENTRY_TONES, salaryEntryTone } = await import('../src/lib/salaryTransactions.js')
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(SALARY_ENTRY_TONES).map(([key, value]) => [key, value.tone])),
+    { payment: 'accent', bonus: 'positive', kpi: 'positive', fine: 'negative', absence: 'caution' }
+  )
+  for (const tone of Object.values(SALARY_ENTRY_TONES)) {
+    assert.equal(tone.badge, `ws-tone-${tone.tone}`)
+    assert.match(tone.border, /^border-l-\[#[0-9a-f]{6}\]$/)
+    assert.match(tone.text, /^text-\[#[0-9a-f]{6}\]$/)
+    assert.match(tone.dot, /^bg-\[#[0-9a-f]{6}\]$/)
+  }
+  // Small orange text uses the ink colour, never the 3.1:1 brand orange.
+  assert.equal(SALARY_ENTRY_TONES.payment.text, 'text-[#bf4300]')
+  assert.equal(salaryEntryTone('unknown'), SALARY_ENTRY_TONES.payment)
+  assert.equal(salaryEntryTone('absence'), SALARY_ENTRY_TONES.absence)
+})
+
+test('balances and signed entry amounts share one minus glyph and keep the number', async () => {
+  const { formatSalaryBalance, formatSalaryEntryAmount } = await import('../src/lib/salaryTransactions.js')
+  const { formatCurrency } = await import('../src/lib/formatCurrency.js')
+  assert.equal(formatSalaryBalance(854717), formatCurrency(854717))
+  assert.equal(formatSalaryBalance(0), formatCurrency(0))
+  assert.equal(formatSalaryBalance(-1250000), `−${formatCurrency(1250000)}`)
+  assert.equal(formatSalaryBalance(null), formatCurrency(0))
+  assert.equal(formatSalaryEntryAmount('fine', 50000), `−${formatCurrency(50000)}`)
+  assert.equal(formatSalaryEntryAmount('bonus', 50000), `+${formatCurrency(50000)}`)
+  assert.equal(formatSalaryEntryAmount('kpi', 67824), `+${formatCurrency(67824)}`)
+  assert.equal(formatSalaryEntryAmount('payment', 900000), formatCurrency(900000))
+  // No hyphen-minus anywhere: the two glyphs must not mix on one screen.
+  assert.doesNotMatch(formatSalaryBalance(-5) + formatSalaryEntryAmount('fine', -5), /-/)
+})

@@ -34,7 +34,11 @@ test('KPI result history stays on employee history, not on Salaries or Employees
 test('the KPI editor keeps intrinsic widths inside the dialog', () => {
   assert.match(salaries, /const FIELD = '[^']*min-w-0 max-w-full/)
   assert.match(employees, /const DIALOG_FIELD = 'ws-input !h-11 min-w-0 w-full/)
-  assert.match(employees, /max-h-\[calc\(100dvh-2rem\)\] w-full max-w-xl flex-col overflow-hidden/)
+  // The dialog is the shared WorkspaceDialog (pinned title and actions, scrolling body), not a hand-rolled overlay.
+  const editDialog = employees.slice(employees.indexOf('function EmployeeEditDialog('), employees.indexOf('function DateInput('))
+  assert.match(editDialog, /<WorkspaceDialog\s+size="lg"/)
+  assert.doesNotMatch(employees, /fixed inset-0 z-dialog|role="dialog"/)
+  assert.match(editDialog, /grid-cols-\[repeat\(auto-fit,minmax\(11rem,1fr\)\)\]/)
 })
 
 test('automatic KPI bonuses are identified and show their immutable formula in employee history', () => {
@@ -93,6 +97,8 @@ test('the KPI account picker shows only for own-order KPI and keeps an unavailab
 test('saving own-order KPI is blocked when the account already credits another employee', () => {
   assert.match(employeeSettings, /getKpiAccountConflicts\(kpiAccountLinks, form\.order_opener_profile_id, salaryProfileId\)/)
   assert.match(employees, /kpiAccountLinks: getKpiAccountLinks\(kpiRules, activeEmployees, today\)/)
-  assert.match(employees, /formError\.code === 'account_taken'\s*\? `\$\{l\.kpiAccountTaken\}/)
+  // Stored as a code plus the conflicting names; the sentence is translated when rendered.
+  assert.match(employees, /formError\.code === 'account_taken'\s*\? \{ code: 'kpiAccountTaken', detail: formError\.conflicts\.map\(/)
+  assert.match(employees, /`\$\{l\[editError\.code\] \|\| l\.saveFailed\} \$\{editError\.detail \|\| ''\}`/)
   assert.equal((employees.match(/kpiAccountTaken:/g) || []).length, 3)
 })

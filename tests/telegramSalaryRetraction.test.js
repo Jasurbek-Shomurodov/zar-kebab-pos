@@ -123,8 +123,11 @@ test('browser accepts rate cleanup and backend and both deletion entry points en
   const page = readFileSync(new URL('../src/pages/EmployeeSalaryHistory.jsx', import.meta.url), 'utf8')
   const salaries = readFileSync(new URL('../src/pages/Salaries.jsx', import.meta.url), 'utf8')
   assert.match(page, /canDeleteHistory = canManage && isOwner/)
-  assert.match(salaries, /async function deleteRate\(rate\)\s*{\s*if \(!canManage \|\| role !== 'owner'/)
-  assert.ok(salaries.indexOf("await retractTelegramSalaryEvent('rate', rate.id)") < salaries.indexOf("const { data: deleted, error: deleteError } = await supabase.from('employee_salary_rates')"))
+  // The salary history is the only place a rate can be deleted: owner only, Telegram retracted before the row goes.
+  assert.doesNotMatch(salaries, /from\('employee_salary_rates'\)\s*\.delete|retractTelegramSalaryEvent/)
+  assert.match(page, /rate: 'employee_salary_rates'/)
+  const retractAt = page.indexOf('await retractTelegramSalaryEvent(entry.entryType, entry.id)')
+  assert.ok(retractAt > 0 && retractAt < page.search(/\.from\(table\)\s*\.delete\(\)/))
 })
 
 

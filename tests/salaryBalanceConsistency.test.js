@@ -76,6 +76,8 @@ async function loadPage(page, tables) {
     setSalaryProfiles: value => { employees = value },
     setEmployee: value => { employees = [value] },
     setEntries() {}, setCheckins() {}, setLoading() {}, setError: value => { error = value },
+    // A failed ledger read is kept apart from action errors; either one fails the load below.
+    setLoadError: value => { if (value) error = value },
     getActiveKpiAccounts,
     setKpiAccountsError() {}, setKpiAccounts() {}, setKpiRules() {}, setKpiRulesAvailable() {}, setTelegramLinks() {}, loadTelegramDeliveryData() {},
     isMissingSalaryMigration: () => false, l: {},

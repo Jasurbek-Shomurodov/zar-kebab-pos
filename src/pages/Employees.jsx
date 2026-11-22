@@ -1,11 +1,13 @@
 import CalendarPicker from '../components/CalendarPicker'
 import { EMPLOYEE_JOB_FUNCTIONS, employeeJobFunctionLabel } from '../lib/employeeJobFunctions'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarCheck2, CalendarDays, CalendarX2, Check, CheckCircle2, ChevronDown, ChevronUp, Copy, ExternalLink, HandCoins, History, Loader2, MonitorSmartphone, Pencil, Percent, Plus, Power, Save, ScanLine, Send, UserRound, Users, WalletCards, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { accountingTitle, buildAccountingTabs } from '../lib/accountingTabs'
 import NewEmployeeDialog from '../components/NewEmployeeDialog'
+import WorkspaceDialog from '../components/WorkspaceDialog'
+import { OperationalError } from '../components/OperationalState'
 import TimePicker24 from '../components/TimePicker24'
 import PageShimmer, { Shimmer } from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
@@ -14,7 +16,7 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { formatLongDate, formatTime } from '../lib/dateFormat'
 import { useAuth } from '../contexts/AuthContext'
 import { canEditFeature, normalizeRole } from '../lib/permissions'
-import { compareSalaryAbsencesNewestFirst } from '../lib/salaryTransactions'
+import { SALARY_ENTRY_TONES, compareSalaryAbsencesNewestFirst, formatSalaryBalance, formatSalaryEntryAmount } from '../lib/salaryTransactions'
 import { getSalaryLedgerLoadError, isMissingSalaryMigration, loadSalaryRows } from '../lib/salaryData'
 import {
   formatKpiRatePercent,
@@ -72,8 +74,9 @@ function composeEmployees(rows = [], rates = [], payments = [], bonuses = [], fi
   }))
 }
 
-function employeeName(employee) {
-  return employee.employee_name || employee.profile?.full_name || employee.profile?.email || 'Employee'
+// `fallback` is the translated word for a nameless record; sorting and comparisons pass none.
+function employeeName(employee, fallback) {
+  return employee.employee_name || employee.profile?.full_name || employee.profile?.email || (typeof fallback === 'string' ? fallback : '')
 }
 
 export default function Employees() {
@@ -137,6 +140,13 @@ export default function Employees() {
       reactivate: 'Qayta yoqish',
       confirm: 'Tasdiqlash',
       empty: 'Xodimlar hali qo‘shilmagan',
+      loadFailedTitle: 'Xodimlarni yuklab bo‘lmadi',
+      loadFailed: 'Maosh ma’lumotlarini o‘qib bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.',
+      saveFailed: 'Saqlab bo‘lmadi. O‘zgarish yozilmagan bo‘lishi mumkin: kartani tekshirib, qayta urinib ko‘ring.',
+      linkFailed: 'Telegram havolasini yaratib bo‘lmadi. Qayta urinib ko‘ring.',
+      copyFailed: 'Nusxalab bo‘lmadi. Havolani maydondan qo‘lda nusxalang.',
+      screenActionFailed: 'Ekran havolasini o‘zgartirib bo‘lmadi. Qayta urinib ko‘ring.',
+      close: 'Yopish',
       migration: 'Maosh jadvallari yangilanmagan. Supabase SQL editorida employee_salary migratsiyalarini ishga tushiring.',
       checkinQr: 'Kelish ekrani',
       checkinScreenHelp: 'Bu havolani kirish joyidagi planshet yoki telefonda oching va yoqiq qoldiring. Ekranda har 15 soniyada o‘zgaradigan QR chiqadi, shuning uchun saqlangan yoki yuborilgan kod taxminan 2 daqiqada ishlamay qoladi. Xodim telefon kamerasi bilan skanerlaydi va botda «Start» ni bosadi.',
@@ -263,6 +273,13 @@ export default function Employees() {
       reactivate: 'Включить снова',
       confirm: 'Подтвердить',
       empty: 'Сотрудники еще не добавлены',
+      loadFailedTitle: 'Не удалось загрузить сотрудников',
+      loadFailed: 'Не удалось прочитать данные по зарплате. Проверьте интернет и повторите.',
+      saveFailed: 'Не удалось сохранить. Изменение могло не записаться: проверьте карточку и повторите.',
+      linkFailed: 'Не удалось создать ссылку Telegram. Попробуйте ещё раз.',
+      copyFailed: 'Не удалось скопировать. Скопируйте ссылку из поля вручную.',
+      screenActionFailed: 'Не удалось изменить ссылку экрана. Попробуйте ещё раз.',
+      close: 'Закрыть',
       migration: 'Таблицы зарплат не обновлены. Запустите миграции employee_salary в Supabase SQL Editor.',
       checkinQr: 'Экран отметки',
       checkinScreenHelp: 'Откройте эту ссылку на планшете или телефоне у входа и оставьте включённым. Экран показывает QR, который меняется каждые 15 секунд, поэтому сохранённый или пересланный код перестаёт работать примерно через 2 минуты. Сотрудник сканирует его камерой телефона и нажимает «Start» в боте.',
@@ -389,6 +406,13 @@ export default function Employees() {
       reactivate: 'Reactivate',
       confirm: 'Confirm',
       empty: 'No employees added yet',
+      loadFailedTitle: 'Could not load employees',
+      loadFailed: 'Could not read salary data. Check the connection and try again.',
+      saveFailed: 'Could not save. The change may not have been stored: check the card and try again.',
+      linkFailed: 'Could not create the Telegram link. Try again.',
+      copyFailed: 'Could not copy. Copy the link from the field by hand.',
+      screenActionFailed: 'Could not change the screen link. Try again.',
+      close: 'Close',
       migration: 'Salary tables are not up to date. Run the employee_salary migrations in Supabase SQL Editor.',
       checkinQr: 'Check-in screen',
       checkinScreenHelp: 'Open this link on a tablet or phone at the entrance and leave it on. It shows a QR that changes every 15 seconds, so a saved or forwarded code stops working within about 2 minutes. Employees scan it with their phone camera and tap “Start” in the bot.',
@@ -509,11 +533,15 @@ export default function Employees() {
   const [screenBusy, setScreenBusy] = useState(false)
   const [screenCopied, setScreenCopied] = useState(false)
   const [screenQr, setScreenQr] = useState('')
+  // Error codes, translated at render; raw database text goes to the console only.
   const [error, setError] = useState('')
+  // A failed ledger read: no card, balance or total is shown until a retry succeeds.
+  const [loadError, setLoadError] = useState('')
 
   async function loadEmployees() {
     setLoading(true)
     setError('')
+    setLoadError('')
     const [teamRes, profileRes, rateRes, paymentRes, bonusRes, fineRes, absenceRes, kpiRuleRes, telegramLinkRes] = await Promise.all([
       supabase.from('profiles').select('id, full_name, email, role, status, created_at').order('full_name'),
       loadSalaryRows(() => supabase.from('employee_salary_profiles').select('*').order('employee_name')),
@@ -537,10 +565,12 @@ export default function Employees() {
 
     const salaryError = getSalaryLedgerLoadError([profileRes, rateRes, paymentRes, bonusRes, absenceRes], fineRes)
     if (salaryError) {
-      setError(isMissingSalaryMigration(salaryError) ? l.migration : salaryError.message)
+      console.error('[employees] ledger load failed:', salaryError)
+      setLoadError(isMissingSalaryMigration(salaryError) ? 'migration' : 'loadFailed')
       setEmployees([])
     } else {
-      if (fineRes.error) setError(isMissingSalaryMigration(fineRes.error) ? l.migration : fineRes.error.message)
+      // Only a database from before the fines migration gets here with a fines error.
+      if (fineRes.error) setError('migration')
       setEmployees(composeEmployees(
         profileRes.data || [],
         rateRes.data || [],
@@ -594,7 +624,8 @@ export default function Employees() {
   async function loadScreenStatus() {
     setScreenState(current => ({ ...current, loading: true, error: '' }))
     const { data, error: statusError } = await supabase.rpc('get_attendance_kiosk_status')
-    setScreenState({ loading: false, active: statusError ? null : data?.[0] || null, error: statusError ? statusError.message : '' })
+    if (statusError) console.error('[employees] check-in screen status failed:', statusError)
+    setScreenState({ loading: false, active: statusError ? null : data?.[0] || null, error: statusError ? 'screenLoadFailed' : '' })
   }
 
   function openScreenDialog() {
@@ -616,7 +647,8 @@ export default function Employees() {
     const { data: key, error: createError } = await supabase.rpc('create_attendance_kiosk')
     setScreenBusy(false)
     if (createError || !key) {
-      setScreenState(current => ({ ...current, error: createError?.message || l.screenLoadFailed }))
+      console.error('[employees] check-in screen link failed:', createError)
+      setScreenState(current => ({ ...current, error: 'screenActionFailed' }))
       return
     }
     setScreenLink(buildAttendanceKioskUrl(window.location.origin, key))
@@ -634,7 +666,8 @@ export default function Employees() {
     const { error: revokeError } = await supabase.rpc('revoke_attendance_kiosks')
     setScreenBusy(false)
     if (revokeError) {
-      setScreenState(current => ({ ...current, error: revokeError.message }))
+      console.error('[employees] check-in screen was not turned off:', revokeError)
+      setScreenState(current => ({ ...current, error: 'screenActionFailed' }))
       return
     }
     setScreenLink('')
@@ -731,7 +764,8 @@ export default function Employees() {
         if (absenceError) {
           setSaving('')
           setConfirmActionKey('')
-          setError(absenceError.message)
+          console.error('[employees] reactivation absences were not saved:', absenceError)
+          setError('saveFailed')
           return
         }
       }
@@ -746,7 +780,8 @@ export default function Employees() {
     setSaving('')
     setConfirmActionKey('')
     if (updateError) {
-      setError(updateError.message)
+      console.error('[employees] employee status was not saved:', updateError)
+      setError('saveFailed')
       return
     }
     setDeactivateDates(current => {
@@ -759,15 +794,15 @@ export default function Employees() {
       nextActive ? 'activated' : 'deactivated',
     )
     await loadEmployees()
-    if (!notification?.ok) setError(l.lifecycleNotificationFailed)
+    if (!notification?.ok) setError('lifecycleNotificationFailed')
   }
 
   async function undoEmployeeAbsence(employee) {
     if (!canManage || !employee?.id) return
     const absence = getSalaryAbsenceForDate(employee, today)
     if (!absence?.id) {
-      setError(l.undoAbsenceFailed)
       await loadEmployees()
+      setError('undoAbsenceFailed')
       return
     }
     const key = `absence-undo-${employee.id}`
@@ -788,12 +823,13 @@ export default function Employees() {
     setSaving('')
     setConfirmActionKey('')
     if (deleteError || !data?.length) {
-      setError(deleteError?.message || l.undoAbsenceFailed)
+      if (deleteError) console.error('[employees] absence was not undone:', deleteError)
+      setError('undoAbsenceFailed')
       return
     }
     const notification = await notifyTelegramAbsenceUndo(absence.id)
-    if (!notification?.ok) setError(l.undoAbsenceNotificationFailed)
     await loadEmployees()
+    if (!notification?.ok) setError('undoAbsenceNotificationFailed')
   }
   // Tapping a card opens one dialog for profile, salary and KPI changes.
   function openEmployeeEditor(employee) {
@@ -838,7 +874,7 @@ export default function Employees() {
     if (!canEditName || !employee?.id || editingNameId !== employee.id) return false
     const nextName = editingName.trim()
     if (!nextName) {
-      setEditError(l.nameRequired)
+      setEditError('nameRequired')
       return false
     }
 
@@ -854,11 +890,12 @@ export default function Employees() {
       })
       .eq('id', employee.id)
     if (updateError) {
-      setEditError(updateError.message)
+      console.error('[employees] employee details were not saved:', updateError)
+      setEditError('saveFailed')
       return false
     }
     void notifyTelegramEmployeeProfileChange(employee.id)
-      .then(result => { if (!result?.ok && result?.status !== 'skipped') setError(l.profileTelegramFailed) })
+      .then(result => { if (!result?.ok && result?.status !== 'skipped') setError('profileTelegramFailed') })
     return true
   }
 
@@ -878,11 +915,11 @@ export default function Employees() {
   async function saveEmployeeSalary(employee) {
     const amount = normalizeExpenseAmount(salaryForm.salary_amount)
     if (amount <= 0) {
-      setEditError(l.salaryAmountRequired)
+      setEditError('salaryAmountRequired')
       return false
     }
     if (!isExpenseEntryDateAllowed(salaryForm.effective_from, today)) {
-      setEditError(l.salaryDateLimit)
+      setEditError('salaryDateLimit')
       return false
     }
     const isInitialRate = (employee.rates || []).length === 0
@@ -898,10 +935,11 @@ export default function Employees() {
       .select('id')
       .single()
     if (rateError) {
-      setEditError(rateError.message)
+      console.error('[employees] salary rate was not saved:', rateError)
+      setEditError('saveFailed')
       return false
     }
-    if (!isInitialRate) notifySalaryChangeInBackground(notifyTelegramEmployeeRate, savedRate?.id, l.rateTelegramFailed)
+    if (!isInitialRate) notifySalaryChangeInBackground(notifyTelegramEmployeeRate, savedRate?.id, 'rateTelegramFailed')
     return true
   }
 
@@ -915,11 +953,11 @@ export default function Employees() {
     })
     if (formError) {
       setEditError(formError.code === 'account_taken'
-        ? `${l.kpiAccountTaken} ${formError.conflicts.map(employeeName).join(', ')}`
+        ? { code: 'kpiAccountTaken', detail: formError.conflicts.map(item => employeeName(item, l.profileSection)).join(', ') }
         : {
-          date: l.kpiDateInvalid,
-          rate: l.kpiRateRequired,
-          account_required: l.kpiAccountRequired,
+          date: 'kpiDateInvalid',
+          rate: 'kpiRateRequired',
+          account_required: 'kpiAccountRequired',
         }[formError.code])
       return false
     }
@@ -936,11 +974,12 @@ export default function Employees() {
       .select('id, last_change_event_id')
       .single()
     if (saveError) {
-      setEditError(saveError.message)
+      console.error('[employees] KPI rule was not saved:', saveError)
+      setEditError('saveFailed')
       return false
     }
     if (configurationChanged) {
-      notifySalaryChangeInBackground(notifyTelegramKpiRuleChange, savedRule?.last_change_event_id, l.kpiTelegramFailed)
+      notifySalaryChangeInBackground(notifyTelegramKpiRuleChange, savedRule?.last_change_event_id, 'kpiTelegramFailed')
     }
     return true
   }
@@ -984,7 +1023,7 @@ export default function Employees() {
     setSaving('')
     if (ok) {
       cancelNameEdit()
-      setSavedNotice({ id: Date.now(), name: editingName.trim() || employeeName(employee) })
+      setSavedNotice({ id: Date.now(), name: editingName.trim() || employeeName(employee, l.profileSection) })
     }
     if (wroteAny) await loadEmployees()
   }
@@ -994,7 +1033,7 @@ export default function Employees() {
     const botUsername = String(import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim().replace(/^@/, '')
     if (!canManage || !employee?.id) return
     if (!botUsername) {
-      setEditError(l.telegramBotMissing)
+      setEditError('telegramBotMissing')
       return
     }
     setEditError('')
@@ -1003,8 +1042,9 @@ export default function Employees() {
       target_salary_profile_id: employee.id,
     })
     if (linkError || !token) {
+      console.error('[employees] Telegram link failed:', linkError)
       setTelegramInvite(null)
-      setEditError(linkError?.message || l.telegramBotMissing)
+      setEditError('linkFailed')
       return
     }
     const url = `https://t.me/${botUsername}?start=employee_${token}`
@@ -1022,7 +1062,7 @@ export default function Employees() {
       await navigator.clipboard.writeText(telegramInvite.url)
       setTelegramInvite(current => current && { ...current, copied: true })
     } catch {
-      setEditError(telegramInvite.url)
+      setEditError('copyFailed')
     }
   }
 
@@ -1047,6 +1087,15 @@ export default function Employees() {
   }, [pendingTelegramEmployeeId])
 
   const editingEmployee = canManage ? employees.find(item => item.id === editingNameId) || null : null
+  const errorText = error ? l[error] || l.saveFailed : ''
+  const editErrorText = !editError
+    ? ''
+    : typeof editError === 'string'
+      ? l[editError] || l.saveFailed
+      : `${l[editError.code] || l.saveFailed} ${editError.detail || ''}`.trim()
+  const screenErrorText = screenState.error ? l[screenState.error] || l.screenLoadFailed : ''
+  const failed = Boolean(loadError)
+  const absenceTone = SALARY_ENTRY_TONES.absence
 
   return (
     <AppShell title={accountingTitle(lang)} tabs={buildAccountingTabs(lang, 'employees', navigate)} headerActions={canManage && (
@@ -1063,29 +1112,32 @@ export default function Employees() {
     )}>
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page">
-          <div className={`grid grid-cols-2 gap-3 ${attendanceLive ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+          {/* Tiles reflow by their own width, so an eight-digit amount never has to break. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
             {/* Absences are a subset of the active team, so they share its tile. */}
             <Kpi loading={tilesLoading} icon={Users} label={l.active} value={activeCount}
-              note={`${l.absentToday}: ${absentTodayCount}`} noteDanger={absentTodayCount > 0} />
-            {attendanceLive && <Kpi loading={tilesLoading || !checkinsLoaded} icon={ScanLine} label={l.checkedInToday} value={`${checkedInCount} / ${attendanceTrackedEmployees.length}`} />}
+              note={`${l.absentToday}: ${absentTodayCount}`} noteAlert={absentTodayCount > 0} unavailable={failed} />
+            {attendanceLive && <Kpi loading={tilesLoading || !checkinsLoaded} icon={ScanLine} label={l.checkedInToday} value={`${checkedInCount} / ${attendanceTrackedEmployees.length}`} unavailable={failed} />}
             {attendanceLive
-              ? <Kpi loading={tilesLoading || !checkinsLoaded} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(checkedInDailySalary)} total={formatCurrency(activeDailySalary)} />
-              : <Kpi loading={tilesLoading} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(activeDailySalary)} />}
-            <Kpi loading={tilesLoading} icon={HandCoins} label={l.todayPay} value={formatCurrency(todaySalary.earned)}
-              danger={todaySalary.earned < 0}
+              ? <Kpi loading={tilesLoading || !checkinsLoaded} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(checkedInDailySalary)} total={formatCurrency(activeDailySalary)} unavailable={failed} />
+              : <Kpi loading={tilesLoading} icon={CalendarDays} label={l.activeDaily} value={formatCurrency(activeDailySalary)} unavailable={failed} />}
+            <Kpi loading={tilesLoading} icon={HandCoins} label={l.todayPay} value={formatSalaryBalance(todaySalary.earned)}
+              danger={todaySalary.earned < 0} unavailable={failed}
               note={[
-                todaySalary.bonuses > 0 && `+${formatCurrency(todaySalary.bonuses)} ${l.bonusShort}`,
-                todaySalary.fines > 0 && `−${formatCurrency(todaySalary.fines)} ${l.fineShort}`,
+                todaySalary.bonuses > 0 && `${formatSalaryEntryAmount('bonus', todaySalary.bonuses)} ${l.bonusShort}`,
+                todaySalary.fines > 0 && `${formatSalaryEntryAmount('fine', todaySalary.fines)} ${l.fineShort}`,
                 todaySalary.paid > 0 && `${formatCurrency(todaySalary.paid)} ${l.paidShort}`,
-              ].filter(Boolean).join(' · ')} />
-            <div className={attendanceLive ? 'col-span-2 grid lg:col-span-1' : 'grid'}>
-              <Kpi loading={tilesLoading} icon={WalletCards} label={l.due} value={formatCurrency(totalDue)} hot={totalDue > 0} />
-            </div>
+              ].filter(Boolean)} />
+            <Kpi loading={tilesLoading} icon={WalletCards} label={l.due} value={formatCurrency(totalDue)} hot={totalDue > 0} unavailable={failed} />
           </div>
 
-          {error && <div className="ws-notice ws-tone-negative">{error}</div>}
+          {errorText && !failed && <div role="alert" className="ws-notice ws-tone-negative">{errorText}</div>}
 
-          {loading ? (
+          {failed ? (
+            <div className="ws-panel">
+              <OperationalError lang={lang} title={l.loadFailedTitle} description={l[loadError] || l.loadFailed} actionLabel={l.retry} onAction={loadEmployees} />
+            </div>
+          ) : tilesLoading ? (
             <PageShimmer layout="employeeCards" />
           ) : employees.length === 0 ? (
             <div className="ws-panel ws-empty"><Users /><p>{l.empty}</p></div>
@@ -1145,7 +1197,7 @@ export default function Employees() {
                     inactive
                       ? 'ws-inactive-card'
                       : absentToday
-                        ? '!border-[#c4262c]/40 ring-2 ring-[#c4262c]/10'
+                        ? '!border-[#9a5a00]/40 ring-2 ring-[#9a5a00]/10'
                         : awaitingCheckin
                           ? 'ws-awaiting-card'
                           : ''
@@ -1156,25 +1208,25 @@ export default function Employees() {
                           inactive
                             ? 'ws-inactive-avatar'
                             : absentToday
-                              ? 'bg-[#c4262c]/10 text-[#c4262c]'
+                              ? 'bg-[#9a5a00]/10 text-[#9a5a00]'
                               : awaitingCheckin
                                 ? 'ws-awaiting-avatar'
                                 : 'bg-[#ff5a00]/10 text-[#c24400]'
                         }`}>
-                          {absentToday ? <CalendarX2 size={17} /> : (employeeName(employee).trim().charAt(0).toUpperCase() || <UserRound size={17} />)}
+                          {absentToday ? <CalendarX2 size={17} aria-hidden="true" /> : (employeeName(employee).trim().charAt(0).toUpperCase() || <UserRound size={17} aria-hidden="true" />)}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 items-center gap-1">
-                            <h2 className={`truncate text-[15px] font-semibold text-[#22201d]`}>{employeeName(employee)}</h2>
+                            <h2 className="truncate text-[15px] font-semibold text-[#22201d]">{employeeName(employee, l.profileSection)}</h2>
                             {canEditName && (
                               <button
                                 type="button"
                                 onClick={() => startNameEdit(employee)}
                                 title={l.editName}
-                                aria-label={`${l.editName}: ${employeeName(employee)}`}
-                                className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon text-[#9b978f] transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+                                aria-label={`${l.editName}: ${employeeName(employee, l.profileSection)}`}
+                                className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon text-[#68655f] transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                               >
-                                <Pencil size={13} />
+                                <Pencil size={13} aria-hidden="true" />
                               </button>
                             )}
                           </div>
@@ -1183,7 +1235,7 @@ export default function Employees() {
                       </div>
                       {/* Active is the normal state; only call out exceptions. */}
                       {(inactive || absentToday) && (
-                        <span className={`ws-status ${inactive ? 'ws-tone-caution-strong' : 'ws-tone-negative'}`}>
+                        <span className={`ws-status ${inactive ? 'ws-tone-caution-strong' : absenceTone.badge}`}>
                           {inactive ? l.inactive : absentToday ? l.absentToday : l.active}
                         </span>
                       )}
@@ -1202,10 +1254,11 @@ export default function Employees() {
                       )}
                     </div>
 
-                    <div className={`mt-3 grid grid-cols-2 gap-3 rounded-xl px-3.5 py-2.5 ${inactive ? 'ws-inactive-stats' : awaitingCheckin ? 'ws-awaiting-dim bg-[var(--ws-card)]' : 'bg-[#f8f6f3]'}`}>
+                    {/* Amounts stay at full contrast and on one line; the two figures wrap as a pair on a narrow card. */}
+                    <div className={`mt-3 flex flex-wrap items-end justify-between gap-x-5 gap-y-2 rounded-xl px-3.5 py-2.5 ${inactive ? 'ws-inactive-stats' : awaitingCheckin ? 'bg-[var(--ws-card)]' : 'bg-[#f8f6f3]'}`}>
                       <Stat
                         label={l.balance}
-                        value={formatCurrency(salaryBalance)}
+                        value={formatSalaryBalance(salaryBalance)}
                         hot={salaryBalance > 0}
                         negative={salaryBalance < 0}
                         large
@@ -1273,7 +1326,7 @@ export default function Employees() {
                         onClick={() => navigate(`/admin/accounting/employees/${employee.id}/history`)}
                         className="ws-btn ws-btn-outline ws-btn-sm"
                       >
-                        <History size={14} />{l.historyBtn}
+                        <History aria-hidden="true" />{l.historyBtn}
                       </button>
                       {canManage && (
                         <>
@@ -1325,7 +1378,7 @@ export default function Employees() {
           onCreated={async ({ notificationError }) => {
             setNewEmployeeOpen(false)
             await loadEmployees()
-            if (notificationError) setError(notificationError)
+            if (notificationError) setError('lifecycleNotificationFailed')
           }}
         />
       )}
@@ -1357,7 +1410,7 @@ export default function Employees() {
           onSalaryFormChange={setSalaryForm}
           kpiForm={kpiForm}
           onKpiFormChange={setKpiForm}
-          error={editError}
+          error={editErrorText}
           saving={saving === `employee-edit-${editingEmployee.id}`}
           hasChanges={Object.values(getEmployeeEditChanges(editingEmployee)).some(Boolean)}
           onSave={saveEmployeeEdits}
@@ -1366,85 +1419,79 @@ export default function Employees() {
       )}
 
       {screenOpen && (
-        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-          <button type="button" aria-label={l.cancel} onClick={() => setScreenOpen(false)}
-            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
-          <div role="dialog" aria-modal="true" aria-labelledby="checkin-screen-title"
-            onKeyDown={event => { if (event.key === 'Escape') setScreenOpen(false) }}
-            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <h2 id="checkin-screen-title" className="ws-display !text-[24px]">{l.checkinQr}</h2>
-              <button type="button" onClick={() => setScreenOpen(false)} aria-label={l.cancel} autoFocus className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
-            </div>
-            <p className="ws-muted">{l.checkinScreenHelp}</p>
-            {!botConfigured && <p role="alert" className="ws-notice ws-tone-negative mt-4">{l.checkinBotMissing}</p>}
-
-            <div className="mt-4 flex min-h-11 items-center gap-2">
-              {screenState.loading ? (
-                <Shimmer className="h-6 w-44 rounded-full" />
-              ) : screenState.active ? (
-                <ScreenStatus active={screenState.active} l={l} />
-              ) : !screenState.error && (
-                <span className="ws-status">{l.screenNone}</span>
-              )}
-            </div>
-
-            {screenState.error && (
-              <div role="alert" className="ws-notice ws-tone-negative mt-3 flex flex-wrap items-center justify-between gap-2">
-                <span>{screenState.error}</span>
-                <button type="button" onClick={loadScreenStatus} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button>
-              </div>
-            )}
-
-            {screenLink && (
-              <div className="ws-notice ws-tone-positive mt-3">
-                <p className="text-[13px] font-medium">{l.screenLinkOnce}</p>
-                <div className="mt-3 flex justify-center">
-                  <div className="rounded-2xl bg-white p-2 ring-1 ring-black/5">
-                    {screenQr
-                      ? <img src={screenQr} alt={l.screenQrAlt} className="block size-[min(60vw,220px)]" />
-                      : <Shimmer className="size-[min(60vw,220px)] rounded-xl" />}
-                  </div>
-                </div>
-                <input readOnly value={screenLink} onFocus={event => event.target.select()} className="ws-input mt-3 w-full font-mono !text-xs" />
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button type="button" onClick={copyScreenLink} className="ws-btn ws-btn-outline ws-btn-sm">
-                    {screenCopied ? <Check size={14} /> : <Copy size={14} />}{screenCopied ? l.linkCopied : l.copyLink}
-                  </button>
-                  <a href={screenLink} target="_blank" rel="noopener noreferrer" className="ws-btn ws-btn-outline ws-btn-sm">
-                    <ExternalLink size={14} />{l.openHere}
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {screenConfirm && (
-              <p role="alert" className="ws-notice ws-tone-caution mt-3 text-[13px]">
-                {screenConfirm === 'off' ? l.turnOffWarning : l.replaceScreenWarning}
-              </p>
-            )}
-
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <WorkspaceDialog
+          title={l.checkinQr}
+          onClose={() => setScreenOpen(false)}
+          closeLabel={l.close}
+          busy={screenBusy}
+          notice={screenConfirm && (
+            <p role="alert" className="ws-notice ws-tone-caution">
+              {screenConfirm === 'off' ? l.turnOffWarning : l.replaceScreenWarning}
+            </p>
+          )}
+          footer={(
+            <>
               {screenState.active && (
                 <button type="button" onClick={turnOffScreen} disabled={screenBusy || screenState.loading}
                   className={`ws-btn ${screenConfirm === 'off' ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'}`}>
-                  <Power size={16} />{screenConfirm === 'off' ? l.confirm : l.turnOffScreen}
+                  <Power aria-hidden="true" />{screenConfirm === 'off' ? l.confirm : l.turnOffScreen}
                 </button>
               )}
               <button type="button" onClick={createScreenLink} disabled={screenBusy || screenState.loading || !botConfigured}
-                className="ws-btn ws-btn-primary disabled:opacity-50">
-                {screenBusy ? <Loader2 size={16} className="animate-spin" /> : <MonitorSmartphone size={16} />}
+                className="ws-btn ws-btn-primary">
+                {screenBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <MonitorSmartphone aria-hidden="true" />}
                 {screenConfirm === 'replace' ? l.confirm : screenState.active ? l.replaceScreenLink : l.createScreenLink}
               </button>
-            </div>
+            </>
+          )}
+        >
+          <p className="ws-muted">{l.checkinScreenHelp}</p>
+          {!botConfigured && <p role="alert" className="ws-notice ws-tone-negative mt-4">{l.checkinBotMissing}</p>}
+
+          <div className="mt-4 flex min-h-11 flex-wrap items-center gap-2">
+            {screenState.loading ? (
+              <Shimmer className="h-6 w-44 rounded-full" />
+            ) : screenState.active ? (
+              <ScreenStatus active={screenState.active} l={l} />
+            ) : !screenState.error && (
+              <span className="ws-status !whitespace-normal">{l.screenNone}</span>
+            )}
           </div>
-        </div>
+
+          {screenErrorText && (
+            <div role="alert" className="ws-notice ws-tone-negative mt-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 flex-1">{screenErrorText}</span>
+              <button type="button" onClick={loadScreenStatus} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button>
+            </div>
+          )}
+
+          {screenLink && (
+            <div className="ws-notice ws-tone-positive mt-3">
+              <p className="text-[13px] font-medium">{l.screenLinkOnce}</p>
+              <div className="mt-3 flex justify-center">
+                <div className="rounded-2xl bg-white p-2 ring-1 ring-black/5">
+                  {screenQr
+                    ? <img src={screenQr} alt={l.screenQrAlt} className="block size-[min(60vw,220px)]" />
+                    : <Shimmer className="size-[min(60vw,220px)] rounded-xl" />}
+                </div>
+              </div>
+              <input readOnly value={screenLink} aria-label={l.checkinQr} onFocus={event => event.target.select()} className="ws-input mt-3 w-full font-mono !text-xs" />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" onClick={copyScreenLink} className="ws-btn ws-btn-outline ws-btn-sm">
+                  {screenCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}{screenCopied ? l.linkCopied : l.copyLink}
+                </button>
+                <a href={screenLink} target="_blank" rel="noopener noreferrer" className="ws-btn ws-btn-outline ws-btn-sm">
+                  <ExternalLink aria-hidden="true" />{l.openHere}
+                </a>
+              </div>
+            </div>
+          )}
+        </WorkspaceDialog>
       )}
       {savedNotice && (
         <div key={savedNotice.id} role="status" aria-live="polite"
-          style={{ animation: 'zk-sheet-in 220ms ease-out' }}
-          className="pointer-events-none fixed inset-x-0 bottom-6 z-toast mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-[#22201d] px-4 py-3 text-white shadow-[0_12px_32px_rgb(0_0_0/24%)]">
-          <CheckCircle2 size={20} className="flex-shrink-0 text-[#4ade80]" />
+          className="zk-sheet-in pointer-events-none fixed inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-toast mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-[#22201d] px-4 py-3 text-white shadow-[0_12px_32px_rgb(0_0_0/24%)]">
+          <CheckCircle2 size={20} className="flex-shrink-0 text-[#4ade80]" aria-hidden="true" />
           <span className="min-w-0">
             <span className="block text-[14px] font-semibold">{l.employeeSaved}</span>
             <span className="block truncate text-[12px] text-white/70">{savedNotice.name}</span>
@@ -1455,21 +1502,23 @@ export default function Employees() {
   )
 }
 
-function Kpi({ icon: Icon, label, value, total = '', note = '', noteDanger = false, hot = false, danger = false, loading = false }) {
+function Kpi({ icon: Icon, label, value, total = '', note = '', noteAlert = false, hot = false, danger = false, loading = false, unavailable = false }) {
   const valueTone = danger ? 'text-[#c4262c]' : hot ? 'text-[#9a5a00]' : 'text-[#22201d]'
+  const notes = (Array.isArray(note) ? note : [note]).filter(Boolean)
+  const show = !loading && !unavailable
   return (
     <div className="ws-panel min-w-0">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="ws-caption">{label}</p>
-          <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone}`}>{loading ? <Shimmer className="my-1 h-6 w-28 rounded-md" /> : <RollingValue value={value} />}</p>
-          {!loading && total && <p className="ws-caption mt-0.5 tabular-nums">/ {total}</p>}
-          {!loading && note && <p className={`ws-caption mt-0.5 tabular-nums ${noteDanger ? '!text-[#c4262c] font-medium' : ''}`}>{note}</p>}
-        </div>
-        <div className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f] sm:flex">
-          <Icon size={16} />
-        </div>
-      </div>
+      <p className="ws-caption flex items-center gap-1.5"><Icon size={14} className="flex-shrink-0" aria-hidden="true" />{label}</p>
+      {/* An amount is one unbreakable figure; the tile grid reflows instead. */}
+      <p className={`mt-1 whitespace-nowrap text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${unavailable ? 'text-[#68655f]' : valueTone}`}>
+        {loading ? <Shimmer className="my-1 h-6 w-28 rounded-md" /> : unavailable ? '—' : <RollingValue value={value} />}
+      </p>
+      {show && total && <p className="ws-caption mt-0.5 whitespace-nowrap tabular-nums">/ {total}</p>}
+      {show && notes.length > 0 && (
+        <p className={`ws-caption mt-0.5 flex flex-wrap gap-x-2 tabular-nums ${noteAlert ? '!text-[#9a5a00] font-medium' : ''}`}>
+          {notes.map(item => <span key={item} className="whitespace-nowrap">{item}</span>)}
+        </p>
+      )}
     </div>
   )
 }
@@ -1488,7 +1537,7 @@ function Stat({ label, value, hot = false, negative = false, large = false }) {
   return (
     <div className="min-w-0">
       <p className="text-[12px] text-[#68655f]">{label}</p>
-      <p className={`mt-0.5 break-words font-semibold leading-tight tabular-nums tracking-[-.01em] ${large ? 'text-[19px]' : 'text-[15px] pt-[3px]'} ${tone}`}>{value}</p>
+      <p className={`mt-0.5 whitespace-nowrap font-semibold leading-tight tabular-nums tracking-[-.01em] ${large ? 'text-[19px]' : 'text-[15px] pt-[3px]'} ${tone}`}>{value}</p>
     </div>
   )
 }
@@ -1580,239 +1629,223 @@ function EmployeeEditDialog({
   onClose,
 }) {
   const active = employee.is_active !== false
-  const close = () => { if (!saving) onClose() }
+  const nameRef = useRef(null)
   const setSalary = patch => onSalaryFormChange(current => ({ ...current, ...patch }))
   const setKpi = patch => onKpiFormChange(current => ({ ...current, ...patch }))
   const ownOrders = kpiForm?.sales_basis === 'employee_opened_orders'
+  const sectionTitle = 'flex items-center gap-2 text-[14px] font-semibold text-[#22201d]'
 
   return (
-    <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-      <button type="button" aria-label={l.cancel} onClick={close}
-        className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
-      <div role="dialog" aria-modal="true" aria-labelledby="employee-edit-title"
-        onKeyDown={event => { if (event.key === 'Escape') close() }}
-        className="ws-dialog relative flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden">
-        <div className="flex items-start justify-between gap-3 border-b border-[#e4e1de] px-6 pb-4 pt-6">
-          <div className="min-w-0">
-            <h2 id="employee-edit-title" className="ws-display truncate !text-[22px]">{employeeName(employee)}</h2>
-            <p className="ws-caption mt-0.5">{l.editName}</p>
-          </div>
-          <button type="button" onClick={close} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
+    <WorkspaceDialog
+      size="lg"
+      title={employeeName(employee, l.profileSection)}
+      description={l.editName}
+      onClose={onClose}
+      closeLabel={l.cancel}
+      busy={Boolean(saving)}
+      initialFocusRef={canEditProfile ? nameRef : undefined}
+      bodyClassName="space-y-6"
+      notice={error && <p role="alert" className="ws-notice ws-tone-negative">{error}</p>}
+      footer={(
+        <>
+          <button type="button" onClick={onClose} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
+          <button type="button" onClick={onSave} disabled={saving || !hasChanges} className="ws-btn ws-btn-primary">
+            {saving ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Save aria-hidden="true" />}
+            {l.saveName}
+          </button>
+        </>
+      )}
+    >
+      <section className="space-y-3">
+        <h3 className={sectionTitle}><UserRound size={15} aria-hidden="true" />{l.profileSection}</h3>
+        {!canEditProfile && <p className="ws-caption">{l.profileOwnerOnly}</p>}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
+          <DialogField label={l.employeeName}>
+            <input ref={nameRef} type="text" value={name} maxLength={120}
+              onChange={event => onNameChange(event.target.value)}
+              disabled={!canEditProfile || saving} className={DIALOG_FIELD} />
+          </DialogField>
+          <DialogField label={l.jobFunction}>
+            <select value={jobFunction} onChange={event => onJobFunctionChange(event.target.value)}
+              disabled={!canEditProfile || saving} className={DIALOG_FIELD}>
+              <option value="">{l.noJobFunction}</option>
+              {EMPLOYEE_JOB_FUNCTIONS.map(job => (
+                <option key={job.value} value={job.value}>{employeeJobFunctionLabel(job.value, lang)}</option>
+              ))}
+            </select>
+          </DialogField>
         </div>
+        {showWorkStart && active && showRemote && (
+          <div className="flex items-center justify-between gap-3 rounded-[10px] bg-[#efece9] px-3 py-2">
+            <span id="employee-remote-label" className="min-w-0">
+              <span className="block text-sm font-medium text-[#22201d]">{l.worksRemotely}</span>
+              <span className="ws-caption block !text-xs">{l.worksRemotelyHint}</span>
+            </span>
+            <button type="button" role="switch" aria-checked={remote} aria-labelledby="employee-remote-label"
+              disabled={!canEditProfile || saving} onClick={() => onRemoteChange(!remote)} className="ws-switch" />
+          </div>
+        )}
+        {showWorkStart && active && !remote && (
+          <div className="flex items-end gap-3">
+            {workStart ? (
+              <>
+                <div className="min-w-0 flex-1">
+                  <TimePicker24 value={workStart} label={l.workStart}
+                    hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
+                    className={DIALOG_FIELD} disabled={!canEditProfile || saving}
+                    onChange={onWorkStartChange} />
+                </div>
+                <button type="button" onClick={() => onWorkStartChange('')} disabled={!canEditProfile || saving}
+                  title={l.clearWorkStart} aria-label={l.clearWorkStart} className="ws-btn ws-btn-ghost ws-btn-icon !h-11 !w-11">
+                  <X aria-hidden="true" />
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => onWorkStartChange('09:00')} disabled={!canEditProfile || saving} className="ws-btn ws-btn-outline ws-btn-sm">
+                {l.workStart}: {l.setWorkStart}
+              </button>
+            )}
+          </div>
+        )}
+      </section>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
-          <section className="space-y-3">
-            <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#22201d]"><UserRound size={15} />{l.profileSection}</h3>
-            {!canEditProfile && <p className="ws-caption">{l.profileOwnerOnly}</p>}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <DialogField label={l.employeeName}>
-                <input type="text" value={name} maxLength={120} autoFocus={canEditProfile}
-                  onChange={event => onNameChange(event.target.value)}
-                  disabled={!canEditProfile || saving} className={DIALOG_FIELD} />
+      {telegramLink !== null && (
+        <section className="space-y-3 border-t border-[#e4e1de] pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className={sectionTitle}><Send size={15} aria-hidden="true" />{l.telegram}</h3>
+            <span className={`ws-badge ${!telegramLink ? 'ws-tone-caution' : telegramLink.notifications_enabled === false ? '' : 'ws-tone-positive'}`}>
+              {!telegramLink ? l.telegramNotLinked : telegramLink.notifications_enabled === false ? l.telegramMuted : l.telegramLinked}
+            </span>
+          </div>
+          {!telegramLink && active && (
+            telegramInvite?.url ? (
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="mx-auto shrink-0 rounded-2xl bg-white p-2 ring-1 ring-black/5">
+                  {telegramInvite.qr
+                    ? <img src={telegramInvite.qr} alt={l.telegramQrAlt} className="block size-[140px]" />
+                    : <Shimmer className="size-[140px] rounded-xl" />}
+                </div>
+                <div className="min-w-[12rem] flex-1 space-y-2">
+                  <p className="ws-caption">{l.telegramHelp}</p>
+                  <input readOnly value={telegramInvite.url} aria-label={l.telegram} onFocus={event => event.target.select()} className="ws-input w-full font-mono !text-xs" />
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={onCopyTelegramLink} className="ws-btn ws-btn-outline ws-btn-sm">
+                      {telegramInvite.copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}{telegramInvite.copied ? l.linkCopied : l.copyLink}
+                    </button>
+                    <button type="button" onClick={onCreateTelegramLink} disabled={saving} className="ws-btn ws-btn-ghost ws-btn-sm">{l.telegramNewLink}</button>
+                  </div>
+                  <p role="status" className="flex items-center gap-2 text-[12px] font-medium text-[#9a5a00]">
+                    <span className="h-2 w-2 flex-shrink-0 rounded-full bg-[#9a5a00] motion-safe:animate-pulse" aria-hidden="true" />{l.telegramWaiting}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={onCreateTelegramLink} disabled={saving || telegramInvite?.loading} className="ws-btn ws-btn-outline ws-btn-sm">
+                {telegramInvite?.loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}{l.telegramConnect}
+              </button>
+            )
+          )}
+        </section>
+      )}
+
+      {!active ? (
+        <p className="ws-notice">{l.inactiveSettingsHint}</p>
+      ) : (
+        <>
+          <section className="space-y-3 border-t border-[#e4e1de] pt-5">
+            <h3 className={sectionTitle}><WalletCards size={15} aria-hidden="true" />{l.salarySection}</h3>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+              <DialogField label={l.salaryAmount}>
+                <div className="relative min-w-0">
+                  <input type="text" inputMode="numeric" value={formatMoneyInput(salaryForm.salary_amount)}
+                    onChange={event => setSalary({ salary_amount: normalizeMoneyInput(event.target.value) })}
+                    disabled={saving} className={`${DIALOG_FIELD} pr-12 tabular-nums`} />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-[#68655f]">UZS</span>
+                </div>
               </DialogField>
-              <DialogField label={l.jobFunction}>
-                <select value={jobFunction} onChange={event => onJobFunctionChange(event.target.value)}
-                  disabled={!canEditProfile || saving} className={DIALOG_FIELD}>
-                  <option value="">{l.noJobFunction}</option>
-                  {EMPLOYEE_JOB_FUNCTIONS.map(job => (
-                    <option key={job.value} value={job.value}>{employeeJobFunctionLabel(job.value, lang)}</option>
+              <DialogField label={l.salaryUnit}>
+                <select value={salaryForm.salary_unit} onChange={event => setSalary({ salary_unit: event.target.value })}
+                  disabled={saving} className={DIALOG_FIELD}>
+                  {SALARY_RATE_UNITS.map(unit => (
+                    <option key={unit} value={unit}>{unit === 'monthly' ? l.unitMonthly : l.unitDaily}</option>
                   ))}
                 </select>
               </DialogField>
+              <DialogField label={l.effectiveDate}>
+                <DateInput value={salaryForm.effective_from} lang={lang} min={getExpenseEntryMinDate(today)}
+                  onChange={value => setSalary({ effective_from: value })} disabled={saving} />
+              </DialogField>
             </div>
-            {showWorkStart && active && showRemote && (
-              <button type="button" role="switch" aria-checked={remote} disabled={!canEditProfile || saving}
-                onClick={() => onRemoteChange(!remote)}
-                className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                  remote ? 'ws-tone-info' : 'border-[#e4e1de] bg-[#efece9] text-[#68655f]'
-                }`}>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{l.worksRemotely}</span>
-                  <span className="block text-xs opacity-80">{l.worksRemotelyHint}</span>
-                </span>
-                <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${remote ? 'bg-[#2a6fdb]' : 'bg-[#dcd9d6]'}`} aria-hidden="true">
-                  <span className={`absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${remote ? 'translate-x-6' : 'translate-x-1'}`} />
-                </span>
-              </button>
-            )}
-            {showWorkStart && active && !remote && (
-              <div className="flex items-end gap-2">
-                {workStart ? (
-                  <>
-                    <div className="min-w-0 flex-1">
-                      <TimePicker24 value={workStart} label={l.workStart}
-                        hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
-                        className={DIALOG_FIELD} disabled={!canEditProfile || saving}
-                        onChange={onWorkStartChange} />
-                    </div>
-                    <button type="button" onClick={() => onWorkStartChange('')} disabled={!canEditProfile || saving}
-                      title={l.clearWorkStart} aria-label={l.clearWorkStart} className="ws-btn ws-btn-ghost ws-btn-icon !h-11">
-                      <X size={15} />
-                    </button>
-                  </>
-                ) : (
-                  <button type="button" onClick={() => onWorkStartChange('09:00')} disabled={!canEditProfile || saving} className="ws-btn ws-btn-outline ws-btn-sm">
-                    {l.workStart}: {l.setWorkStart}
-                  </button>
-                )}
-              </div>
-            )}
           </section>
 
-          {telegramLink !== null && (
+          {kpiAvailable && kpiForm && (
             <section className="space-y-3 border-t border-[#e4e1de] pt-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#22201d]"><Send size={15} />{l.telegram}</h3>
-                <span className={`ws-badge ${!telegramLink ? 'ws-tone-caution' : telegramLink.notifications_enabled === false ? '' : 'ws-tone-positive'}`}>
-                  {!telegramLink ? l.telegramNotLinked : telegramLink.notifications_enabled === false ? l.telegramMuted : l.telegramLinked}
+              <div className="flex items-center justify-between gap-3">
+                <h3 className={sectionTitle}><Percent size={15} aria-hidden="true" />{l.kpi}</h3>
+                <span className="flex min-w-0 items-center gap-3">
+                  <span id="employee-kpi-switch-label" className="ws-caption min-w-0 text-right">{kpiForm.is_enabled ? l.kpiOn : l.kpiOff}</span>
+                  <button type="button" role="switch" aria-checked={kpiForm.is_enabled} aria-labelledby="employee-kpi-switch-label"
+                    disabled={saving} onClick={() => setKpi({ is_enabled: !kpiForm.is_enabled })} className="ws-switch" />
                 </span>
               </div>
-              {!telegramLink && active && (
-                telegramInvite?.url ? (
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                    <div className="shrink-0 self-center rounded-2xl bg-white p-2 ring-1 ring-black/5">
-                      {telegramInvite.qr
-                        ? <img src={telegramInvite.qr} alt={l.telegramQrAlt} className="block size-[140px]" />
-                        : <Shimmer className="size-[140px] rounded-xl" />}
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <p className="ws-caption">{l.telegramHelp}</p>
-                      <input readOnly value={telegramInvite.url} onFocus={event => event.target.select()} className="ws-input w-full font-mono !text-xs" />
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={onCopyTelegramLink} className="ws-btn ws-btn-outline ws-btn-sm">
-                          {telegramInvite.copied ? <Check size={14} /> : <Copy size={14} />}{telegramInvite.copied ? l.linkCopied : l.copyLink}
-                        </button>
-                        <button type="button" onClick={onCreateTelegramLink} disabled={saving} className="ws-btn ws-btn-ghost ws-btn-sm">{l.telegramNewLink}</button>
+              {kpiForm.is_enabled && (
+                <>
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+                    <DialogField label={l.kpiBasis}>
+                      <select value={kpiForm.sales_basis} onChange={event => setKpi({ sales_basis: event.target.value })}
+                        disabled={saving} className={DIALOG_FIELD}>
+                        <option value="employee_opened_orders">{l.kpiOwnOrders}</option>
+                        <option value="restaurant">{l.kpiAllDineIn}</option>
+                      </select>
+                    </DialogField>
+                    <DialogField label={l.kpiRate}>
+                      <div className="relative min-w-0">
+                        <input type="text" inputMode="decimal" value={kpiForm.rate_percentage}
+                          onChange={event => {
+                            const value = event.target.value.replace(',', '.').replace(/[^\d.]/g, '')
+                            if (/^\d{0,3}(?:\.\d{0,2})?$/.test(value)) setKpi({ rate_percentage: value })
+                          }}
+                          disabled={saving} className={`${DIALOG_FIELD} pr-9 tabular-nums`} />
+                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-[#68655f]">%</span>
                       </div>
-                      <p role="status" className="flex items-center gap-2 text-[12px] font-medium text-[#9a5a00]">
-                        <span className="h-2 w-2 animate-pulse rounded-full bg-[#9a5a00]" aria-hidden="true" />{l.telegramWaiting}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <button type="button" onClick={onCreateTelegramLink} disabled={saving || telegramInvite?.loading} className="ws-btn ws-btn-outline ws-btn-sm">
-                    {telegramInvite?.loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}{l.telegramConnect}
-                  </button>
-                )
-              )}
-            </section>
-          )}
-
-          {!active ? (
-            <p className="ws-notice">{l.inactiveSettingsHint}</p>
-          ) : (
-            <>
-              <section className="space-y-3 border-t border-[#e4e1de] pt-5">
-                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#22201d]"><WalletCards size={15} />{l.salarySection}</h3>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <DialogField label={l.salaryAmount} className="sm:col-span-1">
-                    <div className="relative min-w-0">
-                      <input type="text" inputMode="numeric" value={formatMoneyInput(salaryForm.salary_amount)}
-                        onChange={event => setSalary({ salary_amount: normalizeMoneyInput(event.target.value) })}
-                        disabled={saving} className={`${DIALOG_FIELD} pr-12 tabular-nums`} />
-                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[13px] text-[#68655f]">UZS</span>
-                    </div>
-                  </DialogField>
-                  <DialogField label={l.salaryUnit}>
-                    <select value={salaryForm.salary_unit} onChange={event => setSalary({ salary_unit: event.target.value })}
-                      disabled={saving} className={DIALOG_FIELD}>
-                      {SALARY_RATE_UNITS.map(unit => (
-                        <option key={unit} value={unit}>{unit === 'monthly' ? l.unitMonthly : l.unitDaily}</option>
-                      ))}
-                    </select>
-                  </DialogField>
-                  <DialogField label={l.effectiveDate}>
-                    <DateInput value={salaryForm.effective_from} lang={lang} min={getExpenseEntryMinDate(today)}
-                      onChange={value => setSalary({ effective_from: value })} disabled={saving} />
-                  </DialogField>
-                </div>
-              </section>
-
-              {kpiAvailable && kpiForm && (
-                <section className="space-y-3 border-t border-[#e4e1de] pt-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#22201d]"><Percent size={15} />{l.kpi}</h3>
-                    <button type="button" role="switch" aria-checked={kpiForm.is_enabled} disabled={saving}
-                      onClick={() => setKpi({ is_enabled: !kpiForm.is_enabled })}
-                      className={`inline-flex h-10 shrink-0 items-center gap-3 rounded-lg border px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                        kpiForm.is_enabled ? 'ws-tone-positive' : 'border-[#e4e1de] bg-[#efece9] text-[#68655f]'
-                      }`}>
-                      <span>{kpiForm.is_enabled ? l.kpiOn : l.kpiOff}</span>
-                      <span className={`relative h-6 w-11 rounded-full transition-colors ${kpiForm.is_enabled ? 'bg-[#1d7a52]' : 'bg-[#dcd9d6]'}`} aria-hidden="true">
-                        <span className={`absolute left-0 top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${kpiForm.is_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                      </span>
-                    </button>
-                  </div>
-                  {kpiForm.is_enabled && (
-                    <>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
-                        <DialogField label={l.kpiBasis}>
-                          <select value={kpiForm.sales_basis} onChange={event => setKpi({ sales_basis: event.target.value })}
-                            disabled={saving} className={DIALOG_FIELD}>
-                            <option value="employee_opened_orders">{l.kpiOwnOrders}</option>
-                            <option value="restaurant">{l.kpiAllDineIn}</option>
-                          </select>
-                        </DialogField>
-                        <DialogField label={l.kpiRate}>
-                          <div className="relative min-w-0">
-                            <input type="text" inputMode="decimal" value={kpiForm.rate_percentage}
-                              onChange={event => {
-                                const value = event.target.value.replace(',', '.').replace(/[^\d.]/g, '')
-                                if (/^\d{0,3}(?:\.\d{0,2})?$/.test(value)) setKpi({ rate_percentage: value })
-                              }}
-                              disabled={saving} className={`${DIALOG_FIELD} pr-9 tabular-nums`} />
-                            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-[#68655f]">%</span>
-                          </div>
-                        </DialogField>
-                      </div>
-                      {ownOrders && (
-                        <DialogField label={l.kpiAccount}>
-                          <select value={kpiForm.order_opener_profile_id} onChange={event => setKpi({ order_opener_profile_id: event.target.value })}
-                            disabled={saving} className={DIALOG_FIELD}>
-                            <option value="">{l.kpiSelectAccount}</option>
-                            {kpiForm.order_opener_profile_id && !kpiAccounts.some(account => account.id === kpiForm.order_opener_profile_id) && (
-                              <option value={kpiForm.order_opener_profile_id} disabled>{l.kpiAccountUnavailable}</option>
-                            )}
-                            {kpiAccounts.map(account => (
-                              <option key={account.id} value={account.id}>{account.full_name || account.email}</option>
-                            ))}
-                          </select>
-                        </DialogField>
-                      )}
-                    </>
-                  )}
-                  {kpiForm.is_enabled && (
-                    <p className="text-[12px] leading-snug text-[#68655f]">{l.kpiCheckinHelp}</p>
-                  )}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <DialogField label={l.effectiveDate}>
-                      <DateInput value={kpiForm.effective_from} lang={lang} min={today}
-                        onChange={value => setKpi({ effective_from: value })} disabled={saving} />
                     </DialogField>
                   </div>
-                </section>
+                  {ownOrders && (
+                    <DialogField label={l.kpiAccount}>
+                      <select value={kpiForm.order_opener_profile_id} onChange={event => setKpi({ order_opener_profile_id: event.target.value })}
+                        disabled={saving} className={DIALOG_FIELD}>
+                        <option value="">{l.kpiSelectAccount}</option>
+                        {kpiForm.order_opener_profile_id && !kpiAccounts.some(account => account.id === kpiForm.order_opener_profile_id) && (
+                          <option value={kpiForm.order_opener_profile_id} disabled>{l.kpiAccountUnavailable}</option>
+                        )}
+                        {kpiAccounts.map(account => (
+                          <option key={account.id} value={account.id}>{account.full_name || account.email}</option>
+                        ))}
+                      </select>
+                    </DialogField>
+                  )}
+                </>
               )}
-            </>
+              {kpiForm.is_enabled && (
+                <p className="ws-caption !text-xs">{l.kpiCheckinHelp}</p>
+              )}
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-3">
+                <DialogField label={l.effectiveDate}>
+                  <DateInput value={kpiForm.effective_from} lang={lang} min={today}
+                    onChange={value => setKpi({ effective_from: value })} disabled={saving} />
+                </DialogField>
+              </div>
+            </section>
           )}
-        </div>
-
-        <div className="border-t border-[#e4e1de] px-6 py-4">
-          {error && <p role="alert" className="ws-notice ws-tone-negative mb-3">{error}</p>}
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={close} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
-            <button type="button" onClick={onSave} disabled={saving || !hasChanges} className="ws-btn ws-btn-primary disabled:cursor-not-allowed disabled:opacity-50">
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              {l.saveName}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </WorkspaceDialog>
   )
 }
 
+// Every date field on this page is a full-size workspace field, in the dialog and on the card.
 function DateInput(props) {
-  return <CalendarPicker {...props} />
+  return <CalendarPicker className={DIALOG_FIELD} {...props} />
 }
 
 // The entrance screen reports in at most every 20 s; over 90 s of silence = offline.

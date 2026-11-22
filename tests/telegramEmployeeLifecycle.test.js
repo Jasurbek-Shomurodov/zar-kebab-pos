@@ -54,7 +54,8 @@ test('both employee management screens request retry-safe lifecycle delivery', (
   assert.match(endpoint, /loadSalaryGroupTarget/)
   assert.match(endpoint, /\.eq\('actor_id', user\.id\)/)
   assert.match(fs.readFileSync(new URL('../src/components/NewEmployeeDialog.jsx', import.meta.url), 'utf8'), /notifyTelegramEmployeeLifecycle\(salaryProfileId, 'created'\)/)
-  assert.match(salaries, /nextActive \? 'activated' : 'deactivated'/)
+  // Activation and deactivation live on Employees only; Salaries no longer changes an employee's status.
+  assert.doesNotMatch(salaries, /notifyTelegramEmployeeLifecycle|from\('employee_salary_profiles'\)\s*\.update/)
   assert.match(employees, /nextActive \? 'activated' : 'deactivated'/)
 })
 

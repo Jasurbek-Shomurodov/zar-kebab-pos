@@ -1,6 +1,6 @@
 import CalendarPicker from '../components/CalendarPicker'
 import React, { useEffect, useMemo, useState } from 'react'
-import { BadgeMinus, CalendarX2, ChevronLeft, ChevronRight, Copy, Loader2, Plus, Save, Send, Users, WalletCards } from 'lucide-react'
+import { BadgeMinus, CalendarX2, ChevronLeft, ChevronRight, Copy, Loader2, Plus, RefreshCw, Send, Users, WalletCards } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AppShell from '../components/AppShell'
 import { accountingTitle, buildAccountingTabs } from '../lib/accountingTabs'
@@ -9,7 +9,9 @@ import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { getSalaryLedgerLoadError, isMissingSalaryMigration, loadSalaryRows } from '../lib/salaryData'
-import { formatCurrency, formatGroupedNumber } from '../lib/formatCurrency'
+import { formatCurrency } from '../lib/formatCurrency'
+import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
+import { SALARY_ENTRY_TONES, formatSalaryBalance } from '../lib/salaryTransactions'
 import { formatDateTime, formatLongDate } from '../lib/dateFormat'
 import {
   formatKpiRatePercent,
@@ -20,7 +22,6 @@ import {
 import { canEditFeature } from '../lib/permissions'
 import {
   EXPENSE_PAYMENT_METHODS,
-  buildSalaryReactivationAbsenceRows,
   canRecordSalaryTransaction,
   expensePaymentMethodLabel,
   getSalaryAbsenceDates,
@@ -35,10 +36,8 @@ import {
   notifyTelegramEmployeeAbsence,
   notifyTelegramEmployeeBonus,
   notifyTelegramEmployeeFine,
-  notifyTelegramEmployeeLifecycle,
   notifyTelegramEmployeePayment,
   notifyTelegramEmployeeRate,
-  retractTelegramSalaryEvent,
   notifyTelegramKpiRuleChange,
 } from '../lib/telegramNotifications'
 import { RollingValue } from '../components/RollingNumber'
@@ -46,7 +45,6 @@ import { RollingValue } from '../components/RollingNumber'
 const FIELD = 'ws-input !h-11 min-w-0 max-w-full font-medium disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 // Notes and reasons are free text, so they always get a multi-line field.
 const NOTE_FIELD = 'ws-input !h-auto min-h-[76px] min-w-0 max-w-full resize-y !py-2.5 leading-relaxed disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
-const PAGE_SIZE = 12
 // Payment, bonus, fine and absence notes must explain the entry, not just name it.
 const MIN_NOTE_WORDS = 5
 
@@ -85,16 +83,6 @@ function salaryRateUnitLabel(key, lang) {
     monthly: { uz: 'Oylik', ru: 'Месячная', en: 'Monthly' },
   }
   return labels[key]?.[lang] || labels[key]?.en || key
-}
-
-function formatAmountInput(value) {
-  const digits = String(value || '').replace(/\D+/g, '')
-  if (!digits) return ''
-  return formatGroupedNumber(digits)
-}
-
-function parseAmountInput(value) {
-  return String(value || '').replace(/\D+/g, '')
 }
 
 export default function Salaries() {
@@ -200,6 +188,13 @@ export default function Salaries() {
       page: 'Sahifa',
       empty: 'Maosh sozlamalari yo‘q',
       migration: 'Maosh jadvallari yangilanmagan. 054–063, 099 va 169 maosh migratsiyalarini ishga tushiring.',
+      retry: 'Qayta urinish',
+      loadFailed: 'Maosh ma’lumotlarini yuklab bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.',
+      saveFailed: 'Saqlab bo‘lmadi. Yozuv yaratilmagan bo‘lishi mumkin: ro‘yxatni tekshirib, qayta urinib ko‘ring.',
+      linkFailed: 'Telegram havolasini yaratib bo‘lmadi. Qayta urinib ko‘ring.',
+      copyFailed: 'Nusxalab bo‘lmadi. Havolani maydondan qo‘lda nusxalang.',
+      noteMinWords: 'Saqlash uchun kamida 5 ta so‘z yozing.',
+      noteWordCount: '{count} / 5 so‘z',
       readOnly: 'Bu sahifa faqat egasi uchun.',
       kpiTitle: 'Kunlik KPI bonuslari',
       kpiStartTime: 'KPI boshlanish vaqti (Toshkent)',
@@ -383,6 +378,13 @@ export default function Salaries() {
       page: 'Страница',
       empty: 'Настроек зарплаты пока нет',
       migration: 'Таблицы зарплат не обновлены. Запустите миграции зарплат 054–063, 099 и 169.',
+      retry: 'Повторить',
+      loadFailed: 'Не удалось загрузить данные по зарплате. Проверьте интернет и повторите.',
+      saveFailed: 'Не удалось сохранить. Запись могла не создаться: проверьте список и повторите.',
+      linkFailed: 'Не удалось создать ссылку Telegram. Попробуйте ещё раз.',
+      copyFailed: 'Не удалось скопировать. Скопируйте ссылку из поля вручную.',
+      noteMinWords: 'Чтобы сохранить, напишите не меньше 5 слов.',
+      noteWordCount: 'Слов: {count} из 5',
       readOnly: 'Эта страница доступна только владельцу.',
       kpiTitle: 'Ежедневные KPI-бонусы',
       kpiStartTime: 'Начало KPI (Ташкент)',
@@ -566,6 +568,13 @@ export default function Salaries() {
       page: 'Page',
       empty: 'No salary settings yet',
       migration: 'Salary tables are not up to date. Run salary migrations 054–063, 099, and 169.',
+      retry: 'Retry',
+      loadFailed: 'Could not load salary data. Check the connection and try again.',
+      saveFailed: 'Could not save. The entry may not have been created: check the list and try again.',
+      linkFailed: 'Could not create the Telegram link. Try again.',
+      copyFailed: 'Could not copy. Copy the link from the field by hand.',
+      noteMinWords: 'Write at least 5 words to save.',
+      noteWordCount: '{count} of 5 words',
       readOnly: 'Only the owner can manage this page.',
       kpiTitle: 'Daily KPI bonuses',
       kpiStartTime: 'KPI start time (Tashkent)',
@@ -671,10 +680,11 @@ export default function Salaries() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
   const [telegramSendingKeys, setTelegramSendingKeys] = useState([])
+  // Codes, translated at render: a language switch re-labels them and raw database text stays in the console.
   const [error, setError] = useState('')
+  // A failed ledger read: no balance or total is shown until a retry succeeds.
+  const [loadError, setLoadError] = useState('')
   const [message, setMessage] = useState('')
-  const [confirmActionKey, setConfirmActionKey] = useState('')
-  const [page, setPage] = useState(1)
   const [telegramDeliveryPage, setTelegramDeliveryPage] = useState(1)
   const [transactionForm, setTransactionForm] = useState({
     salary_profile_id: '',
@@ -722,6 +732,7 @@ export default function Salaries() {
   async function loadData({ showLoader = false, refreshTelegram = true } = {}) {
     if (showLoader) setLoading(true)
     setError('')
+    setLoadError('')
     try {
       const [teamRes, profileRes, rateRes, paymentRes, bonusRes, fineRes, absenceRes, telegramLinkRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, email, role, status, created_at').order('full_name'),
@@ -736,17 +747,20 @@ export default function Salaries() {
       ])
       const err = getSalaryLedgerLoadError([profileRes, rateRes, paymentRes, bonusRes, absenceRes], fineRes)
       if (err) {
-        setError(isMissingSalaryMigration(err) ? l.migration : err.message)
+        console.error('[salaries] ledger load failed:', err)
+        setLoadError(isMissingSalaryMigration(err) ? 'migration' : 'loadFailed')
         setSalaryProfiles([])
       } else {
-        if (fineRes.error) setError(isMissingSalaryMigration(fineRes.error) ? l.migration : fineRes.error.message)
+        // Only a database from before the fines migration gets here with a fines error.
+        if (fineRes.error) setError('migration')
         const teamRows = teamRes.data || []
         setSalaryProfiles(composeSalaryProfiles(profileRes.data || [], rateRes.data || [], paymentRes.data || [], bonusRes.data || [], fineRes.data || [], absenceRes.data || [], teamRows)
           .filter(salaryProfile => !salaryProfile.deleted_at))
         setTelegramLinks(telegramLinkRes.error ? [] : telegramLinkRes.data || [])
       }
-    } catch (loadError) {
-      setError(isMissingSalaryMigration(loadError) ? l.migration : loadError.message)
+    } catch (caught) {
+      console.error('[salaries] ledger load failed:', caught)
+      setLoadError(isMissingSalaryMigration(caught) ? 'migration' : 'loadFailed')
       setSalaryProfiles([])
     } finally {
       if (showLoader) setLoading(false)
@@ -801,14 +815,14 @@ export default function Salaries() {
           return
         }
         setMessage(allRequiredDestinationsSent
-          ? l.telegramRetrySent
+          ? 'telegramRetrySent'
           : anyDestinationSent
-            ? l.telegramRetryPartial
-            : l.telegramRetryFailed)
+            ? 'telegramRetryPartial'
+            : 'telegramRetryFailed')
       })
       .catch(notificationError => {
         console.warn(`[telegram] background ${eventType} notification failed:`, notificationError)
-        if (announceResult) setMessage(l.telegramRetryFailed)
+        if (announceResult) setMessage('telegramRetryFailed')
         else if (failureMessage) setMessage(failureMessage)
       })
       .finally(() => {
@@ -822,7 +836,7 @@ export default function Salaries() {
   async function createTelegramInvite() {
     const botUsername = String(import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim().replace(/^@/, '')
     if (!botUsername) {
-      setError(l.telegramBotMissing)
+      setError('telegramBotMissing')
       return
     }
     if (!canManage || !telegramSalaryProfileId) return
@@ -836,7 +850,8 @@ export default function Salaries() {
     })
     setSaving('')
     if (linkError) {
-      setError(linkError.message)
+      console.error('[salaries] Telegram link failed:', linkError)
+      setError('linkFailed')
       return
     }
     setTelegramInviteUrl(`https://t.me/${botUsername}?start=employee_${token}`)
@@ -846,9 +861,9 @@ export default function Salaries() {
     if (!telegramInviteUrl) return
     try {
       await navigator.clipboard.writeText(telegramInviteUrl)
-      setMessage(l.telegramCopied)
+      setMessage('telegramCopied')
     } catch {
-      setError(telegramInviteUrl)
+      setError('copyFailed')
     }
   }
 
@@ -860,10 +875,6 @@ export default function Salaries() {
       return String(a.employee_name || '').localeCompare(String(b.employee_name || ''))
     })
   ), [salaryProfiles, today])
-  const pageCount = Math.max(1, Math.ceil(sortedSalaryProfiles.length / PAGE_SIZE))
-  const pagedSalaryProfiles = useMemo(() => (
-    sortedSalaryProfiles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  ), [sortedSalaryProfiles, page])
   const activeSalaryProfiles = useMemo(() => (
     sortedSalaryProfiles.filter(item => item.is_active !== false)
   ), [sortedSalaryProfiles])
@@ -996,31 +1007,14 @@ export default function Salaries() {
     skipped: '',
     confirmed: 'ws-tone-positive',
   }
+  // Entry kinds take their colour from the shared payroll tone map; rate and KPI changes are not ledger entries.
   const telegramDeliveryTypeStyles = {
-    payment: {
-      card: 'border-l-[#ff5a00]',
-      label: 'ws-tone-accent',
-    },
-    bonus: {
-      card: 'border-l-[#1d7a52]',
-      label: 'ws-tone-positive',
-    },
-    fine: {
-      card: 'border-l-[#c4262c]',
-      label: 'ws-tone-negative',
-    },
-    absence: {
-      card: 'border-l-[#9a5a00]',
-      label: 'ws-tone-caution',
-    },
-    rate: {
-      card: 'border-l-[#2a6fdb]',
-      label: 'ws-tone-info',
-    },
-    kpi_rule: {
-      card: 'border-l-[#68655f]',
-      label: '',
-    },
+    payment: { card: SALARY_ENTRY_TONES.payment.border, label: SALARY_ENTRY_TONES.payment.badge },
+    bonus: { card: SALARY_ENTRY_TONES.bonus.border, label: SALARY_ENTRY_TONES.bonus.badge },
+    fine: { card: SALARY_ENTRY_TONES.fine.border, label: SALARY_ENTRY_TONES.fine.badge },
+    absence: { card: SALARY_ENTRY_TONES.absence.border, label: SALARY_ENTRY_TONES.absence.badge },
+    rate: { card: 'border-l-[#2a6fdb]', label: 'ws-tone-info' },
+    kpi_rule: { card: 'border-l-[#68655f]', label: '' },
   }
   const transactionSalaryProfiles = useMemo(() => (
     sortedSalaryProfiles.filter(item => canRecordSalaryTransaction(
@@ -1049,10 +1043,6 @@ export default function Salaries() {
       : transactionForm.entry_type === 'absence'
         ? l.absenceHelp
         : l.paymentHelp
-  useEffect(() => {
-    setPage(current => Math.min(current, pageCount))
-  }, [pageCount])
-
   useEffect(() => {
     setTelegramDeliveryPage(current => Math.min(current, telegramDeliveryPageCount))
   }, [telegramDeliveryPageCount])
@@ -1106,7 +1096,8 @@ export default function Salaries() {
     setSaving('')
     const { error: writeError } = writeResult
     if (writeError) {
-      setError(writeError.message)
+      console.error(`[salaries] ${entryType} was not saved:`, writeError)
+      setError('saveFailed')
       return
     }
     setTransactionForm({
@@ -1117,7 +1108,7 @@ export default function Salaries() {
       payment_method: 'cash',
       note: '',
     })
-    setMessage(l.transactionSavedMessage)
+    setMessage('transactionSavedMessage')
     runTelegramNotificationInBackground(entryType, writeResult.data?.id)
     await loadData({ refreshTelegram: false })
   }
@@ -1130,7 +1121,7 @@ export default function Salaries() {
     setError('')
     setMessage('')
     if (getSalaryAbsenceDates(salaryProfile).has(absenceDate)) {
-      setError(l.absenceDuplicate)
+      setError('absenceDuplicate')
       return
     }
     setSaving('absence-create')
@@ -1143,11 +1134,12 @@ export default function Salaries() {
     }).select('id').single()
     setSaving('')
     if (writeError) {
-      setError(writeError.code === '23505' ? l.absenceDuplicate : writeError.message)
+      if (writeError.code !== '23505') console.error('[salaries] absence was not saved:', writeError)
+      setError(writeError.code === '23505' ? 'absenceDuplicate' : 'saveFailed')
       return
     }
     setAbsenceForm({ salary_profile_id: '', absence_date: today, note: '' })
-    setMessage(l.absenceSavedMessage)
+    setMessage('absenceSavedMessage')
     runTelegramNotificationInBackground('absence', savedAbsence?.id)
     await loadData({ refreshTelegram: false })
   }
@@ -1161,101 +1153,6 @@ export default function Salaries() {
       retryKey,
       announceResult: true,
     })
-  }
-
-  async function deleteRate(rate) {
-    if (!canManage || role !== 'owner' || !rate?.id || saving) return
-    const key = `rate-delete-${rate.id}`
-    if (confirmActionKey !== key) {
-      setConfirmActionKey(key)
-      return
-    }
-    setSaving(key)
-    setError('')
-    try {
-      await retractTelegramSalaryEvent('rate', rate.id)
-      const { data: deleted, error: deleteError } = await supabase.from('employee_salary_rates').delete()
-        .eq('id', rate.id).eq('salary_profile_id', rate.salary_profile_id).select('id')
-      if (deleteError) throw deleteError
-      if (!deleted?.length) throw new Error('Salary rate was not deleted')
-      await loadData()
-    } catch (deleteError) {
-      setError(deleteError.message)
-    } finally {
-      setSaving('')
-      setConfirmActionKey('')
-    }
-  }
-
-  async function toggleSalaryProfileActive(salaryProfile) {
-    if (!canManage || !salaryProfile?.id) return
-    const key = `profile-toggle-${salaryProfile.id}`
-    if (confirmActionKey !== key) {
-      setConfirmActionKey(key)
-      return
-    }
-    setSaving(key)
-    const nextActive = salaryProfile.is_active === false
-    if (nextActive) {
-      const absenceRows = buildSalaryReactivationAbsenceRows(salaryProfile, today)
-      if (absenceRows.length > 0) {
-        const { error: absenceError } = await supabase
-          .from('employee_salary_absences')
-          .upsert(absenceRows, { onConflict: 'salary_profile_id,absence_date', ignoreDuplicates: true })
-        if (absenceError) {
-          setSaving('')
-          setConfirmActionKey('')
-          setError(absenceError.message)
-          return
-        }
-      }
-    }
-    const patch = nextActive
-      ? { is_active: true, ended_at: null }
-      : { is_active: false, ended_at: today }
-    const { error: updateError } = await supabase
-      .from('employee_salary_profiles')
-      .update(patch)
-      .eq('id', salaryProfile.id)
-    setSaving('')
-    setConfirmActionKey('')
-    if (updateError) {
-      setError(updateError.message)
-      return
-    }
-    await loadData()
-    const notification = await notifyTelegramEmployeeLifecycle(
-      salaryProfile.id,
-      nextActive ? 'activated' : 'deactivated',
-    )
-    if (!notification?.ok) setError(l.lifecycleTelegramFailed)
-  }
-
-  async function removeSalaryProfile(salaryProfile) {
-    if (!canManage || !salaryProfile?.id) return
-    const key = `profile-remove-${salaryProfile.id}`
-    if (confirmActionKey !== key) {
-      setConfirmActionKey(key)
-      return
-    }
-    setSaving(key)
-    const { error: deleteError } = await supabase
-      .from('employee_salary_profiles')
-      .update({
-        is_active: false,
-        ended_at: salaryProfile.ended_at || today,
-        deleted_at: new Date().toISOString(),
-      })
-      .eq('id', salaryProfile.id)
-    setSaving('')
-    setConfirmActionKey('')
-    if (deleteError) {
-      setError(deleteError.message)
-      return
-    }
-    await loadData()
-    const notification = await notifyTelegramEmployeeLifecycle(salaryProfile.id, 'deactivated')
-    if (!notification?.ok) setError(l.lifecycleTelegramFailed)
   }
 
   function chooseEntryType(entryType) {
@@ -1276,24 +1173,28 @@ export default function Salaries() {
   }
 
 
+  const errorText = error ? l[error] || l.saveFailed : ''
+  const loadErrorText = loadError ? l[loadError] || l.loadFailed : ''
+  const messageText = message ? l[message] || message : ''
+
   // Static sections (headings, operation forms, Telegram link picker) render at once;
   // only values that depend on loaded data shimmer.
   return (
     <AppShell title={accountingTitle(lang)} tabs={buildAccountingTabs(lang, 'salaries', navigate)}>
       <div className="min-h-full overflow-x-hidden bg-[#f6f5f3]">
         <div className="ws-page">
-          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
             <MetricCard
               icon={BadgeMinus}
               label={l.totalDue}
               description={l.totalDueHelp}
-              value={loading ? <Shimmer className="h-6 w-40 max-w-full rounded-md" /> : formatCurrency(totalDue)}
+              value={loading ? <Shimmer className="h-6 w-40 max-w-full rounded-md" /> : loadError ? '—' : formatCurrency(totalDue)}
             />
             <MetricCard
               icon={WalletCards}
               label={l.monthlyPayroll}
               description={l.monthlyPayrollHelp}
-              value={loading ? <Shimmer className="h-6 w-40 max-w-full rounded-md" /> : formatCurrency(monthlyPayrollTotal)}
+              value={loading ? <Shimmer className="h-6 w-40 max-w-full rounded-md" /> : loadError ? '—' : formatCurrency(monthlyPayrollTotal)}
             />
             <button
               type="button"
@@ -1302,8 +1203,8 @@ export default function Salaries() {
             >
               <span className="min-w-0">
                 <span className="ws-caption block">{l.employees}</span>
-                <span className="mt-1 block text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{loading ? <Shimmer className="h-6 w-10 rounded-md" /> : activeSalaryProfiles.length}</span>
-                <span className="mt-2 block text-sm font-medium text-[#ff5a00] group-hover:underline">{l.openEmployees}</span>
+                <span className="mt-1 block text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">{loading ? <Shimmer className="h-6 w-10 rounded-md" /> : loadError ? '—' : activeSalaryProfiles.length}</span>
+                <span className="mt-2 block text-sm font-medium text-[#bf4300] group-hover:underline">{l.openEmployees}</span>
               </span>
               <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
                 <Users size={16} />
@@ -1312,8 +1213,16 @@ export default function Salaries() {
           </div>
 
           {!canManage && <div className="ws-notice ws-tone-accent">{l.readOnly}</div>}
-          {error && <div role="alert" className="ws-notice ws-tone-negative">{error}</div>}
-          {message && !error && <div role="status" aria-live="polite" className="ws-notice ws-tone-positive">{message}</div>}
+          {loadErrorText && (
+            <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 flex-1">{loadErrorText}</span>
+              <button type="button" onClick={() => loadData({ showLoader: true })} className="ws-btn ws-btn-outline ws-btn-sm">
+                <RefreshCw aria-hidden="true" />{l.retry}
+              </button>
+            </div>
+          )}
+          {errorText && <div role="alert" className="ws-notice ws-tone-negative">{errorText}</div>}
+          {messageText && !error && !loadError && <div role="status" aria-live="polite" className="ws-notice ws-tone-positive">{messageText}</div>}
 
           <section aria-labelledby="salary-operations-heading">
             <SectionHeading
@@ -1345,7 +1254,7 @@ export default function Salaries() {
                       )
                     })}
                   </div>
-                  <p className={`ws-notice sm:col-span-2 lg:col-span-12 ${transactionForm.entry_type === 'fine' ? 'ws-tone-negative' : transactionForm.entry_type === 'absence' ? 'ws-tone-caution' : transactionForm.entry_type === 'bonus' ? 'ws-tone-positive' : 'ws-tone-accent'}`}>
+                  <p className={`ws-notice sm:col-span-2 lg:col-span-12 ${(SALARY_ENTRY_TONES[transactionForm.entry_type] || SALARY_ENTRY_TONES.payment).badge}`}>
                     {transactionGuidance}
                   </p>
                   {transactionForm.entry_type === 'absence' && (
@@ -1377,10 +1286,12 @@ export default function Salaries() {
                             value={absenceForm.note}
                             onChange={event => setAbsenceForm(current => ({ ...current, note: event.target.value }))}
                             placeholder={l.absenceReasonPlaceholder}
+                          aria-describedby="salary-absence-note-hint"
                             className={NOTE_FIELD}
                             disabled={!canManage || loading}
                             required
                           />
+                          <NoteWordsHint id="salary-absence-note-hint" value={absenceForm.note} l={l} />
                         </Field>
                       </div>
                       {absenceAlreadyRecorded && (
@@ -1392,7 +1303,7 @@ export default function Salaries() {
                         type="button"
                         onClick={addAbsence}
                         disabled={!canManage || loading || !absenceForm.salary_profile_id || !absenceForm.absence_date || countNoteWords(absenceForm.note) < MIN_NOTE_WORDS || absenceAlreadyRecorded || saving === 'absence-create'}
-                        className="ws-btn ws-btn-primary !h-11 self-end sm:col-span-2 lg:col-span-3 lg:mb-[22px]"
+                        className="ws-btn ws-btn-primary !h-11 self-end sm:col-span-2 lg:col-span-3 lg:mb-[26px]"
                       >
                         {saving === 'absence-create' ? <Loader2 size={16} className="animate-spin" /> : <CalendarX2 size={15} />}
                         {l.absence}
@@ -1404,7 +1315,7 @@ export default function Salaries() {
                   <div className={`sm:col-span-2 ${transactionForm.entry_type === 'payment' ? 'lg:col-span-3' : 'lg:col-span-6'}`}>
                     <Field
                       label={l.employee}
-                      hint={selectedTransactionProfile ? `${l.balance}: ${formatCurrency(selectedTransactionBalance)}` : ''}
+                      hint={selectedTransactionProfile ? `${l.balance}: ${formatSalaryBalance(selectedTransactionBalance)}` : ''}
                       hintClassName={selectedTransactionBalance < 0 ? 'text-[#c4262c]' : ''}
                     >
                       <select
@@ -1431,7 +1342,7 @@ export default function Salaries() {
                         {transactionSalaryProfiles.map(item => {
                           const name = item.employee_name || item.profile?.full_name || item.profile?.email
                           const inactiveDue = item.is_active === false
-                            ? ` · ${l.inactive} · ${l.balance}: ${formatCurrency(getSalaryBalance(item, transactionForm.paid_date || today))}`
+                            ? ` · ${l.inactive} · ${l.balance}: ${formatSalaryBalance(getSalaryBalance(item, transactionForm.paid_date || today))}`
                             : ''
                           return <option key={item.id} value={item.id}>{name}{inactiveDue}</option>
                         })}
@@ -1466,10 +1377,10 @@ export default function Salaries() {
                     <input
                       type="text"
                       inputMode="numeric"
-                      value={formatAmountInput(transactionForm.amount)}
-                      onChange={event => setTransactionForm(current => ({ ...current, amount: parseAmountInput(event.target.value) }))}
+                      value={formatMoneyInput(transactionForm.amount)}
+                      onChange={event => setTransactionForm(current => ({ ...current, amount: normalizeMoneyInput(event.target.value) }))}
                       placeholder="0 UZS"
-                      className={FIELD}
+                      className={`${FIELD} tabular-nums`}
                       disabled={!canManage || loading}
                     />
                   </Field>
@@ -1502,10 +1413,12 @@ export default function Salaries() {
                           data-gramm="false"
                           data-gramm_editor="false"
                           placeholder={l.fineReasonPlaceholder}
+                          aria-describedby="salary-fine-note-hint"
                           className={NOTE_FIELD}
                           disabled={!canManage || loading}
                           required
                         />
+                        <NoteWordsHint id="salary-fine-note-hint" value={transactionForm.note} l={l} />
                       </Field>
                     </div>
                   )}
@@ -1517,10 +1430,12 @@ export default function Salaries() {
                           value={transactionForm.note}
                           onChange={event => setTransactionForm(current => ({ ...current, note: event.target.value }))}
                           placeholder={l.paymentNotePlaceholder}
+                          aria-describedby="salary-payment-note-hint"
                           className={NOTE_FIELD}
                           disabled={!canManage || loading}
                           required
                         />
+                        <NoteWordsHint id="salary-payment-note-hint" value={transactionForm.note} l={l} />
                       </Field>
                     </div>
                   )}
@@ -1532,10 +1447,12 @@ export default function Salaries() {
                           value={transactionForm.note}
                           onChange={event => setTransactionForm(current => ({ ...current, note: event.target.value }))}
                           placeholder={l.bonusCommentPlaceholder}
+                          aria-describedby="salary-bonus-note-hint"
                           className={NOTE_FIELD}
                           disabled={!canManage || loading}
                           required
                         />
+                        <NoteWordsHint id="salary-bonus-note-hint" value={transactionForm.note} l={l} />
                       </Field>
                     </div>
                   )}
@@ -1543,7 +1460,7 @@ export default function Salaries() {
                     type="button"
                     onClick={addTransaction}
                     disabled={!canManage || loading || !transactionForm.salary_profile_id || normalizeExpenseAmount(transactionForm.amount) <= 0 || countNoteWords(transactionForm.note) < MIN_NOTE_WORDS || (saving !== '' && ['payment-create', 'bonus-create', 'fine-create'].includes(saving))}
-                    className={`ws-btn ws-btn-primary !h-11 self-end items-center lg:col-span-3 lg:mb-[22px] sm:col-span-2`}
+                    className={`ws-btn ws-btn-primary !h-11 self-end items-center lg:col-span-3 lg:mb-[26px] sm:col-span-2`}
                   >
                     {['payment-create', 'bonus-create', 'fine-create'].includes(saving)
                       ? <Loader2 size={16} className="animate-spin" />
@@ -1594,8 +1511,8 @@ export default function Salaries() {
                     {l.telegramCreateLink}
                   </button>
                   {telegramInviteUrl && (
-                    <div className="flex min-w-0 items-center gap-2 rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-2 sm:col-span-2">
-                      <input readOnly value={telegramInviteUrl} className={`${FIELD} min-w-0 font-mono !text-xs`} />
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-[10px] bg-[#efece9] p-2 sm:col-span-2">
+                      <input readOnly value={telegramInviteUrl} aria-label={l.telegramCreateLink} onFocus={event => event.target.select()} className="ws-input !h-11 min-w-[10rem] flex-1 font-mono !text-xs" />
                       <button
                         type="button"
                         onClick={copyTelegramInvite}
@@ -1710,7 +1627,7 @@ export default function Salaries() {
                                       error: delivery.teamError,
                                     }] : []),
                                   ].map(target => (
-                                    <div key={target.key} className="rounded-lg border border-[#e4e1de] bg-white px-2.5 py-2">
+                                    <div key={target.key} className="rounded-lg bg-[#f6f5f3] px-2.5 py-2">
                                       <div className="flex flex-wrap items-center justify-between gap-2">
                                         <span className="text-xs font-medium text-[#22201d]">{target.label}</span>
                                         <span className={`ws-status !text-xs ${
@@ -1786,7 +1703,7 @@ function MetricCard({ icon: Icon, label, value, description }) {
     <div className="ws-panel flex h-full items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="ws-caption">{label}</p>
-        <div className="mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={value} /></div>
+        <div className="mt-1 whitespace-nowrap text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]"><RollingValue value={value} /></div>
         {description && <p className="ws-caption mt-2">{description}</p>}
       </div>
       <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
@@ -1827,6 +1744,18 @@ function Field({ label, hint = '', hintClassName = '', children }) {
       {children}
       {hint && <span className={`mt-1.5 block text-xs font-medium ${hintClassName || 'text-[#68655f]'}`}>{hint}</span>}
     </label>
+  )
+}
+
+// The five-word rule is always visible under the note, with a live count, so a disabled Save explains itself.
+function NoteWordsHint({ id, value, l }) {
+  const count = countNoteWords(value)
+  const enough = count >= MIN_NOTE_WORDS
+  return (
+    <span id={id} className={`mt-1.5 flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-xs font-medium ${enough ? 'text-[#1d7a52]' : 'text-[#68655f]'}`}>
+      <span>{l.noteMinWords}</span>
+      <span className="whitespace-nowrap tabular-nums" aria-live="polite">{l.noteWordCount.replace('{count}', count)}</span>
+    </span>
   )
 }
 

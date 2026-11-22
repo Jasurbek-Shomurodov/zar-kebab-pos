@@ -749,7 +749,7 @@ test('recorded salary operations trigger the authenticated shared Telegram endpo
   assert.match(salariesPage, /runTelegramNotificationInBackground\(entryType, writeResult\.data\?\.id\)/)
   assert.match(salariesPage, /runTelegramNotificationInBackground\('absence', savedAbsence\?\.id\)/)
   assert.match(addRateSource, /\.insert\(buildSalaryRatePayload\([\s\S]*?\.select\('id'\)\s*\.single\(\)/)
-  assert.match(addRateSource, /notifySalaryChangeInBackground\(notifyTelegramEmployeeRate, savedRate\?\.id, l\.rateTelegramFailed\)/)
+  assert.match(addRateSource, /notifySalaryChangeInBackground\(notifyTelegramEmployeeRate, savedRate\?\.id, 'rateTelegramFailed'\)/)
   assert.match(addRateSource, /const isInitialRate = \(employee\.rates \|\| \[\]\)\.length === 0/)
   assert.match(addRateSource, /if \(!isInitialRate\) notifySalaryChangeInBackground\(notifyTelegramEmployeeRate/)
   assert.doesNotMatch(createSalaryProfileSource, /notifyTelegramEmployeeRate/)
@@ -806,7 +806,7 @@ test('salary loading is visible while Telegram delivery refresh stays non-blocki
 
   assert.match(salariesPage, /loadData\(\{ showLoader: true \}\)/)
   // Only data-driven values shimmer; the static operations form is never hidden behind a loader.
-  assert.match(salariesPage, /value=\{loading \? <Shimmer [^>]*\/> : formatCurrency\(totalDue\)\}/)
+  assert.match(salariesPage, /value=\{loading \? <Shimmer [^>]*\/> : loadError \? '—' : formatCurrency\(totalDue\)\}/)
   assert.doesNotMatch(salariesPage, /if \(loading\) \{\s*return/)
   assert.match(salariesPage, /async function loadData\(\{ showLoader = false, refreshTelegram = true \} = \{\}\)/)
   assert.match(salariesPage, /await loadData\(\{ refreshTelegram: false \}\)/)
