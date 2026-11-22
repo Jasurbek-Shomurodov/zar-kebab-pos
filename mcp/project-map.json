@@ -226,6 +226,12 @@
   ],
   "features": [
     {
+      "name": "design-system-shared-ui",
+      "keywords": ["design", "tokens", "colour", "contrast", "dialog", "modal", "sheet", "z-index", "layers", "touch target", "shimmer", "empty state", "status badge", "currency format", "dark theme"],
+      "files": ["DESIGN.md", "src/styles/workspace.css", "src/index.css", "tailwind.config.js", "scripts/build-dark-theme.mjs", "src/components/WorkspaceDialog.jsx", "src/lib/modalKeyboard.js", "src/components/OperationalState.jsx", "src/components/StatusBadge.jsx", "src/components/PageShimmer.jsx", "src/lib/formatCurrency.js"],
+      "tests": ["tests/shellNavigation.test.js", "tests/waiterServiceScreens.test.js", "tests/cashierUiGuards.test.js", "tests/printOnce.test.js", "tests/menuAdminDialogs.test.js", "tests/guestPagesDesign.test.js", "tests/adminSettingsDesign.test.js", "tests/reportingLoadStates.test.js", "tests/financialScreensDesign.test.js", "tests/payrollUi.test.js", "tests/modalKeyboard.test.js", "tests/formatCurrency.test.js", "tests/i18nLabelParity.test.js", "tests/darkTheme.test.js", "tests/pageLoading.test.js"]
+    },
+    {
       "name": "architecture-auth-realtime",
       "keywords": ["startup", "login", "oauth", "profile", "route", "role", "permission", "realtime", "hydration"],
       "files": ["src/lib/restProxy.js", "src/lib/resumeRecovery.js", "src/App.jsx", "src/contexts/AuthContext.jsx", "src/store/AppContext.jsx", "src/store/appHooks.js", "src/lib/permissions.js", "src/lib/profileLoading.js", "src/lib/db.js"],

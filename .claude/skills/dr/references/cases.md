@@ -40,6 +40,7 @@ Tokens: `src/styles/workspace.css`, `tailwind.config.js`, dark remap in
 | COL-006 | S2 | Theme persists | Toggle, reload | Kept |
 | COL-007 | S0 | Measured text contrast | Audit I (§3) in light and dark, with each dialog open | Empty below 4.5:1 for body text; large figures and icons may stop at 3:1 (COL-003) [dr 2026-10-16] |
 | COL-008 | S1 | Negative tone only for meaning | Audit G (§3) on every screen | Every `--ws-negative` text is money out, overdue, a fine, a cancelled order or an error [dr 2026-10-16] |
+| COL-009 | S0 | No small white label on brand orange, no small orange text | Audit I in light on any staff screen; `rg "bg-\[#ff5a00\][^\"]*text-white" src` | Primary buttons and count badges use `--ws-primary-solid` (#cc4800, 4.7:1); orange text under 24px uses `--ws-primary-ink` (#bf4300); `#ff5a00` only for icons, figures of 24px+ and the focus ring [dr 2026-11-22] |
 
 
 ## TYPE — typography and numbers
@@ -54,6 +55,7 @@ Tokens: `src/styles/workspace.css`, `tailwind.config.js`, dark remap in
 | TYPE-006 | S0 | Money audit passes in UZ, RU and EN | Audit C (§3): decimals, comma thousands, unspaced unit, hyphen-minus, literal unit outside its language, chart labels | Empty except tech-card unit prices with up to two decimals [dr 2026-10-16] |
 | TYPE-007 | S1 | Type sizes and radii come from tokens | Audit D (§3) per screen; compare with `--ws-type-*` and `--ws-radius-*` | Only 12, 13, 14, 15, 20 px and the page/display clamps; radii 8, 10, 12, 16 px or pill [dr 2026-10-16] |
 | TYPE-008 | S1 | No language leftovers | Audit F (§3) in UZ, RU and EN | Only data (item, employee, ingredient names) may be in another language [dr 2026-10-16] |
+| TYPE-009 | S0 | Money grouping does not depend on the browser | In Chrome: `new Intl.NumberFormat('uz-UZ').format(65000)` prints `65,000`; the app must still show `65 000 UZS` | `formatCurrency` groups by hand; no `Intl.NumberFormat('uz-UZ')` in `src`. Fixed 2026-11-22, guard `tests/formatCurrency.test.js` [dr 2026-11-22] |
 
 
 ## TOUCH — touch and interaction
@@ -96,6 +98,8 @@ Tokens: `src/styles/workspace.css`, `tailwind.config.js`, dark remap in
 | RULE-008 | S1 | One icon set, consistent sizes | `rg -n "lucide-react" src \| wc -l` and other icon imports | Only lucide; `aria-hidden` next to text |
 | RULE-009 | S1 | No literal strings in JSX | `rg -n ">[A-Za-zА-Яа-я][^<{]{3,}<" src/pages src/components` | Everything via `t`/`tf` |
 | RULE-010 | S1 | Each data page has shimmer, empty and error | STATE-001 to STATE-003 | All three |
+| RULE-011 | S1 | Layers are named | `node --test tests/modalKeyboard.test.js` (fails on any `z-[n]` or bare `z-50` in `src`) | None: `z-drawer`, `z-floating`, `z-overlay`, `z-dialog`, `z-picker`, `z-toast`, `z-critical` (DESIGN.md "Layers"). Fixed 2026-11-22, guard `tests/modalKeyboard.test.js` [dr 2026-11-22] |
+| RULE-012 | S0 | Every label exists in uz, ru and en | `node --test tests/i18nLabelParity.test.js` | Same keys in each language object of every file (a missing key renders an empty button: CashierTables `openCheck`). Fixed 2026-11-22 [dr 2026-11-22] |
 
 ## REUSE — pages and components
 
@@ -133,6 +137,7 @@ Tokens: `src/styles/workspace.css`, `tailwind.config.js`, dark remap in
 | RESP-011 | S0 | Dialogs, sheets and listboxes fit the screen | Audit O (§3) and `DIALOGS=1` sweep at 320, 667×375 and 1024; focus the first field at 375×667 | Inside the viewport or scrolling; title and footer reachable; no two-line buttons; equal footer heights [dr 2026-10-16] |
 | RESP-012 | S1 | Clean at the ladder seams | Sweep at 414, 540, 600, 820, 912, 1180 and landscape 667×375 / 820×375 | No new `out`, `clipped`, `overlap` or `brokenWords` hit that the standard widths do not show [dr 2026-10-16] |
 | RESP-013 | S1 | Every control has a name | Audit E (§3) with each dialog open | Empty: text, `aria-label`, `aria-labelledby`, `title` or a `label` [dr 2026-10-16] |
+| RESP-014 | S0 | Dialogs are `WorkspaceDialog` | `rg -n 'role="(alert)?dialog"' src --glob '!src/components/WorkspaceDialog.jsx'`; Audit O at 320x568, 667x375, 375x330 | Title and action row pinned, body scrolls, Escape closes, focus returns; a hand-rolled overlay is a finding [dr 2026-11-22] |
 
 
 ## PRINT — receipts and kitchen checks

@@ -175,7 +175,8 @@ test('email password signup uses server registration instead of Supabase email t
   assert.match(signup, /const signInResult = await signInWithEmail\(normalizedEmail, password\)/)
   assert.match(signup, /emailRedirectTo: `\$\{globalThis\.location\?\.origin \|\| ''\}\/auth\/callback`/)
   assert.match(submit, /if \(data\?\.session\) \{[\s\S]*navigate\(returnTo \|\| '\/', \{ replace: true \}\)/)
-  assert.match(submit, /setMode\('signin'\)[\s\S]*setInfo\(t\(lang, 'accountCreated'\)\)/)
+  // The notice is stored as a dictionary key and worded at render (messageText), so it follows the language.
+  assert.match(submit, /setMode\('signin'\)[\s\S]*setInfo\('accountCreated'\)/)
 })
 
 test('only a missing auth profile falls back to pending approval', () => {
@@ -272,7 +273,9 @@ test('AdminUsers rows open a member dialog instead of cramming actions into the 
   assert.match(adminUsers, /onClick=\{\(\) => openMember\(user\)\}/)
   assert.match(adminUsers, /aria-haspopup="dialog"/)
   assert.match(adminUsers, /\{openUser && renderMemberDialog\(openUser\)\}/)
-  assert.match(adminUsers, /role="dialog" aria-modal="true" aria-labelledby="team-member-title"/)
+  // The member dialog is the shared WorkspaceDialog (role="dialog", focus trap, Escape, pinned actions).
+  assert.match(functionBody(adminUsers, 'renderMemberDialog'), /<WorkspaceDialog\s+variant="sheet"/)
+  assert.doesNotMatch(adminUsers, /fixed inset-0/)
   assert.doesNotMatch(adminUsers, /minmax\(540px,580px\)/)
   assert.doesNotMatch(adminUsers, /max-w-5xl/)
   assert.doesNotMatch(adminUsers, /grid-cols-\[1fr_110px_480px\]/)

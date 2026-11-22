@@ -56,11 +56,11 @@ export default function TechCardCostOverrunList({ overruns, menuItems, lang = 'r
                 <span className="block truncate text-sm font-semibold text-[#22201d]">{row.name}</span>
                 <span className="ws-caption block truncate">{row.variantLabel}</span>
               </span>
-              <span className="flex-shrink-0 text-right text-[12px] tabular-nums leading-tight">
+              <span className="flex-shrink-0 whitespace-nowrap text-right text-xs tabular-nums leading-tight">
                 <span className="block font-semibold text-[#c4262c]">{l.cost}: {formatCurrency(row.cost)}</span>
                 <span className="block text-[#68655f]">{l.price}: {formatCurrency(row.price)}</span>
               </span>
-              {canOpen && <ChevronRight size={16} className="flex-shrink-0 text-[#68655f] transition-transform group-hover:translate-x-0.5 group-hover:text-[#ff5a00]" />}
+              {canOpen && <ChevronRight size={16} className="flex-shrink-0 text-[#68655f] transition-transform group-hover:translate-x-0.5 group-hover:text-[#bf4300]" />}
             </>
           )
           return (

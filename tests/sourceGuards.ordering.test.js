@@ -167,7 +167,9 @@ test('WaiterTables ready-card total uses shared payment math instead of stale st
   const getPreparationCounts = functionBody(source, 'getPreparationCounts')
 
   assert.match(source, /import \{ getOrderTotal \} from '\.\.\/lib\/analytics'/)
-  assert.match(getPreparationCounts, /total: active\.reduce\(\(s, o\) => s \+ getOrderTotal\(o\), 0\)/)
+  // Shared payment math, with the configured service rate (not a hard-coded 20%) when an order stores none.
+  assert.match(getPreparationCounts, /total: active\.reduce\(\(s, o\) => s \+ getOrderTotal\(o, getConfiguredServiceRatePct\(settings, o\.price_mode\)\), 0\)/)
+  assert.match(source, /getPreparationCounts\(table\.id, state\.orders, state\.settings\)/)
   assert.doesNotMatch(getPreparationCounts, /Number\(o\.total\)/)
 })
 
@@ -336,8 +338,11 @@ test('CashierTables groups bills by cashier urgency', () => {
   assert.doesNotMatch(source, /function isCashierReadyTakeAway/)
   assert.doesNotMatch(source, /billableItems\.every\(item => \['ready', 'served'\]/)
   assert.match(source, /const raw = state\.orders\.filter\(isCashierVisibleBill\)/)
-  assert.match(source, /key: 'needs_bill'[\s\S]*key: 'active'[\s\S]*key: 'take_away'[\s\S]*key: 'delivery'/)
-  assert.match(source, /filterStatus === 'active'/)
+  assert.match(source, /key: 'needs_bill'[\s\S]*key: 'take_away'[\s\S]*key: 'delivery'/)
+  // isCashierVisibleBill only lets a dine-in bill through as needs_bill, so an "active, not
+  // bill-ready" filter or section could never show a bill: it must not come back as a dead option.
+  assert.doesNotMatch(source, /filterStatus === 'active'|key: 'active'|value: 'active'/)
+  assert.match(source, /hasFilters && activeBills\.length > 0 \?[\s\S]*l\.noResults[\s\S]*onClick=\{resetFilters\}/)
   assert.match(source, /filterStatus === 'delivery'/)
   assert.match(source, /isDeliveryOrderType/)
   assert.match(source, /function PaidTodaySummary/)
@@ -350,7 +355,12 @@ test('CashierTables groups bills by cashier urgency', () => {
   assert.match(source, /latest\.map\(order => \{[\s\S]*normalizePriceMode\(order\.price_mode\)[\s\S]*getPriceModeLabel\(priceMode, lang\)/)
   assert.match(source, /getPaidOrderPaymentMethods\(order\)[\s\S]*getOrderPaymentBreakdown\(order\)/)
   assert.match(source, /paymentMethods\.map\(config =>/)
-  assert.match(source, /cashier_total: getOrderTotal\(order, getConfiguredServiceRatePct\(state\.settings, order\.price_mode\)\)/)
+  // The tile total is the bill page's own quote (tests/cashierBills.test.js proves they match),
+  // never a second per-order sum, and "highest/lowest amount" sorts by the printed figure.
+  assert.match(source, /cashier_total: getCashierBillTotal\(bill, \{\s*orders: state\.orders,\s*menuItems: state\.menuItems,\s*settings: state\.settings,\s*\}\)/)
+  assert.doesNotMatch(source, /cashier_total: getOrderTotal\(order, getConfiguredServiceRatePct/)
+  assert.match(source, /sortKey === 'highest'\) return \(b\.cashier_total \|\| 0\) - \(a\.cashier_total \|\| 0\)/)
+  assert.match(readSource('src/lib/cashierBills.js'), /getFreshCashierPaymentQuote\(\{ orders, menuItems, settings, tableId, orderId \}\)\.total/)
   assert.match(source, /order\.cashier_total \?\? getOrderTotal\(order\)/)
   assert.match(source, /getCashierBillableItems\(order\)\.length > 0/)
   assert.match(source, /recallTable/)
@@ -419,7 +429,7 @@ test('delivery order type is wired through POS surfaces and reports', () => {
   assert.match(reports, /key: 'order_types'/)
   assert.match(reports, /function OrderTypesTab/)
   assert.match(reports, /return ORDER_TYPE_KEYS/)
-  assert.match(waiterTables, /deliveryOrder: 'Delivery Order'/)
+  assert.match(waiterTables, /deliveryOrder: 'Delivery order'/)
   assert.match(waiterTables, /function handleDelivery\(\)/)
   assert.match(waiterTables, /navigate\('\/waiter\/take-away\?orderType=delivery'\)/)
   assert.match(waiterOrder, /searchParams\.get\('orderType'\)/)
@@ -461,7 +471,9 @@ test('WaiterTables lets occupied tables request the bill from the card action', 
 
   assert.match(source, /status === 'occupied'\) return \{ label: tr\(lang, 'requestBill'\)/)
   assert.match(functionBody(source, 'handleCardAction'), /if \(status === 'occupied'\) \{[\s\S]*moveTableToCashier\(table\)/)
-  assert.match(functionBody(source, 'moveTableToCashier'), /state\.settings\?\.autoPrint[\s\S]*MARK_TABLE_NEEDS_BILL[\s\S]*result\?\.error[\s\S]*completeBillHandoff/)
+  // The write runs behind the card's busy guard; a failed write never hands off to the cashier.
+  assert.match(functionBody(source, 'moveTableToCashier'), /state\.settings\?\.autoPrint[\s\S]*runTableWrite\(table, \(\) => dispatch\(\{ type: 'MARK_TABLE_NEEDS_BILL'[\s\S]*if \(!moved\) return[\s\S]*completeBillHandoff/)
+  assert.match(functionBody(source, 'runTableWrite'), /if \(busyTableRef\.current\) return false[\s\S]*result\?\.error[\s\S]*return false/)
   assert.doesNotMatch(source, /prepareBillPrintWindow|window\.open|_blank/)
 })
 
@@ -500,7 +512,12 @@ test('WaiterOrder opens the cart drawer from manage-order links', () => {
   assert.match(source, /const isManageOrderOnly = !isGuestTabletMode && isManageOrderPanel && cartCount === 0/)
   assert.match(source, /setCartOpen\(true\)/)
   assert.match(source, /!\{?isManageOrderOnly[\s\S]*<CartPanel/)
-  assert.match(source, /isManageOrderOnly \? 'flex-1 pt-14' : 'max-h-\[48dvh\] flex-shrink-0'/)
+  // The order panel and the cart lines share one scroll area (CartPanel beforeItems); a manage-only
+  // drawer scrolls the order panel on its own. A capped, non-shrinking order panel squeezed the cart to 0px.
+  assert.match(source, /const showCartPanel = !isManageOrderOnly && canEditTables/)
+  assert.match(source, /beforeItems=\{orderActionPanel\}/)
+  assert.match(source, /min-h-0 flex-1 overflow-y-auto overscroll-contain pt-3">\s*\{orderActionPanel\}/)
+  assert.doesNotMatch(source, /max-h-\[48dvh\]/)
 })
 
 test('WaiterOrder shows the current table or order type in the header', () => {
@@ -601,7 +618,11 @@ test('WaiterOrder animates menu item additions into the cart button', () => {
   assert.match(flyingCartItem, /const \[active, setActive\] = useState\(false\)/)
   assert.match(flyingCartItem, /requestAnimationFrame\(\(\) => setActive\(true\)\)/)
   assert.match(flyingCartItem, /translate3d\(\$\{dx\}px, \$\{dy\}px, 0\) scale\(\$\{targetScale\}\)/)
-  assert.match(flyingCartItem, /transition: 'transform 720ms cubic-bezier\(0\.16, 1, 0\.3, 1\)/)
+  // Routine motion stays within 300ms and animates only transform and opacity.
+  assert.match(waiterOrderSource, /const CART_FLYER_MS = (\d+)/)
+  assert.ok(Number(waiterOrderSource.match(/const CART_FLYER_MS = (\d+)/)[1]) <= 300)
+  assert.match(flyingCartItem, /transition: `transform \$\{CART_FLYER_MS\}ms cubic-bezier\(0\.16, 1, 0\.3, 1\), opacity \$\{CART_FLYER_MS\}ms ease-out`/)
+  assert.doesNotMatch(flyingCartItem, /border-radius \d+ms/)
   assert.match(flyingCartItem, /onDone\(flyer\.id\)/)
 })
 
@@ -626,8 +647,12 @@ test('WaiterOrder lets active, recalled and requested-bill order items be quanti
   assert.match(panel, /preparationGroups\.map\(group/)
   assert.match(panel, /recalledEditableGroups\.map\(group/)
   assert.match(panel, /requestedBillEditableGroups\.map\(group/)
-  assert.match(panel, /<OrderItemQtyRow key=\{item\.id \|\| `\$\{group\.roundId\}-\$\{item\.menu_item_id\}`\} item=\{item\} \/>/)
-  assert.match(source, /max-h-\[48dvh\][^"]*overflow-y-auto/)
+  assert.match(panel, /<OrderItemQtyRow key=\{item\.id \|\| `\$\{group\.roundId\}-\$\{item\.menu_item_id\}`\} item=\{item\} \{\.\.\.qtyRowProps\} \/>/)
+  // The row is a module-level component (not re-declared on every render) fed by the panel's handler.
+  assert.match(source, /\nfunction OrderItemQtyRow\(\{ item, editable = true, lang, labels, menuItemMap, updatingItemId, onUpdateQty \}\)/)
+  assert.match(panel, /const qtyRowProps = \{ lang, labels: l, menuItemMap, updatingItemId, onUpdateQty: handleUpdateItemQty \}/)
+  // The submitted order scrolls together with the cart lines inside CartPanel's single scroll area.
+  assert.match(readSource('src/components/CartPanel.jsx'), /overflow-y-auto overscroll-contain px-3 py-3">\s*\{beforeItems && /)
 })
 
 test('WaiterOrder distinguishes submitted batches from the unsent cart', () => {
@@ -663,12 +688,14 @@ test('WaiterOrder prints cook checks by submitted order round', () => {
   assert.match(source, /getKitchenCheckGroups/)
   assert.match(app, /const KitchenCheckReceipt = lazy\(\(\) => import\('\.\/pages\/KitchenCheckReceipt'\)\)/)
   assert.match(app, /path="\/kitchen-check\/:orderId"[\s\S]*?<LazyProtectedRoute page="tables"><KitchenCheckReceipt \/><\/LazyProtectedRoute>/)
-  assert.match(kitchenCheckReceipt, /function handlePrintKitchenCheck\(delay = 300\)/)
-  assert.match(kitchenCheckReceipt, /window\.setTimeout\(\(\) => window\.print\(\), delay\)/)
+  // Printing goes through the shared one-print-at-a-time controller, never a bare window.print().
+  assert.match(kitchenCheckReceipt, /const \{ busy: printBusy, print \} = usePrintOnce\(\{/)
+  assert.doesNotMatch(kitchenCheckReceipt, /window\.print\(/)
   assert.match(kitchenCheckReceipt, /const autoPrint = params\.get\('print'\) === '1'/)
   assert.match(kitchenCheckReceipt, /getKitchenCheckGroup\(order, roundId\)/)
   assert.match(kitchenCheckReceipt, /loadKitchenCheckOrder\(orderId/)
-  assert.match(kitchenCheckReceipt, /printedRoundRef/)
+  // Auto-print once: the flag is consumed (stripped from the URL) by the print it starts.
+  assert.match(kitchenCheckReceipt, /onAutoPrintConsumed: consumeAutoPrint/)
   assert.doesNotMatch(kitchenCheckReceipt, /groups\.find\([^\n]+\) \|\| groups\[0\]/)
   assert.match(kitchenCheckReceipt, /getItemName\(menuItem, lang\)/)
   assert.match(kitchenCheckReceipt, /getOrderItemOptionLines\(item, menuItem, lang\)/)
@@ -740,7 +767,7 @@ test('completed order details do not show kitchen-cancelled items', () => {
 
   assert.match(reports, /isCancelledOrderItem/)
   assert.match(reports, /\(fetchedItems \|\| getOrderItems\(order\)\)\.filter\(item => !isCancelledOrderItem\(item\)\)/)
-  assert.match(reports, /Ordered Items'} \(\{items\.length\}\)/)
+  assert.match(reports, /Ordered items'\}\{itemsKnown \? ` \(\$\{items\.length\}\)` : ''\}/)
 })
 
 test('AdminTables protects table history and manages zones', () => {

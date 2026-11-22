@@ -66,10 +66,11 @@ Rules:
   `text-gray-400`, `#8a867f`, `#D1D5DB`, `#C3C8D0`) fail on white and are
   only for disabled glyphs and decorative icons.
 - **Status means the same thing everywhere.** Use `.ws-status` or `.ws-badge`
-  with a tone class; `StatusBadge` maps table, order and account statuses to
-  those tones in one place. Free or paid is positive, waiting or pending is
-  caution, needs bill or disabled is negative, in progress is accent, sent or
-  ready is info. Colour is never the only signal: the word is always there.
+  with a tone class; `STATUS_TONE` in `StatusBadge.jsx` maps table, order and
+  account statuses to those tones in one place: free or active is positive,
+  seated or paid is neutral, sent to the kitchen or reserved is info, cooking
+  is accent, ready to serve or pending is caution, needs the bill or disabled
+  is negative. Colour is never the only signal: the word is always there.
 - **Negative is for meaning.** Red text is money out, an overdue or cancelled
   thing, a fine or an error. Not emphasis.
 - **Dark theme.** Hard-coded Tailwind colour classes are remapped by

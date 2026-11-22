@@ -117,9 +117,10 @@ test('reports closeout localizes labels and date while filter controls stay alig
   assert.match(exportCloseout, /closeout\.dateFrom/)
   assert.match(exportCloseout, /closeout\.dateTo/)
   assert.match(reports, /<div className="flex flex-wrap items-stretch gap-2">\s*<DateRangePicker/)
-  assert.match(reports, /headerActions=\{\([\s\S]*?onClick=\{exportCloseout\}[\s\S]*?disabled=\{reportsLoading \|\| Boolean\(reportsError\)\}[\s\S]*?className="ws-btn ws-btn-outline !h-\[38px\]"/)
-  // Date picker and both selects share one control height: 44px in the page, 38px in the top bar.
-  assert.match(reports, /const control = compact \? '!h-\[38px\]' : '!h-11'/)
+  assert.match(reports, /headerActions=\{\([\s\S]*?onClick=\{exportCloseout\}[\s\S]*?disabled=\{reportsLoading \|\| Boolean\(reportsError\)\}[\s\S]*?className="ws-btn ws-btn-outline !h-\[38px\] \[@media\(pointer:coarse\)\]:!h-11"/)
+  // Date picker and both selects share one control height: 44px in the page; 38px in the top bar,
+  // growing to 44px on touch like the compact date picker.
+  assert.match(reports, /const control = compact \? '!h-\[38px\] \[@media\(pointer:coarse\)\]:!h-11' : '!h-11'/)
   assert.equal((reports.match(/className=\{`ws-input \$\{control\} !w-auto max-w-\[200px\]`\}/g) || []).length, 2)
   assert.match(reports, /titleAccessory=\{<div className="zk-filters-in-header">\{renderFilters\(true\)\}<\/div>\}/)
   assert.match(reports, /<div className="zk-filters-in-page">\{renderFilters\(false\)\}<\/div>/)
@@ -166,7 +167,8 @@ test('CashierBill uses loyalty wallet controls instead of percent card discounts
   const source = readSource('src/pages/CashierBill.jsx')
   const payMethodsBlock = source.slice(source.indexOf('const PAY_METHODS = ['), source.indexOf('function payLabel'))
 
-  assert.match(source, /Loyalty Card/)
+  // Sentence case (DESIGN.md "Words"): "Loyalty card", not "Loyalty Card".
+  assert.match(source, /'Loyalty card'/)
   assert.match(source, /Cashback balance/)
   assert.match(source, /Loyalty amount to use/)
   assert.match(source, /loyalty_used_amount/)
@@ -236,12 +238,19 @@ test('active cashback calculation uses card type resolver instead of hardcoded d
 
 test('CashierBill keeps cashback preview visually after payable totals', () => {
   const source = readSource('src/pages/CashierBill.jsx')
-  const mainSummary = source.slice(source.indexOf('Items footer: subtotal strip'), source.indexOf('{/* Loyalty card */}'))
   const paymentSummary = source.slice(source.indexOf('{/* Payment Summary */}'), source.indexOf('{/* Split Payment */}'))
   const loyaltyCard = source.slice(source.indexOf('{/* Loyalty card */}'), source.indexOf('{/* ══ RIGHT: payment panel'))
 
-  assert.ok(mainSummary.indexOf('lbl.totalAmt') < mainSummary.indexOf('lbl.cashbackToBeEarned'))
+  // The bill has one summary (it used to be printed twice, under the items and in the payment
+  // panel); the cashback preview still comes after the payable total in it.
+  assert.ok(paymentSummary.indexOf('lbl.totalAmt') > 0)
   assert.ok(paymentSummary.indexOf('lbl.totalAmt') < paymentSummary.indexOf('lbl.cashbackToBeEarned'))
+  assert.equal((source.match(/\{lbl\.subtotal\}/g) || []).length, 1)
+  assert.equal((source.match(/\{lbl\.service\}/g) || []).length, 1)
+  // Below lg the total, paid and remaining amounts sit in the pinned bar beside Confirm.
+  const payBar = source.slice(source.indexOf('{/* Pinned pay bar (below lg)'), source.indexOf('{printRequest &&'))
+  assert.match(payBar, /lg:hidden/)
+  assert.match(payBar, /\{lbl\.totalAmt\}[\s\S]*formatCurrency\(total\)[\s\S]*formatCurrency\(paidAmount\)[\s\S]*formatCurrency\(remainingAmount\)[\s\S]*\{confirmButton\}/)
   assert.ok(loyaltyCard.indexOf('lbl.loyalty') < loyaltyCard.indexOf('lbl.cashbackToBeEarned'))
   assert.match(source, /Cashback to be earned/)
   assert.doesNotMatch(source, /Cashback earned/)
@@ -257,7 +266,7 @@ test('CashierBill keeps counter items in main content above loyalty and out of p
   const quickAmountStart = source.indexOf('{lbl.quickAmt}', splitStart)
   const splitPayment = source.slice(splitStart, quickAmountStart)
 
-  assert.ok(orderDetailsEnd > source.indexOf('Items footer: subtotal strip'))
+  assert.ok(source.indexOf('{/* Item rows') > 0 && orderDetailsEnd > source.indexOf('{/* Item rows'))
   assert.ok(counterStart < loyaltyStart)
   assert.ok(loyaltyStart < paymentPanelStart)
   assert.match(source, /Add quick cashier items to this bill/)
@@ -367,7 +376,7 @@ test('AdminLoyalty selected card uses compact profile and detailed transaction l
   assert.match(admin, /aria-current=\{page === cardPage \? 'page' : undefined\}/)
   assert.doesNotMatch(admin, /hasMoreCards|l\.loadMore/)
   assert.doesNotMatch(admin, /\.select\('\*'\)/)
-  assert.match(admin, /Customer Loyalty Profile/)
+  assert.match(admin, /Customer loyalty profile/)
   assert.match(admin, /No customer name/)
   assert.match(admin, /No phone number/)
   assert.match(admin, /<AppShell\s+title=\{selected \? l\.detailsTitle : l\.title\}/)
@@ -392,7 +401,14 @@ test('AdminLoyalty selected card uses compact profile and detailed transaction l
   assert.match(admin, /tx\.balance_after/)
   assert.match(admin, /l\.noTransactions/)
   assert.match(admin, /disabled=\{!canAdjust\}/)
-  assert.match(admin, /disabled=\{!canRemoveCard\}/)
+  // Write buttons also lock while any loyalty write is in flight (no double tap on money).
+  assert.match(admin, /disabled=\{!canRemoveCard \|\| busy\}/)
+  assert.match(admin, /onClick=\{\(\) => runBusy\('adjust', adjustBalance\)\} disabled=\{!canAdjust \|\| busy\}/)
+  assert.match(admin, /if \(busyRef\.current\) return\s*busyRef\.current = true/)
+  // A failed history insert after a saved balance is reported, never swallowed.
+  assert.match(admin, /const \{ error: historyError \} = await supabase\.from\('loyalty_transactions'\)\.insert\(settlement\.transaction\)/)
+  assert.match(admin, /setMessage\(historyError \? 'adjustHistoryFailed' : ''\)/)
+  assert.doesNotMatch(admin, /setMessage\(error\.message/)
   assert.match(admin, /l\.removeCardHelp/)
   const createSection = admin.slice(admin.indexOf('{l.createTitle}</h2>'), admin.indexOf('ref={cardListTopRef}'))
   assert.match(createSection, /form\.card_number/)
@@ -617,20 +633,25 @@ test('Receipt hides payment methods and uses contributing order metadata with pa
   assert.doesNotMatch(receipt, /function formatDate\(/)
 })
 
-test('Tourist receipts select English once and keep the cashier language controls available', () => {
+test('Tourist receipts default to English locally and never change the app language', () => {
   const receipt = readSource('src/pages/Receipt.jsx')
-  const languageDefault = functionBody(receipt, 'useTouristReceiptEnglish')
+  const topBar = readSource('src/components/ReceiptTopBar.jsx')
+  const languageDefault = functionBody(receipt, 'useReceiptLanguage')
   const tableReceiptRoute = functionBody(receipt, 'TableReceipt')
   const receiptShell = functionBody(receipt, 'ReceiptShell')
 
-  assert.match(receipt, /import \{ getOrderItemUnitPrice, PRICE_MODE_TOURIST \} from '\.\.\/lib\/priceModes'/)
-  assert.match(languageDefault, /priceMode !== PRICE_MODE_TOURIST/)
-  assert.match(languageDefault, /dispatch\(\{ type: 'SET_LANG', payload: 'en' \}\)/)
-  assert.match(languageDefault, /\[dispatch, priceMode, receiptKey\]/)
-  assert.match(tableReceiptRoute, /useTouristReceiptEnglish\(data\?\.priceMode, tableId, dispatch\)/)
-  assert.match(receipt, /export default function Receipt\(\)[\s\S]*useTouristReceiptEnglish\(data\?\.priceMode, orderId, dispatch\)/)
-  assert.match(receiptShell, /\['uz', 'ru', 'en'\]\.map/)
-  assert.match(receiptShell, /onClick=\{\(\) => dispatch\(\{ type: 'SET_LANG', payload: l \}\)\}/)
+  assert.match(receipt, /import \{ PRICE_MODE_TOURIST \} from '\.\.\/lib\/priceModes'/)
+  assert.match(languageDefault, /priceMode === PRICE_MODE_TOURIST \? 'en' : appLang/)
+  assert.match(languageDefault, /const receiptLang = chosenLang \|\| /)
+  assert.match(tableReceiptRoute, /useReceiptLanguage\(lang, data\?\.priceMode\)/)
+  assert.match(receipt, /export default function Receipt\(\)[\s\S]*useReceiptLanguage\(lang, data\?\.priceMode\)/)
+  // The receipt language is the receipt's own: no global language change from this page.
+  assert.doesNotMatch(receipt, /SET_LANG|dispatch/)
+  assert.match(receipt, /labels=\{L\[receiptLang\]\}/)
+  // The cashier can still switch the printed language, for this receipt only.
+  assert.match(receiptShell, /onReceiptLangChange=\{onReceiptLangChange\}/)
+  assert.match(topBar, /const RECEIPT_LANGS = \['uz', 'ru', 'en'\]/)
+  assert.match(topBar, /onClick=\{\(\) => onReceiptLangChange\(code\)\}/)
 })
 
 test('cashier payment waits for one atomic database settlement before local success', () => {
