@@ -3,6 +3,7 @@ import { ChevronDown, Search, X } from 'lucide-react'
 import DateRangePicker from './DateRangePicker'
 import BazaarCategoryPicker from './BazaarCategoryPicker'
 import { OperationalLoading } from './OperationalState'
+import WorkspaceDialog from './WorkspaceDialog'
 import { supabase } from '../lib/supabase'
 import { todayBazaarDate, bazaarCategoryLabel, bazaarUnitLabel, bazaarPaymentMethodLabel, formatBazaarQuantity, getBazaarRange } from '../lib/bazaar'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -162,7 +163,7 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
         </div>
       </div>
       <div className="mb-3 flex min-h-9 flex-wrap items-center justify-between gap-2">
-        {!loading && !error && <p role="status" className="ws-caption">{l.results}: {visibleRows.length} / {sheet.rows.length} · {l.spent}: <span className="font-semibold tabular-nums text-[#22201d]">{formatCurrency(visibleTotals.total)}</span></p>}
+        {!loading && !error && <p role="status" className="ws-caption">{l.results}: {visibleRows.length} / {sheet.rows.length} · {l.spent}: <span className="whitespace-nowrap font-semibold tabular-nums text-[#22201d]">{formatCurrency(visibleTotals.total)}</span></p>}
         {filtered && <button type="button" onClick={() => { setQuery(''); setCategoryFilter('all') }} className="ws-btn ws-btn-ghost ws-btn-sm"><X size={14} />{l.clear}</button>}
       </div>
       {error ? (
@@ -177,7 +178,7 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
                   <span className="inline-block w-7 text-right tabular-nums">№</span><span className="ml-2">{l.ingredient}</span>
                 </th>
                 {dates.map(date => (
-                  <th key={date} scope="col" className={`sticky top-0 z-20 min-w-[76px] border-b border-r border-[#e4e1de] px-2 py-1.5 text-center text-xs font-semibold ${date === today ? 'bg-[#fff4ec] text-[#ff5a00]' : 'bg-[#f6f5f3] text-[#68655f]'}`}>
+                  <th key={date} scope="col" className={`sticky top-0 z-20 min-w-[76px] border-b border-r border-[#e4e1de] px-2 py-1.5 text-center text-xs font-semibold ${date === today ? 'bg-[#fff4ec] text-[#bf4300]' : 'bg-[#f6f5f3] text-[#68655f]'}`}>
                     <span className="block tabular-nums text-[13px] text-inherit">{Number(date.slice(8))}.{date.slice(5, 7)}</span>
                     <span className="block font-medium">{dl.weekdays[weekdayIndex(date)]}</span>
                   </th>
@@ -192,9 +193,9 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
                   <tr>
                     <th scope="rowgroup" className="sticky left-0 z-10 border-b border-r border-[#e4e1de] bg-[#f6f5f3] p-0 text-left">
                       <button type="button" onClick={() => toggleSection(section.category)} aria-expanded={!isCollapsed} aria-label={`${isCollapsed ? l.expand : l.collapse}: ${section.label}`}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left">
+                        className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-left">
                         <ChevronDown size={15} className={`shrink-0 text-[#68655f] transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
-                        <span className="min-w-0 truncate text-[13px] font-semibold uppercase tracking-wide text-[#22201d]">{section.label}</span>
+                        <span className="min-w-0 truncate text-[13px] font-semibold text-[#22201d]">{section.label}</span>
                         <span className="ws-caption shrink-0 tabular-nums">{section.rows.length}</span>
                       </button>
                     </th>
@@ -204,19 +205,19 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
                         <td key={date} className="border-b border-r border-[#e4e1de] bg-[#f6f5f3] p-0 text-center">
                           {paid ? (
                             <button type="button" onClick={() => openDay(date, section)} aria-label={`${section.label}, ${formatLongDate(date, lang)}: ${formatCurrency(paid)}`}
-                              className="block w-full px-2 py-2 text-xs font-semibold tabular-nums text-[#68655f] hover:bg-orange-50">{compactAmount(paid)}</button>
+                              className="block min-h-10 w-full px-2 py-2 text-xs font-semibold tabular-nums text-[#68655f] hover:bg-orange-50">{compactAmount(paid)}</button>
                           ) : null}
                         </td>
                       )
                     })}
-                    <td className="border-b border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(section.paid)}</td>
+                    <td className="whitespace-nowrap border-b border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(section.paid)}</td>
                   </tr>
                   {!isCollapsed && section.rows.map(row => {
                     const unit = unitLabel(row.unit, lang)
                     return (
                       <tr key={row.key}>
                         <th scope="row" className="sticky left-0 z-10 max-w-[220px] border-b border-r border-[#e4e1de] bg-white p-0 text-left font-normal">
-                          <button type="button" onClick={() => openRow(row)} className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-[#f6f5f3]">
+                          <button type="button" onClick={() => openRow(row)} className="flex min-h-10 w-full items-start gap-2 px-3 py-2 text-left hover:bg-[#f6f5f3]">
                             <span className="w-7 shrink-0 pt-px text-right text-xs font-medium tabular-nums text-[#68655f]">{rowNumbers.get(row.key)}</span>
                             <span className="min-w-0">
                               <span className="block truncate font-semibold text-[#22201d]">{row.name}</span>
@@ -230,15 +231,15 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
                             <td key={date} className={`border-b border-r border-[#e4e1de] p-0 text-center ${date === today ? 'bg-[#fff4ec]' : 'bg-white'}`}>
                               {cell ? (
                                 <button type="button" onClick={() => openCell(row, date)} aria-label={`${row.name}, ${formatLongDate(date, lang)}: ${formatBazaarQuantity(cell.quantity)} ${unit}, ${formatCurrency(cell.paid)}`}
-                                  className="block h-full w-full px-2 py-2 font-semibold tabular-nums text-[#ff5a00] hover:bg-orange-50">
+                                  className="block h-full min-h-10 w-full px-2 py-2 font-semibold tabular-nums text-[#bf4300] hover:bg-orange-50">
                                   {mode === 'quantity' ? formatBazaarQuantity(cell.quantity) : compactAmount(cell.paid)}
-                                  {cell.lines.length > 1 && <sup className="ml-0.5 text-[10px] font-medium text-[#68655f]">×{cell.lines.length}</sup>}
+                                  {cell.lines.length > 1 && <sup className="ml-0.5 text-xs font-medium text-[#68655f]">×{cell.lines.length}</sup>}
                                 </button>
-                              ) : <span aria-hidden="true" className="text-[#c9c5c0]">·</span>}
+                              ) : null}
                             </td>
                           )
                         })}
-                        <td className="border-b border-[#e4e1de] bg-white px-3 py-2 text-right tabular-nums">
+                        <td className="whitespace-nowrap border-b border-[#e4e1de] bg-white px-3 py-2 text-right tabular-nums">
                           <span className="block font-semibold text-[#22201d]">{formatCurrency(row.paid)}</span>
                           <span className="ws-caption block">{formatBazaarQuantity(row.quantity)} {unit}</span>
                         </td>
@@ -256,12 +257,12 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
                   return (
                     <td key={date} className="sticky bottom-0 z-20 border-r border-t border-[#e4e1de] bg-[#f6f5f3] p-0 text-center">
                       {paid ? (
-                        <button type="button" onClick={() => openDay(date)} aria-label={`${l.dayTotal}, ${formatLongDate(date, lang)}: ${formatCurrency(paid)}`} className="block w-full px-2 py-2 text-xs font-semibold tabular-nums text-[#22201d] hover:bg-orange-50">{compactAmount(paid)}</button>
-                      ) : <span aria-hidden="true" className="text-[#c9c5c0]">·</span>}
+                        <button type="button" onClick={() => openDay(date)} aria-label={`${l.dayTotal}, ${formatLongDate(date, lang)}: ${formatCurrency(paid)}`} className="block min-h-10 w-full px-2 py-2 text-xs font-semibold tabular-nums text-[#22201d] hover:bg-orange-50">{compactAmount(paid)}</button>
+                      ) : null}
                     </td>
                   )
                 })}
-                <td className="sticky bottom-0 z-20 border-t border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(visibleTotals.total)}</td>
+                <td className="sticky bottom-0 z-20 whitespace-nowrap border-t border-[#e4e1de] bg-[#f6f5f3] px-3 py-2 text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(visibleTotals.total)}</td>
               </tr>
             </tfoot>
           </table>
@@ -273,66 +274,53 @@ export default function IngredientPurchaseSheet({ lang = 'ru' }) {
 }
 
 function PurchaseDetail({ detail, lang, l, onClose }) {
-  useEffect(() => {
-    const onKey = event => { if (event.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
   const unit = detail.unit ? unitLabel(detail.unit, lang) : ''
+  const tile = 'min-w-0 rounded-[10px] bg-[#f6f5f3] px-3 py-2.5'
+  const figure = 'mt-0.5 whitespace-nowrap font-semibold tabular-nums text-[#22201d]'
   return (
-    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
-      <section role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title" className="ws-dialog max-h-[92vh] w-full overflow-y-auto !rounded-b-none sm:max-w-lg sm:!rounded-2xl">
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#e4e1de] bg-white px-5 py-4 sm:px-6">
-          <div className="min-w-0">
-            <h2 id="purchase-detail-title" className="ws-heading">{detail.title}</h2>
-            <p className="ws-caption mt-1">{detail.subtitle}</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label={l.close} className="ws-btn ws-btn-ghost !h-10 !w-10 !px-0"><X size={19} /></button>
-        </div>
-        <div className="space-y-4 px-5 py-5 sm:px-6">
-          <dl className={`grid gap-3 ${detail.unit ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            {detail.unit && <div className="rounded-xl bg-[#f6f5f3] px-3 py-2.5"><dt className="ws-caption">{l.bought}</dt><dd className="mt-0.5 font-semibold tabular-nums text-[#22201d]">{formatBazaarQuantity(detail.quantity)} {unit}</dd></div>}
-            <div className="rounded-xl bg-[#f6f5f3] px-3 py-2.5"><dt className="ws-caption">{l.spent}</dt><dd className="mt-0.5 font-semibold tabular-nums text-[#22201d]">{formatCurrency(detail.paid)}</dd></div>
-            {detail.unit
-              ? <div className="rounded-xl bg-[#f6f5f3] px-3 py-2.5"><dt className="ws-caption">{l.avgPrice}</dt><dd className="mt-0.5 font-semibold tabular-nums text-[#22201d]">{formatCurrency(averageUnitPrice(detail.paid, detail.quantity))}<span className="ws-caption"> / {unit}</span></dd></div>
-              : <div className="rounded-xl bg-[#f6f5f3] px-3 py-2.5"><dt className="ws-caption">{l.purchases}</dt><dd className="mt-0.5 font-semibold tabular-nums text-[#22201d]">{detail.lines.length}</dd></div>}
-          </dl>
-          <ol className="space-y-2">
-            {detail.lines.map((line, index) => {
-              const enteredUnit = bazaarUnitLabel(line.entered_unit, lang)
-              const difference = Number(line.normal_paid) > 0 ? Number(line.paid) - Number(line.normal_paid) : 0
-              const notes = [line.item_notes, line.purchase_notes].map(value => String(value || '').trim()).filter(Boolean)
-              return (
-                <li key={`${line.purchase_id}-${index}`} className="rounded-xl border border-[#e4e1de] px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[#22201d]">
-                        {detail.showName ? line.name : `${formatBazaarQuantity(line.entered_quantity)} ${enteredUnit}`}
-                      </p>
-                      <p className="ws-caption mt-0.5">
-                        {[detail.showDate ? formatLongDate(line.date, lang, '', { includeYear: false }) : null, formatTime(line.created_at), bazaarPaymentMethodLabel(line.payment_method, lang), line.buyer_name ? `${l.buyer}: ${line.buyer_name}` : null].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-semibold tabular-nums text-[#22201d]">{formatCurrency(line.paid)}</p>
-                      <p className="ws-caption tabular-nums">
-                        {detail.showName && `${formatBazaarQuantity(line.entered_quantity)} ${enteredUnit} · `}
-                        {formatCurrency(averageUnitPrice(line.paid, line.entered_quantity))} / {enteredUnit}
-                      </p>
-                    </div>
-                  </div>
-                  {difference !== 0 && (
-                    <p className={`mt-1.5 text-xs font-medium tabular-nums ${difference > 0 ? 'text-[#c4262c]' : 'text-[#15803D]'}`}>
-                      {difference > 0 ? '+' : '−'}{formatCurrency(Math.abs(difference))} {difference > 0 ? l.above : l.below} ({l.normal}: {formatCurrency(line.normal_paid)})
-                    </p>
-                  )}
-                  {notes.length > 0 && <p className="mt-1.5 whitespace-pre-line text-sm text-[#68655f]">{notes.join('\n')}</p>}
-                </li>
-              )
-            })}
-          </ol>
-        </div>
-      </section>
-    </div>
+    <WorkspaceDialog title={detail.title} description={detail.subtitle} onClose={onClose} closeLabel={l.close} variant="sheet" size="lg">
+      {/* Tiles wrap by their own width: three money figures do not fit side by side on a 320px phone. */}
+      <dl className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2">
+        {detail.unit && <div className={tile}><dt className="ws-caption">{l.bought}</dt><dd className={figure}>{formatBazaarQuantity(detail.quantity)} {unit}</dd></div>}
+        <div className={tile}><dt className="ws-caption">{l.spent}</dt><dd className={figure}>{formatCurrency(detail.paid)}</dd></div>
+        {detail.unit
+          ? <div className={tile}><dt className="ws-caption">{l.avgPrice}</dt><dd className={figure}>{formatCurrency(averageUnitPrice(detail.paid, detail.quantity))}<span className="ws-caption"> / {unit}</span></dd></div>
+          : <div className={tile}><dt className="ws-caption">{l.purchases}</dt><dd className={figure}>{detail.lines.length}</dd></div>}
+      </dl>
+      <ol className="mt-3 divide-y divide-[#e4e1de]">
+        {detail.lines.map((line, index) => {
+          const enteredUnit = bazaarUnitLabel(line.entered_unit, lang)
+          const difference = Number(line.normal_paid) > 0 ? Number(line.paid) - Number(line.normal_paid) : 0
+          const notes = [line.item_notes, line.purchase_notes].map(value => String(value || '').trim()).filter(Boolean)
+          return (
+            <li key={`${line.purchase_id}-${index}`} className="py-3">
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                <div className="min-w-0 flex-1 basis-40">
+                  <p className="font-semibold text-[#22201d]">
+                    {detail.showName ? line.name : `${formatBazaarQuantity(line.entered_quantity)} ${enteredUnit}`}
+                  </p>
+                  <p className="ws-caption mt-0.5">
+                    {[detail.showDate ? formatLongDate(line.date, lang, '', { includeYear: false }) : null, formatTime(line.created_at), bazaarPaymentMethodLabel(line.payment_method, lang), line.buyer_name ? `${l.buyer}: ${line.buyer_name}` : null].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <div className="ml-auto text-right">
+                  <p className="whitespace-nowrap font-semibold tabular-nums text-[#22201d]">{formatCurrency(line.paid)}</p>
+                  <p className="ws-caption tabular-nums">
+                    {detail.showName && `${formatBazaarQuantity(line.entered_quantity)} ${enteredUnit} · `}
+                    <span className="whitespace-nowrap">{formatCurrency(averageUnitPrice(line.paid, line.entered_quantity))} / {enteredUnit}</span>
+                  </p>
+                </div>
+              </div>
+              {difference !== 0 && (
+                <p className={`mt-1.5 text-xs font-medium tabular-nums ${difference > 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'}`}>
+                  {difference > 0 ? '+' : '−'}{formatCurrency(Math.abs(difference))} {difference > 0 ? l.above : l.below} ({l.normal}: {formatCurrency(line.normal_paid)})
+                </p>
+              )}
+              {notes.length > 0 && <p className="mt-1.5 whitespace-pre-line text-sm text-[#68655f]">{notes.join('\n')}</p>}
+            </li>
+          )
+        })}
+      </ol>
+    </WorkspaceDialog>
   )
 }

@@ -48,7 +48,8 @@ test('custom ingredient categories keep their name as the label and list after b
 test('ingredients page adds categories in a separate panel and only picks them in the form', () => {
   const page = read('src/pages/BazaarIngredients.jsx')
   const picker = read('src/components/BazaarCategoryPicker.jsx')
-  assert.match(page, /<form onSubmit=\{addCategory\}/)
+  // The add-category form is the shared dialog rendered as a <form>.
+  assert.match(page, /<WorkspaceDialog\s+as="form"\s+panelProps=\{\{ onSubmit: addCategory \}\}/)
   assert.match(page, /supabase\.rpc\('add_bazaar_ingredient_category', \{ p_name: name \}\)/)
   assert.match(page, /\.from\('bazaar_ingredient_categories'\)/)
   assert.match(page, /extraCategories=\{customCategories\}/)

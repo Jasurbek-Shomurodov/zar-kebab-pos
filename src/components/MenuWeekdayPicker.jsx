@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { formatMenuWeekdays, MENU_WEEKDAYS, normalizeMenuWeekdays } from '../lib/menuItems'
 
 const PRESETS = [
@@ -17,6 +18,11 @@ function weekdayLabels(lang) {
     weekdays: lang === 'uz' ? 'Ish kunlari' : lang === 'ru' ? 'Будни' : 'Weekdays',
     weekend: lang === 'uz' ? 'Dam olish' : lang === 'ru' ? 'Выходные' : 'Weekend',
     everyDay: lang === 'uz' ? 'Har kuni' : lang === 'ru' ? 'Каждый день' : 'Every day',
+    lastDay: lang === 'uz'
+      ? 'Kamida bitta kun tanlangan bo‘lishi kerak. Kategoriyani butunlay yashirish uchun uning ko‘rinishini o‘chiring.'
+      : lang === 'ru'
+        ? 'Должен остаться хотя бы один день. Чтобы скрыть категорию совсем, выключите её видимость.'
+        : 'At least one day must stay selected. To hide the category completely, turn off its visibility.',
   }
 }
 
@@ -24,11 +30,14 @@ function weekdayLabels(lang) {
 export default function MenuWeekdayPicker({ lang, value, onChange, disabled = false }) {
   const labels = weekdayLabels(lang)
   const selectedDays = normalizeMenuWeekdays(value)
+  // Removing the last day is refused; say why instead of ignoring the tap.
+  const [lastDayRefused, setLastDayRefused] = useState(false)
 
   const toggle = day => {
     const nextDays = selectedDays.includes(day)
       ? selectedDays.filter(selected => selected !== day)
       : [...selectedDays, day]
+    setLastDayRefused(nextDays.length === 0)
     if (nextDays.length) onChange(normalizeMenuWeekdays(nextDays))
   }
 
@@ -56,11 +65,14 @@ export default function MenuWeekdayPicker({ lang, value, onChange, disabled = fa
         {PRESETS.map(([key, days]) => (
           <button key={key} type="button" disabled={disabled}
             className="ws-btn ws-btn-ghost ws-btn-sm"
-            onClick={() => onChange([...days])}>
+            onClick={() => { setLastDayRefused(false); onChange([...days]) }}>
             {labels[key]}
           </button>
         ))}
       </div>
+      <p role="status" aria-live="polite" className={lastDayRefused ? 'ws-notice ws-tone-caution mt-2' : 'sr-only'}>
+        {lastDayRefused ? labels.lastDay : ''}
+      </p>
       <p className="ws-caption mt-2">{labels.hint}</p>
     </fieldset>
   )

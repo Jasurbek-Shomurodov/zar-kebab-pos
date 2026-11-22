@@ -104,7 +104,7 @@ export default function IngredientMovement({ lang = 'ru' }) {
       <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.7fr)]">
         <label className="ws-caption block font-medium">{f.search}
           <div className="relative mt-1.5"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
-            <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={f.search} className={`${FILTER_INPUT} !pl-9`} />
+            <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={f.search} aria-label={f.search} className={`${FILTER_INPUT} !pl-9`} />
           </div>
         </label>
         <div className="ws-caption block font-medium">{f.category}
@@ -123,7 +123,7 @@ export default function IngredientMovement({ lang = 'ru' }) {
       <div className="mb-3 flex min-h-9 flex-wrap items-center justify-between gap-2">
         {!loading && !error && <p role="status" className="ws-caption">{f.results}: {visibleRows.length} / {data?.rows?.length || 0}</p>}
         <div className="flex items-center gap-2">
-          {filtered && <button type="button" onClick={clearFilters} className="ws-btn ws-btn-ghost ws-btn-sm"><X size={14} />{f.clear}</button>}
+          {filtered && <button type="button" onClick={clearFilters} className="ws-btn ws-btn-ghost ws-btn-sm"><X size={14} aria-hidden="true" />{f.clear}</button>}
           <SortMenu value={sort} onChange={setSort} labels={f} />
         </div>
       </div>
@@ -141,7 +141,7 @@ export default function IngredientMovement({ lang = 'ru' }) {
               <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
                 <div><dt className="ws-caption">{l.bought}</dt><dd className="mt-0.5 font-medium tabular-nums text-[#22201d]">{formatBazaarQuantity(row.bought)} {unit}</dd></div>
                 <div><dt className="ws-caption">{l.used}</dt><dd className="mt-0.5 font-medium tabular-nums text-[#22201d]">{formatBazaarQuantity(row.used)} {unit}</dd></div>
-                <div><dt className="ws-caption">{l.paid}</dt><dd className="mt-0.5 font-medium tabular-nums text-[#22201d]">{formatCurrency(row.paid)}</dd></div>
+                <div><dt className="ws-caption">{l.paid}</dt><dd className="mt-0.5 whitespace-nowrap font-medium tabular-nums text-[#22201d]">{formatCurrency(row.paid)}</dd></div>
                 <div><dt className="ws-caption">{l.movement}</dt><dd className={`mt-0.5 font-semibold tabular-nums ${short ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>{formatBazaarQuantity(row.movement)} {unit}</dd></div>
               </dl>
             </article>
@@ -172,10 +172,10 @@ function SortMenu({ value, onChange, labels }) {
   return (
     <div ref={rootRef} className="relative">
       <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(current => !current)} className="ws-btn ws-btn-outline ws-btn-sm">
-        <ArrowUpDown size={14} />{value === 'default' ? labels.sort : labels[value]}
+        <ArrowUpDown size={14} aria-hidden="true" />{value === 'default' ? labels.sort : labels[value]}
       </button>
       {open && (
-        <div role="listbox" aria-label={labels.sort} className="absolute right-0 top-[calc(100%+8px)] z-40 w-[min(280px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-2xl shadow-slate-900/20">
+        <div role="listbox" aria-label={labels.sort} className="absolute right-0 top-[calc(100%+8px)] z-popover w-[min(280px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-2xl shadow-slate-900/20">
           {SORT_OPTIONS.map(option => {
             const selected = option === value
             return (
@@ -185,7 +185,7 @@ function SortMenu({ value, onChange, labels }) {
                 role="option"
                 aria-selected={selected}
                 onClick={() => { onChange(option); setOpen(false) }}
-                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${selected ? 'bg-orange-50 text-[#ff5a00]' : 'text-[#1F2937] hover:bg-gray-50'}`}
+                className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors ${selected ? 'bg-orange-50 text-[#bf4300]' : 'text-[#1F2937] hover:bg-gray-50'}`}
               >
                 <span className="min-w-0 flex-1 truncate">{labels[option]}</span>
                 {selected && <Check size={15} className="shrink-0" />}

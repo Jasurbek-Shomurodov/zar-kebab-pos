@@ -191,8 +191,9 @@ test('included-item rows keep controls aligned by giving cost its own column', (
   const page = source('src/pages/TechCards.jsx')
   const rows = page.slice(page.indexOf('form.components.map('), page.indexOf('{l.includedTotal}'))
 
-  assert.match(page, /componentColumns = 'sm:grid-cols-\[minmax\(0,1fr\)_112px_140px_92px\]'/)
-  assert.match(rows, /ws-row grid min-w-0 grid-cols-2 gap-3 p-3 sm:items-center \$\{componentColumns\}/)
+  // The table tracks switch on by the panel's own width (container query), not the viewport.
+  assert.match(page, /componentColumns = '\[@container_\(min-width:560px\)\]:grid-cols-\[minmax\(0,1fr\)_112px_140px_92px\]'/)
+  assert.match(rows, /ws-row grid min-w-0 grid-cols-2 gap-3 p-3 \[@container_\(min-width:560px\)\]:items-center \$\{componentColumns\}/)
   // A cost line under the picker would push the quantity and actions out of line again.
   assert.doesNotMatch(rows.slice(0, rows.indexOf('<label className="min-w-0">')), /componentSummary\.(lineCost|unitCost)/)
   assert.match(rows, /formatCurrency\(Math\.round\(componentSummary\.unitCost\)\)\} × \{formatDecimal\(componentSummary\.quantity, lang\)\}/)
@@ -262,4 +263,22 @@ test('database health requires the tech-card schema and atomic save RPC', () => 
   assert.match(cli, /checkTable\('menu_item_tech_card_components'[\s\S]{0,160}selected_options/)
   assert.match(cli, /tech_card_component_snapshot/)
   assert.match(cli, /save_menu_item_tech_card\(payload\)/)
+})
+
+test('recipe row grids answer to their panel width so the line cost and remove button are never clipped', () => {
+  const page = source('src/pages/TechCards.jsx')
+  const editor = page.slice(page.indexOf('{l.ingredientHint}'), page.indexOf('{l.includedTotal}'))
+
+  // Fixed pixel tracks behind a viewport breakpoint were wider than the panel at 1024..1375 with the sidebar open.
+  assert.doesNotMatch(editor, /sm:grid-cols-\[[^\]]*px/)
+  assert.doesNotMatch(editor, /\bsm:(grid|sr-only|col-span-1|items-center)\b/)
+  assert.match(page, /ingredientColumns = '\[@container_\(min-width:680px\)\]:grid-cols-\[minmax\(140px,1\.5fr\)_90px_90px_minmax\(120px,1fr\)_110px_40px\]'/)
+  // 140+90+90+120+110+40 of tracks, five 8px gaps and 24px of padding must fit inside the threshold.
+  assert.ok(140 + 90 + 90 + 120 + 110 + 40 + 5 * 8 + 24 <= 680)
+  assert.equal(editor.match(/\[container-type:inline-size\]/g)?.length, 2)
+  // Money never truncates and the remove buttons are named in the staff language.
+  assert.doesNotMatch(editor, /truncate tabular-nums/)
+  assert.match(editor, /aria-label=\{l\.removeIngredient\}/)
+  assert.match(editor, /aria-label=\{l\.removeIncludedItem\}/)
+  assert.doesNotMatch(page, /aria-label="Remove|actionLabel="Reload"/)
 })

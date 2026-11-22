@@ -81,6 +81,7 @@ function labels(lang) {
     save: 'Kartani saqlash', saving: 'Saqlanmoqda…', saved: 'Texnologik karta saqlandi.', back: 'Kartalar ro‘yxatiga',
     readOnly: 'Faqat ko‘rish', editProduct: 'Mahsulotni tahrirlash', productMissing: 'Taom topilmadi',
     productMissingHint: 'Bu mahsulot o‘chirilgan yoki mavjud emas.', unsaved: 'Saqlanmagan karta',
+    reload: 'Qayta yuklash', removeIngredient: 'Masalliqni olib tashlash', removeIncludedItem: 'Kiritilgan taomni olib tashlash',
     baseRecipe: 'Asosiy retsept', copyRecipe: 'Retseptni nusxalash', copyFrom: 'Manba', scale: 'Miqyos', copy: 'Nusxalash', variantRecipe: 'Variant retsepti',
   }
   if (lang === 'ru') return {
@@ -106,6 +107,7 @@ function labels(lang) {
     save: 'Сохранить техкарту', saving: 'Сохранение…', saved: 'Техкарта сохранена.', back: 'К списку техкарт',
     readOnly: 'Только просмотр', editProduct: 'Редактировать товар', productMissing: 'Блюдо не найдено',
     productMissingHint: 'Товар удалён или больше не существует.', unsaved: 'Техкарта не заполнена',
+    reload: 'Обновить', removeIngredient: 'Убрать ингредиент', removeIncludedItem: 'Убрать включённое блюдо',
     baseRecipe: 'Основной рецепт', copyRecipe: 'Копировать рецепт', copyFrom: 'Источник', scale: 'Масштаб', copy: 'Копировать', variantRecipe: 'Техкарта варианта',
   }
   return {
@@ -131,6 +133,7 @@ function labels(lang) {
     save: 'Save tech card', saving: 'Saving…', saved: 'Tech card saved.', back: 'Back to tech cards',
     readOnly: 'Read only', editProduct: 'Edit product', productMissing: 'Meal not found',
     productMissingHint: 'This product was archived or no longer exists.', unsaved: 'Tech card not completed',
+    reload: 'Reload', removeIngredient: 'Remove ingredient', removeIncludedItem: 'Remove included menu item',
     baseRecipe: 'Base recipe', copyRecipe: 'Copy recipe', copyFrom: 'Source', scale: 'Scale', copy: 'Copy', variantRecipe: 'Variant recipe',
   }
 }
@@ -259,7 +262,7 @@ function CategoryFilterTile({ category, label, count, selected, onClick }) {
         )}
       </div>
       <div className="flex min-h-[44px] items-center justify-center px-2 py-2">
-        <p className={`line-clamp-2 text-[13px] font-medium leading-tight ${selected ? 'text-[#ff5a00]' : 'text-[#22201d]'}`}>{label}</p>
+        <p className={`line-clamp-2 text-[13px] font-medium leading-tight ${selected ? 'text-[#bf4300]' : 'text-[#22201d]'}`}>{label}</p>
       </div>
       <span className="ws-count absolute right-1.5 top-1.5 !bg-white shadow-[0_1px_2px_rgb(34_32_29/10%)]">
         {count}
@@ -285,6 +288,7 @@ export default function TechCards() {
   const [cardsByItemId, setCardsByItemId] = useState({})
   const [cardsLoading, setCardsLoading] = useState(true)
   const [cardsError, setCardsError] = useState('')
+  const [cardsReloadToken, setCardsReloadToken] = useState(0)
   const [bazaarIngredients, setBazaarIngredients] = useState([])
   const [bazaarIngredientsError, setBazaarIngredientsError] = useState('')
   const [search, setSearch] = useState('')
@@ -337,13 +341,14 @@ export default function TechCards() {
         if (active) setCardsByItemId(cards)
       })
       .catch(error => {
-        if (active) setCardsError(error?.message || l.listError)
+        console.error('Tech cards failed to load', error)
+        if (active) setCardsError('load')
       })
       .finally(() => {
         if (active) setCardsLoading(false)
       })
     return () => { active = false }
-  }, [loaded, loadError])
+  }, [loaded, loadError, cardsReloadToken])
 
   useEffect(() => {
     if (!loaded || loadError) return undefined
@@ -358,13 +363,15 @@ export default function TechCards() {
       .then(({ data, error }) => {
         if (!active) return
         if (error) {
-          setBazaarIngredientsError(error.message || l.ingredientCatalogError)
+          console.error('Tech card ingredient catalog failed to load', error)
+          setBazaarIngredientsError('load')
           return
         }
         setBazaarIngredients(data || [])
       })
       .catch(error => {
-        if (active) setBazaarIngredientsError(error?.message || l.ingredientCatalogError)
+        console.error('Tech card ingredient catalog failed to load', error)
+        if (active) setBazaarIngredientsError('load')
       })
     return () => { active = false }
   }, [loaded, loadError])
@@ -559,7 +566,7 @@ export default function TechCards() {
         {!loaded ? (
           <OperationalLoading title={l.title} layout={menuItemId ? 'techCardEditor' : 'techCards'} />
         ) : (
-          <OperationalError title={l.listError} description={loadError} actionLabel="Reload" onAction={() => window.location.reload()} />
+          <OperationalError title={l.listError} description={loadError} lang={lang} actionLabel={l.reload} onAction={() => window.location.reload()} />
         )}
       </AppShell>
     )
@@ -574,9 +581,9 @@ export default function TechCards() {
       <AppShell title={l.title}>
         <OperationalError
           title={l.listError}
-          description={`${cardsError} ${l.migration}`}
-          actionLabel="Reload"
-          onAction={() => window.location.reload()}
+          description={l.migration}
+          lang={lang}
+          onAction={() => setCardsReloadToken(token => token + 1)}
         />
       </AppShell>
     )
@@ -613,9 +620,13 @@ export default function TechCards() {
       : getSaleProfitSummary(price, summary.portionCost)
 
     const saveDisabled = saving || !dirty || !!validationError || !!costWarning
-    const ingredientColumns = 'sm:grid-cols-[minmax(140px,1.5fr)_90px_90px_minmax(120px,1fr)_110px_40px]'
-    const componentColumns = 'sm:grid-cols-[minmax(0,1fr)_112px_140px_92px]'
-    const fieldLabel = 'ws-caption mb-1 block sm:sr-only'
+    // The row grids answer to the width of their own panel (a container query), not the
+    // viewport: with the sidebar open at 1024..1375 the panel is narrower than the table
+    // tracks, so the rows stay stacked until the line cost and remove button fit.
+    const ingredientColumns = '[@container_(min-width:680px)]:grid-cols-[minmax(140px,1.5fr)_90px_90px_minmax(120px,1fr)_110px_40px]'
+    const componentColumns = '[@container_(min-width:560px)]:grid-cols-[minmax(0,1fr)_112px_140px_92px]'
+    const ingredientFieldLabel = 'ws-caption mb-1 block [@container_(min-width:680px)]:sr-only'
+    const componentFieldLabel = 'ws-caption mb-1 block [@container_(min-width:560px)]:sr-only'
 
     return (
       <AppShell
@@ -629,7 +640,7 @@ export default function TechCards() {
             disabled={saveDisabled}
             title={validationError || costWarning || ''}
             aria-label={saving ? l.saving : l.save}
-            className="ws-btn ws-btn-primary !h-[38px]"
+            className="ws-btn ws-btn-primary"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
             <span className="hidden sm:inline">{saving ? l.saving : l.save}</span>
@@ -723,7 +734,7 @@ export default function TechCards() {
 
                   {bazaarIngredientsError && (
                     <p role="alert" className="ws-notice ws-tone-caution mb-3">
-                      {l.ingredientCatalogError} {bazaarIngredientsError}
+                      {l.ingredientCatalogError}
                     </p>
                   )}
 
@@ -735,8 +746,8 @@ export default function TechCards() {
                       <span className="text-sm font-medium text-[#68655f]">{l.addIngredient}</span>
                     </button>
                   ) : (
-                    <div className="overflow-hidden rounded-[10px] border border-[#e4e1de]">
-                      <div className={`ws-table-head hidden gap-2 px-3 py-2 sm:grid ${ingredientColumns}`} aria-hidden="true">
+                    <div className="overflow-hidden rounded-[10px] border border-[#e4e1de] [container-type:inline-size]">
+                      <div className={`ws-table-head hidden gap-2 px-3 py-2 [@container_(min-width:680px)]:grid ${ingredientColumns}`} aria-hidden="true">
                         <span>{l.ingredient}</span>
                         <span>{l.quantity}</span>
                         <span>{l.unit}</span>
@@ -749,9 +760,9 @@ export default function TechCards() {
                         const selectedBazaarIngredient = bazaarIngredientSuggestions.find(item => item.name === ingredient.name)
                         const highlighted = !!highlightedIngredientKey && String(ingredient.name || '').trim().toLowerCase() === highlightedIngredientKey
                         return (
-                          <div key={ingredient.id || index} data-highlighted-ingredient={highlighted || undefined} className={`ws-row grid min-w-0 grid-cols-2 gap-2 p-3 sm:items-center ${ingredientColumns} ${highlighted ? '!bg-[#fff1e8] shadow-[inset_3px_0_0_#ff5a00]' : ''}`}>
-                            <label className="col-span-2 min-w-0 sm:col-span-1">
-                              <span className={fieldLabel}>{l.ingredient}</span>
+                          <div key={ingredient.id || index} data-highlighted-ingredient={highlighted || undefined} className={`ws-row grid min-w-0 grid-cols-2 gap-2 p-3 [@container_(min-width:680px)]:items-center ${ingredientColumns} ${highlighted ? '!bg-[#fff1e8] shadow-[inset_3px_0_0_#ff5a00]' : ''}`}>
+                            <label className="col-span-2 min-w-0 [@container_(min-width:680px)]:col-span-1">
+                              <span className={ingredientFieldLabel}>{l.ingredient}</span>
                               <BazaarIngredientPicker
                                 suggestions={bazaarIngredientSuggestions}
                                 value={selectedBazaarIngredient?.key || ''}
@@ -766,11 +777,11 @@ export default function TechCards() {
                               />
                             </label>
                             <label className="min-w-0">
-                              <span className={fieldLabel}>{l.quantity}</span>
+                              <span className={ingredientFieldLabel}>{l.quantity}</span>
                               <input inputMode="decimal" value={ingredient.quantity} onChange={event => updateIngredient(index, { quantity: event.target.value })} disabled={!mayEdit || saving} className="ws-input tabular-nums disabled:bg-[#efece9]" />
                             </label>
                             <label className="min-w-0">
-                              <span className={fieldLabel}>{l.unit}</span>
+                              <span className={ingredientFieldLabel}>{l.unit}</span>
                               <select
                                 value={ingredient.unit}
                                 onChange={event => updateIngredient(index, selectedBazaarIngredient
@@ -783,15 +794,15 @@ export default function TechCards() {
                               </select>
                             </label>
                             <label className="min-w-0">
-                              <span className={fieldLabel}>{l.unitPrice}</span>
+                              <span className={ingredientFieldLabel}>{l.unitPrice}</span>
                               <input inputMode="numeric" value={formatTechCardUnitPrice(ingredient.unit_price_uzs)} disabled className="ws-input min-w-0 cursor-not-allowed !border-[#e4e1de] !bg-[#f6f5f3] tabular-nums !text-[#68655f]" />
                             </label>
                             <div className="min-w-0">
-                              <span className={fieldLabel}>{l.lineCost}</span>
-                              <div className="flex h-11 items-center text-sm font-semibold tabular-nums text-[#22201d] sm:justify-end">{formatCurrency(Math.round(line?.lineCost || 0))}</div>
+                              <span className={ingredientFieldLabel}>{l.lineCost}</span>
+                              <div className="flex h-11 items-center whitespace-nowrap text-sm font-semibold tabular-nums text-[#22201d] [@container_(min-width:680px)]:justify-end">{formatCurrency(Math.round(line?.lineCost || 0))}</div>
                             </div>
                             {mayEdit && (
-                              <button type="button" onClick={() => removeIngredient(index)} disabled={saving} aria-label="Remove ingredient" className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon self-end justify-self-end sm:self-center">
+                              <button type="button" onClick={() => removeIngredient(index)} disabled={saving} aria-label={l.removeIngredient} title={l.removeIngredient} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon col-span-2 justify-self-end [@container_(min-width:680px)]:col-span-1 [@container_(min-width:680px)]:self-center">
                                 <Trash2 size={15} />
                               </button>
                             )}
@@ -821,8 +832,8 @@ export default function TechCards() {
                       <span className="text-sm font-medium text-[#68655f]">{mayEdit ? l.addIncludedItem : l.noIncludedItems}</span>
                     </button>
                   ) : (
-                    <div className="overflow-hidden rounded-[10px] border border-[#e4e1de]">
-                      <div className={`ws-table-head hidden gap-3 px-3 py-2 sm:grid ${componentColumns}`} aria-hidden="true">
+                    <div className="overflow-hidden rounded-[10px] border border-[#e4e1de] [container-type:inline-size]">
+                      <div className={`ws-table-head hidden gap-3 px-3 py-2 [@container_(min-width:560px)]:grid ${componentColumns}`} aria-hidden="true">
                         <span>{l.includedItem}</span>
                         <span>{l.quantity}</span>
                         <span className="text-right">{l.lineCost}</span>
@@ -835,9 +846,9 @@ export default function TechCards() {
                         const canOpenCard = componentItem && isTechCardEligibleMenuItem(componentItem, state.categories)
                         const componentVariantId = Object.values(component.selected_options || {})[0] || ''
                         return (
-                        <div key={component.id || index} data-over-price={overPrice || undefined} className={`ws-row grid min-w-0 grid-cols-2 gap-3 p-3 sm:items-center ${componentColumns} ${overPrice ? '!bg-[#fff6e5] shadow-[inset_3px_0_0_#d97706]' : ''}`}>
-                          <div className="col-span-2 min-w-0 sm:col-span-1">
-                            <span className={fieldLabel}>{l.includedItem}</span>
+                        <div key={component.id || index} data-over-price={overPrice || undefined} className={`ws-row grid min-w-0 grid-cols-2 gap-3 p-3 [@container_(min-width:560px)]:items-center ${componentColumns} ${overPrice ? '!bg-[#fff6e5] shadow-[inset_3px_0_0_#d97706]' : ''}`}>
+                          <div className="col-span-2 min-w-0 [@container_(min-width:560px)]:col-span-1">
+                            <span className={componentFieldLabel}>{l.includedItem}</span>
                             <MenuItemPicker
                               items={activeItems.filter(item => item.id !== editorItem.id)}
                               categories={state.categories}
@@ -853,7 +864,7 @@ export default function TechCards() {
                             />
                           </div>
                           <label className="min-w-0">
-                            <span className={fieldLabel}>{l.quantity}</span>
+                            <span className={componentFieldLabel}>{l.quantity}</span>
                             <div className="relative">
                               <input
                                 inputMode="decimal"
@@ -868,16 +879,16 @@ export default function TechCards() {
                               </span>
                             </div>
                           </label>
-                          <div className="min-w-0 sm:text-right">
-                            <span className={fieldLabel}>{l.lineCost}</span>
-                            <p className={`text-sm font-semibold tabular-nums ${overPrice ? 'text-[#b45309]' : 'text-[#22201d]'}`}>
+                          <div className="min-w-0 [@container_(min-width:560px)]:text-right">
+                            <span className={componentFieldLabel}>{l.lineCost}</span>
+                            <p className={`whitespace-nowrap text-sm font-semibold tabular-nums ${overPrice ? 'text-[#b45309]' : 'text-[#22201d]'}`}>
                               {componentSummary?.costAvailable ? formatCurrency(Math.round(componentSummary.lineCost)) : '—'}
                             </p>
                             {componentSummary?.costAvailable && (
-                              <p className="ws-caption truncate tabular-nums">{formatCurrency(Math.round(componentSummary.unitCost))} × {formatDecimal(componentSummary.quantity, lang)}</p>
+                              <p className="ws-caption tabular-nums">{formatCurrency(Math.round(componentSummary.unitCost))} × {formatDecimal(componentSummary.quantity, lang)}</p>
                             )}
                           </div>
-                          <div className="col-span-2 flex items-center justify-end gap-1 sm:col-span-1">
+                          <div className="col-span-2 flex items-center justify-end gap-1 [@container_(min-width:560px)]:col-span-1">
                             {canOpenCard && (
                               <a
                                 href={`/admin/tech-cards/${encodeURIComponent(componentItem.id)}${componentVariantId ? `?variant=${encodeURIComponent(componentVariantId)}` : ''}`}
@@ -891,7 +902,7 @@ export default function TechCards() {
                               </a>
                             )}
                             {mayEdit && (
-                              <button type="button" onClick={() => removeComponent(index)} disabled={saving} aria-label="Remove included menu item" className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon">
+                              <button type="button" onClick={() => removeComponent(index)} disabled={saving} aria-label={l.removeIncludedItem} title={l.removeIncludedItem} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon">
                                 <Trash2 size={15} />
                               </button>
                             )}

@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Archive, ChevronRight, Download, Loader2, PackagePlus, Plus, RotateCcw, Save, Search, Tag, X } from 'lucide-react'
+import { Archive, ChevronRight, Download, Loader2, PackagePlus, Plus, RotateCcw, Save, Search, Tag } from 'lucide-react'
 import { useIngredientTabs } from '../components/IngredientNavigation'
 import BazaarCategoryPicker from '../components/BazaarCategoryPicker'
 import { startsWithCapitalOrDigit } from '../lib/nameStart'
 import AppShell from '../components/AppShell'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
 import { Shimmer } from '../components/PageShimmer'
+import WorkspaceDialog from '../components/WorkspaceDialog'
 import { getMenuItemOptionGroups } from '../components/MenuProductCards'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -86,13 +87,14 @@ export default function BazaarIngredients() {
   const [archiveCheck, setArchiveCheck] = useState(null)
   // Tech Cards the DB refused to reprice because they would cost more than their selling price.
   const [saveOverruns, setSaveOverruns] = useState([])
-  const archiveDialogRef = useRef(null)
+  const archiveCancelRef = useRef(null)
   const [ingredients, setIngredients] = useState([])
   // The ingredient open in the add/edit popup (no product_key = new); null while closed.
   const [editForm, setEditForm] = useState(null)
   // Snapshot taken when the popup opens; Save stays disabled until the draft differs from it.
   const [editOriginal, setEditOriginal] = useState(null)
-  const editDialogRef = useRef(null)
+  const nameInputRef = useRef(null)
+  const categoryInputRef = useRef(null)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('active')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -113,7 +115,8 @@ export default function BazaarIngredients() {
   const errorMessage = useCallback((requestError, fallback) => {
     if (isMissingMigration(requestError)) return l.migrationMissing
     if (isBazaarIngredientNetworkError(requestError)) return l.connectionFailed
-    return requestError?.message || fallback
+    // The raw database message stays in the console (logged where it is caught); staff read the translated fallback.
+    return fallback
   }, [l.connectionFailed, l.migrationMissing])
 
   const upsertIngredient = useCallback(ingredient => {
@@ -141,6 +144,7 @@ export default function BazaarIngredients() {
         .order('category')
       setCustomCategories(categoryLoadError ? [] : (categoryRows || []).map(row => row.category))
     } catch (loadError) {
+      console.error('Ingredients failed to load', loadError)
       setLoadFailure(loadError)
     } finally {
       setLoading(false)
@@ -190,6 +194,7 @@ export default function BazaarIngredients() {
       setCategoryPanelOpen(false)
       setNotice(l.categoryAdded)
     } catch (addError) {
+      console.error('Ingredient category failed to save', addError)
       setCategoryError(errorMessage(addError, l.categoryFailed))
     } finally {
       setAddingCategory(false)
@@ -301,7 +306,10 @@ export default function BazaarIngredients() {
     } catch (saveError) {
       const overruns = parseTechCardCostOverruns(saveError)
       if (overruns) setSaveOverruns(overruns)
-      else setError(errorMessage(saveError, l.saveFailed))
+      else {
+        console.error('Ingredient failed to save', saveError)
+        setError(errorMessage(saveError, l.saveFailed))
+      }
     } finally {
       setSaving(false)
     }
@@ -337,6 +345,7 @@ export default function BazaarIngredients() {
       setNotice(l.statusUpdated)
       return true
     } catch (statusError) {
+      console.error('Ingredient status failed to save', statusError)
       setError(errorMessage(statusError, l.statusFailed))
       return false
     } finally {
@@ -402,18 +411,12 @@ export default function BazaarIngredients() {
   }
 
   const archiveDialogOpen = !!archiveCheck
-  useEffect(() => {
-    if (archiveDialogOpen) archiveDialogRef.current?.focus()
-  }, [archiveDialogOpen])
 
   const editDialogOpen = !!editForm
   const draftFields = draft => draft && ['product_name', 'category', 'unit', 'normal_unit_price', 'pieces_per_unit']
     .map(field => String(draft[field] ?? '').trim())
     .join('\u0000')
   const editDirty = editDialogOpen && draftFields(editForm) !== draftFields(editOriginal)
-  useEffect(() => {
-    if (editDialogOpen) editDialogRef.current?.querySelector('input')?.focus()
-  }, [editDialogOpen])
 
   const piecePriceHint = draft => {
     if (!BAZAAR_PACKAGE_UNITS.has(draft.unit)) return null
@@ -427,7 +430,7 @@ export default function BazaarIngredients() {
     const nameStartInvalid = !startsWithCapitalOrDigit(form.product_name)
     return (
       <>
-        <label className="ws-caption font-medium">{l.name}<input value={form.product_name} onChange={event => setDraft(current => ({ ...current, product_name: capitalizeBazaarNameInput(event.target.value) }))} autoCapitalize="sentences" maxLength={160} placeholder={l.namePlaceholder} aria-invalid={nameStartInvalid || undefined} className={`${INPUT} mt-1.5 ${nameStartInvalid ? '!border-[#c4262c]' : ''}`} />{nameStartInvalid && <span role="alert" className="mt-1 block text-[12px] text-[#c4262c]">{l.nameStartInvalid}</span>}</label>
+        <label className="ws-caption font-medium">{l.name}<input ref={nameInputRef} value={form.product_name} onChange={event => setDraft(current => ({ ...current, product_name: capitalizeBazaarNameInput(event.target.value) }))} autoCapitalize="sentences" maxLength={160} placeholder={l.namePlaceholder} aria-invalid={nameStartInvalid || undefined} className={`${INPUT} mt-1.5 ${nameStartInvalid ? '!border-[#c4262c]' : ''}`} />{nameStartInvalid && <span role="alert" className="mt-1 block text-xs text-[#c4262c]">{l.nameStartInvalid}</span>}</label>
         <div className="ws-caption font-medium">{l.category}<div className="mt-1.5"><BazaarCategoryPicker value={form.category} ingredients={ingredients} extraCategories={customCategories} onChange={category => setDraft(current => ({ ...current, category }))} lang={lang} disabled={saving} /></div></div>
         <label className="ws-caption font-medium">{l.unit}<select value={form.unit} onChange={event => setDraft(current => ({ ...current, unit: event.target.value }))} className={`${INPUT} mt-1.5`}>{BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}</select></label>
         {isPackage && <label className="ws-caption font-medium" title={l.piecesHint}>{l.piecesPerUnit}<input inputMode="numeric" value={form.pieces_per_unit || ''} placeholder="30" onChange={event => setDraft(current => ({ ...current, pieces_per_unit: event.target.value.replace(/\D/g, '').slice(0, 6) }))} className={`${INPUT} mt-1.5 text-right tabular-nums`} /></label>}
@@ -445,15 +448,15 @@ export default function BazaarIngredients() {
         <>
           {canManage ? (
             <>
-              <button type="button" onClick={openAddDialog} aria-label={l.add} className="ws-btn ws-btn-primary !h-[38px]">
+              <button type="button" onClick={openAddDialog} aria-label={l.add} className="ws-btn ws-btn-primary">
                 <Plus size={16} /><span className="hidden sm:inline">{l.add}</span>
               </button>
-              <button type="button" onClick={openCategoryDialog} aria-haspopup="dialog" aria-label={l.addCategory} className="ws-btn ws-btn-outline !h-[38px]">
+              <button type="button" onClick={openCategoryDialog} aria-haspopup="dialog" aria-label={l.addCategory} className="ws-btn ws-btn-outline">
                 <Tag size={16} /><span className="hidden lg:inline">{l.addCategory}</span>
               </button>
             </>
           ) : null}
-          <button type="button" onClick={downloadPdf} disabled={exportingPdf || loading || !!loadFailure || !filtered.length} title={l.pdfHint} aria-label={exportingPdf ? l.exportingPdf : l.downloadPdf} className="ws-btn ws-btn-outline !h-[38px]">
+          <button type="button" onClick={downloadPdf} disabled={exportingPdf || loading || !!loadFailure || !filtered.length} title={l.pdfHint} aria-label={exportingPdf ? l.exportingPdf : l.downloadPdf} className="ws-btn ws-btn-outline">
             {exportingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}<span className="hidden lg:inline">{exportingPdf ? l.exportingPdf : l.downloadPdf}</span>
           </button>
         </>
@@ -471,12 +474,12 @@ export default function BazaarIngredients() {
           <section className="ws-panel ws-panel-flush">
             {/* Toolbar: search, category filter and status with counts. */}
             <div className="flex flex-wrap items-center gap-3 border-b border-[#e4e1de] p-5 max-sm:p-4">
-              <div className="relative min-w-[220px] flex-1 sm:max-w-sm"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder={l.search} className={`${INPUT} !pl-9`} /></div>
+              <div className="relative min-w-[220px] flex-1 sm:max-w-sm"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={l.search} aria-label={l.search} className={`${INPUT} !pl-9`} /></div>
               <div className="w-[220px] max-w-full"><BazaarCategoryPicker value={categoryFilter} ingredients={ingredients} extraCategories={customCategories} onChange={setCategoryFilter} lang={lang} allLabel={l.allCategoriesFilter} /></div>
               {!loading && <span className="ws-caption tabular-nums">{l.shown(filtered.length)}</span>}
               <div className="ws-segmented sm:ml-auto" role="group" aria-label={l.status}>{['active', 'archived', 'all'].map(key => <button key={key} type="button" aria-pressed={status === key} onClick={() => setStatus(key)}>{l[key]}{!loading && <span className="ml-1.5 tabular-nums text-[#68655f]">{statusCounts[key]}</span>}</button>)}</div>
             </div>
-            {loading ? <OperationalLoading title={l.title} layout="ingredientCards" /> : displayedError && ingredients.length === 0 ? <OperationalError title={l.loadFailed} description={displayedError} actionLabel={l.retry} onAction={loadIngredients} /> : filtered.length === 0 ? <div className="ws-empty"><PackagePlus /><p>{l.empty}</p></div> : (
+            {loading ? <OperationalLoading title={l.title} layout="ingredientCards" /> : displayedError && ingredients.length === 0 ? <OperationalError lang={lang} title={l.loadFailed} description={displayedError} actionLabel={l.retry} onAction={loadIngredients} /> : filtered.length === 0 ? <div className="ws-empty"><PackagePlus /><p>{l.empty}</p></div> : (
               // Card grid: names, category and price read at a glance without stretching across the page.
               <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 2xl:grid-cols-4">
                 {filtered.map(ingredient => (
@@ -516,7 +519,7 @@ export default function BazaarIngredients() {
                   </div>
                   <div className="mt-2"><span className="ws-badge">{bazaarCategoryLabel(ingredient.category, lang)}</span></div>
                   <div className="mt-4">
-                    <p className="text-[18px] font-semibold leading-tight tabular-nums text-[#22201d]">{formatCurrency(ingredient.normal_unit_price)} <span className="text-sm font-normal text-[#68655f]">/ {bazaarUnitLabel(ingredient.unit, lang)}</span></p>
+                    <p className="text-[18px] font-semibold leading-tight tabular-nums text-[#22201d]"><span className="whitespace-nowrap">{formatCurrency(ingredient.normal_unit_price)}</span> <span className="text-sm font-normal text-[#68655f]">/ {bazaarUnitLabel(ingredient.unit, lang)}</span></p>
                     {ingredient.pieces_per_unit > 0 && <p className="ws-muted mt-1 tabular-nums">{ingredient.pieces_per_unit} {bazaarUnitLabel('pcs', lang)} · {formatCurrency(Math.round(bazaarPricePerPiece(ingredient.normal_unit_price, ingredient.pieces_per_unit)))} {l.perPiece}</p>}
                   </div>
                 </div>
@@ -527,178 +530,132 @@ export default function BazaarIngredients() {
       </div>
 
       {canManage && editForm && (
-        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-          <button
-            type="button"
-            aria-label={l.cancel}
-            onClick={closeEditDialog}
-            disabled={saving}
-            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm disabled:cursor-wait"
-          />
-          <form
-            ref={editDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-ingredient-title"
-            aria-busy={saving}
-            onSubmit={event => saveIngredient(event, editForm, setEditForm)}
-            onKeyDown={event => { if (event.key === 'Escape') closeEditDialog() }}
-            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 id="edit-ingredient-title" className="ws-display !text-[24px]">{editForm.product_key ? l.edit : l.add}</h2>
-                <p className="ws-muted mt-1.5">{l.nameHint}{piecePriceHint(editForm) && <> {piecePriceHint(editForm)}</>}</p>
-              </div>
-              <button type="button" onClick={closeEditDialog} disabled={saving} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
-            </div>
-            <fieldset disabled={saving} className="grid gap-3 sm:grid-cols-2 sm:[&>*:first-child]:col-span-2">
-              {renderIngredientFields(editForm, setEditForm)}
-            </fieldset>
-            {displayedError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{displayedError}</p>}
-            {saveOverruns.length > 0 && (
-              <div className="mt-4">
-                <TechCardCostOverrunList overruns={saveOverruns} menuItems={state.menuItems} lang={lang} canOpen={canOpenTechCards} onOpen={openOverrunTechCard} />
-              </div>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={closeEditDialog} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
-              <button type="submit" disabled={saving || !editDirty || !startsWithCapitalOrDigit(editForm.product_name)} className="ws-btn ws-btn-primary disabled:cursor-not-allowed disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{saving ? l.saving : l.save}</button>
-            </div>
-          </form>
-        </div>
-      )}
-      {canManage && archiveCheck && (
-        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-          <button
-            type="button"
-            aria-label={l.cancel}
-            onClick={closeArchiveDialog}
-            disabled={!!updatingKey}
-            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm disabled:cursor-wait"
-          />
-          <div
-            ref={archiveDialogRef}
-            tabIndex={-1}
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="archive-ingredient-title"
-            aria-describedby="archive-ingredient-description"
-            aria-busy={archiveCheck.status === 'loading' || !!updatingKey}
-            onKeyDown={event => { if (event.key === 'Escape') closeArchiveDialog() }}
-            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6 focus:outline-none"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <h2 id="archive-ingredient-title" className="ws-display !text-[24px]">{archiveCheck.status === 'ready' && archiveUsageRows.length ? l.archiveBlockedTitle : l.archiveTitle}</h2>
-              <button type="button" onClick={closeArchiveDialog} disabled={!!updatingKey} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
-            </div>
-            <div id="archive-ingredient-description">
-              {archiveCheck.status === 'loading' ? (
-                <div role="status" aria-label={l.usedIn} className="space-y-2">
-                  <Shimmer className="h-12 w-full rounded-[10px]" />
-                  {[0, 1, 2].map(index => (
-                    <div key={index} className="flex items-center gap-3 rounded-[10px] border border-[#e4e1de] p-2.5">
-                      <Shimmer className="h-10 w-10 flex-shrink-0 rounded-lg" />
-                      <div className="flex-1 space-y-2"><Shimmer className="h-3 w-1/2" /><Shimmer className="h-2.5 w-1/3" /></div>
-                    </div>
-                  ))}
-                </div>
-              ) : archiveCheck.status === 'failed' ? (
-                <div role="alert" className="ws-notice ws-tone-negative">
-                  <p>{l.archiveUsageFailed}</p>
-                  <button type="button" onClick={() => loadArchiveUsage(archiveCheck.ingredient)} className="ws-btn ws-btn-outline ws-btn-sm mt-2"><RotateCcw size={14} />{l.retry}</button>
-                </div>
-              ) : archiveUsageRows.length ? (
-                <>
-                  <p className="ws-notice ws-tone-caution">{l.archiveUsed(archiveCheck.ingredient.product_name, archiveUsageRows.length)}{!canOpenTechCards && <> {l.noTechCardAccess}</>}</p>
-                  <p className="ws-caption mb-2 mt-4 flex items-center gap-1.5 font-medium">{l.usedIn} <span className="ws-count">{archiveUsageRows.length}</span></p>
-                  <ul className="max-h-72 space-y-1.5 overflow-y-auto">
-                    {archiveUsageRows.map(row => {
-                      const content = (
-                        <>
-                          <span className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-[#efece9]">{row.image && <img src={row.image} alt="" className="h-full w-full object-cover" loading="lazy" />}</span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-[#22201d]">{row.name}</span>
-                            <span className="ws-caption block truncate">{row.variantLabel}</span>
-                          </span>
-                          {canOpenTechCards && <ChevronRight size={16} className="flex-shrink-0 text-[#68655f] transition-transform group-hover:translate-x-0.5 group-hover:text-[#ff5a00]" />}
-                        </>
-                      )
-                      return (
-                        <li key={row.key}>
-                          {canOpenTechCards ? (
-                            <button type="button" onClick={() => openTechCard(row)} aria-label={`${l.openTechCard}: ${row.name} · ${row.variantLabel}`} className="group flex w-full items-center gap-3 rounded-[10px] border border-[#e4e1de] p-2.5 text-left transition-colors hover:bg-[#f6f5f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40">{content}</button>
-                          ) : (
-                            <div className="flex items-center gap-3 rounded-[10px] border border-[#e4e1de] p-2.5">{content}</div>
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </>
-              ) : (
-                <p className="ws-muted">{l.archiveUnused(archiveCheck.ingredient.product_name)}</p>
-              )}
-            </div>
-            {displayedError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{displayedError}</p>}
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              {(() => {
-                const canArchive = archiveCheck.status === 'ready' && !archiveUsageRows.length
-                return (
-                  <>
-                    <button type="button" onClick={closeArchiveDialog} disabled={!!updatingKey} className="ws-btn ws-btn-outline">{canArchive || archiveCheck.status === 'loading' ? l.cancel : l.close}</button>
-                    {(canArchive || archiveCheck.status === 'loading') && (
-                      <button type="button" onClick={confirmArchive} disabled={!canArchive || !!updatingKey} className="ws-btn ws-btn-danger-solid disabled:cursor-not-allowed disabled:opacity-50">
-                        {updatingKey ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
-                        {l.archive}
-                      </button>
-                    )}
-                  </>
-                )
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
-      {canManage && categoryPanelOpen && (
-        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-          <button
-            type="button"
-            aria-label={l.cancel}
-            onClick={closeCategoryDialog}
-            disabled={addingCategory}
-            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm disabled:cursor-wait"
-          />
-          <form onSubmit={addCategory}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="add-category-title"
-            aria-busy={addingCategory}
-            onKeyDown={event => { if (event.key === 'Escape') closeCategoryDialog() }}
-            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div><h2 id="add-category-title" className="ws-display !text-[24px]">{l.addCategory}</h2><p className="ws-muted mt-1.5">{l.categoryHint}</p></div>
-              <button type="button" onClick={closeCategoryDialog} disabled={addingCategory} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
-            </div>
-            <fieldset disabled={addingCategory}>
-              <input autoFocus value={categoryName} onChange={event => setCategoryName(capitalizeBazaarNameInput(event.target.value))} autoCapitalize="sentences" maxLength={BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH} placeholder={l.newCategory} aria-label={l.newCategory} aria-invalid={!!categoryError} className={`${INPUT} ${categoryError ? '!border-[#c4262c]' : ''}`} />
-            </fieldset>
-            {categoryError && <p role="alert" className="ws-caption mt-2 !text-[#c4262c]">{categoryError}</p>}
+        <WorkspaceDialog
+          as="form"
+          panelProps={{ onSubmit: event => saveIngredient(event, editForm, setEditForm) }}
+          title={editForm.product_key ? l.edit : l.add}
+          description={<>{l.nameHint}{piecePriceHint(editForm) && <> {piecePriceHint(editForm)}</>}</>}
+          onClose={closeEditDialog}
+          closeLabel={l.close}
+          size="lg"
+          busy={saving}
+          initialFocusRef={nameInputRef}
+          notice={displayedError ? <p role="alert" className="ws-notice ws-tone-negative">{displayedError}</p> : null}
+          footer={<>
+            <button type="button" onClick={closeEditDialog} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
+            <button type="submit" disabled={saving || !editDirty || !startsWithCapitalOrDigit(editForm.product_name)} className="ws-btn ws-btn-primary disabled:cursor-not-allowed disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{saving ? l.saving : l.save}</button>
+          </>}
+        >
+          <fieldset disabled={saving} className="grid min-w-0 gap-3 sm:grid-cols-2 sm:[&>*:first-child]:col-span-2">
+            {renderIngredientFields(editForm, setEditForm)}
+          </fieldset>
+          {saveOverruns.length > 0 && (
             <div className="mt-4">
-              <p className="ws-caption mb-2 flex items-center gap-1.5 font-medium">{l.allCategories} <span className="ws-count">{allCategories.length}</span></p>
-              <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
-                {allCategories.map(category => (
-                  <span key={category.key} className={`ws-badge ${category.custom ? 'ws-tone-accent' : ''}`}>{bazaarCategoryLabel(category.key, lang)}</span>
+              <TechCardCostOverrunList overruns={saveOverruns} menuItems={state.menuItems} lang={lang} canOpen={canOpenTechCards} onOpen={openOverrunTechCard} />
+            </div>
+          )}
+        </WorkspaceDialog>
+      )}
+      {canManage && archiveCheck && (() => {
+        const canArchive = archiveCheck.status === 'ready' && !archiveUsageRows.length
+        return (
+          <WorkspaceDialog
+            variant="alert"
+            title={archiveCheck.status === 'ready' && archiveUsageRows.length ? l.archiveBlockedTitle : l.archiveTitle}
+            onClose={closeArchiveDialog}
+            closeLabel={l.close}
+            size="lg"
+            busy={!!updatingKey}
+            initialFocusRef={archiveCancelRef}
+            notice={displayedError ? <p role="alert" className="ws-notice ws-tone-negative">{displayedError}</p> : null}
+            footer={<>
+              <button ref={archiveCancelRef} type="button" onClick={closeArchiveDialog} disabled={!!updatingKey} className="ws-btn ws-btn-outline">{canArchive || archiveCheck.status === 'loading' ? l.cancel : l.close}</button>
+              {(canArchive || archiveCheck.status === 'loading') && (
+                <button type="button" onClick={confirmArchive} disabled={!canArchive || !!updatingKey} className="ws-btn ws-btn-danger-solid disabled:cursor-not-allowed disabled:opacity-50">
+                  {updatingKey ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                  {l.archive}
+                </button>
+              )}
+            </>}
+          >
+            {archiveCheck.status === 'loading' ? (
+              <div role="status" aria-label={l.usedIn} className="space-y-2">
+                <Shimmer className="h-12 w-full rounded-[10px]" />
+                {[0, 1, 2].map(index => (
+                  <div key={index} className="flex items-center gap-3 py-2">
+                    <Shimmer className="h-10 w-10 flex-shrink-0 rounded-lg" />
+                    <div className="flex-1 space-y-2"><Shimmer className="h-3 w-1/2" /><Shimmer className="h-2.5 w-1/3" /></div>
+                  </div>
                 ))}
               </div>
+            ) : archiveCheck.status === 'failed' ? (
+              <div role="alert" className="ws-notice ws-tone-negative">
+                <p>{l.archiveUsageFailed}</p>
+                <button type="button" onClick={() => loadArchiveUsage(archiveCheck.ingredient)} className="ws-btn ws-btn-outline ws-btn-sm mt-2"><RotateCcw size={14} />{l.retry}</button>
+              </div>
+            ) : archiveUsageRows.length ? (
+              <>
+                <p className="ws-notice ws-tone-caution">{l.archiveUsed(archiveCheck.ingredient.product_name, archiveUsageRows.length)}{!canOpenTechCards && <> {l.noTechCardAccess}</>}</p>
+                <p className="ws-caption mb-1 mt-4 flex items-center gap-1.5 font-medium">{l.usedIn} <span className="ws-count">{archiveUsageRows.length}</span></p>
+                {/* The dialog body scrolls; the list is plain rows, not a second scroller of cards. */}
+                <ul className="divide-y divide-[#e4e1de]">
+                  {archiveUsageRows.map(row => {
+                    const content = (
+                      <>
+                        <span className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-[#efece9]">{row.image && <img src={row.image} alt="" className="h-full w-full object-cover" loading="lazy" />}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-[#22201d]">{row.name}</span>
+                          <span className="ws-caption block truncate">{row.variantLabel}</span>
+                        </span>
+                        {canOpenTechCards && <ChevronRight size={16} aria-hidden="true" className="flex-shrink-0 text-[#68655f] transition-transform group-hover:translate-x-0.5 group-hover:text-[#bf4300]" />}
+                      </>
+                    )
+                    return (
+                      <li key={row.key}>
+                        {canOpenTechCards ? (
+                          <button type="button" onClick={() => openTechCard(row)} aria-label={`${l.openTechCard}: ${row.name} · ${row.variantLabel}`} className="group flex min-h-11 w-full items-center gap-3 rounded-lg px-1 py-2 text-left transition-colors hover:bg-[#f6f5f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40">{content}</button>
+                        ) : (
+                          <div className="flex items-center gap-3 px-1 py-2">{content}</div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            ) : (
+              <p className="ws-muted">{l.archiveUnused(archiveCheck.ingredient.product_name)}</p>
+            )}
+          </WorkspaceDialog>
+        )
+      })()}
+      {canManage && categoryPanelOpen && (
+        <WorkspaceDialog
+          as="form"
+          panelProps={{ onSubmit: addCategory }}
+          title={l.addCategory}
+          description={l.categoryHint}
+          onClose={closeCategoryDialog}
+          closeLabel={l.close}
+          busy={addingCategory}
+          initialFocusRef={categoryInputRef}
+          notice={categoryError ? <p role="alert" className="ws-notice ws-tone-negative">{categoryError}</p> : null}
+          footer={<>
+            <button type="button" onClick={closeCategoryDialog} disabled={addingCategory} className="ws-btn ws-btn-outline">{l.cancel}</button>
+            <button type="submit" disabled={addingCategory} className="ws-btn ws-btn-primary">{addingCategory ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{l.addCategoryButton}</button>
+          </>}
+        >
+          <fieldset disabled={addingCategory} className="min-w-0">
+            <input ref={categoryInputRef} value={categoryName} onChange={event => setCategoryName(capitalizeBazaarNameInput(event.target.value))} autoCapitalize="sentences" maxLength={BAZAAR_CUSTOM_CATEGORY_MAX_LENGTH} placeholder={l.newCategory} aria-label={l.newCategory} aria-invalid={!!categoryError} className={`${INPUT} ${categoryError ? '!border-[#c4262c]' : ''}`} />
+          </fieldset>
+          <div className="mt-4">
+            <p className="ws-caption mb-2 flex items-center gap-1.5 font-medium">{l.allCategories} <span className="ws-count">{allCategories.length}</span></p>
+            <div className="flex flex-wrap gap-1.5">
+              {allCategories.map(category => (
+                <span key={category.key} className={`ws-badge ${category.custom ? 'ws-tone-accent' : ''}`}>{bazaarCategoryLabel(category.key, lang)}</span>
+              ))}
             </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={closeCategoryDialog} disabled={addingCategory} className="ws-btn ws-btn-outline">{l.cancel}</button>
-              <button type="submit" disabled={addingCategory} className="ws-btn ws-btn-primary">{addingCategory ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}{l.addCategoryButton}</button>
-            </div>
-          </form>
-        </div>
+          </div>
+        </WorkspaceDialog>
       )}
     </AppShell>
   )

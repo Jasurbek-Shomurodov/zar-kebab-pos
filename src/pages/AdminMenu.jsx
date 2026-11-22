@@ -2,6 +2,9 @@ import { eligibleCategoryProfileIds } from '../lib/categoryScheduleAccess'
 import { formatWriteError } from '../lib/writeErrorMessage'
 import { orderTypeLabel } from '../lib/orderTypes'
 import React, { useState, useMemo, useRef, useEffect } from 'react'
+import WorkspaceDialog from '../components/WorkspaceDialog'
+import TimePicker24 from '../components/TimePicker24'
+import { Shimmer } from '../components/PageShimmer'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   DndContext, closestCenter, pointerWithin, PointerSensor, TouchSensor,
@@ -176,23 +179,70 @@ function SafeMenuImage({ src, alt = '', className = '', fallbackClassName = '', 
   )
 }
 
-function Modal({ title, onClose, children, closeDisabled = false }) {
+// Every pop-up of this page is the shared WorkspaceDialog: dialog semantics, focus trap,
+// Escape, a pinned title and a body that scrolls on its own.
+function Modal({ title, onClose, children, closeLabel, closeDisabled = false, variant = 'sheet', size = 'lg', footer = null, notice = null, initialFocusRef }) {
   return (
-    <div className="fixed inset-0 z-dialog flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-[#22201d]/40 backdrop-blur-sm" onClick={closeDisabled ? undefined : onClose} />
-      <div className="ws-dialog relative w-full sm:max-w-lg !rounded-b-none sm:!rounded-[16px] max-h-[92vh] flex flex-col">
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[#e4e1de] flex-shrink-0">
-          <h3 className="ws-display min-w-0 truncate">{title}</h3>
-          <button
-            onClick={onClose}
-            disabled={closeDisabled}
-            className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon disabled:cursor-wait"
-          >
-            <X size={17} />
-          </button>
-        </div>
-        <div className="overflow-y-auto p-5 flex-1">{children}</div>
+    <WorkspaceDialog
+      title={title}
+      onClose={onClose}
+      closeLabel={closeLabel}
+      variant={variant}
+      size={size}
+      busy={closeDisabled}
+      footer={footer}
+      notice={notice}
+      initialFocusRef={initialFocusRef}
+    >
+      {children}
+    </WorkspaceDialog>
+  )
+}
+
+function closeDialogLabel(lang) {
+  return lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'
+}
+
+// Schedule time in 24-hour form (the native time input follows the device locale and shows AM/PM).
+// The stored value stays "HH:MM"; an empty value means "always shown", so the field can be cleared.
+function ScheduleTimeField({ label, value, onChange, lang, disabled = false }) {
+  const time = String(value || '').slice(0, 5)
+  const labels = {
+    hour: lang === 'uz' ? 'Soat' : lang === 'ru' ? 'Часы' : 'Hour',
+    minute: lang === 'uz' ? 'Daqiqa' : lang === 'ru' ? 'Минуты' : 'Minute',
+    done: lang === 'uz' ? 'Tayyor' : lang === 'ru' ? 'Готово' : 'Done',
+    clear: lang === 'uz' ? 'Vaqtni tozalash' : lang === 'ru' ? 'Очистить время' : 'Clear time',
+  }
+  const pick = next => {
+    const [hour = '', minute = ''] = String(next || '').split(':')
+    onChange(`${hour || '00'}:${minute || '00'}`)
+  }
+  return (
+    <div className="flex min-w-0 items-end gap-1">
+      <div className="min-w-0 flex-1">
+        <TimePicker24
+          value={time}
+          onChange={pick}
+          label={label}
+          hourLabel={labels.hour}
+          minuteLabel={labels.minute}
+          doneLabel={labels.done}
+          className="ws-input"
+          disabled={disabled}
+        />
       </div>
+      {time && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          disabled={disabled}
+          aria-label={`${labels.clear}: ${label}`}
+          title={labels.clear}
+          className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon shrink-0"
+        >
+          <X aria-hidden="true" />
+        </button>
+      )}
     </div>
   )
 }
@@ -210,7 +260,7 @@ function Field({ label, type = 'text', value, onChange, placeholder, error = '',
         {...inputProps}
         className={`ws-input ${error ? '!border-red-400' : ''}`}
       />
-      {error ? <p className="mt-1 text-[12px] font-medium text-red-500">{error}</p> : null}
+      {error ? <p role="alert" className="mt-1 text-xs font-medium text-[#c4262c]">{error}</p> : null}
     </div>
   )
 }
@@ -634,7 +684,7 @@ function MediaGalleryField({ label, values, onChange, onUploadComplete, lang, en
                   }
                 />
                 {index === 0 && (
-                  <span className="ws-badge absolute left-2 top-2 !border-transparent !bg-[#ff5a00] !text-white">
+                  <span className="ws-badge absolute left-2 top-2 !border-transparent !bg-[#cc4800] !text-white">
                     {t(lang, 'mediaCover')}
                   </span>
                 )}
@@ -699,15 +749,23 @@ function pointerWithinOrClosestCenter(args) {
   return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args)
 }
 
-function DragHandle({ listeners, attributes }) {
+function dragHandleLabel(lang) {
+  return lang === 'uz' ? 'Tartibni o‘zgartirish uchun torting' : lang === 'ru' ? 'Перетащите, чтобы изменить порядок' : 'Drag to reorder'
+}
+
+function DragHandle({ listeners, attributes, label }) {
   return (
     <button
+      type="button"
       {...listeners}
       {...attributes}
-      className="flex-shrink-0 p-1 rounded-md text-[#a8a49e] hover:text-[#22201d] hover:bg-[#ebe8e5] transition-colors cursor-grab active:cursor-grabbing touch-none"
+      aria-label={label}
+      title={label}
+      // The grip stays small inside its 20px column; the ::before pad makes the hit area 40px.
+      className="relative flex-shrink-0 p-1 rounded-md text-[#68655f] hover:text-[#22201d] hover:bg-[#ebe8e5] transition-colors cursor-grab active:cursor-grabbing touch-none before:absolute before:-inset-2 before:content-['']"
       tabIndex={-1}
     >
-      <GripVertical size={15} />
+      <GripVertical size={15} aria-hidden="true" />
     </button>
   )
 }
@@ -715,14 +773,14 @@ function DragHandle({ listeners, attributes }) {
 function MenuPrice({ item, size = 'base', align = 'left' }) {
   const pricing = getMenuPricing(item)
   const currentSize = size === 'sm' ? 'text-xs' : size === 'row' ? 'text-sm' : 'text-[16px]'
-  const oldSize = size === 'sm' ? 'text-[10px]' : 'text-[11px]'
+  const oldSize = 'text-xs'
 
   return (
     <div className={`flex flex-col ${align === 'right' ? 'items-end' : 'items-start'} flex-shrink-0 leading-tight`}>
       {pricing.discounted && (
         <span className={`${oldSize} font-medium text-[#68655f] line-through tabular-nums`}>{formatCurrency(pricing.oldPrice)}</span>
       )}
-      <span className={`${currentSize} font-semibold tabular-nums tracking-[-.01em] ${pricing.discounted ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>
+      <span className={`${currentSize} whitespace-nowrap font-semibold tabular-nums tracking-[-.01em] ${pricing.discounted ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>
         {formatCurrency(pricing.price)}{menuPriceUnitSuffix(item)}
       </span>
     </div>
@@ -735,7 +793,7 @@ function ExternalIdBadge({ item, compact = false }) {
 
   return (
     <span className={`ws-badge w-fit font-mono ${compact ? '!px-1.5 !py-0' : ''}`}>
-      <span className="font-sans opacity-70">ID</span>
+      <span className="font-sans">ID</span>
       <span className="truncate">{externalId}</span>
     </span>
   )
@@ -951,10 +1009,13 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, vi
         <button
           {...listeners}
           {...attributes}
-          className="lux-on-photo absolute right-2 top-2 rounded-full p-1.5 cursor-grab active:cursor-grabbing touch-none sm:right-2.5 sm:top-2.5"
+          type="button"
+          aria-label={dragHandleLabel(lang)}
+          title={dragHandleLabel(lang)}
+          className="lux-on-photo absolute right-1 top-1 grid h-10 w-10 place-items-center rounded-full cursor-grab active:cursor-grabbing touch-none sm:right-1.5 sm:top-1.5"
           tabIndex={-1}
         >
-          <GripVertical size={15} />
+          <GripVertical size={15} aria-hidden="true" />
         </button>
       )}
     >
@@ -989,14 +1050,14 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, vi
 
         {/* Actions: edit, availability, archive in one row */}
         {!readOnly && (
-          <div className="mt-auto flex items-center gap-1.5">
+          <div className="mt-auto flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => onEdit(item)}
               disabled={visibilityPending}
-              className="lux-cta flex h-[34px] flex-1 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold disabled:opacity-50"
+              className="lux-cta flex h-10 min-w-[4.5rem] flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-[13px] font-semibold disabled:opacity-50"
             >
               <Edit2 size={14} />
-              {lang === 'uz' ? 'Tahrirl' : lang === 'ru' ? 'Ред.' : 'Edit'}
+              {lang === 'uz' ? 'Tahrir' : lang === 'ru' ? 'Ред.' : 'Edit'}
             </button>
             {canChangeAvailability ? (
               <VisibilityToggleButton
@@ -1010,7 +1071,7 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, vi
               <span
                 title={t(lang, 'available_item')}
                 aria-label={t(lang, 'available_item')}
-                className="lux-soft lux-muted inline-flex h-[34px] w-[34px] items-center justify-center rounded-full"
+                className="lux-soft lux-muted inline-flex h-10 w-10 items-center justify-center rounded-full"
               >
                 <Lock size={14} />
               </span>
@@ -1023,7 +1084,7 @@ function SortableItemCard({ item, lang, onEdit, onDelete, onToggleVisibility, vi
                 disabled={visibilityPending}
                 title={lang === 'uz' ? 'Arxiv' : lang === 'ru' ? 'В архив' : 'Archive'}
                 aria-label={lang === 'uz' ? 'Mahsulotni arxivlash' : lang === 'ru' ? 'Архивировать товар' : 'Archive item'}
-                className="touch-manipulation lux-soft lux-muted flex h-[34px] w-[34px] items-center justify-center rounded-full transition-colors hover:text-red-500 disabled:opacity-50"
+                className="touch-manipulation lux-soft lux-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors hover:text-red-500 disabled:opacity-50"
               >
                 <Archive size={14} />
               </button>
@@ -1056,7 +1117,7 @@ function SortableItemRow({ item, lang, onEdit, onDelete, onToggleVisibility, cat
       style={style}
       className="ws-row flex flex-wrap items-center gap-3 px-3 py-3 sm:flex-nowrap sm:gap-4 sm:px-5"
     >
-      {!readOnly && <DragHandle listeners={listeners} attributes={attributes} />}
+      {!readOnly && <DragHandle listeners={listeners} attributes={attributes} label={dragHandleLabel(lang)} />}
       <SafeMenuImage
         src={item.image_url}
         alt={getItemName(item, lang)}
@@ -1103,7 +1164,7 @@ function SortableItemRow({ item, lang, onEdit, onDelete, onToggleVisibility, cat
             <span
               title={t(lang, 'available_item')}
               aria-label={t(lang, 'available_item')}
-              className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-[#e4e1de] bg-[#efece9] text-[#68655f]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#e4e1de] bg-[#efece9] text-[#68655f]"
             >
               <Lock size={13} />
             </span>
@@ -1159,7 +1220,7 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
       className={`${readOnly ? CAT_READ_ONLY_GRID : CAT_EDIT_GRID} ws-row py-3.5`}
     >
       {/* col 1 – drag handle */}
-      {!readOnly && <DragHandle listeners={listeners} attributes={attributes} />}
+      {!readOnly && <DragHandle listeners={listeners} attributes={attributes} label={dragHandleLabel(lang)} />}
 
       {/* col 2 – image */}
       {cat.image_url ? (
@@ -1179,7 +1240,7 @@ function SortableCatRow({ cat, lang, itemCount, onEdit, onDelete, onToggleVisibi
             type="button"
             onClick={() => onEdit(cat)}
             disabled={visibilityPending}
-            className="block max-w-full truncate text-left text-sm font-semibold text-[#22201d] hover:text-[#ff5a00] hover:underline"
+            className="block max-w-full truncate text-left text-sm font-semibold text-[#22201d] hover:text-[#bf4300] hover:underline"
           >
             {getCategoryName(cat, lang)}
           </button>
@@ -1610,16 +1671,13 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
       )}
     </div>
     {pendingDeleteOption && (
-      <Modal title={labels.deleteTitle} onClose={() => setPendingDeleteIndex(null)}>
-        <p className="ws-muted">
-          {labels.deletePrompt}
-        </p>
-        {pendingDeleteName && (
-          <p className="mt-3 rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-3 py-2.5 text-sm font-semibold text-[#22201d]">
-            {pendingDeleteName}
-          </p>
-        )}
-        <div className="mt-5 flex justify-end gap-2">
+      <Modal
+        variant="alert"
+        size="sm"
+        title={labels.deleteTitle}
+        onClose={() => setPendingDeleteIndex(null)}
+        closeLabel={closeDialogLabel(lang)}
+        footer={<>
           <button
             type="button"
             onClick={() => setPendingDeleteIndex(null)}
@@ -1635,7 +1693,16 @@ function OptionGroupsEditor({ value = [], onChange, lang, parentCost = '' }) {
             <Trash2 size={15} />
             {labels.confirmDelete}
           </button>
-        </div>
+        </>}
+      >
+        {pendingDeleteName && (
+          <p className="break-words text-sm font-semibold text-[#22201d]">
+            {pendingDeleteName}
+          </p>
+        )}
+        <p className="ws-muted mt-2">
+          {labels.deletePrompt}
+        </p>
       </Modal>
     )}
     </>
@@ -1761,7 +1828,6 @@ export default function AdminMenu() {
   const productEditorInitializedRef = useRef('')
   const categoryEditorInitializedRef = useRef('')
   const shellScrollRef = useRef(null)
-  const deleteDialogRef = useRef(null)
   const deleteCancelButtonRef = useRef(null)
   const currentItemFormFingerprint = useMemo(() => getItemFormFingerprint(form), [form])
   const isItemFormDirty = itemModal === 'new'
@@ -1793,15 +1859,12 @@ export default function AdminMenu() {
 
   useEffect(() => {
     if (!archiveCandidate || !canDeleteMenuCatalog) return undefined
-    const previousFocus = document.activeElement
+    // Focus in and back out, Tab and Escape belong to WorkspaceDialog; this only locks the page scroll.
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    const frame = window.requestAnimationFrame(() => deleteCancelButtonRef.current?.focus())
 
     return () => {
-      window.cancelAnimationFrame(frame)
       document.body.style.overflow = previousOverflow
-      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true })
     }
   }, [canDeleteMenuCatalog, archiveCandidate?.id])
 
@@ -1836,26 +1899,6 @@ export default function AdminMenu() {
       })
     return () => { active = false }
   }, [isCategoryEditorPage, isOwner])
-
-  function handleDeleteDialogKeyDown(event) {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      if (!archivePending) closeDeleteItemDialog()
-      return
-    }
-    if (event.key !== 'Tab') return
-    const focusable = Array.from(deleteDialogRef.current?.querySelectorAll('button:not([disabled])') || [])
-    if (focusable.length === 0) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
 
   // Sensors: pointer (mouse/trackpad) + touch
   const sensors = useSensors(
@@ -2480,6 +2523,7 @@ export default function AdminMenu() {
             <OperationalError
               title={lang === 'uz' ? 'Menyuni yuklab bo‘lmadi' : lang === 'ru' ? 'Не удалось загрузить меню' : 'Could not load menu'}
               description={loadError}
+              lang={lang}
               actionLabel={lang === 'uz' ? 'Qayta yuklash' : lang === 'ru' ? 'Перезагрузить' : 'Reload'}
               onAction={() => window.location.reload()}
             />
@@ -2704,9 +2748,9 @@ export default function AdminMenu() {
                     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="rounded-xl border border-[#e4e1de] p-4">
                       <p className="mb-3 text-sm font-semibold text-[#22201d]">{scheduleLabels.section}</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label={scheduleLabels.from} type="time" value={catForm.visible_from_time || ''} onChange={setCF('visible_from_time')} />
-                        <Field label={scheduleLabels.until} type="time" value={catForm.visible_until_time || ''} onChange={setCF('visible_until_time')} />
+                      <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                        <ScheduleTimeField label={scheduleLabels.from} lang={lang} disabled={savingCatForm} value={catForm.visible_from_time} onChange={value => setCatForm(f => ({ ...f, visible_from_time: value }))} />
+                        <ScheduleTimeField label={scheduleLabels.until} lang={lang} disabled={savingCatForm} value={catForm.visible_until_time} onChange={value => setCatForm(f => ({ ...f, visible_until_time: value }))} />
                       </div>
                       <p className="ws-caption mt-2">{scheduleLabels.hint}</p>
                       <MenuWeekdayPicker
@@ -2757,9 +2801,16 @@ export default function AdminMenu() {
 
                       <div className="mt-3 max-h-64 overflow-y-auto rounded-[10px] border border-[#e4e1de] bg-white">
                         {categoryOverrideProfilesLoading && (
-                          <div className="ws-caption flex items-center gap-2 px-3 py-3">
-                            <Loader2 size={14} className="animate-spin" />
-                            {lang === 'uz' ? 'Xodimlar yuklanmoqda…' : lang === 'ru' ? 'Загрузка сотрудников…' : 'Loading staff…'}
+                          <div role="status" aria-label={lang === 'uz' ? 'Xodimlar yuklanmoqda' : lang === 'ru' ? 'Загрузка сотрудников' : 'Loading staff'}>
+                            {[0, 1, 2, 3].map(index => (
+                              <div key={index} className="ws-row flex min-h-[44px] items-center gap-3 px-3 py-2">
+                                <Shimmer className="h-[18px] w-[18px] shrink-0 rounded" />
+                                <div className="min-w-0 flex-1 space-y-1.5">
+                                  <Shimmer className="h-3.5 w-2/5" />
+                                  <Shimmer className="h-3 w-3/5" />
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                         {!categoryOverrideProfilesLoading && categoryOverrideProfilesError && (
@@ -2997,9 +3048,9 @@ export default function AdminMenu() {
                     </div>
                     <div className="rounded-xl border border-[#e4e1de] p-4">
                       <p className="mb-3 text-sm font-semibold text-[#22201d]">{scheduleLabels.section}</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label={scheduleLabels.from} type="time" value={form.visible_from_time || ''} onChange={setF('visible_from_time')} />
-                        <Field label={scheduleLabels.until} type="time" value={form.visible_until_time || ''} onChange={setF('visible_until_time')} />
+                      <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                        <ScheduleTimeField label={scheduleLabels.from} lang={lang} disabled={savingItemForm} value={form.visible_from_time} onChange={value => setForm(f => ({ ...f, visible_from_time: value }))} />
+                        <ScheduleTimeField label={scheduleLabels.until} lang={lang} disabled={savingItemForm} value={form.visible_until_time} onChange={value => setForm(f => ({ ...f, visible_until_time: value }))} />
                       </div>
                       <p className="ws-caption mt-2">{scheduleLabels.hint}</p>
                     </div>
@@ -3227,16 +3278,16 @@ export default function AdminMenu() {
                       <p className="truncate text-[13px] font-semibold text-[#22201d]">{getItemName(activeItem, lang)}</p>
                       <MenuPrice item={activeItem} size="sm" />
                       {gramsLabel(activeItem, lang) && (
-                        <p className="text-[#64748B] font-black text-[10px]">{gramsLabel(activeItem, lang)}</p>
+                        <p className="text-xs font-medium text-[#68655f]">{gramsLabel(activeItem, lang)}</p>
                       )}
                       {millilitresLabel(activeItem, lang) && (
-                        <p className="text-[#64748B] font-black text-[10px]">{millilitresLabel(activeItem, lang)}</p>
+                        <p className="text-xs font-medium text-[#68655f]">{millilitresLabel(activeItem, lang)}</p>
                       )}
                       {kcalLabel(activeItem, lang) && (
-                        <p className="text-[#64748B] font-black text-[10px]">{kcalLabel(activeItem, lang)}</p>
+                        <p className="text-xs font-medium text-[#68655f]">{kcalLabel(activeItem, lang)}</p>
                       )}
                       {servesLabel(activeItem, lang) && (
-                        <p className="text-[#64748B] font-black text-[10px]">{servesLabel(activeItem, lang)}</p>
+                        <p className="text-xs font-medium text-[#68655f]">{servesLabel(activeItem, lang)}</p>
                       )}
                     </div>
                   </div>
@@ -3806,86 +3857,82 @@ export default function AdminMenu() {
       </div>
 
       {canDeleteMenuCatalog && archiveCandidate && (
-
-        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-          <button
-            type="button"
-            aria-label={lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'}
-            onClick={closeDeleteItemDialog}
-            disabled={archivePending}
-            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm disabled:cursor-wait"
-          />
-          <div
-            ref={deleteDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-menu-item-title"
-            aria-describedby="delete-menu-item-description"
-            aria-busy={archivePending}
-            onKeyDown={handleDeleteDialogKeyDown}
-            tabIndex={-1}
-            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto p-6"
-          >
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#c4262c]/10 text-[#c4262c]">
-              <Archive size={20} />
-            </div>
-            <h2 id="delete-menu-item-title" className="ws-display mt-4 !text-[24px]">
-              {archiveCandidateIsCategory
-                ? (lang === 'uz' ? 'Kategoriyani arxivlaysizmi?' : lang === 'ru' ? 'Архивировать категорию?' : 'Archive category?')
-                : (lang === 'uz' ? 'Mahsulotni arxivlaysizmi?' : lang === 'ru' ? 'Архивировать товар?' : 'Archive item?')}
-            </h2>
-            <p className="mt-2 break-words text-sm font-semibold leading-6 text-[#22201d]">
-              {archiveCandidateIsCategory ? getCategoryName(archiveCandidate, lang) : getItemName(archiveCandidate, lang)}
+        <WorkspaceDialog
+          variant="alert"
+          size="sm"
+          title={archiveCandidateIsCategory
+            ? (lang === 'uz' ? 'Kategoriyani arxivlaysizmi?' : lang === 'ru' ? 'Архивировать категорию?' : 'Archive category?')
+            : (lang === 'uz' ? 'Mahsulotni arxivlaysizmi?' : lang === 'ru' ? 'Архивировать товар?' : 'Archive item?')}
+          onClose={closeDeleteItemDialog}
+          closeLabel={closeDialogLabel(lang)}
+          busy={archivePending}
+          initialFocusRef={deleteCancelButtonRef}
+          notice={deleteItemError ? (
+            <p role="alert" className="ws-notice ws-tone-negative">
+              {deleteItemError}
             </p>
-            <p id="delete-menu-item-description" className="ws-muted mt-2">
-              {archiveCandidateIsCategory
-                ? (lang === 'uz'
-                  ? 'Kategoriya va undagi taomlar menyudan yashiriladi. Hech narsa o‘chirilmaydi: «Arxiv» bo‘limidan tiklash mumkin.'
-                  : lang === 'ru'
-                    ? 'Категория и её блюда скроются из меню. Ничего не удаляется: восстановить можно во вкладке «Архив».'
-                    : 'The category and its items will be hidden from the menu. Nothing is deleted: restore it from the Archive tab.')
-                : (lang === 'uz'
-                  ? 'Mahsulot menyudan arxivlanadi. Oldingi buyurtmalar tarixi saqlanadi.'
-                  : lang === 'ru'
-                    ? 'Товар будет архивирован из меню. История прошлых заказов сохранится.'
-                    : 'The item will be archived from the menu. Previous order history will remain.')}
-            </p>
-            {deleteItemError && (
-              <p role="alert" className="ws-notice ws-tone-negative mt-3">
-                {deleteItemError}
-              </p>
-            )}
-            <div className="mt-6 flex gap-3">
-              <button
-                ref={deleteCancelButtonRef}
-                type="button"
-                onClick={closeDeleteItemDialog}
-                disabled={archivePending}
-                className="ws-btn ws-btn-outline flex-1"
-              >
-                {lang === 'uz' ? 'Bekor qilish' : lang === 'ru' ? 'Отмена' : 'Cancel'}
-              </button>
-              <button
-                type="button"
-                onClick={() => (archiveCandidateIsCategory ? archiveCategory(archiveCandidate.id) : deleteItem(archiveCandidate.id))}
-                disabled={archivePending}
-                className="ws-btn ws-btn-danger-solid flex-1"
-              >
-                {archivePending
-                  ? <Loader2 size={16} className="animate-spin" />
-                  : <Archive size={16} />}
-                {archivePending
-                  ? (lang === 'uz' ? 'Arxivlanmoqda…' : lang === 'ru' ? 'Архивирование…' : 'Archiving…')
-                  : (lang === 'uz' ? 'Arxivlash' : lang === 'ru' ? 'В архив' : 'Archive')}
-              </button>
-            </div>
-          </div>
-        </div>
+          ) : null}
+          footer={<>
+            <button
+              ref={deleteCancelButtonRef}
+              type="button"
+              onClick={closeDeleteItemDialog}
+              disabled={archivePending}
+              className="ws-btn ws-btn-outline"
+            >
+              {lang === 'uz' ? 'Bekor qilish' : lang === 'ru' ? 'Отмена' : 'Cancel'}
+            </button>
+            <button
+              type="button"
+              onClick={() => (archiveCandidateIsCategory ? archiveCategory(archiveCandidate.id) : deleteItem(archiveCandidate.id))}
+              disabled={archivePending}
+              className="ws-btn ws-btn-danger-solid"
+            >
+              {archivePending
+                ? <Loader2 size={16} className="animate-spin" />
+                : <Archive size={16} />}
+              {archivePending
+                ? (lang === 'uz' ? 'Arxivlanmoqda…' : lang === 'ru' ? 'Архивирование…' : 'Archiving…')
+                : (lang === 'uz' ? 'Arxivlash' : lang === 'ru' ? 'В архив' : 'Archive')}
+            </button>
+          </>}
+        >
+          <p className="break-words text-sm font-semibold leading-6 text-[#22201d]">
+            {archiveCandidateIsCategory ? getCategoryName(archiveCandidate, lang) : getItemName(archiveCandidate, lang)}
+          </p>
+          <p className="ws-muted mt-2">
+            {archiveCandidateIsCategory
+              ? (lang === 'uz'
+                ? 'Kategoriya va undagi taomlar menyudan yashiriladi. Hech narsa o‘chirilmaydi: «Arxiv» bo‘limidan tiklash mumkin.'
+                : lang === 'ru'
+                  ? 'Категория и её блюда скроются из меню. Ничего не удаляется: восстановить можно во вкладке «Архив».'
+                  : 'The category and its items will be hidden from the menu. Nothing is deleted: restore it from the Archive tab.')
+              : (lang === 'uz'
+                ? 'Mahsulot menyudan arxivlanadi. Oldingi buyurtmalar tarixi saqlanadi.'
+                : lang === 'ru'
+                  ? 'Товар будет архивирован из меню. История прошлых заказов сохранится.'
+                  : 'The item will be archived from the menu. Previous order history will remain.')}
+          </p>
+        </WorkspaceDialog>
       )}
 
       {/* ── Item modal ──────────────────────────────────────────────────────── */}
       {itemModal && (
-        <Modal title={itemModal === 'new' ? t(lang, 'addItem') : t(lang, 'editItem')} onClose={closeItemModal} closeDisabled={savingItemForm}>
+        <Modal
+          title={itemModal === 'new' ? t(lang, 'addItem') : t(lang, 'editItem')}
+          onClose={closeItemModal}
+          closeLabel={closeDialogLabel(lang)}
+          closeDisabled={savingItemForm}
+          footer={<>
+            <button type="button" onClick={closeItemModal} disabled={savingItemForm} className="ws-btn ws-btn-outline disabled:cursor-wait">
+              {t(lang, 'cancel')}
+            </button>
+            <button type="button" onClick={saveItem} disabled={!canSaveItemForm} className="ws-btn ws-btn-primary">
+              {savingItemForm && <Loader2 size={15} className="animate-spin" />}
+              {savingItemForm ? savingLabel(lang) : t(lang, 'save')}
+            </button>
+          </>}
+        >
           <div className="space-y-3">
             {menuNotice && !menuNotice.overruns && (
               <div role="alert" className="ws-notice ws-tone-negative">
@@ -3971,9 +4018,9 @@ export default function AdminMenu() {
             />
             <div className="rounded-xl border border-[#e4e1de] p-4">
               <p className="mb-3 text-sm font-semibold text-[#22201d]">{scheduleLabels.section}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={scheduleLabels.from} type="time" value={form.visible_from_time || ''} onChange={setF('visible_from_time')} />
-                <Field label={scheduleLabels.until} type="time" value={form.visible_until_time || ''} onChange={setF('visible_until_time')} />
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+                <ScheduleTimeField label={scheduleLabels.from} lang={lang} disabled={savingItemForm} value={form.visible_from_time} onChange={value => setForm(f => ({ ...f, visible_from_time: value }))} />
+                <ScheduleTimeField label={scheduleLabels.until} lang={lang} disabled={savingItemForm} value={form.visible_until_time} onChange={value => setForm(f => ({ ...f, visible_until_time: value }))} />
               </div>
               <p className="ws-caption mt-2">{scheduleLabels.hint}</p>
             </div>
@@ -4022,15 +4069,6 @@ export default function AdminMenu() {
               <label htmlFor="cashierOnly" className="cursor-pointer text-sm font-medium text-[#22201d]">
                 {lang === 'uz' ? 'Faqat kassirda ko‘rsatish' : lang === 'ru' ? 'Только для кассира' : 'Cashier only'}
               </label>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button onClick={closeItemModal} disabled={savingItemForm} className="ws-btn ws-btn-outline flex-1 disabled:cursor-wait">
-                {t(lang, 'cancel')}
-              </button>
-              <button onClick={saveItem} disabled={!canSaveItemForm} className="ws-btn ws-btn-primary flex-1">
-                {savingItemForm && <Loader2 size={15} className="animate-spin" />}
-                {savingItemForm ? savingLabel(lang) : t(lang, 'save')}
-              </button>
             </div>
           </div>
         </Modal>

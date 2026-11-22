@@ -1,4 +1,4 @@
-import { formatGroupedNumber } from '../lib/formatCurrency'
+import { formatCurrency } from '../lib/formatCurrency'
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Search, UtensilsCrossed } from 'lucide-react'
@@ -8,13 +8,13 @@ import { getCategoryName, getItemName } from '../lib/i18n'
 
 function pickerLabels(lang) {
   if (lang === 'uz') return {
-    field: 'Taom', all: 'Barcha taomlar', search: 'Taom yoki kategoriya', select: 'Taomni tanlang', uncategorized: 'Boshqa', base: 'Asosiy',
+    field: 'Taom', all: 'Barcha taomlar', search: 'Taom yoki kategoriya', select: 'Taomni tanlang', uncategorized: 'Boshqa', base: 'Asosiy', empty: 'Hech narsa topilmadi',
   }
   if (lang === 'ru') return {
-    field: 'Блюдо', all: 'Все блюда', search: 'Блюдо или категория', select: 'Выберите блюдо', uncategorized: 'Другое', base: 'Основной',
+    field: 'Блюдо', all: 'Все блюда', search: 'Блюдо или категория', select: 'Выберите блюдо', uncategorized: 'Другое', base: 'Основной', empty: 'Ничего не найдено',
   }
   return {
-    field: 'Meal', all: 'All meals', search: 'Meal or category', select: 'Select a meal', uncategorized: 'Other', base: 'Base',
+    field: 'Meal', all: 'All meals', search: 'Meal or category', select: 'Select a meal', uncategorized: 'Other', base: 'Base', empty: 'Nothing found',
   }
 }
 
@@ -164,39 +164,42 @@ export default function MenuItemPicker({
             ? `${getItemName(selectedItem, lang)}${selectedOptionLabels.length ? ` · ${selectedOptionLabels.join(', ')}` : ''}`
             : l.select}
         </span>
-        <ChevronDown size={15} className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={15} aria-hidden="true" className={`shrink-0 text-[#68655f] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && panelPosition && createPortal(
         <div
           ref={panelRef}
           style={panelPosition}
-          className="fixed z-picker flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-900/20"
+          className="fixed z-picker flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-900/20 [container-type:inline-size]"
         >
           <div className="shrink-0 border-b border-gray-100 p-3">
             <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={15} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
               <input
                 autoFocus
                 value={search}
                 onChange={event => setSearch(event.target.value)}
                 placeholder={l.search}
+                aria-label={l.search}
                 className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm font-semibold outline-none transition-colors focus:border-[#ff5a00] focus:bg-white focus:ring-2 focus:ring-[#ff5a00]/15"
               />
             </div>
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-[minmax(145px,230px)_minmax(0,1fr)] overflow-hidden">
-            <div className="flex min-h-0 flex-col border-r border-gray-100 bg-gray-50/70 p-2">
+          {/* Narrow panels (phones) put the categories in one scrolling row above the dishes;
+              two columns start only once the panel itself is wide enough for both. */}
+          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden [@container_(min-width:480px)]:grid-cols-[minmax(145px,230px)_minmax(0,1fr)] [@container_(min-width:480px)]:grid-rows-1">
+            <div className="flex min-h-0 min-w-0 gap-1 overflow-x-auto border-b border-gray-100 bg-gray-50/70 p-2 [@container_(min-width:480px)]:flex-col [@container_(min-width:480px)]:gap-0 [@container_(min-width:480px)]:overflow-x-visible [@container_(min-width:480px)]:border-b-0 [@container_(min-width:480px)]:border-r">
               <button
                 type="button"
                 onClick={() => setActiveCategoryId('all')}
-                className={`mb-1 flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left ${activeCategoryId === 'all' ? 'bg-[#ff5a00] text-white' : 'text-gray-800 hover:bg-white'}`}
+                className={`flex min-h-10 shrink-0 items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left [@container_(min-width:480px)]:mb-1 [@container_(min-width:480px)]:w-full ${activeCategoryId === 'all' ? 'bg-[#cc4800] text-white' : 'text-gray-800 hover:bg-white'}`}
               >
-                <span className="truncate text-sm font-black">{l.all}</span>
-                <span className={`text-[11px] font-black ${activeCategoryId === 'all' ? 'text-white/85' : 'text-gray-400'}`}>{items.length}</span>
+                <span className="whitespace-nowrap text-sm font-semibold">{l.all}</span>
+                <span className={`text-xs font-semibold tabular-nums ${activeCategoryId === 'all' ? 'text-white' : 'text-[#68655f]'}`}>{items.length}</span>
               </button>
-              <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+              <div className="contents [@container_(min-width:480px)]:block [@container_(min-width:480px)]:min-h-0 [@container_(min-width:480px)]:flex-1 [@container_(min-width:480px)]:space-y-1 [@container_(min-width:480px)]:overflow-y-auto [@container_(min-width:480px)]:pr-1">
                 {visibleSections.map(section => (
                   <button
                     key={section.id}
@@ -204,25 +207,25 @@ export default function MenuItemPicker({
                     onMouseEnter={() => setActiveCategoryId(section.id)}
                     onFocus={() => setActiveCategoryId(section.id)}
                     onClick={() => setActiveCategoryId(section.id)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left ${activeCategoryId === section.id ? 'bg-white text-[#ff5a00] shadow-sm' : 'text-gray-800 hover:bg-white'}`}
+                    className={`flex min-h-10 shrink-0 items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left [@container_(min-width:480px)]:w-full ${activeCategoryId === section.id ? 'bg-white text-[#bf4300] shadow-sm' : 'text-gray-800 hover:bg-white'}`}
                   >
-                    <span className="min-w-0 truncate text-sm font-bold">{section.label}</span>
-                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-500">{section.items.length}</span>
+                    <span className="min-w-0 whitespace-nowrap text-sm font-semibold [@container_(min-width:480px)]:truncate">{section.label}</span>
+                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-[#68655f]">{section.items.length}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="min-h-0 overflow-y-auto p-2">
+            <div className="min-h-0 min-w-0 overflow-y-auto p-2">
               <div className="sticky top-0 z-10 mb-1 rounded-xl bg-white/95 px-3 py-2 backdrop-blur">
-                <p className="truncate text-xs font-black uppercase tracking-wide text-gray-400">{panelTitle}</p>
+                <p className="truncate text-xs font-semibold text-[#68655f]">{panelTitle}</p>
               </div>
               {visibleItems.map(item => {
                 const isSelected = item.id === value
                 const optionGroups = getMenuItemOptionGroups(item, lang, { includeUnavailable: true })
                 const hasSelectedOption = isSelected && optionGroups.some(group => selectedOptions?.[group.id])
                 return (
-                  <div key={item.id} className={`group rounded-xl transition-colors ${isSelected ? 'bg-orange-50 text-[#ff5a00]' : 'text-gray-800 hover:bg-gray-50'}`}>
+                  <div key={item.id} className={`group rounded-xl transition-colors ${isSelected ? 'bg-orange-50 text-[#bf4300]' : 'text-gray-800 hover:bg-gray-50'}`}>
                     <button
                       type="button"
                       onClick={() => optionGroups.length > 0
@@ -241,15 +244,15 @@ export default function MenuItemPicker({
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-black">{getItemName(item, lang)}</p>
-                        <p className="truncate text-[11px] font-semibold text-gray-400">
+                        <p className="truncate text-sm font-semibold">{getItemName(item, lang)}</p>
+                        <p className="truncate text-xs font-medium text-[#68655f]">
                           {(() => {
                             const category = categories.find(row => row.id === item.category_id)
                             return category ? getCategoryName(category, lang) : l.uncategorized
                           })()}
                         </p>
                       </div>
-                      {isSelected && !hasSelectedOption && <span className="mt-3.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[#ff5a00]" />}
+                      {isSelected && !hasSelectedOption && <span aria-hidden="true" className="mt-3.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[#ff5a00]" />}
                     </button>
                     {optionGroups.length > 0 && (
                       <div className={`grid transition-all duration-200 group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus-within:grid-rows-[1fr] group-focus-within:opacity-100 ${expandedItemId === item.id ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
@@ -257,16 +260,16 @@ export default function MenuItemPicker({
                           <div className="space-y-2 border-t border-orange-100/70 px-3 pb-2.5 pt-2">
                             {optionGroups.map((group, groupIndex) => (
                               <div key={group.id}>
-                                <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400">{group.title}</p>
+                                <p className="mb-1.5 text-xs font-semibold text-[#68655f]">{group.title}</p>
                                 <div className="flex flex-wrap gap-1.5">
                                   {groupIndex === 0 && (
                                     <button
                                       type="button"
                                       onClick={() => selectItem(item.id)}
-                                      className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-black transition-colors ${isSelected && !hasSelectedOption ? 'border-[#ff5a00] bg-[#ff5a00] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:text-[#ff5a00]'}`}
+                                      className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold transition-colors ${isSelected && !hasSelectedOption ? 'border-[#cc4800] bg-[#cc4800] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:text-[#bf4300]'}`}
                                     >
                                       <span>{l.base}</span>
-                                      <span className={isSelected && !hasSelectedOption ? 'text-white/80' : 'text-gray-400'}>{formatGroupedNumber(Number(item.price) || 0)}</span>
+                                      <span className={`whitespace-nowrap tabular-nums ${isSelected && !hasSelectedOption ? 'text-white' : 'text-[#68655f]'}`}>{formatCurrency(Number(item.price) || 0)}</span>
                                     </button>
                                   )}
                                   {group.options.map(option => {
@@ -276,10 +279,10 @@ export default function MenuItemPicker({
                                         key={option.id}
                                         type="button"
                                         onClick={() => selectItem(item.id, { [group.id]: option.id })}
-                                        className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-black transition-colors ${optionSelected ? 'border-[#ff5a00] bg-[#ff5a00] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:text-[#ff5a00]'}`}
+                                        className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold transition-colors ${optionSelected ? 'border-[#cc4800] bg-[#cc4800] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:text-[#bf4300]'}`}
                                       >
                                         <span>{option.label}</span>
-                                        <span className={optionSelected ? 'text-white/80' : 'text-gray-400'}>{formatGroupedNumber(option.price)}</span>
+                                        <span className={`whitespace-nowrap tabular-nums ${optionSelected ? 'text-white' : 'text-[#68655f]'}`}>{formatCurrency(option.price)}</span>
                                       </button>
                                     )
                                   })}
@@ -294,7 +297,7 @@ export default function MenuItemPicker({
                 )
               })}
               {visibleItems.length === 0 && (
-                <div className="flex min-h-40 items-center justify-center px-4 text-center text-sm font-bold text-gray-400">{l.select}</div>
+                <div role="status" className="flex min-h-40 items-center justify-center px-4 text-center text-sm font-medium text-[#68655f]">{l.empty}</div>
               )}
             </div>
           </div>
