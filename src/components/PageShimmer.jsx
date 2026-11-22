@@ -10,8 +10,10 @@ export function Shimmer({ className = '' }) {
   return <div className={`zk-shimmer ${className}`} aria-hidden="true" />
 }
 
-function Panel({ className = '', children }) {
-  return <div className={`rounded-xl border border-[#e4e1de] bg-white p-4 ${className}`}>{children}</div>
+// The real `.ws-panel` box (radius, hairline, card shadow, 20px padding and 16px on phones), so content
+// does not jump when it replaces the placeholder. `flush` is `.ws-panel-flush`: rows carry their own padding.
+function Panel({ className = '', flush = false, children }) {
+  return <div className={`ws-panel ${flush ? 'ws-panel-flush' : ''} ${className}`}>{children}</div>
 }
 
 function Toolbar() {
@@ -26,7 +28,7 @@ function Toolbar() {
 
 function TableRows({ rows = 8 }) {
   return (
-    <Panel className="p-0">
+    <Panel flush>
       <div className="flex gap-4 border-b border-[#e4e1de] px-4 py-3">
         <Shimmer className="h-3 w-1/4" />
         <Shimmer className="h-3 w-1/6" />
@@ -680,40 +682,81 @@ function readCollapsed() {
   try { return window.localStorage.getItem('zar-sidebar-collapsed') === '1' } catch { return false }
 }
 
+// The real drawer (UnifiedSidebar): groups of 34px rows 4px apart, 16px between groups.
+const SHELL_NAV_GROUPS = [2, 3, 5, 5]
+
 /** Drawer + top bar + page skeleton, for the first staff page load (auth/profile or page code). */
 export function AppShellShimmer() {
   const { pathname } = useLocation()
   useTheme() // keep the staff dark palette while the skeleton is up
+  const collapsed = readCollapsed()
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-[#f6f5f3]">
-      {!readCollapsed() && (
-        <div className="hidden h-full w-64 flex-shrink-0 flex-col gap-3 bg-[#f6f5f3] p-3 lg:flex" aria-hidden="true">
-          <div className="flex items-center gap-2 px-1 py-2">
+      {!collapsed && (
+        <div className="hidden h-full w-64 flex-shrink-0 flex-col bg-[#f6f5f3] lg:flex" aria-hidden="true">
+          <div className="flex flex-shrink-0 items-center gap-2 pb-3 pl-[18px] pr-[10px] pt-[14px]">
             <Shimmer className="h-[30px] w-[30px] rounded-[9px]" />
-            <Shimmer className="h-4 w-16 rounded-full" />
+            <Shimmer className="h-[18px] w-16 rounded-full" />
+            <Shimmer className="ml-auto h-8 w-8 rounded-lg" />
           </div>
-          {Array.from({ length: 11 }, (_, index) => (
-            <div key={index} className="flex items-center gap-2.5 px-2.5">
-              <Shimmer className="h-4 w-4 rounded" />
-              <Shimmer className={`h-3 ${index % 2 ? 'w-20' : 'w-24'}`} />
-            </div>
-          ))}
-          <div className="mt-auto flex items-center gap-2.5 p-1.5">
-            <Shimmer className="h-8 w-8 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <Shimmer className="h-3 w-3/4" />
-              <Shimmer className="h-2.5 w-1/2" />
+          <div className="min-h-0 flex-1 overflow-hidden px-[10px] pb-4 pt-0.5">
+            {SHELL_NAV_GROUPS.map((rows, group) => (
+              <div key={group} className="mb-4 last:mb-0">
+                {group > 0 && <div className="px-[10px] pb-1.5 pt-1"><Shimmer className="h-4 w-20" /></div>}
+                <div className="flex flex-col gap-1">
+                  {Array.from({ length: rows }, (_, index) => (
+                    <div key={index} className="flex h-[34px] items-center gap-[10px] px-[10px]">
+                      <Shimmer className="h-[17px] w-[17px] rounded" />
+                      <Shimmer className={`h-3 ${(group + index) % 2 ? 'w-20' : 'w-28'}`} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-shrink-0 flex-col gap-1.5 p-3">
+            <Shimmer className="h-[40px] w-full rounded-xl" />
+            <div className="flex items-center gap-[10px] p-1.5 pt-3">
+              <Shimmer className="h-8 w-8 flex-shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Shimmer className="h-3 w-3/4" />
+                <Shimmer className="h-2.5 w-1/2" />
+              </div>
             </div>
           </div>
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex h-[60px] flex-shrink-0 items-center gap-3 px-4 sm:px-6 xl:px-9" aria-hidden="true">
+          {/* The drawer button: always below lg, and on wide screens while the rail is folded away. */}
+          <Shimmer className={`h-[38px] w-[38px] flex-shrink-0 rounded-[10px] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 ${collapsed ? '' : 'lg:hidden'}`} />
           <Shimmer className="h-4 w-32" />
-          <Shimmer className="ml-auto h-[38px] w-[38px] rounded-[10px]" />
+          <Shimmer className="ml-auto h-[38px] w-[38px] flex-shrink-0 rounded-[10px] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" />
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
           <PageShimmer layout={layoutForPath(pathname)} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The sign-in screen's shape (src/pages/Login.jsx: dark page, brand mark, heading, two fields and a
+ * button), shown while the session is still unknown on /login instead of a full-screen spinner.
+ */
+export function SignInShimmer() {
+  const bar = '!bg-white/10'
+  return (
+    <div role="status" aria-busy="true" className="flex min-h-screen flex-col items-center justify-center bg-[#07130F] px-5 py-14">
+      <div className="flex w-full max-w-[380px] flex-col items-center gap-4" aria-hidden="true">
+        <Shimmer className={`h-16 w-16 rounded-2xl ${bar}`} />
+        <Shimmer className={`h-6 w-48 ${bar}`} />
+        <Shimmer className={`h-3 w-64 max-w-full ${bar}`} />
+        <div className="mt-4 flex w-full flex-col gap-3">
+          <Shimmer className={`h-12 w-full rounded-xl ${bar}`} />
+          <Shimmer className={`h-12 w-full rounded-xl ${bar}`} />
+          <Shimmer className={`h-12 w-full rounded-xl ${bar}`} />
         </div>
       </div>
     </div>

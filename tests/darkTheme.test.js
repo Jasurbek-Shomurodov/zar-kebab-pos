@@ -53,7 +53,8 @@ test('pale status tints keep their hue and status inks stay readable on dark', (
 })
 
 test('every staff top bar carries the light/dark toggle at the top right', () => {
-  assert.match(source('src/components/AppShell.jsx'), /\{headerActions\}\s*<ThemeToggle lang=\{state\.lang\} \/>/)
+  // AppShell renders the shared top bar (one copy of the header), which places the page actions before the toggle.
+  assert.match(source('src/components/AppShell.jsx'), /<WorkspaceTopBar\s+lang=\{state\.lang\}[\s\S]*?>\s*\{headerActions\}\s*<\/WorkspaceTopBar>/)
   assert.match(source('src/components/WorkspaceTopBar.jsx'), /\{children\}\s*<ThemeToggle lang=\{lang\} \/>/)
   assert.match(source('src/pages/WaiterOrder.jsx'), /<ThemeToggle lang=\{lang\}/)
   assert.match(source('src/pages/PublicMenu.jsx'), /<ThemeToggle lang=\{lang\}/)

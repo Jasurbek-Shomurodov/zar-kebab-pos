@@ -1,5 +1,6 @@
 import React from 'react'
 import { useApp } from '../store/AppContext'
+import { t } from '../lib/i18n'
 
 const LANGUAGE_LABELS = {
   uz: 'UZ',
@@ -7,10 +8,11 @@ const LANGUAGE_LABELS = {
   en: 'EN',
 }
 
-const LANGUAGE_FLAGS = {
-  uz: '🇺🇿',
-  ru: '🇷🇺',
-  en: '🇬🇧',
+// The select shows the short code; assistive tech reads the language's own name.
+const LANGUAGE_NAMES = {
+  uz: 'O‘zbekcha',
+  ru: 'Русский',
+  en: 'English',
 }
 
 export default function LanguageSwitcher({ value, onChange, className = '', compact = false, variant = 'default' }) {
@@ -26,19 +28,21 @@ export default function LanguageSwitcher({ value, onChange, className = '', comp
   }
 
   return (
-    <label className={`relative inline-flex h-9 items-center text-xs font-black transition-colors ${variant === 'lux' ? 'lux-chip rounded-full' : 'rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-[#1F2937] shadow-sm hover:bg-white'} ${compact ? 'w-[58px]' : ''} ${className}`}>
+    <label className={`relative inline-flex h-9 items-center text-xs font-semibold transition-colors [@media(pointer:coarse)]:h-11 ${variant === 'lux' ? 'lux-chip rounded-full' : 'rounded-xl border border-[#e4e1de] bg-white text-[#22201d] shadow-[0_1px_2px_rgb(34_32_29/5%)] hover:bg-[#ebe8e5]'} ${compact ? 'w-[58px] [@media(pointer:coarse)]:w-[68px]' : ''} ${className}`}>
+      {/* Touch screens render every select at 16px (src/index.css), so the chip widens there instead of clipping the code. */}
       <select
         value={activeLang}
         onChange={event => changeLanguage(event.target.value)}
-        aria-label={activeLang === 'uz' ? 'Til' : activeLang === 'ru' ? 'Язык' : 'Language'}
-        className={`h-full cursor-pointer appearance-none rounded-xl bg-transparent py-0 font-black uppercase outline-none ${compact ? 'w-full px-1.5 text-center text-[10px]' : 'px-3 text-xs'}`}
+        aria-label={t(activeLang, 'language')}
+        className={`h-full cursor-pointer appearance-none rounded-[inherit] bg-transparent py-0 font-semibold uppercase outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5a00] ${compact ? 'w-full px-1.5 text-center text-xs' : 'px-3 text-xs [@media(pointer:coarse)]:px-4'}`}
       >
       {['uz', 'ru', 'en'].map(l => (
         <option
           key={l}
           value={l}
+          aria-label={LANGUAGE_NAMES[l]}
         >
-          {LANGUAGE_FLAGS[l]} {LANGUAGE_LABELS[l]}
+          {LANGUAGE_LABELS[l]}
         </option>
       ))}
       </select>

@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import { AppShellShimmer } from './components/PageShimmer'
+import { AppShellShimmer, SignInShimmer } from './components/PageShimmer'
 
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AppProvider, useApp } from './store/AppContext'
@@ -146,14 +146,8 @@ function ProfileSync() {
   return null
 }
 
-// Full-screen loader
-function Spinner() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#faf9f7]">
-      <Loader2 size={32} className="animate-spin text-[#ff5a00]" />
-    </div>
-  )
-}
+// No full-screen spinner anywhere: while the session or profile resolves, a route shows the
+// placeholder of the screen it is about to become (AppShellShimmer for staff, SignInShimmer for sign-in).
 
 function ProfileLoadError() {
   const { state } = useApp()
@@ -258,11 +252,11 @@ function SignedOutRoute({ children }) {
   const [searchParams] = useSearchParams()
   const returnTo = sanitizeReturnTo(searchParams.get('returnTo'))
 
-  if (loading) return <Spinner />
+  if (loading) return <SignInShimmer />
   if (authError) return <ProfileLoadError />
   if (profileError) return <ProfileLoadError />
   if (!session) return children
-  if (!profile) return <Spinner />
+  if (!profile) return <AppShellShimmer />
   return <Navigate to={returnTo || defaultPathForHost(profile || 'guest')} replace />
 }
 
@@ -295,7 +289,7 @@ function GuestModeRouteLock({ children }) {
     if (guestModeSession) clearGuestModeSession()
   }, [guestModeSession?.id])
 
-  return guestModeSession ? <Spinner /> : children
+  return guestModeSession ? <AppShellShimmer /> : children
 }
 
 // Decides where to send user after login
@@ -324,7 +318,7 @@ function RoleRedirect({ signedOutPath = '/menu' }) {
     return () => clearTimeout(t)
   }, [session, profile, profileError, loading])
 
-  if (loading) return <Spinner />
+  if (loading) return <AppShellShimmer />
   if (authError) return <ProfileLoadError />
   if (profileError) return <ProfileLoadError />
   if (!session) return <Navigate to={signedOutPath} replace />
@@ -346,16 +340,16 @@ function RoleRedirect({ signedOutPath = '/menu' }) {
     )
   }
 
-  if (!profile) return <Spinner />
+  if (!profile) return <AppShellShimmer />
 
-  return <Spinner />
+  return <AppShellShimmer />
 }
 
 function PublicHostAdminRedirect() {
   useEffect(() => {
     globalThis.location?.replace?.(adminUrlForLocation(globalThis.location))
   }, [])
-  return <Spinner />
+  return <AppShellShimmer />
 }
 
 function PublicCustomerRoutes() {

@@ -168,9 +168,11 @@ const ROLE_LABELS = {
 
 // Derive active nav key from current pathname
 function activeKey(pathname) {
-  if (pathname.startsWith('/waiter/order'))   return 'tables'
-  if (pathname.startsWith('/waiter/tables'))  return 'tables'
+  // Every waiter screen (tables, an order, take-away) and the kitchen check opened from them.
+  if (pathname.startsWith('/waiter'))         return 'tables'
+  if (pathname.startsWith('/kitchen-check'))  return 'tables'
   if (pathname.startsWith('/cashier'))        return 'cashier'
+  if (pathname.startsWith('/receipt'))        return 'cashier'
   if (pathname.startsWith('/admin/loyalty'))  return 'loyalty'
   if (pathname.startsWith('/admin/financial-analysis/owner-profit')) return 'owner_profit'
   if (pathname.startsWith('/admin/financial-analysis')) return 'financial_analysis'
@@ -195,8 +197,17 @@ function activeKey(pathname) {
 // ── Component ──────────────────────────────────────────────────────────────────
 // Mirrors the Hoggish Finance drawer: warm grey rail, mark + collapse button on
 // top, quiet 34px rows, and the account line (which opens Settings) at the foot.
+// Desktop density is unchanged; under a finger every control grows to 44px.
 const LANGS = ['uz', 'ru', 'en']
-const NAV_ROW = 'flex h-[34px] w-full items-center gap-[10px] rounded-lg px-[10px] text-left text-sm font-medium text-[#22201d] transition-colors hover:bg-[#ebe8e5] disabled:cursor-wait disabled:opacity-50'
+const FOCUS_RING = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ff5a00]'
+const NAV_ROW = `flex h-[34px] w-full items-center gap-[10px] rounded-lg px-[10px] text-left text-sm font-medium text-[#22201d] transition-colors hover:bg-[#ebe8e5] disabled:cursor-wait disabled:opacity-50 ${FOCUS_RING} focus-visible:outline-offset-[-2px] [@media(pointer:coarse)]:h-11`
+const SQUARE = `grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-[#68655f] transition-colors ${FOCUS_RING} focus-visible:outline-offset-2 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11`
+// What the drawer's own button does: it closes the phone drawer, or folds the desktop rail away.
+const SIDEBAR_LABELS = {
+  uz: { closeMenu: 'Menyuni yopish', collapse: 'Yon panelni yig‘ish', home: 'Zar Kebab: bosh sahifa' },
+  ru: { closeMenu: 'Закрыть меню', collapse: 'Свернуть боковую панель', home: 'Zar Kebab: главная' },
+  en: { closeMenu: 'Close menu', collapse: 'Collapse sidebar', home: 'Zar Kebab: home' },
+}
 
 export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled = false }) {
   const navigate   = useNavigate()
@@ -222,8 +233,9 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
   const settings = visibleNav.find(item => item.key === 'settings')
   // On phones the drawer's own button closes it; on desktop it folds the rail away.
   const hide = onClose || onCollapse
-  const hideLabel = lang === 'uz' ? 'Yon panelni yopish' : lang === 'ru' ? 'Скрыть панель' : 'Toggle Sidebar'
-  const logoutLabel = lang === 'uz' ? 'Chiqish' : lang === 'ru' ? 'Выйти' : 'Logout'
+  const sl = SIDEBAR_LABELS[lang] || SIDEBAR_LABELS.en
+  const hideLabel = onClose ? sl.closeMenu : sl.collapse
+  const logoutLabel = t(lang, 'logout')
 
   function handleNav(item) {
     if (navigationDisabled) return
@@ -267,11 +279,11 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
           type="button"
           onClick={() => handleNav(mainNav.find(item => !item.attendanceQr) || { path: '/' })}
           disabled={navigationDisabled}
-          aria-label="Zar Kebab"
-          className="flex min-w-0 items-center gap-2 rounded-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#0f766e]"
+          aria-label={`${sl.home} (${role === 'viewer' ? t(lang, 'viewer') : roleLabel})`}
+          className={`flex min-w-0 items-center gap-2 rounded-[10px] ${FOCUS_RING} focus-visible:outline-offset-4 [@media(pointer:coarse)]:min-h-[44px]`}
         >
           <span className="grid h-[30px] w-[30px] flex-shrink-0 place-items-center rounded-[9px] bg-[#ff5a00] pr-[2px] text-[20px] font-bold tracking-[-.08em] text-white">z.</span>
-          <span className="truncate rounded-full bg-[#fff1e8] px-2 text-xs font-bold leading-[18px] tracking-[.04em] text-[#ff5a00]">
+          <span className="truncate rounded-full bg-[#fff1e8] px-2 text-xs font-bold leading-[18px] tracking-[.04em] text-[#bf4300]">
             {role === 'viewer' ? t(lang, 'viewer') : roleLabel}
           </span>
         </button>
@@ -281,7 +293,7 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
             onClick={hide}
             aria-label={hideLabel}
             title={hideLabel}
-            className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-[#68655f] transition-colors hover:bg-[#ebe8e5] hover:text-[#22201d]"
+            className={`${SQUARE} hover:bg-[#ebe8e5] hover:text-[#22201d]`}
           >
             <PanelLeft size={17} />
           </button>
@@ -289,7 +301,7 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
       </div>
 
       {/* Workspace rows — scroll inside the rail when the window is short */}
-      <nav aria-label="Zar Kebab" className="flex-1 min-h-0 overflow-y-auto px-[10px] pb-4 pt-0.5">
+      <nav aria-label={t(lang, 'mainNavigation')} className="flex-1 min-h-0 overflow-y-auto px-[10px] pb-4 pt-0.5">
         {NAV_GROUPS.map(group => {
           const items = mainNav.filter(item => item.group === group.key)
           if (items.length === 0) return null
@@ -307,7 +319,7 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
       <div className="flex flex-shrink-0 flex-col gap-1.5 p-3">
         <div
           role="group"
-          aria-label={lang === 'uz' ? 'Til' : lang === 'ru' ? 'Язык' : 'Language'}
+          aria-label={t(lang, 'language')}
           className="flex gap-0.5 rounded-xl border border-[#e4e1de] bg-[#efece9] p-[3px]"
         >
           {LANGS.map(l => (
@@ -316,7 +328,7 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
               type="button"
               aria-pressed={lang === l}
               onClick={() => dispatch({ type: 'SET_LANG', payload: l })}
-              className={`h-8 flex-1 rounded-[9px] text-sm font-medium uppercase transition-colors ${
+              className={`h-8 flex-1 rounded-[9px] text-sm font-medium uppercase transition-colors ${FOCUS_RING} focus-visible:outline-offset-1 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:text-base ${
                 lang === l
                   ? 'bg-white text-[#22201d] shadow-[0_1px_2px_rgb(0_0_0/20%)]'
                   : 'text-[#68655f] hover:text-[#22201d]'
@@ -326,13 +338,15 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
             </button>
           ))}
         </div>
-        <div className="flex min-w-0 items-center gap-1 pt-1.5">
+        {/* On touch, logout stays 12px clear of the account row: a destructive tap is never beside a routine one. */}
+        <div className="flex min-w-0 items-center gap-1 pt-1.5 [@media(pointer:coarse)]:gap-3">
           <button
             type="button"
             onClick={() => settings && handleNav(settings)}
             disabled={navigationDisabled || !settings}
             data-active={current === 'settings'}
-            className={`flex min-w-0 flex-1 items-center gap-[10px] rounded-lg p-1.5 text-left transition-colors enabled:hover:bg-[#ebe8e5] disabled:cursor-default ${current === 'settings' ? 'bg-[#ebe8e5]' : ''}`}
+            aria-current={current === 'settings' ? 'page' : undefined}
+            className={`flex min-w-0 flex-1 items-center gap-[10px] rounded-lg p-1.5 text-left transition-colors enabled:hover:bg-[#ebe8e5] disabled:cursor-default ${FOCUS_RING} focus-visible:outline-offset-[-2px] ${current === 'settings' ? 'bg-[#ebe8e5]' : ''}`}
           >
             <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-[#ebe8e5] text-sm font-semibold text-[#22201d]">{initial}</span>
             <span className="min-w-0 flex-1 leading-[1.35]">
@@ -347,7 +361,7 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
             disabled={navigationDisabled}
             aria-label={logoutLabel}
             title={logoutLabel}
-            className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-[#68655f] transition-colors hover:bg-[#ebe8e5] hover:text-[#c4262c] disabled:cursor-wait disabled:opacity-50"
+            className={`${SQUARE} hover:bg-[#ebe8e5] hover:text-[#c4262c] disabled:cursor-wait disabled:opacity-50`}
           >
             <LogOut size={16} />
           </button>

@@ -8,7 +8,7 @@ const LABELS = {
   en: { dark: 'Dark mode', light: 'Light mode' },
 }
 
-/** Top-right light/dark switch shared by every staff top bar (Hoggish Finance style). */
+/** Top-right light/dark switch shared by every staff top bar: 38px with a mouse, 44px under a finger. */
 export default function ThemeToggle({ lang = 'en', className = '', variant = 'default' }) {
   const { theme, toggleTheme } = useTheme()
   const dark = theme === 'dark'
@@ -20,7 +20,7 @@ export default function ThemeToggle({ lang = 'en', className = '', variant = 'de
       aria-label={label}
       aria-pressed={dark}
       title={label}
-      className={`grid h-[38px] w-[38px] flex-shrink-0 place-items-center ${variant === 'lux' ? 'lux-chip lux-chip-static rounded-full' : 'rounded-[10px] border border-[#e4e1de] bg-white text-[#22201d] shadow-[0_1px_2px_rgb(34_32_29/5%)] transition-colors hover:bg-[#ebe8e5]'} ${className}`}
+      className={`grid h-[38px] w-[38px] flex-shrink-0 place-items-center [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 ${variant === 'lux' ? 'lux-chip lux-chip-static rounded-full' : 'rounded-[10px] border border-[#e4e1de] bg-white text-[#22201d] shadow-[0_1px_2px_rgb(34_32_29/5%)] transition-colors hover:bg-[#ebe8e5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5a00]'} ${className}`}
     >
       {dark ? <Sun size={17} /> : <Moon size={17} />}
     </button>

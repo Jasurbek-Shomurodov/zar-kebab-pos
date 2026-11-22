@@ -6,7 +6,7 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '
 const MINUTES = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, '0'))
 const PANEL_MIN_WIDTH = 200
 
-export default function TimePicker24({ value, onChange, label, hourLabel, minuteLabel, doneLabel, disabled, className, hideLabel = false }) {
+export default function TimePicker24({ value, onChange, label, hourLabel, minuteLabel, doneLabel, disabled, className = 'ws-input', hideLabel = false }) {
   const [open, setOpen] = useState(false)
   const root = useRef(null)
   const input = useRef(null)
@@ -69,7 +69,7 @@ export default function TimePicker24({ value, onChange, label, hourLabel, minute
       onKeyDown={event => {
         if (event.key === 'Escape' && visible) { event.preventDefault(); event.stopPropagation(); close() }
       }}>
-      <label htmlFor={id} className={hideLabel ? 'sr-only' : 'mb-1.5 block text-xs font-bold text-[#596170]'}>{label}</label>
+      <label htmlFor={id} className={hideLabel ? 'sr-only' : 'ws-caption mb-1.5 block font-medium'}>{label}</label>
       <div className="relative">
         <input ref={input} id={id} type="text" readOnly value={value} disabled={disabled}
           className={`${className} cursor-pointer pr-10 tabular-nums`}
@@ -78,32 +78,32 @@ export default function TimePicker24({ value, onChange, label, hourLabel, minute
           onKeyDown={event => {
             if (['Enter', ' ', 'ArrowDown'].includes(event.key)) { event.preventDefault(); setOpen(true) }
           }} />
-        <Clock3 size={16} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        <Clock3 size={16} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
       </div>
       {visible && (createPortal(
         <div ref={panel} id={`${id}-picker`} role="dialog" aria-label={label}
           style={position || { left: -9999, top: 0, width: PANEL_MIN_WIDTH }}
-          className="fixed z-picker rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
+          className="ws-dialog fixed z-picker p-3">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <label className="min-w-0 text-center text-xs font-semibold text-gray-500">
+            <label className="ws-caption min-w-0 text-center font-medium">
               {hourLabel}
               <select ref={hourSelect} size={5} value={value.slice(0, 2)} aria-label={hourLabel}
-                className="mt-2 block h-36 w-full rounded-lg border border-gray-200 bg-white text-center text-base font-semibold tabular-nums text-gray-900"
+                className="mt-2 block h-36 w-full rounded-[10px] border border-[#dcd9d6] bg-white text-center text-base font-semibold tabular-nums text-[#22201d] outline-none focus-visible:border-[#ff5a00] focus-visible:ring-[3px] focus-visible:ring-[#ff5a00]/20"
                 onChange={event => onChange(`${event.target.value}:${value.slice(3, 5)}`)}>
                 {HOURS.map(hour => <option className="py-1" key={hour} value={hour}>{hour}</option>)}
               </select>
             </label>
-            <span aria-hidden="true" className="font-bold text-gray-500">:</span>
-            <label className="min-w-0 text-center text-xs font-semibold text-gray-500">
+            <span aria-hidden="true" className="font-semibold text-[#68655f]">:</span>
+            <label className="ws-caption min-w-0 text-center font-medium">
               {minuteLabel}
               <select size={5} value={value.slice(3, 5)} aria-label={minuteLabel}
-                className="mt-2 block h-36 w-full rounded-lg border border-gray-200 bg-white text-center text-base font-semibold tabular-nums text-gray-900"
+                className="mt-2 block h-36 w-full rounded-[10px] border border-[#dcd9d6] bg-white text-center text-base font-semibold tabular-nums text-[#22201d] outline-none focus-visible:border-[#ff5a00] focus-visible:ring-[3px] focus-visible:ring-[#ff5a00]/20"
                 onChange={event => onChange(`${value.slice(0, 2)}:${event.target.value}`)}>
                 {MINUTES.map(minute => <option className="py-1" key={minute} value={minute}>{minute}</option>)}
               </select>
             </label>
           </div>
-          <button type="button" onClick={close} className="mt-3 w-full rounded-lg bg-violet-600 py-2 text-sm font-bold text-white hover:bg-violet-700">{doneLabel}</button>
+          <button type="button" onClick={close} className="mt-3 ws-btn ws-btn-primary ws-btn-sm w-full">{doneLabel}</button>
         </div>,
         document.body,
       ))}
