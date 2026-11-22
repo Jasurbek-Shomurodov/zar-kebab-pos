@@ -3,7 +3,8 @@
 // do not run JavaScript (Bing, Yandex, link previews) see real titles, canonicals and dish names.
 //
 //   dist/index.html                 home (/ and the SPA fallback): full dish list in ru/en/uz
-//   dist/menu/item/<key>.html       one page per public dish (served at /menu/item/<key> by cleanUrls)
+//   dist/menu/item/<key>/index.html one page per public dish (Vercel serves it at /menu/item/<key>;
+//                                   unknown keys fall through to the SPA rewrite)
 //   dist/<section>.html             catering, corporate-sets, frozen-meals, vacancies
 //   dist/sitemap.xml                every page above
 //
@@ -324,7 +325,7 @@ async function main() {
       const seo = menuItemSeo(item, 'ru')
       if (seen.has(seo.key)) continue
       seen.add(seo.key)
-      writeFile(`menu/item/${seo.key}.html`, renderPage(template, {
+      writeFile(`menu/item/${seo.key}/index.html`, renderPage(template, {
         title: seo.title,
         description: seo.description,
         url: seo.url,

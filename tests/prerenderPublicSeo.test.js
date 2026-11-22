@@ -112,4 +112,8 @@ test('build runs the prerender and Vercel keeps staff screens out of search', ()
     assert.match(privatePaths.source, new RegExp(`\\b${route}\\b`))
   }
   assert.equal(vercel.rewrites.at(-1).destination, '/index.html')
+  // Dish pages are directory index files: Vercel serves them at /menu/item/<key> and
+  // unknown keys still fall through to the SPA rewrite (checked on a preview deploy).
+  const script = fs.readFileSync(path.join(root, 'scripts/prerender-public-seo.mjs'), 'utf8')
+  assert.match(script, /writeFile\(`menu\/item\/\$\{seo\.key\}\/index\.html`/)
 })
