@@ -8,7 +8,7 @@ import AppShell from '../components/AppShell'
 import {
   Clock, CheckCircle2, Receipt,
   Search, CreditCard, Settings, CalendarClock, Phone,
-  ShoppingBag, Truck, Gamepad2, Plus, Users,
+  ShoppingBag, Truck, Gamepad2, Plus, Users, Loader2,
 } from 'lucide-react'
 import { getOrderTotal } from '../lib/analytics'
 import { getReservationSummary, getWaiterTableStatus, sortWaiterTableInfosByOpenedTime } from '../lib/tableManagement'
@@ -21,6 +21,10 @@ import { getTableZoneName, getTableZoneVisual, groupTableInfosByZone } from '../
 import { TableGuestEntryDialog } from '../components/GuestModeUI'
 import { PRICE_MODE_REGULAR } from '../lib/priceModes'
 import { completeBillHandoff } from '../lib/billHandoff'
+import { getConfiguredServiceRatePct } from '../lib/serviceRates'
+import { useAppDataStatus } from '../store/appHooks'
+import { OperationalError, OperationalLoading } from '../components/OperationalState'
+import { STATUS_TONE } from '../components/StatusBadge'
 
 // ── Localization ──────────────────────────────────────────────────────────────
 
@@ -35,32 +39,45 @@ const L = {
     readyFromKitchen: 'Ready',
     occupied: 'Occupied',
     reserved: 'Reserved',
-    needsBill: 'Needs Bill',
+    needsBill: 'Needs bill',
     tapToStart: 'Tap to start order',
     reservedFor: 'Reserved for',
     seatReserved: 'Seat guest',
     itemsNew: n => `${n} new`,
     itemsPreparing: n => `${n} preparing`,
     itemsReady: n => `${n} ready`,
-    viewOrder: 'View Order',
+    viewOrder: 'View order',
     manageOrder: 'Manage order',
-    requestBill: 'Request Bill',
+    requestBill: 'Request bill',
     tableSingular: 'table',
     tablePlural: 'tables',
     confirmServed: 'Confirm served',
-    viewKitchen: 'View orders',
     viewTable: 'View table',
     takePayment: 'Take payment',
-    takeAwayOrder: 'Take Away Order',
-    deliveryOrder: 'Delivery Order',
+    takeAwayOrder: 'Take-away order',
+    deliveryOrder: 'Delivery order',
     manageTables: 'Manage tables',
-    todaysReservations: 'Today’s Reservations',
+    todaysReservations: 'Today’s reservations',
     seat: 'Seat',
     cancelReservation: 'Cancel',
     call: 'Call',
     lessThanMinuteAgo: '< 1 min ago',
     minutesAgo: n => `${n} min ago`,
     hoursMinutesAgo: (h, m) => `${h}h ${m}m ago`,
+    cancelReservationQuestion: 'Cancel this reservation?',
+    cancelReservationConfirm: 'Cancel reservation',
+    keepReservation: 'Keep',
+    cancelReservationFailed: 'The reservation was not cancelled. Try again.',
+    actionFailed: 'That did not go through. Try again.',
+    waiter: 'Waiter',
+    noTablesFound: 'No tables found',
+    noTablesInFilter: 'No table has this status right now.',
+    noTablesYet: 'There are no active tables yet.',
+    showAllTables: 'Show all tables',
+    loadingTables: 'Loading tables',
+    loadFailedTitle: 'Could not load the tables',
+    reload: 'Reload',
+    statusFilter: 'Filter tables by status',
   },
   ru: {
     tables: 'Столы',
@@ -85,7 +102,6 @@ const L = {
     tableSingular: 'стол',
     tablePlural: 'столов',
     confirmServed: 'Подтвердить подачу',
-    viewKitchen: 'Заказы',
     viewTable: 'Открыть стол',
     takePayment: 'Оплата',
     takeAwayOrder: 'Заказ с собой',
@@ -98,6 +114,20 @@ const L = {
     lessThanMinuteAgo: '< 1 мин назад',
     minutesAgo: n => `${n} мин назад`,
     hoursMinutesAgo: (h, m) => `${h}ч ${m}м назад`,
+    cancelReservationQuestion: 'Отменить эту бронь?',
+    cancelReservationConfirm: 'Отменить бронь',
+    keepReservation: 'Оставить',
+    cancelReservationFailed: 'Бронь не отменена. Попробуйте ещё раз.',
+    actionFailed: 'Не получилось. Попробуйте ещё раз.',
+    waiter: 'Официант',
+    noTablesFound: 'Стол не найден',
+    noTablesInFilter: 'Сейчас нет столов с этим статусом.',
+    noTablesYet: 'Активных столов пока нет.',
+    showAllTables: 'Показать все столы',
+    loadingTables: 'Загрузка столов',
+    loadFailedTitle: 'Не удалось загрузить столы',
+    reload: 'Перезагрузить',
+    statusFilter: 'Фильтр столов по статусу',
   },
   uz: {
     tables: 'Stollar',
@@ -122,7 +152,6 @@ const L = {
     tableSingular: 'stol',
     tablePlural: 'stol',
     confirmServed: 'Yetkazildi',
-    viewKitchen: 'Buyurtmalar',
     viewTable: 'Stolni ko‘rish',
     takePayment: 'To‘lov olish',
     takeAwayOrder: 'Olib ketish buyurtmasi',
@@ -135,6 +164,20 @@ const L = {
     lessThanMinuteAgo: '< 1 daqiqa oldin',
     minutesAgo: n => `${n} daqiqa oldin`,
     hoursMinutesAgo: (h, m) => `${h} soat ${m} daqiqa oldin`,
+    cancelReservationQuestion: 'Bu bron bekor qilinsinmi?',
+    cancelReservationConfirm: 'Bronni bekor qilish',
+    keepReservation: 'Qoldirish',
+    cancelReservationFailed: 'Bron bekor qilinmadi. Qayta urinib ko‘ring.',
+    actionFailed: 'Bajarilmadi. Qayta urinib ko‘ring.',
+    waiter: 'Ofitsiant',
+    noTablesFound: 'Stol topilmadi',
+    noTablesInFilter: 'Hozir bu holatdagi stol yo‘q.',
+    noTablesYet: 'Hozircha faol stollar yo‘q.',
+    showAllTables: 'Barcha stollarni ko‘rsatish',
+    loadingTables: 'Stollar yuklanmoqda',
+    loadFailedTitle: 'Stollarni yuklab bo‘lmadi',
+    reload: 'Qayta yuklash',
+    statusFilter: 'Stollarni holat bo‘yicha saralash',
   },
 }
 
@@ -146,45 +189,23 @@ function tr(lang, key, ...args) {
 
 // ── Status config ─────────────────────────────────────────────────────────────
 
-// Each status keeps its own pill tone and 3px card edge so the floor stays scannable:
-// free → positive, kitchen work → accent, food ready → caution, bill → negative,
-// reserved → info, eating → neutral.
-const STATUS_CFG = {
-  available: {
-    tone: 'ws-tone-positive',
-    edge: 'bg-[#1d7a52]',
-    dot: 'bg-[#1d7a52]',
-  },
-  waiting_kitchen: {
-    tone: 'ws-tone-accent',
-    edge: 'bg-[#ff5a00]/60',
-    dot: 'bg-[#ff5a00]/60',
-  },
-  preparing: {
-    tone: 'ws-tone-accent',
-    edge: 'bg-[#ff5a00]',
-    dot: 'bg-[#ff5a00]',
-  },
-  ready: {
-    tone: 'ws-tone-caution',
-    edge: 'bg-[#9a5a00]',
-    dot: 'bg-[#9a5a00]',
-  },
-  occupied: {
-    tone: '',
-    edge: 'bg-[#68655f]',
-    dot: 'bg-[#68655f]',
-  },
-  reserved: {
-    tone: 'ws-tone-info',
-    edge: 'bg-[#2a6fdb]',
-    dot: 'bg-[#2a6fdb]',
-  },
-  needs_bill: {
-    tone: 'ws-tone-negative',
-    edge: 'bg-[#c4262c]',
-    dot: 'bg-[#c4262c]',
-  },
+// One status, one tone on every screen: the tone comes from STATUS_TONE (StatusBadge.jsx).
+// Statuses that exist only on this floor view add theirs here: a reserved table is information,
+// and a table whose kitchen is working is "preparing" for both waiting and cooking.
+const FLOOR_STATUS_TONE = { ...STATUS_TONE, reserved: 'info' }
+
+// The pill class plus the 3px card edge and the dot, all from the same tone tokens (theme-aware).
+const TONE_STYLE = {
+  positive: { tone: 'ws-tone-positive', edge: 'bg-[var(--ws-positive)]', dot: 'bg-[var(--ws-positive)]' },
+  accent: { tone: 'ws-tone-accent', edge: 'bg-[var(--ws-primary)]', dot: 'bg-[var(--ws-primary)]' },
+  caution: { tone: 'ws-tone-caution', edge: 'bg-[var(--ws-caution)]', dot: 'bg-[var(--ws-caution)]' },
+  negative: { tone: 'ws-tone-negative', edge: 'bg-[var(--ws-negative)]', dot: 'bg-[var(--ws-negative)]' },
+  info: { tone: 'ws-tone-info', edge: 'bg-[var(--ws-info)]', dot: 'bg-[var(--ws-info)]' },
+  neutral: { tone: '', edge: 'bg-[var(--ws-muted-foreground)]', dot: 'bg-[var(--ws-muted-foreground)]' },
+}
+
+function statusConfig(status) {
+  return TONE_STYLE[FLOOR_STATUS_TONE[status]] || TONE_STYLE.neutral
 }
 
 // ── Status derivation ─────────────────────────────────────────────────────────
@@ -228,7 +249,7 @@ function deriveStatusForTable(table, orders) {
   return getWaiterTableStatus(table, active, () => deriveStatus(table.id, orders))
 }
 
-function getPreparationCounts(tableId, orders) {
+function getPreparationCounts(tableId, orders, settings) {
   const active = getVisibleActiveOrdersForTable(tableId, orders)
   const items = active.flatMap(o => o.items || []).filter(i => i.status !== 'cancelled')
   const pendingItemTimes = active.flatMap(o => (o.items || [])
@@ -248,7 +269,8 @@ function getPreparationCounts(tableId, orders) {
     preparingCount: items.filter(i => i.status === 'preparing').length,
     readyCount: items.filter(i => i.status === 'ready').length,
     itemCount: items.reduce((s, i) => s + (Number(i.quantity) || 1), 0),
-    total: active.reduce((s, o) => s + getOrderTotal(o), 0),
+    // An order without a stored rate uses the configured one, as the cashier tiles do.
+    total: active.reduce((s, o) => s + getOrderTotal(o, getConfiguredServiceRatePct(settings, o.price_mode)), 0),
     createdAt: earliestReliableTime(pendingItemTimes) || earliestReliableTime(billableItemTimes) || earliestReliableTime(orderTimes),
   }
 }
@@ -265,8 +287,9 @@ function elapsedSince(isoString, lang) {
 
 function FilterChip({ label, count, active, cfg, onClick }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} className={!active && count === 0 ? 'opacity-45' : ''}>
-      {cfg?.dot && <span className={`h-2 w-2 shrink-0 rounded-full ${cfg.dot}`} aria-hidden="true" />}
+    <button type="button" aria-pressed={active} onClick={onClick}>
+      {/* An empty status stays readable: only its decorative dot is dimmed, never the text. */}
+      {cfg?.dot && <span className={`h-2 w-2 shrink-0 rounded-full ${cfg.dot} ${!active && count === 0 ? 'opacity-40' : ''}`} aria-hidden="true" />}
       {label}
       <span className="ws-count">{count}</span>
     </button>
@@ -297,7 +320,6 @@ function statusLabel(lang, status) {
 
 function actionForStatus(lang, status) {
   if (status === 'ready') return { label: tr(lang, 'confirmServed'), Icon: CheckCircle2, cls: 'ws-btn-primary' }
-  if (status === 'preparing') return { label: tr(lang, 'viewKitchen'), Icon: Clock, cls: 'ws-btn-outline' }
   if (status === 'waiting_kitchen') return { label: tr(lang, 'requestBill'), Icon: Receipt, cls: 'ws-btn-outline' }
   if (status === 'needs_bill') return { label: tr(lang, 'takePayment'), Icon: CreditCard, cls: 'ws-btn-primary' }
   if (status === 'reserved') return { label: tr(lang, 'seatReserved'), Icon: CalendarClock, cls: 'ws-btn-primary' }
@@ -307,15 +329,15 @@ function actionForStatus(lang, status) {
 
 function ItemCountAndTotal({ counts, className = 'mt-2' }) {
   return (
-    <div className={`flex w-full items-center justify-between gap-2 ${className}`}>
+    <span className={`flex w-full items-center justify-between gap-2 ${className}`}>
       <span className="ws-count">×{counts.itemCount}</span>
-      <p className="text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(counts.total)}</p>
-    </div>
+      <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(counts.total)}</span>
+    </span>
   )
 }
 
-function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAction, onManage }) {
-  const cfg = STATUS_CFG[status] || STATUS_CFG.available
+function TableCard({ table, zones, status, counts, lang, canEdit, busy = false, failed = false, onClick, onAction, onManage }) {
+  const cfg = statusConfig(status)
   const zone = getTableZoneVisual(table, zones)
   const zoneName = getTableZoneName(table)
   // Free tables show their zone colour on the edge; busy tables show their status colour.
@@ -330,154 +352,153 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
   // Free tables sit under their zone heading, so a compact tile is enough:
   // the name, seat count and a start affordance, with the zone on the edge.
   if (status === 'available') {
+    const Tile = canEdit ? 'button' : 'div'
     return (
-      <div
-        onClick={canEdit ? onClick : undefined}
-        role={canEdit ? 'button' : undefined}
-        tabIndex={canEdit ? 0 : undefined}
-        aria-label={canEdit ? `${table.name} — ${tr(lang, 'tapToStart')}` : undefined}
-        onKeyDown={e => canEdit && e.key === 'Enter' && onClick()}
+      <Tile
+        {...(canEdit ? { type: 'button', onClick, 'aria-label': `${table.name} — ${tr(lang, 'tapToStart')}` } : {})}
         className={`ws-panel group relative flex min-h-[64px] w-full items-center gap-2 overflow-hidden !py-2.5 !pl-4 !pr-2.5 text-left transition-[box-shadow,border-color] ${canEdit ? 'cursor-pointer hover:border-[#ff5a00]/40 hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40' : ''}`}
       >
         <span className={`absolute inset-y-0 left-0 w-[3px] ${cardEdge}`} aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold leading-tight text-[#22201d]">{table.name}</p>
+        <span className="block min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold leading-tight text-[#22201d]">{table.name}</span>
           {capacity > 0 && (
-            <p className="ws-caption mt-1 flex items-center gap-1 !text-xs tabular-nums">
-              <Users size={11} className="shrink-0" aria-hidden="true" />
+            <span className="ws-caption mt-1 flex items-center gap-1 !text-xs tabular-nums">
+              <Users size={12} className="shrink-0" aria-hidden="true" />
               {capacity}
-            </p>
+            </span>
           )}
-        </div>
+        </span>
         {canEdit && (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1d7a52]/10 text-[#1d7a52] transition-colors group-hover:bg-[#ff5a00] group-hover:text-white" aria-hidden="true">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1d7a52]/10 text-[#1d7a52] transition-colors group-hover:bg-[#cc4800] group-hover:text-white" aria-hidden="true">
             <Plus size={16} />
           </span>
         )}
-      </div>
+      </Tile>
     )
   }
 
+  // The card is a plain container: the summary is one real button and the actions are its
+  // siblings, so no button is nested inside another and each is reachable by keyboard.
+  const Summary = canEdit ? 'button' : 'div'
   return (
-    <div
-      onClick={canEdit ? onClick : undefined}
-      role={canEdit ? 'button' : undefined}
-      tabIndex={canEdit ? 0 : undefined}
-      onKeyDown={e => canEdit && e.key === 'Enter' && onClick()}
-      className={`ws-panel group relative flex min-h-[116px] w-full flex-col overflow-hidden !py-3 !pl-4 !pr-3 text-left transition-shadow ${canEdit ? 'cursor-pointer hover:shadow-[0_4px_14px_rgb(34_32_29/8%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40' : ''}`}
-    >
+    <div className="ws-panel relative flex min-h-[116px] w-full flex-col overflow-hidden !p-0 text-left transition-shadow hover:shadow-[0_4px_14px_rgb(34_32_29/8%)]">
       <span className={`absolute inset-y-0 left-0 w-[3px] ${cardEdge}`} aria-hidden="true" />
-      {/* Header */}
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <p className="min-w-0 truncate text-[15px] font-semibold leading-tight text-[#22201d]">{table.name}</p>
-        {counts?.waiterNames?.length > 0 && (
-          <p className="ws-caption min-w-0 max-w-[55%] break-words text-right !text-xs !leading-4">
-            {lang === 'ru' ? 'Официант' : lang === 'uz' ? 'Ofitsiant' : 'Waiter'}: {counts.waiterNames.join(', ')}
-          </p>
-        )}
-      </div>
-
-      {/* The status is already the section heading and the card edge colour. */}
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <span className="ws-badge min-w-0">
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${zone.dot}`} aria-hidden="true" />
-          <span className="truncate">{zoneName}</span>
+      <Summary
+        {...(canEdit ? { type: 'button', onClick } : {})}
+        className={`flex w-full flex-1 flex-col py-3 pl-4 pr-3 text-left ${canEdit ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ff5a00]/40' : ''}`}
+      >
+        {/* Header */}
+        <span className="mb-2 flex w-full items-start justify-between gap-2">
+          <span className="min-w-0 truncate text-[15px] font-semibold leading-tight text-[#22201d]">{table.name}</span>
+          {counts?.waiterNames?.length > 0 && (
+            <span className="ws-caption min-w-0 max-w-[55%] break-words text-right !text-xs !leading-4">
+              {tr(lang, 'waiter')}: {counts.waiterNames.join(', ')}
+            </span>
+          )}
         </span>
-        {elapsed && status !== 'available' && (
-          <p className="ws-caption ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap !text-xs tabular-nums">
-            <Clock size={11} className="shrink-0" />
-            {elapsed}
-          </p>
+
+        {/* The status is already the section heading and the card edge colour. */}
+        <span className="mb-2 flex w-full flex-wrap items-center gap-1.5">
+          <span className="ws-badge min-w-0">
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${zone.dot}`} aria-hidden="true" />
+            <span className="truncate">{zoneName}</span>
+          </span>
+          {elapsed && (
+            <span className="ws-caption ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap !text-xs tabular-nums">
+              <Clock size={12} className="shrink-0" aria-hidden="true" />
+              {elapsed}
+            </span>
+          )}
+        </span>
+
+        {/* State-specific content */}
+        {status === 'reserved' && reservation && (
+          <span className="mt-1 block space-y-1">
+            <span className="block text-sm font-semibold text-[#22201d]">{tr(lang, 'reservedFor')}: {reservation.name || '-'}</span>
+            {reservation.startsAt && (
+              <span className="ws-caption flex items-center gap-1 tabular-nums">
+                <Clock size={12} aria-hidden="true" />
+                {formatDateTime(reservation.startsAt)}
+              </span>
+            )}
+            {reservation.phone && (
+              <span className="ws-caption flex items-center gap-1 tabular-nums">
+                <Phone size={12} aria-hidden="true" />
+                {reservation.phone}
+              </span>
+            )}
+          </span>
         )}
-      </div>
 
-      {/* State-specific content */}
-      {status === 'reserved' && reservation && (
-        <div className="mt-1 space-y-1">
-          <p className="text-sm font-semibold text-[#22201d]">{tr(lang, 'reservedFor')}: {reservation.name || '-'}</p>
-          {reservation.startsAt && (
-            <p className="ws-caption flex items-center gap-1 tabular-nums">
-              <Clock size={12} />
-              {formatDateTime(reservation.startsAt)}
-            </p>
-          )}
-          {reservation.phone && (
-            <p className="ws-caption flex items-center gap-1 tabular-nums">
-              <Phone size={12} />
-              {reservation.phone}
-            </p>
-          )}
-        </div>
-      )}
+        {(status === 'waiting_kitchen') && (
+          <span className="mt-1 flex w-full flex-wrap gap-1">
+            {counts.newCount > 0 && (
+              <StatusChip label={tr(lang, 'itemsNew', counts.newCount)} />
+            )}
+            <ItemCountAndTotal counts={counts} />
+          </span>
+        )}
 
-      {(status === 'waiting_kitchen') && (
-        <div className="flex flex-wrap gap-1 mt-1">
-          {counts.newCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsNew', counts.newCount)} />
-          )}
-          <ItemCountAndTotal counts={counts} />
-        </div>
-      )}
+        {(status === 'preparing') && (
+          <span className="mt-1 flex w-full flex-wrap gap-1">
+            {counts.newCount > 0 && (
+              <StatusChip label={tr(lang, 'itemsNew', counts.newCount)} />
+            )}
+            {counts.preparingCount > 0 && (
+              <StatusChip label={tr(lang, 'itemsPreparing', counts.preparingCount)} tone={statusConfig('preparing').tone} />
+            )}
+            {counts.readyCount > 0 && (
+              <StatusChip label={tr(lang, 'itemsReady', counts.readyCount)} tone={statusConfig('ready').tone} />
+            )}
+            <ItemCountAndTotal counts={counts} />
+          </span>
+        )}
 
-      {(status === 'preparing') && (
-        <div className="flex flex-wrap gap-1 mt-1">
-          {counts.newCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsNew', counts.newCount)} />
-          )}
-          {counts.preparingCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsPreparing', counts.preparingCount)} tone="ws-tone-accent" />
-          )}
-          {counts.readyCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsReady', counts.readyCount)} tone="ws-tone-caution" />
-          )}
-          <ItemCountAndTotal counts={counts} />
-        </div>
-      )}
+        {status === 'ready' && (
+          <span className="mt-1 block w-full">
+            {counts.readyCount > 0 && (
+              <StatusChip label={tr(lang, 'itemsReady', counts.readyCount)} tone={statusConfig('ready').tone} />
+            )}
+            <ItemCountAndTotal counts={counts} />
+          </span>
+        )}
 
-      {status === 'ready' && (
-        <div className="mt-1">
-          {counts.readyCount > 0 && (
-            <StatusChip label={tr(lang, 'itemsReady', counts.readyCount)} tone="ws-tone-caution" />
-          )}
-          <ItemCountAndTotal counts={counts} />
-        </div>
-      )}
+        {status === 'occupied' && (
+          <ItemCountAndTotal counts={counts} className="mt-auto" />
+        )}
 
-      {status === 'occupied' && (
-        <ItemCountAndTotal counts={counts} className="mt-auto" />
-      )}
-
-      {status === 'needs_bill' && (
-        <ItemCountAndTotal counts={counts} className="mt-auto" />
-      )}
+        {status === 'needs_bill' && (
+          <ItemCountAndTotal counts={counts} className="mt-auto" />
+        )}
+      </Summary>
 
       {canEdit && (action || canManageActiveOrder) && (
-        <div className="mt-auto grid grid-cols-1 gap-2 pt-4">
+        <div className="grid grid-cols-1 gap-2 pb-3 pl-4 pr-3 pt-1">
           {canManageActiveOrder && (
             <button
               type="button"
-              onClick={e => {
-                e.stopPropagation()
-                onManage?.(table)
-              }}
+              onClick={() => onManage?.(table)}
+              disabled={busy}
               className="ws-btn ws-btn-outline !h-11 w-full !px-3"
             >
-              <Search size={15} />
+              <Search size={15} aria-hidden="true" />
               {tr(lang, 'manageOrder')}
             </button>
           )}
           {action && (
             <button
               type="button"
-              onClick={e => {
-                e.stopPropagation()
-                onAction?.(status, table)
-              }}
+              onClick={() => onAction?.(status, table)}
+              disabled={busy}
+              aria-busy={busy || undefined}
               className={`ws-btn !h-11 w-full !px-3 ${action.cls}`}
             >
-              <ActionIcon size={15} />
+              {busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <ActionIcon size={15} aria-hidden="true" />}
               {action.label}
             </button>
+          )}
+          {failed && (
+            <p role="alert" className="text-xs font-medium text-[#c4262c]">{tr(lang, 'actionFailed')}</p>
           )}
         </div>
       )}
@@ -485,53 +506,93 @@ function TableCard({ table, zones, status, counts, lang, canEdit, onClick, onAct
   )
 }
 
-function ReservationStrip({ reservations, lang, canEdit, onSeat, onCancel, onCall }) {
+function ReservationStrip({ reservations, lang, canEdit, busyTableId, failedTableId, onSeat, onCancel, onCall }) {
+  // Cancelling a booking is a two-step choice made inside its own card.
+  const [confirmingId, setConfirmingId] = useState(null)
+
   if (reservations.length === 0) {
     return null
   }
 
   return (
     <section className="ws-panel">
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <h2 className="ws-heading">{tr(lang, 'todaysReservations')}</h2>
         <span className="ws-count">{tableCountLabel(lang, reservations.length)}</span>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1">
-        {reservations.map(({ table, reservation }) => (
-          <div key={table.id} className="relative min-w-[260px] overflow-hidden rounded-[12px] border border-[#e4e1de] bg-white py-3 pl-4 pr-3">
-            <span className="absolute inset-y-0 left-0 w-[3px] bg-[#2a6fdb]" aria-hidden="true" />
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold text-[#22201d]">{table.name}</p>
-                <p className="ws-caption truncate">{reservation.name || '-'}</p>
+        {reservations.map(({ table, reservation }) => {
+          const busy = busyTableId === table.id
+          const confirming = confirmingId === table.id
+          return (
+            <div key={table.id} className="relative w-[min(300px,82vw)] shrink-0 overflow-hidden rounded-[12px] border border-[#e4e1de] bg-white py-3 pl-4 pr-3">
+              <span className={`absolute inset-y-0 left-0 w-[3px] ${statusConfig('reserved').edge}`} aria-hidden="true" />
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-semibold text-[#22201d]">{table.name}</p>
+                  <p className="ws-caption truncate">{reservation.name || '-'}</p>
+                </div>
+                <span className={`ws-status tabular-nums ${statusConfig('reserved').tone}`}>
+                  {formatTime(reservation.startsAt)}
+                </span>
               </div>
-              <span className="ws-status ws-tone-info tabular-nums">
-                {formatTime(reservation.startsAt)}
-              </span>
-            </div>
-            <div className={`mt-3 grid gap-1.5 ${canEdit ? 'grid-cols-3' : 'grid-cols-1'}`}>
-              {canEdit && (
-                <>
-                  <button type="button" onClick={() => onSeat(table)} className="ws-btn ws-btn-primary ws-btn-sm !px-2">
-                    {tr(lang, 'seat')}
+              {confirming ? (
+                <div className="mt-3" role="group" aria-label={tr(lang, 'cancelReservationQuestion')}>
+                  <p className="text-sm font-medium text-[#22201d]">{tr(lang, 'cancelReservationQuestion')}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingId(null)}
+                      disabled={busy}
+                      className="ws-btn ws-btn-outline ws-btn-sm min-w-0 flex-1 basis-[6rem] !px-2"
+                    >
+                      {tr(lang, 'keepReservation')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const cancelled = await onCancel(table)
+                        if (cancelled) setConfirmingId(null)
+                      }}
+                      disabled={busy}
+                      aria-busy={busy || undefined}
+                      className="ws-btn ws-btn-danger-solid ws-btn-sm min-w-0 flex-1 basis-[9rem] !px-2"
+                    >
+                      {busy && <Loader2 className="animate-spin" aria-hidden="true" />}
+                      {tr(lang, 'cancelReservationConfirm')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Buttons wrap instead of clipping their Russian and Uzbek labels.
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {canEdit && (
+                    <button type="button" onClick={() => onSeat(table)} disabled={busy} className="ws-btn ws-btn-primary ws-btn-sm min-w-0 flex-1 basis-[7rem] !px-2">
+                      {tr(lang, 'seat')}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onCall(reservation.phone)}
+                    disabled={!reservation.phone}
+                    className="ws-btn ws-btn-outline ws-btn-sm min-w-0 flex-1 basis-[7rem] !px-2"
+                  >
+                    <Phone aria-hidden="true" />
+                    {tr(lang, 'call')}
                   </button>
-                  <button type="button" onClick={() => onCancel(table)} className="ws-btn ws-btn-outline ws-btn-sm !px-2">
-                    {tr(lang, 'cancelReservation')}
-                  </button>
-                </>
+                  {canEdit && (
+                    <button type="button" onClick={() => setConfirmingId(table.id)} disabled={busy} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm min-w-0 flex-1 basis-full !px-2">
+                      {tr(lang, 'cancelReservationConfirm')}
+                    </button>
+                  )}
+                </div>
               )}
-              <button
-                type="button"
-                onClick={() => onCall(reservation.phone)}
-                disabled={!reservation.phone}
-                className="ws-btn ws-btn-outline ws-btn-sm !px-2"
-              >
-                <Phone size={12} />
-                {tr(lang, 'call')}
-              </button>
+              {failedTableId === table.id && (
+                <p role="alert" className="mt-2 text-xs font-medium text-[#c4262c]">{tr(lang, 'cancelReservationFailed')}</p>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )
@@ -554,6 +615,11 @@ export default function WaiterTables() {
   const [guestEntryBusy, setGuestEntryBusy] = useState(false)
   const [guestEntryError, setGuestEntryError] = useState('')
   const guestEntryRequestRef = useRef(false)
+  const { loaded, loadError } = useAppDataStatus()
+  // One table write at a time per card: a second tap while it is in flight does nothing.
+  const [busyTableId, setBusyTableId] = useState(null)
+  const [failedTableId, setFailedTableId] = useState(null)
+  const busyTableRef = useRef(null)
 
   useEffect(() => {
     refreshPOSData()
@@ -581,10 +647,10 @@ export default function WaiterTables() {
       .map(table => {
         const status = deriveStatusForTable(table, state.orders)
         const active = getVisibleActiveOrdersForTable(table.id, state.orders)
-        const counts = active.length > 0 ? getPreparationCounts(table.id, state.orders) : null
+        const counts = active.length > 0 ? getPreparationCounts(table.id, state.orders, state.settings) : null
         return { table, status, counts }
       }),
-    [state.tables, state.orders]
+    [state.tables, state.orders, state.settings]
   )
 
   const visibleZones = useMemo(() => {
@@ -736,20 +802,43 @@ export default function WaiterTables() {
     navigate(`/waiter/order/${table.id}?panel=order`)
   }
 
+  // Runs one table write behind a busy guard and reports whether it went through.
+  async function runTableWrite(table, write) {
+    if (busyTableRef.current) return false
+    busyTableRef.current = table.id
+    setBusyTableId(table.id)
+    setFailedTableId(null)
+    try {
+      const result = await write()
+      if (result?.error) {
+        console.error('[tables] table action failed:', result.error)
+        setFailedTableId(table.id)
+        return false
+      }
+      return true
+    } catch (error) {
+      console.error('[tables] table action failed:', error)
+      setFailedTableId(table.id)
+      return false
+    } finally {
+      busyTableRef.current = null
+      setBusyTableId(null)
+    }
+  }
+
   async function moveTableToCashier(table) {
     const autoPrint = !!state.settings?.autoPrint
-    const result = await dispatch({ type: 'MARK_TABLE_NEEDS_BILL', payload: table.id })
-    if (result?.error) return
+    const moved = await runTableWrite(table, () => dispatch({ type: 'MARK_TABLE_NEEDS_BILL', payload: table.id }))
+    if (!moved) return
     completeBillHandoff({ navigate, tableId: table.id, autoPrint })
   }
 
   function handleCardAction(status, table) {
-    if (!canEditTables) return
+    if (!canEditTables || busyTableRef.current) return
     if (status === 'ready') {
-      dispatch({ type: 'CONFIRM_ORDER_DELIVERED', payload: table.id })
+      runTableWrite(table, () => dispatch({ type: 'CONFIRM_ORDER_DELIVERED', payload: table.id }))
       return
     }
-    if (status === 'preparing') return
     if (status === 'needs_bill') {
       navigate(`/cashier/bill/${table.id}`)
       return
@@ -774,9 +863,10 @@ export default function WaiterTables() {
     handleTable(table)
   }
 
+  // Called from the in-card confirmation; resolves true once the reservation is cleared.
   function cancelReservation(table) {
-    if (!canEditTables) return
-    dispatch({ type: 'UPDATE_TABLE', payload: clearReservationPatch(table) })
+    if (!canEditTables) return Promise.resolve(false)
+    return runTableWrite(table, () => dispatch({ type: 'UPDATE_TABLE', payload: clearReservationPatch(table) }))
   }
 
   function callReservation(phone) {
@@ -857,125 +947,154 @@ export default function WaiterTables() {
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page">
 
-          <ReservationStrip
-            reservations={todaysReservations}
-            lang={lang}
-            canEdit={canEditTables}
-            onSeat={seatReservation}
-            onCancel={cancelReservation}
-            onCall={callReservation}
-          />
+          {loadError ? (
+            // The first load failed and nothing can re-run it from here, so the retry reloads the app.
+            <OperationalError
+              lang={lang}
+              title={tr(lang, 'loadFailedTitle')}
+              actionLabel={tr(lang, 'reload')}
+              onAction={() => window.location.reload()}
+            />
+          ) : !loaded ? (
+            // Counts and cards are data: a skeleton, never "0 tables", while they load.
+            <OperationalLoading layout="cards" title={tr(lang, 'loadingTables')} className="!p-0" />
+          ) : (
+            <>
+            <ReservationStrip
+              reservations={todaysReservations}
+              lang={lang}
+              canEdit={canEditTables}
+              busyTableId={busyTableId}
+              failedTableId={failedTableId}
+              onSeat={seatReservation}
+              onCancel={cancelReservation}
+              onCall={callReservation}
+            />
 
-          {/* Status filter */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div
-              role="group"
-              aria-label={tr(lang, 'tables')}
-              className="ws-segmented [@media(pointer:coarse)]:[&>button]:!h-11"
-            >
-              <FilterChip
-                label={tr(lang, 'all')}
-                count={countsPerStatus.all}
-                active={activeFilter === 'all'}
-                onClick={() => setActiveFilter('all')}
-              />
-              {FILTER_ORDER.filter(s => s !== 'all').map(status => {
-                const cnt = countsPerStatus[status] || 0
-                const cfg = STATUS_CFG[status]
+            {/* Status filter */}
+            {/* The chips wrap onto more rows on a phone, so no status hides off-screen. */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div
+                role="group"
+                aria-label={tr(lang, 'statusFilter')}
+                className="ws-segmented !flex flex-wrap !overflow-visible"
+              >
+                <FilterChip
+                  label={tr(lang, 'all')}
+                  count={countsPerStatus.all}
+                  active={activeFilter === 'all'}
+                  onClick={() => setActiveFilter('all')}
+                />
+                {FILTER_ORDER.filter(s => s !== 'all').map(status => {
+                  const cnt = countsPerStatus[status] || 0
+                  const cfg = statusConfig(status)
+                  return (
+                    <FilterChip
+                      key={status}
+                      label={statusLabel(lang, status)}
+                      count={cnt}
+                      active={activeFilter === status}
+                      cfg={cfg}
+                      onClick={() => setActiveFilter(status)}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Status sections */}
+            <div className="space-y-8">
+              {sections.map(({ status, items }) => {
+                const cfg = statusConfig(status)
+                const availableZoneGroups = status === 'available'
+                  ? groupTableInfosByZone(items, visibleZones)
+                  : []
                 return (
-                  <FilterChip
-                    key={status}
-                    label={statusLabel(lang, status)}
-                    count={cnt}
-                    active={activeFilter === status}
-                    cfg={cfg}
-                    onClick={() => setActiveFilter(status)}
-                  />
+                  <section key={status} className="border-t border-[#e4e1de] pt-5 first:border-t-0 first:pt-0">
+                    <div className="sticky top-0 z-10 -mx-1 mb-3 flex items-center gap-2.5 bg-[#f6f5f3]/95 px-1 py-2 backdrop-blur">
+                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${cfg.dot}`} aria-hidden="true" />
+                      <h3 className="ws-heading min-w-0 truncate">{statusLabel(lang, status)}</h3>
+                      <span className="ws-count">{tableCountLabel(lang, items.length)}</span>
+                    </div>
+                    {status === 'available' ? (
+                      <div className="space-y-5">
+                        {availableZoneGroups.map(({ zone: zoneItem, items: zoneItems }) => {
+                          const zone = getTableZoneVisual(zoneItem, visibleZones)
+                          return (
+                            <div key={zoneItem.id || zoneItem.name}>
+                              <div className="mb-2.5 flex items-center justify-between gap-3 px-1">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${zone.dot}`} aria-hidden="true" />
+                                  <h4 className="truncate text-[15px] font-semibold text-[#22201d]">{zoneItem.name}</h4>
+                                </div>
+                                <span className="ws-caption shrink-0">{tableCountLabel(lang, zoneItems.length)}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+                                {zoneItems.map(({ table, status: itemStatus, counts }) => (
+                                  <TableCard
+                                    key={table.id}
+                                    table={table}
+                                    zones={visibleZones}
+                                    status={itemStatus}
+                                    counts={counts}
+                                    lang={lang}
+                                    canEdit={canEditTables}
+                                    onClick={() => handleTable(table)}
+                                    onAction={handleCardAction}
+                                    onManage={handleManageOrder}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-5">
+                        {items.map(({ table, status: itemStatus, counts }) => (
+                          <TableCard
+                            key={table.id}
+                            table={table}
+                            zones={visibleZones}
+                            status={itemStatus}
+                            counts={counts}
+                            lang={lang}
+                            canEdit={canEditTables}
+                            busy={busyTableId === table.id}
+                            failed={failedTableId === table.id}
+                            onClick={() => handleTable(table)}
+                            onAction={handleCardAction}
+                            onManage={handleManageOrder}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
                 )
               })}
-            </div>
-          </div>
 
-          {/* Status sections */}
-          <div className="space-y-8">
-            {sections.map(({ status, items }) => {
-              const cfg = STATUS_CFG[status]
-              const availableZoneGroups = status === 'available'
-                ? groupTableInfosByZone(items, visibleZones)
-                : []
-              return (
-                <section key={status} className="border-t border-[#e4e1de] pt-5 first:border-t-0 first:pt-0">
-                  <div className="sticky top-0 z-10 -mx-1 mb-3 flex items-center gap-2.5 bg-[#f6f5f3]/95 px-1 py-2 backdrop-blur">
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${cfg.dot}`} aria-hidden="true" />
-                    <h3 className="ws-heading min-w-0 truncate">{statusLabel(lang, status)}</h3>
-                    <span className="ws-count">{tableCountLabel(lang, items.length)}</span>
+              {sections.length === 0 && (
+                <div className="ws-panel ws-panel-flush">
+                  <div className="ws-empty">
+                    <Search aria-hidden="true" />
+                    <h3>{tr(lang, 'noTablesFound')}</h3>
+                    <p>{tr(lang, activeFilter !== 'all' ? 'noTablesInFilter' : 'noTablesYet')}</p>
+                    {activeFilter !== 'all' ? (
+                      <button type="button" onClick={() => setActiveFilter('all')} className="ws-btn ws-btn-outline">
+                        {tr(lang, 'showAllTables')}
+                      </button>
+                    ) : canManageTables ? (
+                      <button type="button" onClick={() => navigate('/admin/tables')} className="ws-btn ws-btn-outline">
+                        <Settings aria-hidden="true" />
+                        {tr(lang, 'manageTables')}
+                      </button>
+                    ) : null}
                   </div>
-                  {status === 'available' ? (
-                    <div className="space-y-5">
-                      {availableZoneGroups.map(({ zone: zoneItem, items: zoneItems }) => {
-                        const zone = getTableZoneVisual(zoneItem, visibleZones)
-                        return (
-                          <div key={zoneItem.id || zoneItem.name}>
-                            <div className="mb-2.5 flex items-center justify-between gap-3 px-1">
-                              <div className="flex min-w-0 items-center gap-2">
-                                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${zone.dot}`} aria-hidden="true" />
-                                <h4 className="truncate text-[15px] font-semibold text-[#22201d]">{zoneItem.name}</h4>
-                              </div>
-                              <span className="ws-caption shrink-0">{tableCountLabel(lang, zoneItems.length)}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
-                              {zoneItems.map(({ table, status: itemStatus, counts }) => (
-                                <TableCard
-                                  key={table.id}
-                                  table={table}
-                                  zones={visibleZones}
-                                  status={itemStatus}
-                                  counts={counts}
-                                  lang={lang}
-                                  canEdit={canEditTables}
-                                  onClick={() => handleTable(table)}
-                                  onAction={handleCardAction}
-                                  onManage={handleManageOrder}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-5">
-                      {items.map(({ table, status: itemStatus, counts }) => (
-                        <TableCard
-                          key={table.id}
-                          table={table}
-                          zones={visibleZones}
-                          status={itemStatus}
-                          counts={counts}
-                          lang={lang}
-                          canEdit={canEditTables}
-                          onClick={() => handleTable(table)}
-                          onAction={handleCardAction}
-                          onManage={handleManageOrder}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )
-            })}
-
-            {sections.length === 0 && (
-              <div className="ws-panel ws-panel-flush">
-                <div className="ws-empty">
-                  <Search />
-                  <h3>
-                    {lang === 'uz' ? 'Stol topilmadi' : lang === 'ru' ? 'Стол не найден' : 'No tables found'}
-                  </h3>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+            </>
+          )}
 
           {pendingGuestTable && (
             <TableGuestEntryDialog

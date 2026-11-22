@@ -93,11 +93,11 @@ export default function AnimatedSearch({
           type="button"
           onClick={() => setOpen(true)}
           aria-label={searchLabel}
-          className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-[#64748B] transition-all duration-200 ease-out hover:bg-white hover:text-[#ff5a00] ${
+          className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] text-[#475569] transition-all duration-200 ease-out hover:bg-white hover:text-[#bf4300] ${
             open ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
-          } ${hasValue ? 'text-[#ff5a00] ring-2 ring-[#ff5a00]/10' : ''} ${buttonClassName}`}
+          } ${hasValue ? 'text-[#bf4300] ring-2 ring-[#ff5a00]/10' : ''} ${buttonClassName}`}
         >
-          <Search size={17} />
+          <Search size={17} aria-hidden="true" />
         </button>
 
         <div
@@ -115,33 +115,34 @@ export default function AnimatedSearch({
           }) : { transformOrigin: 'left center' }}
         >
           <div className="relative flex items-center gap-2">
-            <Search size={17} className="absolute left-3.5 text-[#9CA3AF]" />
+            <Search size={17} aria-hidden="true" className="pointer-events-none absolute left-3.5 text-[#9CA3AF]" />
             <input
               ref={inputRef}
               value={value}
               onChange={event => onChange(event.target.value)}
               placeholder={placeholder}
+              aria-label={searchLabel}
               disabled={!open}
               tabIndex={open ? 0 : -1}
-              className="h-10 min-w-0 flex-1 rounded-xl bg-[#F8FAFC] pl-10 pr-12 text-sm outline-none transition-all focus:bg-white disabled:opacity-100"
+              className="h-11 min-w-0 flex-1 rounded-xl bg-[#F8FAFC] pl-10 pr-12 text-sm outline-none transition-colors placeholder:text-[#68655f] focus:bg-white disabled:opacity-100"
             />
             {hasValue && (
               <button
                 type="button"
                 onClick={clearSearch}
                 aria-label={clearLabel}
-                className="absolute right-12 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-white hover:text-[#6B7280]"
+                className="absolute right-12 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-[#68655f] transition-colors hover:bg-white hover:text-[#22201d]"
               >
-                <X size={14} />
+                <X size={16} aria-hidden="true" />
               </button>
             )}
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label={closeLabel}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#ff5a00]"
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-[#475569] transition-colors hover:bg-[#F8FAFC] hover:text-[#bf4300]"
             >
-              <X size={18} />
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -167,11 +168,11 @@ export default function AnimatedSearch({
           type="button"
           onClick={() => setOpen(true)}
           aria-label={searchLabel}
-          className={`flex h-10 w-10 min-w-10 flex-none items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[#64748B] transition-all duration-200 ease-out hover:border-orange-200 hover:bg-white hover:text-[#ff5a00] ${
+          className={`flex h-10 w-10 min-w-10 flex-none items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] text-[#475569] transition-all duration-200 ease-out hover:border-orange-200 hover:bg-white hover:text-[#bf4300] [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 ${
             open ? 'pointer-events-none absolute left-0 top-0 scale-95 opacity-0' : 'relative scale-100 opacity-100'
-          } ${hasValue ? 'text-[#ff5a00] ring-2 ring-[#ff5a00]/10' : ''} ${buttonClassName}`}
+          } ${hasValue ? 'text-[#bf4300] ring-2 ring-[#ff5a00]/10' : ''} ${buttonClassName}`}
         >
-          <Search size={17} />
+          <Search size={17} aria-hidden="true" />
         </button>
       )}
 
@@ -187,7 +188,7 @@ export default function AnimatedSearch({
           transformOrigin: 'left center',
         }) : { transformOrigin: 'left center' }}
       >
-        <Search size={16} className="absolute left-3.5 text-[#9CA3AF] pointer-events-none" />
+        <Search size={16} aria-hidden="true" className="absolute left-3.5 text-[#9CA3AF] pointer-events-none" />
         <input
           ref={inputRef}
           type="text"
@@ -197,26 +198,26 @@ export default function AnimatedSearch({
           onChange={event => onChange(event.target.value)}
           disabled={!isOpen}
           tabIndex={isOpen ? 0 : -1}
-          className={`h-full w-full bg-transparent pl-10 text-[14px] text-[#1F2937] placeholder-[#9CA3AF] outline-none disabled:opacity-100 ${alwaysOpen ? 'pr-10' : 'pr-20'}`}
+          className={`h-full w-full bg-transparent pl-10 text-[14px] text-[#1F2937] placeholder-[#68655f] outline-none disabled:opacity-100 ${alwaysOpen ? 'pr-11' : 'pr-[5.5rem]'}`}
         />
         {hasValue && (
           <button
             type="button"
             onClick={clearSearch}
-            className={`absolute top-1/2 -translate-y-1/2 text-[#9CA3AF] transition-colors hover:text-[#6B7280] ${alwaysOpen ? 'right-3' : 'right-11'}`}
+            className={`absolute inset-y-0 flex w-11 items-center justify-center text-[#68655f] transition-colors hover:text-[#22201d] ${alwaysOpen ? 'right-0' : 'right-11'}`}
             aria-label={clearLabel}
           >
-            <X size={14} />
+            <X size={16} aria-hidden="true" />
           </button>
         )}
         {!alwaysOpen && (
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-white hover:text-[#ff5a00]"
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-lg text-[#68655f] transition-colors hover:text-[#bf4300]"
             aria-label={closeLabel}
           >
-            <X size={15} />
+            <X size={16} aria-hidden="true" />
           </button>
         )}
       </div>

@@ -1,11 +1,11 @@
 import { flushSync } from 'react-dom'
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useId, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import {
   Search, ShoppingCart, Plus, UtensilsCrossed,
   Menu as MenuIcon, X, CheckCircle2, Clock,
   Receipt, Loader2, ArrowLeft, LogOut, Minus, Printer,
-  LockKeyhole, Minimize2, Maximize2,
+  LockKeyhole, Minimize2, Maximize2, Trash2,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -20,6 +20,8 @@ import AnimatedSearch from '../components/AnimatedSearch'
 import MenuCategoryScroller, { menuCategorySectionId } from '../components/MenuCategoryScroller'
 import { ProductCard, ProductDetailPage, getMenuItemOptionGroups, getOrderItemOptionLines, menuItemRequiresOptions } from '../components/MenuProductCards'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
+import { statusToneClass } from '../components/StatusBadge'
+import { useModalKeyboard } from '../lib/modalKeyboard'
 import { useAppDataStatus } from '../store/appHooks'
 import { getKitchenCheckGroups } from '../lib/kitchenCheck'
 import { isOffPremiseOrderType, normalizeOrderType, orderTypeLabel } from '../lib/orderTypes'
@@ -53,8 +55,89 @@ import {
   normalizeMenuQuantity,
 } from '../lib/menuSaleUnits'
 
+// Panel and chip colours come from the shared status map (StatusBadge), so a state has the
+// same tone here as on the tables screen. A served order is an occupied table.
+function orderStatusToneClass(status) {
+  return statusToneClass(status === 'delivered' ? 'occupied' : status)
+}
+
+// ── Submitted item row with its quantity stepper ───────────────────────────────
+function OrderItemQtyRow({ item, editable = true, lang, labels, menuItemMap, updatingItemId, onUpdateQty }) {
+  const itemKey = item.id || item.menu_item_id
+  const menuItem = menuItemMap?.[item.menu_item_id]
+  const displayName = menuItem ? getItemName(menuItem, lang) : item.name
+  const optionLines = getOrderItemOptionLines(item, menuItem, lang)
+  const missing = !menuItem || menuItem.available === false
+  const updating = updatingItemId === itemKey
+  const quantity = Number(item.quantity) || 1
+  const quantitySource = { ...menuItem, sale_unit: item.sale_unit || menuItem?.sale_unit }
+  const lowerQuantity = changeMenuQuantity(quantity, quantitySource, -1)
+  // The last step down removes the item from the order, so the button says so.
+  const removes = lowerQuantity <= 0
+  return (
+    <div className="flex items-center gap-2 rounded-xl bg-white/75 px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold text-[#22201d]">{displayName}</p>
+        {optionLines.map((line, index) => (
+          <p key={`${itemKey}-option-${index}`} className="truncate text-xs font-semibold text-[#22201d]">{line}</p>
+        ))}
+        <p className="text-xs font-medium text-[#68655f]">
+          {isMenuItemSoldByWeight(quantitySource) ? formatMenuQuantity(quantity, quantitySource) : `×${formatMenuQuantity(quantity, quantitySource)}`}
+          {missing ? ` · ${labels.missingItem}` : ''}
+        </p>
+      </div>
+      {editable && (
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onUpdateQty(item, lowerQuantity)}
+            disabled={!!updatingItemId}
+            aria-label={`${removes ? labels.removeItem : labels.decreaseItem}: ${displayName}`}
+            title={removes ? labels.removeItem : labels.decreaseItem}
+            className={`flex h-11 w-11 items-center justify-center rounded-lg border border-[#e4e1de] bg-white transition-colors hover:bg-[#ebe8e5] disabled:cursor-wait disabled:opacity-50 ${removes ? 'text-[#c4262c]' : 'text-[#22201d]'}`}
+          >
+            {updating
+              ? <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+              : removes ? <Trash2 size={16} aria-hidden="true" /> : <Minus size={16} aria-hidden="true" />}
+          </button>
+          <span className="min-w-7 text-center text-[13px] font-semibold tabular-nums text-[#22201d]">{formatMenuQuantity(quantity, quantitySource)}</span>
+          <button
+            type="button"
+            onClick={() => onUpdateQty(item, changeMenuQuantity(quantity, quantitySource, 1))}
+            disabled={!!updatingItemId}
+            aria-label={`${labels.increaseItem}: ${displayName}`}
+            title={labels.increaseItem}
+            className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#cc4800] text-white transition-colors hover:bg-[#b23f00] disabled:cursor-wait disabled:opacity-50"
+          >
+            <Plus size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// One frame for every order state: the tone tints the panel, the words say what it is.
+function OrderStatePanel({ status, Icon, title, sub, aside = null, children = null }) {
+  return (
+    <div className={`mx-4 mb-3 rounded-2xl px-4 py-3 ${orderStatusToneClass(status)}`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/70">
+          <Icon size={16} aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-semibold">{title}</p>
+          {sub ? <p className="mt-0.5 text-xs text-[#68655f]">{sub}</p> : null}
+        </div>
+        {aside}
+      </div>
+      {children}
+    </div>
+  )
+}
+
 // ── OrderActionPanel ───────────────────────────────────────────────────────────
-function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEditOrder, autoPrintBill, onPrintKitchenCheck, onMovedToCashier }) {
+function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEditOrder, autoPrintBill, onPrintKitchenCheck, printDisabled = false, onMovedToCashier }) {
   const [busy, setBusy] = useState(false)
   const [updatingItemId, setUpdatingItemId] = useState(null)
 
@@ -79,11 +162,12 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
     uz: {
       preparationTitle: 'Buyurtma tayyorlanmoqda',
       preparationSub: (n, p) => [n > 0 && `${n} yangi`, p > 0 && `${p} tayyorlanmoqda`].filter(Boolean).join(' · '),
+      readyCount: n => `${n} tayyor`,
       waitingTitle: 'Kutilmoqda',
       waitingSub: 'Ofitsiantga qaytarildi',
       readyTitle: 'Barcha taomlar tayyor!',
       readySub: 'Mijozga yetkazilganini tasdiqlang',
-      confirmBtn: 'Yetkazildi ✓',
+      confirmBtn: 'Yetkazildi',
       deliveredTitle: 'Yetkazildi',
       deliveredSub: 'Hisob so\'rash mumkin',
       billBtn: 'Hisob so\'rash',
@@ -94,6 +178,7 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
       increaseItem: 'Ko‘paytirish',
       printCheck: 'Chek chiqarish',
       printAllChecks: 'Hammasini chiqarish',
+      printLocked: 'Buyurtma yuborilguncha chek chiqarib bo‘lmaydi',
       roundLabel: n => `Buyurtma ${n}`,
       missingItem: 'Menyuda yo‘q',
       removeReason: 'Menyuda mavjud emas',
@@ -101,11 +186,12 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
     ru: {
       preparationTitle: 'Заказ готовится',
       preparationSub: (n, p) => [n > 0 && `${n} новых`, p > 0 && `${p} готовится`].filter(Boolean).join(' · '),
+      readyCount: n => `${n} готово`,
       waitingTitle: 'Ожидание',
       waitingSub: 'Возвращено официанту',
       readyTitle: 'Все блюда готовы!',
       readySub: 'Подтвердите, что заказ подан гостю',
-      confirmBtn: 'Подано ✓',
+      confirmBtn: 'Подано',
       deliveredTitle: 'Подано',
       deliveredSub: 'Можно запросить счёт',
       billBtn: 'Запросить счёт',
@@ -116,6 +202,7 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
       increaseItem: 'Увеличить',
       printCheck: 'Печать чека',
       printAllChecks: 'Печать всех',
+      printLocked: 'Печать недоступна, пока заказ отправляется',
       roundLabel: n => `Заказ ${n}`,
       missingItem: 'Нет в меню',
       removeReason: 'Нет в меню',
@@ -123,21 +210,23 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
     en: {
       preparationTitle: 'Order is preparing',
       preparationSub: (n, p) => [n > 0 && `${n} new`, p > 0 && `${p} preparing`].filter(Boolean).join(' · '),
+      readyCount: n => `${n} ready`,
       waitingTitle: 'Waiting',
       waitingSub: 'Back with waiter',
       readyTitle: 'All items ready!',
       readySub: 'Confirm the order has been served to the guest',
-      confirmBtn: 'Mark as Served ✓',
-      deliveredTitle: 'Order Served',
+      confirmBtn: 'Mark as served',
+      deliveredTitle: 'Order served',
       deliveredSub: 'You can now request the bill',
-      billBtn: 'Request Bill',
-      needsBillTitle: 'Bill Requested',
+      billBtn: 'Request bill',
+      needsBillTitle: 'Bill requested',
       needsBillSub: 'Cashier is processing payment',
       removeItem: 'Remove',
       decreaseItem: 'Decrease',
       increaseItem: 'Increase',
       printCheck: 'Print check',
       printAllChecks: 'Print all',
+      printLocked: 'Printing is unavailable while the order is being sent',
       roundLabel: n => `Order ${n}`,
       missingItem: 'Not in menu',
       removeReason: 'Not present in menu',
@@ -201,53 +290,7 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
     setUpdatingItemId(null)
   }
 
-  function OrderItemQtyRow({ item, editable = true }) {
-    const itemKey = item.id || item.menu_item_id
-    const menuItem = menuItemMap?.[item.menu_item_id]
-    const displayName = menuItem ? getItemName(menuItem, lang) : item.name
-    const optionLines = getOrderItemOptionLines(item, menuItem, lang)
-    const missing = !menuItem || menuItem.available === false
-    const updating = updatingItemId === itemKey
-    const quantity = Number(item.quantity) || 1
-    const quantitySource = { ...menuItem, sale_unit: item.sale_unit || menuItem?.sale_unit }
-    return (
-      <div className="flex items-center gap-2 rounded-xl bg-white/75 px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12px] font-black text-[#1F2937]">{displayName}</p>
-          {optionLines.map((line, index) => (
-            <p key={`${itemKey}-option-${index}`} className="truncate text-[11px] font-black text-[#111827]">{line}</p>
-          ))}
-          <p className="text-[10px] font-bold text-[#9CA3AF]">
-            {isMenuItemSoldByWeight(quantitySource) ? formatMenuQuantity(quantity, quantitySource) : `×${formatMenuQuantity(quantity, quantitySource)}`}
-            {missing ? ` · ${l.missingItem}` : ''}
-          </p>
-        </div>
-        {editable && (
-        <div className="flex h-9 flex-shrink-0 items-center gap-1 rounded-lg border border-orange-100 bg-white p-1">
-          <button
-            type="button"
-            onClick={() => handleUpdateItemQty(item, changeMenuQuantity(quantity, quantitySource, -1))}
-            disabled={!!updatingItemId}
-            title={l.decreaseItem}
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-red-100 bg-red-50 text-red-600 transition-colors hover:bg-red-100 disabled:cursor-wait disabled:opacity-50"
-          >
-            {updating ? <Loader2 size={12} className="animate-spin" /> : <Minus size={12} />}
-          </button>
-          <span className="min-w-6 text-center text-[12px] font-black tabular-nums text-[#1F2937]">{formatMenuQuantity(quantity, quantitySource)}</span>
-          <button
-            type="button"
-            onClick={() => handleUpdateItemQty(item, changeMenuQuantity(quantity, quantitySource, 1))}
-            disabled={!!updatingItemId}
-            title={l.increaseItem}
-            className="flex h-7 w-7 items-center justify-center rounded-md bg-[#ff5a00] text-white transition-colors hover:bg-[#cc4800] disabled:cursor-wait disabled:opacity-50"
-          >
-            <Plus size={12} />
-          </button>
-        </div>
-        )}
-      </div>
-    )
-  }
+  const qtyRowProps = { lang, labels: l, menuItemMap, updatingItemId, onUpdateQty: handleUpdateItemQty }
 
   function handleConfirmDelivery() {
     if (busy || !canEditOrder) return
@@ -263,47 +306,54 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
     setBusy(false)
   }
 
+  const roundLabelClass = 'px-1 text-xs font-semibold'
+  const roundBoxClass = 'space-y-2 rounded-xl bg-white/40 p-2'
+  // Really disabled while the order is locked, with the reason on the button, never a silent no-op.
+  const printLockedTitle = printDisabled ? l.printLocked : undefined
+
   if (inPreparation) {
     return (
-      <div className="mx-4 mb-3 rounded-2xl border border-orange-100 bg-[#fff7ed] px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-            <Clock size={16} className="text-[#ff5a00]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-[#ff5a00]">{l.preparationTitle}</p>
-            <p className="text-[11px] text-[#9CA3AF] mt-0.5">{l.preparationSub(newCount, prepCount)}</p>
-          </div>
-          {readyCount > 0 && (
-            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full flex-shrink-0">
-              {readyCount} {lang === 'uz' ? 'tayyor' : lang === 'ru' ? 'готово' : 'ready'}
-            </span>
-          )}
-          {preparationGroups.length > 1 && (
-            <button
-              type="button"
-              onClick={() => onPrintKitchenCheck(preparationGroups)}
-              className="inline-flex h-8 flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#ff5a00] px-2.5 text-[11px] font-black text-white transition-colors hover:bg-[#cc4800]"
-            >
-              <Printer size={13} />
-              {l.printAllChecks}
-            </button>
-          )}
-        </div>
+      <OrderStatePanel
+        status="preparing"
+        Icon={Clock}
+        title={l.preparationTitle}
+        sub={l.preparationSub(newCount, prepCount)}
+        aside={(
+          <>
+            {readyCount > 0 && (
+              <span className={`ws-status flex-shrink-0 ${statusToneClass('ready')}`}>{l.readyCount(readyCount)}</span>
+            )}
+            {preparationGroups.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onPrintKitchenCheck(preparationGroups)}
+                disabled={printDisabled}
+                title={printLockedTitle}
+                className="ws-btn ws-btn-sm ws-btn-primary"
+              >
+                <Printer aria-hidden="true" />
+                {l.printAllChecks}
+              </button>
+            )}
+          </>
+        )}
+      >
         {preparationGroups.length > 0 && (
-          <div className="mt-3 space-y-3 border-t border-orange-100 pt-3">
+          <div className="mt-3 space-y-3">
             {preparationGroups.map(group => (
-              <div key={group.roundId} className="space-y-2 rounded-2xl border border-orange-100 bg-white/35 p-2">
-                <div className="flex items-center justify-between gap-2 px-1">
-                  <p className="text-[11px] font-black uppercase tracking-wide text-[#ff5a00]">
+              <div key={group.roundId} className={roundBoxClass}>
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                  <p className="text-xs font-semibold">
                     {l.roundLabel(group.roundNumber)}
                   </p>
                   <button
                     type="button"
                     onClick={() => onPrintKitchenCheck(group)}
-                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-orange-200 bg-white px-2.5 text-[11px] font-black text-[#ff5a00] transition-colors hover:bg-orange-50"
+                    disabled={printDisabled}
+                    title={printLockedTitle}
+                    className="ws-btn ws-btn-sm ws-btn-outline"
                   >
-                    <Printer size={13} />
+                    <Printer aria-hidden="true" />
                     {l.printCheck}
                   </button>
                 </div>
@@ -313,128 +363,101 @@ function OrderActionPanel({ order, tableId, lang, dispatch, menuItemMap, canEdit
                       key={item.id || `${group.roundId}-${item.menu_item_id}`}
                       item={item}
                       editable={canEditOrder && !['served', 'cancelled'].includes(String(item.status || '').toLowerCase())}
+                      {...qtyRowProps}
                     />
                   ))}
                 </div>
               </div>
             ))}
+            {printDisabled && <p className="px-1 text-xs text-[#68655f]">{l.printLocked}</p>}
           </div>
         )}
-      </div>
+      </OrderStatePanel>
     )
   }
   if (isRecalledWaiting) {
     return (
-      <div className="mx-4 mb-3 rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-yellow-100 flex items-center justify-center flex-shrink-0">
-            <Clock size={16} className="text-yellow-700" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-yellow-700">{l.waitingTitle}</p>
-            <p className="text-[11px] text-[#6B7280] mt-0.5">{l.waitingSub}</p>
-          </div>
-        </div>
+      <OrderStatePanel status="waiting_kitchen" Icon={Clock} title={l.waitingTitle} sub={l.waitingSub}>
         {recalledEditableItems.length > 0 && (
-          <div className="mt-3 space-y-3 border-t border-yellow-100 pt-3">
+          <div className="mt-3 space-y-3">
             {recalledEditableGroups.map(group => (
-              <div key={group.roundId} className="space-y-2 rounded-2xl border border-yellow-100 bg-white/45 p-2">
-                <p className="px-1 text-[11px] font-black uppercase tracking-wide text-yellow-700">
+              <div key={group.roundId} className={roundBoxClass}>
+                <p className={roundLabelClass}>
                   {l.roundLabel(group.roundNumber)}
                 </p>
                 {group.items.map(item => (
-                  <OrderItemQtyRow key={item.id || `${group.roundId}-${item.menu_item_id}`} item={item} />
+                  <OrderItemQtyRow key={item.id || `${group.roundId}-${item.menu_item_id}`} item={item} {...qtyRowProps} />
                 ))}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </OrderStatePanel>
     )
   }
   if (allReady && !isDelivered && !isNeedsBill) {
     return (
-      <div className="mx-4 mb-3 rounded-2xl border-2 border-green-300 bg-[#f0fdf4] px-4 py-3">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 size={16} className="text-[#16A34A]" />
-          </div>
-          <div className="flex-1">
-            <p className="text-[13px] font-bold text-[#16A34A]">{l.readyTitle}</p>
-            <p className="text-[11px] text-[#6B7280] mt-0.5">{l.readySub}</p>
-          </div>
-        </div>
+      <OrderStatePanel status="ready" Icon={CheckCircle2} title={l.readyTitle} sub={l.readySub}>
         <button
+          type="button"
           onClick={handleConfirmDelivery}
           disabled={busy || !canEditOrder}
-          className={`w-full py-2.5 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-            busy ? 'bg-green-200 text-green-500 cursor-not-allowed' : 'bg-[#16A34A] text-white hover:bg-[#15803D] shadow-sm'
-          }`}
+          aria-busy={busy || undefined}
+          className="ws-btn ws-btn-primary mt-3 w-full"
         >
-          {busy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+          {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
           {l.confirmBtn}
         </button>
-      </div>
+      </OrderStatePanel>
     )
   }
   if (isDelivered) {
     return (
-      <div className="mx-4 mb-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <Receipt size={16} className="text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <p className="text-[13px] font-bold text-blue-700">{l.deliveredTitle}</p>
-            <p className="text-[11px] text-[#6B7280] mt-0.5">{l.deliveredSub}</p>
-          </div>
-        </div>
+      <OrderStatePanel status="delivered" Icon={Receipt} title={l.deliveredTitle} sub={l.deliveredSub}>
         <button
+          type="button"
           onClick={handleRequestBill}
           disabled={busy || !canEditOrder}
-          className={`w-full py-2.5 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-            busy ? 'bg-blue-200 text-blue-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
-          }`}
+          aria-busy={busy || undefined}
+          className="ws-btn ws-btn-primary mt-3 w-full"
         >
-          {busy ? <Loader2 size={15} className="animate-spin" /> : <Receipt size={15} />}
+          {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Receipt aria-hidden="true" />}
           {l.billBtn}
         </button>
-      </div>
+      </OrderStatePanel>
     )
   }
   if (isNeedsBill) {
     return (
-      <div className="mx-4 mb-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-            <Clock size={16} className="text-[#DC2626]" />
-          </div>
-          <div>
-            <p className="text-[13px] font-bold text-[#DC2626]">{l.needsBillTitle}</p>
-            <p className="text-[11px] text-[#9CA3AF] mt-0.5">{l.needsBillSub}</p>
-          </div>
-        </div>
+      <OrderStatePanel status="needs_bill" Icon={Clock} title={l.needsBillTitle} sub={l.needsBillSub}>
         {requestedBillEditableItems.length > 0 && (
-          <div className="mt-3 space-y-3 border-t border-red-100 pt-3">
+          <div className="mt-3 space-y-3">
             {requestedBillEditableGroups.map(group => (
-              <div key={group.roundId} className="space-y-2 rounded-2xl border border-red-100 bg-white/45 p-2">
-                <p className="px-1 text-[11px] font-black uppercase tracking-wide text-red-500">
+              <div key={group.roundId} className={roundBoxClass}>
+                <p className={roundLabelClass}>
                   {l.roundLabel(group.roundNumber)}
                 </p>
                 {group.items.map(item => (
-                  <OrderItemQtyRow key={item.id || `${group.roundId}-${item.menu_item_id}`} item={item} />
+                  <OrderItemQtyRow key={item.id || `${group.roundId}-${item.menu_item_id}`} item={item} {...qtyRowProps} />
                 ))}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </OrderStatePanel>
     )
   }
   return null
 }
 
 // ── BottomTableChips ───────────────────────────────────────────────────────────
+const TABLE_CHIP_STATUS_LABEL = {
+  sent_to_kitchen: { en: 'Sent', uz: 'Yuborildi', ru: 'Отправлен' },
+  preparing:       { en: 'Cooking', uz: 'Pishirilmoqda', ru: 'Готовится' },
+  delivered:       { en: 'Served',  uz: 'Yetkazildi', ru: 'Подано' },
+  needs_bill:      { en: 'Bill',    uz: 'Hisob', ru: 'Счёт' },
+}
+
 function BottomTableChips({ currentTableId, onNewOrder, disabled = false }) {
   const { state } = useApp()
   const navigate  = useNavigate()
@@ -464,40 +487,31 @@ function BottomTableChips({ currentTableId, onNewOrder, disabled = false }) {
 
   if (chips.length === 0) return null
 
-  const STATUS_LABEL = {
-    sent_to_kitchen: { en: 'Sent', uz: 'Yuborildi', ru: 'Отправлен', cls: 'bg-orange-100 text-[#ff5a00]' },
-    preparing:       { en: 'Cooking', uz: 'Pishirilmoqda', ru: 'Готовится', cls: 'bg-yellow-100 text-yellow-700' },
-    delivered:       { en: 'Served',  uz: 'Yetkazildi', ru: 'Подано', cls: 'bg-green-100 text-green-700' },
-    needs_bill:      { en: 'Bill',    uz: 'Hisob', ru: 'Счёт',      cls: 'bg-red-100 text-red-600' },
-  }
   const lang = state.lang
 
   return (
-    <div className="flex-shrink-0 bg-white border-t border-[#E5E7EB] px-3 py-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+    <div className="flex-shrink-0 overflow-x-auto border-t border-[#e4e1de] bg-white px-3 py-2 [scrollbar-width:none]">
       <div className="flex items-center gap-2 min-w-max">
-        {chips.map((chip, idx) => {
+        {chips.map(chip => {
           const isActive = chip.table_id === currentTableId
-          const sl = STATUS_LABEL[chip.status]
+          const sl = TABLE_CHIP_STATUS_LABEL[chip.status]
           return (
             <button
               key={chip.table_id}
+              type="button"
               onClick={() => { if (!disabled) navigate(`/waiter/order/${chip.table_id}`) }}
               disabled={disabled}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-semibold transition-all flex-shrink-0 disabled:cursor-wait disabled:opacity-50 ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`flex min-h-11 flex-shrink-0 items-center gap-2 rounded-xl border px-3 text-[13px] font-medium transition-colors disabled:cursor-wait disabled:opacity-50 ${
                 isActive
-                  ? 'bg-[#fff1e8] border-[#ff5a00]/40 text-[#ff5a00]'
-                  : 'bg-gray-50 border-[#E5E7EB] text-[#6B7280] hover:border-orange-200 hover:bg-orange-50/30'
+                  ? 'border-[#ff5a00]/40 bg-[#fff1e8] text-[#bf4300]'
+                  : 'border-[#e4e1de] bg-[#f6f5f3] text-[#22201d] hover:bg-[#ebe8e5]'
               }`}
             >
-              <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] flex-shrink-0 ${
-                isActive ? 'bg-[#ff5a00] text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
-                T{idx + 1}
-              </span>
-              <span className="max-w-[72px] truncate font-bold">{chip.table_name}</span>
-              <span className="text-[#9CA3AF] font-medium">{chip.itemCount}</span>
+              <span className="max-w-[96px] truncate font-semibold">{chip.table_name}</span>
+              <span className="ws-count">{chip.itemCount}</span>
               {sl && (
-                <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold flex-shrink-0 ${sl.cls}`}>
+                <span className={`ws-status flex-shrink-0 ${orderStatusToneClass(chip.status)}`}>
                   {sl[lang] || sl.en}
                 </span>
               )}
@@ -505,14 +519,15 @@ function BottomTableChips({ currentTableId, onNewOrder, disabled = false }) {
           )
         })}
 
-        {/* New Order button */}
+        {/* New order button */}
         <button
+          type="button"
           onClick={onNewOrder}
           disabled={disabled}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-[#ff5a00]/40 text-[#ff5a00] text-[11px] font-bold hover:bg-orange-50 transition-colors flex-shrink-0 disabled:cursor-wait disabled:opacity-50"
+          className="flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-[#ff5a00]/40 px-3 text-[13px] font-semibold text-[#bf4300] transition-colors hover:bg-[#fff1e8] disabled:cursor-wait disabled:opacity-50"
         >
-          <Plus size={12} />
-          {lang === 'uz' ? 'Yangi buyurtma' : lang === 'ru' ? 'Новый заказ' : 'New Order'}
+          <Plus size={14} aria-hidden="true" />
+          {lang === 'uz' ? 'Yangi buyurtma' : lang === 'ru' ? 'Новый заказ' : 'New order'}
         </button>
       </div>
     </div>
@@ -552,6 +567,9 @@ function ProductSection({ cat, items, cartQtyMap, lang, onAdd, onIncrement, onDe
   )
 }
 
+// Routine motion stays within 300ms and animates only transform and opacity (DESIGN.md "Motion").
+const CART_FLYER_MS = 280
+
 function cartFlyerSize(rect) {
   return Math.min(86, Math.max(50, Math.min(rect.width, rect.height) * 0.26))
 }
@@ -573,7 +591,7 @@ function FlyingCartItem({ flyer, onDone }) {
     const firstFrame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => setActive(true))
     })
-    const doneTimer = window.setTimeout(() => onDone(flyer.id), 760)
+    const doneTimer = window.setTimeout(() => onDone(flyer.id), CART_FLYER_MS + 20)
     return () => {
       window.cancelAnimationFrame(firstFrame)
       window.clearTimeout(doneTimer)
@@ -593,8 +611,7 @@ function FlyingCartItem({ flyer, onDone }) {
           : 'translate3d(0, 0, 0) scale(1)',
         opacity: active ? 0.08 : 0.98,
         transformOrigin: 'center center',
-        transition: 'transform 720ms cubic-bezier(0.16, 1, 0.3, 1), opacity 720ms ease-out, border-radius 720ms cubic-bezier(0.16, 1, 0.3, 1)',
-        borderRadius: active ? 18 : 22,
+        transition: `transform ${CART_FLYER_MS}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${CART_FLYER_MS}ms ease-out`,
       }}
       aria-hidden="true"
     >
@@ -608,7 +625,7 @@ function FlyingCartItem({ flyer, onDone }) {
       ) : (
         <UtensilsCrossed size={Math.max(28, Math.min(source.width, source.height) * 0.24)} className="text-[#ff5a00]" />
       )}
-      <span className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#ff5a00] text-white shadow-lg">
+      <span className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#cc4800] text-white shadow-lg">
         <Plus size={14} />
       </span>
     </div>
@@ -1129,6 +1146,7 @@ export default function WaiterOrder() {
 
   // Accepts one round group, or an array of groups to print every round in one go.
   function handlePrintKitchenCheck(group) {
+    if (orderLockedRef.current) return
     const groups = (Array.isArray(group) ? group : [group]).filter(Boolean)
     const sourceOrderId = groups[0]?.orderId || activeOrder?.id
     if (!sourceOrderId) return
@@ -1358,9 +1376,18 @@ export default function WaiterOrder() {
     // dispatch is stable; omitting it keeps this cleanup scoped only to route identity changes.
   }, [isTakeAwayFlow, tableId, routeOrderType])
 
+  // The cart drawer is a modal surface: focus moves in, Tab stays inside, Escape closes it.
+  const cartDialogRef = useRef(null)
+  const cartTitleId = useId()
+  const handleCartKeyDown = useModalKeyboard({
+    dialogRef: cartDialogRef,
+    onEscape: () => closeCart(),
+    active: cartOpen && !detailItem && loaded && !loadError,
+  })
+
   if (!loaded || loadError) {
     return (
-      <div className="flex overflow-hidden bg-[#FAF7F0]" style={{ height: '100dvh' }}>
+      <div className="flex h-[100dvh] overflow-hidden bg-[#FAF7F0]">
         {shouldShowSidebar && (
           <div className="hidden lg:block flex-shrink-0 h-full">
             <UnifiedSidebar navigationDisabled={orderLocked} />
@@ -1374,8 +1401,8 @@ export default function WaiterOrder() {
             />
           ) : (
             <OperationalError
+              lang={lang}
               title={lang === 'uz' ? 'Buyurtmani yuklab bo‘lmadi' : lang === 'ru' ? 'Не удалось загрузить заказ' : 'Could not load order'}
-              description={loadError}
               actionLabel={lang === 'uz' ? 'Qayta yuklash' : lang === 'ru' ? 'Перезагрузить' : 'Reload'}
               onAction={() => window.location.reload()}
             />
@@ -1385,7 +1412,7 @@ export default function WaiterOrder() {
           <button
             type="button"
             onClick={() => { setGuestModeError(''); setGuestUnlockOpen(true) }}
-            className="fixed bottom-4 right-4 z-40 inline-flex h-11 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-black text-[#6B7280] shadow-lg"
+            className="fixed bottom-4 right-4 z-40 inline-flex h-11 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#4B5563] shadow-lg"
           >
             <LockKeyhole size={15} /> {guestModeCopy(staffLang).staff}
           </button>
@@ -1412,22 +1439,24 @@ export default function WaiterOrder() {
       <div className="min-h-screen bg-[#FAF7F0] flex items-center justify-center">
         <div className="text-center">
           <UtensilsCrossed size={40} className="mx-auto mb-3 text-gray-200" />
-          <p className="mb-4 text-sm text-gray-400">{t(lang, 'tableNotFound')}</p>
+          <p className="mb-4 text-sm text-[#68655f]">{t(lang, 'tableNotFound')}</p>
           {isGuestTabletMode ? (
             <button
               type="button"
               onClick={() => { setGuestModeError(''); setGuestUnlockOpen(true) }}
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-black text-[#6B7280] shadow-sm"
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm font-semibold text-[#4B5563] shadow-sm"
             >
               <LockKeyhole size={15} /> {guestModeCopy(staffLang).staff}
             </button>
           ) : (
             <button
+              type="button"
               onClick={() => { if (!orderLocked) navigate('/waiter/tables') }}
               disabled={orderLocked}
-              className="text-[#ff5a00] font-semibold hover:underline text-sm disabled:cursor-wait disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#e4e1de] bg-white px-4 text-sm font-semibold text-[#bf4300] hover:bg-[#fff1e8] disabled:cursor-wait disabled:opacity-50"
             >
-              {t(lang, 'back')}
+              <ArrowLeft size={16} aria-hidden="true" />
+              {lang === 'uz' ? 'Stollarga qaytish' : lang === 'ru' ? 'Вернуться к столам' : 'Back to tables'}
             </button>
           )}
         </div>
@@ -1447,6 +1476,27 @@ export default function WaiterOrder() {
       </div>
     )
   }
+
+  // The cart panel is shown to staff who may edit tables; everyone else only sees the order state.
+  const showCartPanel = !isManageOrderOnly && canEditTables
+  const orderActionPanel = isGuestTabletMode ? null : (
+    <OrderActionPanel
+      order={activeOrder}
+      tableId={tableId}
+      lang={lang}
+      dispatch={dispatch}
+      menuItemMap={menuItemMap}
+      canEditOrder={canEditTables && !orderLocked}
+      autoPrintBill={!!state.settings?.autoPrint}
+      onPrintKitchenCheck={handlePrintKitchenCheck}
+      printDisabled={orderLocked}
+      onMovedToCashier={() => completeBillHandoff({
+        navigate,
+        tableId,
+        autoPrint: !!state.settings?.autoPrint,
+      })}
+    />
+  )
 
   // ── Shared card props ─────────────────────────────────────────────────────
   const cardProps = {
@@ -1497,15 +1547,17 @@ export default function WaiterOrder() {
           cartCount > 0 || hasSubmittedItems ? 'lux-primary' : 'lux-chip lux-chip-static'
         } ${cartPulse ? 'scale-[1.04] ring-4 ring-[#E2AB64]/40' : ''} ${className}`}
         title={cartButtonLabel}
+        aria-label={`${lang === 'uz' ? 'Savat' : lang === 'ru' ? 'Корзина' : 'Cart'}: ${cartButtonLabel}`}
+        type="button"
       >
-        <span className="flex h-10 min-w-0 items-center gap-2 px-3 sm:h-11 sm:px-4">
-          <ShoppingCart size={17} className="flex-shrink-0" />
+        <span className="flex h-11 min-w-[2.75rem] items-center justify-center gap-2 px-3 sm:px-4">
+          <ShoppingCart size={17} className="flex-shrink-0" aria-hidden="true" />
           <span className="hidden min-w-0 truncate whitespace-nowrap text-[13px] sm:inline">
             {cartButtonLabel}
           </span>
         </span>
         {(cartCount > 0 || hasSubmittedItems) && (
-          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#1F1A15] px-1 text-[10px] font-semibold text-[#FFF8EE] ring-2 ring-[#E2AB64] sm:hidden">
+          <span aria-hidden="true" className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#1F1A15] px-1 text-xs font-semibold tabular-nums text-[#FFF8EE] ring-2 ring-[#E2AB64] sm:hidden">
             {cartCount || submittedItemCount}
           </span>
         )}
@@ -1514,7 +1566,7 @@ export default function WaiterOrder() {
   }
 
   return (
-    <div className="flex overflow-hidden bg-[#FAF7F0]" style={{ height: '100dvh' }}>
+    <div className="flex h-[100dvh] overflow-hidden bg-[#FAF7F0]">
 
       {/* ── Desktop sidebar ──────────────────────────────────────────────── */}
       {shouldShowSidebar && !detailItem && (
@@ -1564,8 +1616,8 @@ export default function WaiterOrder() {
               <div className="flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-center">
                 <div className="flex min-w-0 items-center gap-3 xl:contents">
                   <div className="min-w-0 flex-1 xl:flex-[1_0_max-content] xl:max-w-full">
-                    <p className="hidden sm:block truncate text-[10px] font-black uppercase tracking-wide text-[#9CA3AF]">{orderContextLabel}</p>
-                    <h1 className="min-w-0 whitespace-normal break-words text-sm font-black leading-tight text-[#1F2937] sm:text-base">
+                    <p className="hidden sm:block truncate text-xs font-medium text-[#68655f]">{orderContextLabel}</p>
+                    <h1 className="min-w-0 whitespace-normal break-words text-sm font-semibold leading-tight text-[#1F2937] sm:text-base">
                     <span className="shrink-0">{orderTitle}</span>
                     {waiterName && (
                       <span className="ml-2 text-xs font-semibold text-[#374151]" title={`${waiterLabel}: ${waiterName}`} aria-label={`${waiterLabel}: ${waiterName}`}>
@@ -1600,66 +1652,76 @@ export default function WaiterOrder() {
               <div className="flex flex-wrap items-center gap-x-2 gap-y-2.5 sm:gap-x-2.5">
                 {shouldShowSidebar && (
                   <button
+                    type="button"
                     onClick={() => { if (!orderLocked) setSidebarOpen(true) }}
                     disabled={orderLocked}
                     aria-label={lang === 'uz' ? 'Menyu' : lang === 'ru' ? 'Меню' : 'Menu'}
-                    className="lux-chip lux-chip-static flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-full disabled:cursor-wait disabled:opacity-50 lg:hidden"
+                    className="lux-chip lux-chip-static flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full disabled:cursor-wait disabled:opacity-50 lg:hidden"
                   >
-                    <MenuIcon size={19} />
+                    <MenuIcon size={19} aria-hidden="true" />
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={() => { if (!orderLocked) navigate('/waiter/tables') }}
                   disabled={orderLocked}
-                  className="lux-chip lux-chip-static flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-full"
+                  className="lux-chip lux-chip-static flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full disabled:cursor-wait disabled:opacity-50"
                   title={lang === 'uz' ? 'Stollar' : lang === 'ru' ? 'Столы' : 'Tables'}
                   aria-label={lang === 'uz' ? 'Stollar' : lang === 'ru' ? 'Столы' : 'Tables'}
                 >
-                  <ArrowLeft size={17} />
+                  <ArrowLeft size={17} aria-hidden="true" />
                 </button>
-                {/* Table name in the serif display face, waiter underneath; truncates instead of wrapping. */}
+                {/* Table name in the serif display face, waiter underneath. On phones the first row is
+                    only navigation, the title and the cart, so the title keeps about 120px at 320px. */}
                 <div className="min-w-0 flex-1 pl-0.5">
-                  <p className="lux-gold truncate text-[10px] font-medium uppercase tracking-[0.24em]">{orderContextLabel}</p>
-                  <h1 className="zk-serif lux-title mt-0.5 truncate text-[20px] font-semibold leading-none sm:text-[26px]">{orderTitle}</h1>
+                  <p className="lux-gold truncate text-xs font-medium">{orderContextLabel}</p>
+                  <h1 className="zk-serif lux-title mt-0.5 truncate text-[20px] font-semibold leading-none sm:text-[26px]" title={orderTitle}>{orderTitle}</h1>
                   {waiterName && (
                     <p className="lux-muted mt-1 truncate text-[12px]" title={`${waiterLabel}: ${waiterName}`}>
                       {waiterLabel}: <span className="lux-title font-medium">{waiterName}</span>
                     </p>
                   )}
                 </div>
-                {renderSearchControl('!order-last !basis-full xl:!order-none xl:!basis-56 xl:!min-w-56')}
+                {/* Second row below xl: search with the view and theme switches beside it. */}
+                <div className="order-last flex min-w-0 basis-full items-center gap-2 sm:gap-2.5 xl:order-none xl:basis-auto xl:flex-none">
+                  {renderSearchControl('!order-none min-w-0 flex-1 xl:!basis-56 xl:!min-w-56')}
+                  <button type="button"
+                    aria-label={mobileMenuView === 'compact' ? (lang === 'ru' ? 'Крупные карточки' : lang === 'uz' ? 'Katta kartochkalar' : 'Large cards') : (lang === 'ru' ? 'Компактные карточки' : lang === 'uz' ? 'Ixcham kartochkalar' : 'Compact cards')}
+                    onClick={() => {
+                      const view = mobileMenuView === 'compact' ? 'grid' : 'compact'
+                      setMobileMenuView(view)
+                      try { localStorage.setItem('waiter-mobile-grid-view', view) } catch {}
+                    }}
+                    className="lux-chip lux-chip-static flex h-11 w-11 shrink-0 items-center justify-center rounded-full sm:hidden">
+                    {mobileMenuView === 'compact' ? <Maximize2 size={18} aria-hidden="true" /> : <Minimize2 size={18} aria-hidden="true" />}
+                  </button>
+                  <ThemeToggle lang={lang} variant="lux" className="!h-11 !w-11" />
+                </div>
                 {renderCartButton('')}
-                <button type="button"
-                  aria-label={mobileMenuView === 'compact' ? (lang === 'ru' ? 'Крупные карточки' : lang === 'uz' ? 'Katta kartochkalar' : 'Large cards') : (lang === 'ru' ? 'Компактные карточки' : lang === 'uz' ? 'Ixcham kartochkalar' : 'Compact cards')}
-                  onClick={() => {
-                    const view = mobileMenuView === 'compact' ? 'grid' : 'compact'
-                    setMobileMenuView(view)
-                    try { localStorage.setItem('waiter-mobile-grid-view', view) } catch {}
-                  }}
-                  className="lux-chip lux-chip-static flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full sm:hidden">
-                  {mobileMenuView === 'compact' ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
-                </button>
-                <ThemeToggle lang={lang} variant="lux" className="!h-10 !w-10 sm:!h-11 sm:!w-11" />
                 {!shouldShowSidebar && (
                   <div className="flex items-center gap-1.5">
                     {['uz', 'ru', 'en'].map(l => (
                       <button
                         key={l}
+                        type="button"
                         onClick={() => dispatch({ type: 'SET_LANG', payload: l })}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase transition-colors ${
-                          lang === l ? 'bg-[#ff5a00] text-white' : 'bg-gray-100 text-[#6B7280] hover:bg-gray-200'
+                        aria-pressed={lang === l}
+                        className={`min-h-11 min-w-11 rounded-lg px-2 text-xs font-semibold uppercase transition-colors ${
+                          lang === l ? 'bg-[#cc4800] text-white' : 'bg-gray-100 text-[#4B5563] hover:bg-gray-200'
                         }`}
                       >
                         {l}
                       </button>
                     ))}
                     <button
+                      type="button"
                       onClick={handleSignOut}
                       disabled={orderLocked}
-                      className="p-2 rounded-xl text-[#6B7280] hover:text-red-500 hover:bg-red-50 transition-colors disabled:cursor-wait disabled:opacity-50"
+                      className="flex h-11 w-11 items-center justify-center rounded-xl text-[#4B5563] hover:text-red-600 hover:bg-red-50 transition-colors disabled:cursor-wait disabled:opacity-50"
                       title={lang === 'uz' ? 'Chiqish' : lang === 'ru' ? 'Выйти' : 'Logout'}
+                      aria-label={lang === 'uz' ? 'Chiqish' : lang === 'ru' ? 'Выйти' : 'Log out'}
                     >
-                      <LogOut size={16} />
+                      <LogOut size={16} aria-hidden="true" />
                     </button>
                   </div>
                 )}
@@ -1688,16 +1750,25 @@ export default function WaiterOrder() {
             collapsedClassName="-mx-4 px-4 !border-0"
           />
           {pricedFilteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-[#9CA3AF]">
-              <Search size={36} className="mb-3 opacity-20" />
-              <p className="text-sm font-semibold">
+            <div className="lux-muted flex flex-col items-center justify-center py-16 text-center">
+              <Search size={36} className="mb-3 opacity-40" aria-hidden="true" />
+              <p className="lux-title text-sm font-semibold">
                 {lang === 'uz' ? 'Mahsulot topilmadi' : lang === 'ru' ? 'Ничего не найдено' : 'No items found'}
               </p>
-              {search && (
-                <button onClick={() => setSearch('')} className="mt-2 text-xs text-[#ff5a00] hover:underline">
-                  {lang === 'uz' ? 'Tozalash' : lang === 'ru' ? 'Очистить' : 'Clear search'}
+              <p className="mt-1 max-w-[32ch] text-[13px]">
+                {search
+                  ? (lang === 'uz' ? 'Boshqa so‘z bilan qidiring yoki qidiruvni tozalang.' : lang === 'ru' ? 'Попробуйте другое слово или очистите поиск.' : 'Try another word or clear the search.')
+                  : (lang === 'uz' ? 'Bu bo‘limda hozir taom yo‘q.' : lang === 'ru' ? 'В этом разделе сейчас нет блюд.' : 'This category has no dishes right now.')}
+              </p>
+              {search ? (
+                <button type="button" onClick={() => setSearch('')} className="lux-chip lux-chip-static mt-3 inline-flex min-h-11 items-center rounded-full px-5 text-[13px] font-semibold">
+                  {lang === 'uz' ? 'Qidiruvni tozalash' : lang === 'ru' ? 'Очистить поиск' : 'Clear search'}
                 </button>
-              )}
+              ) : activeCategory !== 'all' ? (
+                <button type="button" onClick={() => setCategory('all')} className="lux-chip lux-chip-static mt-3 inline-flex min-h-11 items-center rounded-full px-5 text-[13px] font-semibold">
+                  {lang === 'uz' ? 'Butun menyuni ko‘rsatish' : lang === 'ru' ? 'Показать всё меню' : 'Show the whole menu'}
+                </button>
+              ) : null}
             </div>
           ) : sections ? (
             // Grouped by category when "All" selected, no search
@@ -1743,6 +1814,25 @@ export default function WaiterOrder() {
           )}
         </div>
 
+        {/* Phones: the header cart button is only an icon, so the count and total sit in a bar by the thumb. */}
+        {cartCount > 0 && (
+          <div className="zk-lux flex-shrink-0 px-3 pb-2 pt-1.5 sm:hidden">
+            <button
+              type="button"
+              onClick={openCart}
+              className="lux-primary flex min-h-12 w-full items-center justify-between gap-3 rounded-full px-5 text-[14px] font-semibold"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <ShoppingCart size={17} className="flex-shrink-0" aria-hidden="true" />
+                <span className="truncate">
+                  {lang === 'uz' ? `Savat · ${cartCount} ta` : lang === 'ru' ? `Корзина · ${cartCount} поз.` : `Cart · ${cartCount} items`}
+                </span>
+              </span>
+              <span className="whitespace-nowrap tabular-nums">{formatCurrency(cartSummary.total)}</span>
+            </button>
+          </div>
+        )}
+
         {/* Bottom table chips */}
         {!isGuestTabletMode && !isTakeAwayFlow && (
           <BottomTableChips
@@ -1763,45 +1853,24 @@ export default function WaiterOrder() {
       {!detailItem && cartOpen && (
         // Centred glass panel; tapping the blurred backdrop closes it.
         <div className="fixed inset-0 z-drawer flex items-center justify-center p-3 sm:p-6">
-          <div className="absolute inset-0 backdrop-blur-[6px]" style={{ background: 'rgb(20 15 11 / 38%)' }} onClick={() => closeCart()} />
+          <div className="absolute inset-0 bg-[rgb(20_15_11/38%)] backdrop-blur-[6px]" aria-hidden="true" onClick={() => closeCart()} />
           <div
-            className="zk-lux relative flex h-[min(860px,calc(100dvh-24px))] w-full max-w-[540px] flex-col overflow-hidden rounded-[30px] shadow-[0_30px_80px_rgb(20_15_11/35%)]"
-            style={{ viewTransitionName: 'zk-cart', border: '1px solid var(--lux-glass-border)' }}
+            ref={cartDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={showCartPanel ? cartTitleId : undefined}
+            aria-label={showCartPanel ? undefined : orderTitle}
+            tabIndex={-1}
+            onKeyDown={handleCartKeyDown}
+            className="zk-lux relative flex h-[min(860px,calc(100dvh-24px))] w-full max-w-[540px] flex-col overflow-hidden rounded-[30px] border border-[var(--lux-glass-border)] shadow-[0_30px_80px_rgb(20_15_11/35%)] outline-none"
+            style={{ viewTransitionName: 'zk-cart' }}
           >
-            {isManageOrderOnly && (
-              <button
-                type="button"
-                onClick={() => closeCart()}
-                disabled={orderLocked}
-                className="absolute left-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-white/90 text-[#9CA3AF] shadow-sm ring-1 ring-gray-100 transition-colors hover:bg-gray-100 hover:text-[#6B7280] disabled:cursor-wait disabled:opacity-50"
-                title={lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'}
-              >
-                <X size={16} />
-              </button>
-            )}
-            {!isGuestTabletMode && (
-              <div className={`${isManageOrderOnly ? 'flex-1 pt-14' : 'max-h-[48dvh] flex-shrink-0'} overflow-y-auto overscroll-contain`}>
-                <OrderActionPanel
-                  order={activeOrder}
-                  tableId={tableId}
-                  lang={lang}
-                  dispatch={dispatch}
-                  menuItemMap={menuItemMap}
-                  canEditOrder={canEditTables && !orderLocked}
-                  autoPrintBill={!!state.settings?.autoPrint}
-                  onPrintKitchenCheck={orderLocked ? () => {} : handlePrintKitchenCheck}
-                  onMovedToCashier={() => completeBillHandoff({
-                    navigate,
-                    tableId,
-                    autoPrint: !!state.settings?.autoPrint,
-                  })}
-                />
-              </div>
-            )}
-            {!isManageOrderOnly && canEditTables && (
-            <div className="flex-1 min-h-0 overflow-hidden">
+            {/* One scroll area holds the order already in the kitchen and the new cart lines;
+                only the title row and the total + Send footer stay pinned (see CartPanel). */}
+            {showCartPanel ? (
               <CartPanel
                 tableName={orderTitle}
+                titleId={cartTitleId}
                 orderType={orderType}
                 onOrderTypeChange={canEditTables ? setOrderType : undefined}
                 priceMode={priceMode}
@@ -1817,8 +1886,27 @@ export default function WaiterOrder() {
                 reviewKey={guestExpectedOrderIds ? `${guestExpectedOrderIds.join('|')}=>${activeTableOrderIds.join('|')}` : ''}
                 hasSubmittedItems={hasSubmittedItems}
                 onClose={() => closeCart({ force: true })}
+                beforeItems={orderActionPanel}
               />
-            </div>
+            ) : (
+              <>
+                <div className="flex flex-shrink-0 items-center gap-2 border-b border-[var(--lux-line)] px-4 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => closeCart()}
+                    disabled={orderLocked}
+                    aria-label={lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'}
+                    title={lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'}
+                    className="lux-chip lux-chip-static flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full disabled:cursor-wait disabled:opacity-50"
+                  >
+                    <X size={17} aria-hidden="true" />
+                  </button>
+                  <p className="zk-serif lux-title min-w-0 truncate text-[22px] font-semibold leading-tight">{orderTitle}</p>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-3">
+                  {orderActionPanel}
+                </div>
+              </>
             )}
           </div>
         </div>

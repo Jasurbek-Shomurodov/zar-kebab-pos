@@ -3,16 +3,18 @@ import { useApp } from '../store/AppContext'
 import { t } from '../lib/i18n'
 
 /**
- * One status, one tone, on every screen (DESIGN.md "Colour"): free or paid is positive,
- * waiting is caution, needs attention is negative, in progress is accent, in transit is info.
- * The word is always shown, so colour is never the only signal.
+ * One status, one tone, on every screen (DESIGN.md "Colour"). On the floor each state a
+ * waiter acts on differently has its own tone: free is positive, seated is neutral, sent to
+ * the kitchen is info, cooking is accent, ready to carry out is caution, needs the bill is
+ * negative. The word is always shown, so colour is never the only signal.
  */
 export const STATUS_TONE = {
   // Table statuses
   available: 'positive',
-  occupied: 'accent',
+  occupied: 'neutral',
+  reserved: 'info',
+  waiting_kitchen: 'info',
   needs_bill: 'negative',
-  waiting_kitchen: 'caution',
   // Account statuses
   active: 'positive',
   pending: 'caution',
@@ -21,7 +23,8 @@ export const STATUS_TONE = {
   sent_to_kitchen: 'info',
   new: 'info',
   preparing: 'accent',
-  ready: 'positive',
+  ready: 'caution',
+  delivered: 'neutral',
   paid: 'neutral',
   unpaid: 'caution',
 }
