@@ -22,7 +22,7 @@ import {
 import AppShell from '../components/AppShell'
 import DateRangePicker from '../components/DateRangePicker'
 import { accountingTitle, buildAccountingTabs } from '../lib/accountingTabs'
-import { OperationalLoading } from '../components/OperationalState'
+import { OperationalError, OperationalLoading } from '../components/OperationalState'
 import { Kpi, KpiExplanationDialog, toKpiDetail } from '../components/AccountingKpi'
 import { ChoiceGroup, ChoiceTile } from '../components/ChoiceTiles'
 import { supabase } from '../lib/supabase'
@@ -67,6 +67,8 @@ const SELECT_COLUMNS = 'id, entry_type, expense_date, category, payment_method, 
 const FIELD_INPUT_CLASS = 'ws-input disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]'
 const DATE_INPUT_CLASS = FIELD_INPUT_CLASS
 const HISTORY_SECTION_GRID = 'grid items-stretch gap-5 lg:grid-cols-2'
+
+const NO_LOAD_FAILURES = { expenses: false, orders: false, meals: false, salary: false }
 
 async function notifyInvestorIncome(expenseId) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -178,7 +180,11 @@ export default function Expenses() {
   const [allTimeBalance, setAllTimeBalance] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // Error codes (label keys), translated at render so a language switch never leaves an old-language message.
   const [error, setError] = useState('')
+  // Which sources failed to load: a total built on a failed read prints "—", never 0.
+  const [loadFailures, setLoadFailures] = useState(NO_LOAD_FAILURES)
+  const [loadError, setLoadError] = useState('')
   const [message, setMessage] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState('')
   const [deletingExpenseId, setDeletingExpenseId] = useState('')
@@ -275,6 +281,9 @@ export default function Expenses() {
       expenseDateLimit: 'Xarajat faqat bugun yoki oldingi 3 kalendar kun uchun kiritilishi mumkin.',
       saveFailed: 'Xarajatni saqlab bo‘lmadi.',
       loadFailed: 'Xarajatlarni yuklab bo‘lmadi.',
+      loadFailedHint: 'Ulanishni tekshirib, qayta urinib ko‘ring. Yuklanmagan summalar «—» bilan ko‘rsatiladi.',
+      retry: 'Qayta urinish',
+      loadingHistory: 'Yozuvlar yuklanmoqda',
       migrationMissing: 'Xarajatlar jadvali hali bazada tayyor emas. Supabase SQL editorida migrations/048_expenses.sql va migrations/059_expense_income_entries.sql migratsiyalarini ishga tushiring.',
       salaryMigrationMissing: 'Maosh jadvallari yangilanmagan. Supabase SQL editorida employee_salary migratsiyalarini va migrations/099_employee_salary_fines.sql ni ishga tushiring.',
       automaticSalary: 'Maosh to‘lovi',
@@ -368,6 +377,9 @@ export default function Expenses() {
       expenseDateLimit: 'Расход можно добавить только за сегодня или за предыдущие 3 календарных дня.',
       saveFailed: 'Не удалось сохранить расход.',
       loadFailed: 'Не удалось загрузить расходы.',
+      loadFailedHint: 'Проверьте соединение и повторите. Незагруженные суммы показаны как «—».',
+      retry: 'Повторить',
+      loadingHistory: 'Записи загружаются',
       migrationMissing: 'Таблица расходов ещё не готова в базе. Запустите migrations/048_expenses.sql и migrations/059_expense_income_entries.sql в Supabase SQL Editor.',
       salaryMigrationMissing: 'Таблицы зарплат не обновлены. Запустите миграции employee_salary и migrations/099_employee_salary_fines.sql в Supabase SQL Editor.',
       automaticSalary: 'Выплата зарплаты',
@@ -461,6 +473,9 @@ export default function Expenses() {
       expenseDateLimit: 'An expense can be added only for today or the previous 3 calendar days.',
       saveFailed: 'Could not save expense.',
       loadFailed: 'Could not load expenses.',
+      loadFailedHint: 'Check the connection and try again. Totals that did not load are shown as “—”.',
+      retry: 'Retry',
+      loadingHistory: 'Loading entries',
       migrationMissing: 'Expenses table is not ready yet. Run migrations/048_expenses.sql and migrations/059_expense_income_entries.sql in Supabase SQL Editor.',
       salaryMigrationMissing: 'Salary tables are not up to date. Run the employee_salary migrations and migrations/099_employee_salary_fines.sql in Supabase SQL Editor.',
       automaticSalary: 'Salary payment',
@@ -493,7 +508,8 @@ export default function Expenses() {
     loadRequestRef.current = requestId
     setLoading(true)
     setPaidOrderSummary({})
-    setError('')
+    setLoadError('')
+    setLoadFailures(NO_LOAD_FAILURES)
     const expensePromise = loadPagedResult((from, to) => supabase
         .from('expenses')
         .select(SELECT_COLUMNS)
@@ -536,28 +552,34 @@ export default function Expenses() {
     ] = await Promise.all([expensePromise, orderPromise, allTimeBalancePromise, employeeMealPromise, salaryPromise])
     if (requestId !== loadRequestRef.current) return
 
-    let loadError = ''
+    let loadErrorCode = ''
+    const failures = { ...NO_LOAD_FAILURES }
     if (expenseResult.error) {
-      loadError = isMissingExpensesMigration(expenseResult.error)
-        ? l.migrationMissing
-        : expenseResult.error.message || l.loadFailed
+      console.error('[accounting] expenses load failed:', expenseResult.error)
+      failures.expenses = true
+      loadErrorCode = isMissingExpensesMigration(expenseResult.error) ? 'migrationMissing' : 'loadFailed'
       setExpenses([])
     } else {
       setExpenses(expenseResult.data || [])
     }
 
     if (orderHistoryResult.error) {
+      console.error('[accounting] paid order summary load failed:', orderHistoryResult.error)
+      failures.orders = true
       setPaidOrderSummary({})
-      loadError ||= orderHistoryResult.error.message || l.loadFailed
+      loadErrorCode ||= 'loadFailed'
     } else {
       setPaidOrderSummary(orderHistoryResult.data || {})
     }
 
+    if (allTimeBalanceResult.error) console.error('[accounting] all-time balance load failed:', allTimeBalanceResult.error)
     setAllTimeBalance(allTimeBalanceResult.error ? null : allTimeBalanceResult.data)
 
     if (employeeMealResult.error) {
+      console.error('[accounting] employee meals load failed:', employeeMealResult.error)
+      failures.meals = true
       setEmployeeMealSnapshots([])
-      loadError ||= employeeMealResult.error.message || l.loadFailed
+      loadErrorCode ||= 'loadFailed'
     } else {
       setEmployeeMealSnapshots(employeeMealResult.data || [])
     }
@@ -567,15 +589,14 @@ export default function Expenses() {
       salaryFineResult
     )
     if (salaryError) {
+      console.error('[accounting] salary ledger load failed:', salaryError)
+      failures.salary = true
       setSalaryProfiles([])
-      loadError ||= isMissingSalaryMigration(salaryError)
-        ? l.salaryMigrationMissing
-        : salaryError.message || l.loadFailed
+      loadErrorCode ||= isMissingSalaryMigration(salaryError) ? 'salaryMigrationMissing' : 'loadFailed'
     } else {
       if (salaryFineResult.error) {
-        loadError ||= isMissingSalaryMigration(salaryFineResult.error)
-          ? l.salaryMigrationMissing
-          : salaryFineResult.error.message || l.loadFailed
+        console.error('[accounting] salary fines load failed:', salaryFineResult.error)
+        loadErrorCode ||= isMissingSalaryMigration(salaryFineResult.error) ? 'salaryMigrationMissing' : 'loadFailed'
       }
       setSalaryProfiles(composeSalaryProfiles(
         salaryProfileResult.data || [],
@@ -588,7 +609,8 @@ export default function Expenses() {
       ))
     }
 
-    setError(loadError)
+    setLoadFailures(failures)
+    setLoadError(loadErrorCode)
     setLoading(false)
   }
 
@@ -665,6 +687,13 @@ export default function Expenses() {
     [payableSalaryProfiles, salaryMonthEndDate]
   )
   const periodLabel = `${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`
+  // A figure is shown only when every source it adds up has loaded; otherwise it is unknown ("—"), not zero.
+  const expensesKnown = !loading && !loadFailures.expenses && !loadFailures.salary && !loadFailures.meals
+  const mealsKnown = !loading && !loadFailures.meals
+  const leftKnown = expensesKnown && !loadFailures.orders
+  const salaryKnown = !loading && !loadFailures.salary
+  const investorKnown = !loading && !loadFailures.expenses
+  const money = (known, amount) => known ? formatCurrency(amount) : '—'
   const kpiDetails = useMemo(() => {
     const text = {
       uz: {
@@ -718,12 +747,12 @@ export default function Expenses() {
     setError('')
     const amount = normalizeExpenseAmount(form.amount)
     if (!form.expense_date || !form.category || !form.payment_method || amount <= 0) {
-      setError(l.required)
+      setError('required')
       return
     }
     const entryType = normalizeExpenseEntryType(form.entry_type)
     if (entryType === 'expense' && !isExpenseEntryDateAllowed(form.expense_date)) {
-      setError(l.expenseDateLimit)
+      setError('expenseDateLimit')
       return
     }
     setSaving(true)
@@ -745,7 +774,8 @@ export default function Expenses() {
       .single()
     if (saveError) {
       setSaving(false)
-      setError(isMissingExpensesMigration(saveError) ? l.migrationMissing : saveError.message || l.saveFailed)
+      console.error('[accounting] expense save failed:', saveError)
+      setError(isMissingExpensesMigration(saveError) ? 'migrationMissing' : 'saveFailed')
       return
     }
     setForm(current => ({
@@ -761,11 +791,11 @@ export default function Expenses() {
         await notifyInvestorIncome(savedExpense.id)
       } catch (notificationError) {
         console.error('[accounting] investor Telegram notification failed:', notificationError)
-        setError(l.investorNotificationFailed)
+        setError('investorNotificationFailed')
       }
     } else {
       const notification = await notifyTelegramInvestorExpense(savedExpense.id)
-      if (!notification.ok) setError(l.expenseNotificationFailed)
+      if (!notification.ok) setError('expenseNotificationFailed')
     }
     setSaving(false)
     await loadExpenses()
@@ -788,7 +818,8 @@ export default function Expenses() {
       .select('id')
     setDeletingExpenseId('')
     if (deleteError || !data?.length) {
-      setError(deleteError?.message || l.deleteFailed)
+      if (deleteError) console.error('[accounting] expense delete failed:', deleteError)
+      setError('deleteFailed')
       return
     }
     setConfirmDeleteId('')
@@ -807,7 +838,7 @@ export default function Expenses() {
             disabled={loading}
             aria-label={l.refresh}
             title={l.refresh}
-            className="ws-btn ws-btn-outline !h-[38px] !w-[38px] !px-0"
+            className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           </button>
@@ -837,7 +868,13 @@ export default function Expenses() {
             />
           </section>
 
-          {error && <div role="alert" className="ws-notice ws-tone-negative">{error}</div>}
+          {loadError && (
+            <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-3">
+              <span>{l[loadError] || l.loadFailed}{loadError === 'loadFailed' ? ` ${l.loadFailedHint}` : ''}</span>
+              <button type="button" onClick={loadExpenses} disabled={loading} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button>
+            </div>
+          )}
+          {error && <div role="alert" className="ws-notice ws-tone-negative">{l[error] || l.saveFailed}</div>}
           {message && !error && <div role="status" aria-live="polite" className="ws-notice ws-tone-positive">{message}</div>}
 
           <section aria-labelledby="accounting-overview-heading">
@@ -850,9 +887,9 @@ export default function Expenses() {
               <div aria-labelledby="accounting-cash-heading">
                 <OverviewGroupHeading id="accounting-cash-heading" title={l.overviewCash} description={l.overviewCashHelp} tone="orange" />
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi loading={loading} icon={ReceiptText} label={l.expenses} value={loading ? '—' : formatCurrency(summary.total)} sub={loading ? l.periodHelp : `${l.period}: ${periodLabel} · ${summary.count} ${l.expenses.toLowerCase()}`} tone="orange" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.expenses)} />
-            <Kpi loading={loading} icon={UtensilsCrossed} label={l.employeeMeals} value={loading ? '—' : formatCurrency(employeeMealExpensesTotal)} sub={l.employeeMealsSub} tone="orange" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.meals)} />
-            <Kpi loading={loading} icon={Banknote} label={l.left} value={loading ? '—' : formatCurrency(netIncome)} sub={loading ? l.periodHelp : `${l.period}: ${periodLabel}`} tone={netIncome >= 0 ? 'blue' : 'red'} detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.left)} />
+            <Kpi loading={loading} icon={ReceiptText} label={l.expenses} value={money(expensesKnown, summary.total)} sub={!expensesKnown ? l.periodHelp : `${l.period}: ${periodLabel} · ${summary.count} ${l.expenses.toLowerCase()}`} tone="orange" detailHint={l.tapForDetails} onClick={!expensesKnown ? null : () => setSelectedKpi(kpiDetails.expenses)} />
+            <Kpi loading={loading} icon={UtensilsCrossed} label={l.employeeMeals} value={money(mealsKnown, employeeMealExpensesTotal)} sub={l.employeeMealsSub} tone="orange" detailHint={l.tapForDetails} onClick={!mealsKnown ? null : () => setSelectedKpi(kpiDetails.meals)} />
+            <Kpi loading={loading} icon={Banknote} label={l.left} value={money(leftKnown, netIncome)} sub={loading ? l.periodHelp : `${l.period}: ${periodLabel}`} tone={!leftKnown || netIncome >= 0 ? 'blue' : 'red'} detailHint={l.tapForDetails} onClick={!leftKnown ? null : () => setSelectedKpi(kpiDetails.left)} />
             <Kpi loading={loading} icon={WalletCards} label={l.allTimeLeft} value={loading || allTimeBalance == null ? '—' : formatCurrency(allTimeBalance)} sub={l.allTimeLeftSub} tone={allTimeBalance == null || allTimeBalance >= 0 ? 'blue' : 'red'} />
                 </div>
               </div>
@@ -863,20 +900,20 @@ export default function Expenses() {
             <Kpi loading={loading}
               icon={Users}
               label={l.salaryDue}
-              value={loading ? '—' : formatCurrency(totalSalaryDue)}
+              value={money(salaryKnown, totalSalaryDue)}
               sub={`${l.salaryDueAsOf}: ${formatLongDate(salaryDueDate, lang, salaryDueDate)}`}
-              tone={totalSalaryDue > 0 ? 'orange' : 'green'}
+              tone={!salaryKnown ? 'blue' : totalSalaryDue > 0 ? 'orange' : 'green'}
               detailHint={l.tapForDetails}
-              onClick={loading ? null : () => setSelectedKpi(kpiDetails.salaryDue)}
+              onClick={!salaryKnown ? null : () => setSelectedKpi(kpiDetails.salaryDue)}
             />
             <Kpi loading={loading}
               icon={CalendarDays}
               label={l.salaryDueMonthEnd}
-              value={loading ? '—' : formatCurrency(totalSalaryDueByMonthEnd)}
+              value={money(salaryKnown, totalSalaryDueByMonthEnd)}
               sub={`${l.salaryDueProjection}: ${formatLongDate(salaryMonthEndDate, lang, salaryMonthEndDate)}`}
-              tone={totalSalaryDueByMonthEnd > 0 ? 'red' : 'green'}
+              tone={!salaryKnown ? 'blue' : totalSalaryDueByMonthEnd > 0 ? 'red' : 'green'}
               detailHint={l.tapForDetails}
-              onClick={loading ? null : () => setSelectedKpi(kpiDetails.salaryMonthEnd)}
+              onClick={!salaryKnown ? null : () => setSelectedKpi(kpiDetails.salaryMonthEnd)}
             />
                 </div>
               </div>
@@ -1014,11 +1051,16 @@ export default function Expenses() {
             <div className={HISTORY_SECTION_GRID}>
               <ExpenseHistorySection
                 title={l.investorHistory}
-                titleAmount={investorSupportTotal}
+                titleAmount={investorKnown ? investorSupportTotal : undefined}
                 rows={filteredInvestorSupport}
                 loading={loading}
+                failed={loadFailures.expenses}
+                failedTitle={l.loadFailed}
+                failedHint={l.loadFailedHint}
+                retryLabel={l.retry}
+                onRetry={loadExpenses}
                 emptyText={l.emptyInvestor}
-                loadingTitle={l.loadFailed.replace('Не удалось ', '').replace('Could not ', '')}
+                loadingTitle={l.loadingHistory}
                 lang={lang}
                 canDelete={canDelete}
                 confirmDeleteId={confirmDeleteId}
@@ -1035,8 +1077,13 @@ export default function Expenses() {
                 title={l.history}
                 rows={filteredExpenseRows}
                 loading={loading}
+                failed={loadFailures.expenses}
+                failedTitle={l.loadFailed}
+                failedHint={l.loadFailedHint}
+                retryLabel={l.retry}
+                onRetry={loadExpenses}
                 emptyText={l.empty}
-                loadingTitle={l.loadFailed.replace('Не удалось ', '').replace('Could not ', '')}
+                loadingTitle={l.loadingHistory}
                 lang={lang}
                 canDelete={canDelete}
                 confirmDeleteId={confirmDeleteId}
@@ -1097,6 +1144,11 @@ function ExpenseHistorySection({
   titleAmount,
   rows,
   loading,
+  failed = false,
+  failedTitle,
+  failedHint,
+  retryLabel,
+  onRetry,
   emptyText,
   loadingTitle,
   lang,
@@ -1122,7 +1174,7 @@ function ExpenseHistorySection({
                 {formatCurrency(titleAmount)}
               </span>
             )}
-            {!loading && rows.length > 0 && (
+            {!loading && !failed && rows.length > 0 && (
               <button
                 type="button"
                 onClick={onSeeAll}
@@ -1135,7 +1187,10 @@ function ExpenseHistorySection({
         </div>
       </div>
       {loading ? (
-        <OperationalLoading layout="table" title={loadingTitle} description="" />
+        <OperationalLoading layout="table" title={loadingTitle} />
+      ) : failed ? (
+        // The manual entries did not load: say so and offer a retry instead of an empty list that reads as "no expenses".
+        <OperationalError lang={lang} title={failedTitle} description={failedHint} actionLabel={retryLabel} onAction={onRetry} />
       ) : rows.length === 0 ? (
         <div className="ws-empty">{emptyText}</div>
       ) : (
@@ -1165,13 +1220,13 @@ function ExpenseHistorySection({
                     <span>{expense.created_by_name || '—'}</span>
                   </p>
                   {(expense.vendor || expense.description) && (
-                    <p className="mt-1 break-words text-sm text-[#22201d]">
+                    <p className="mt-1 text-sm text-[#22201d] [overflow-wrap:anywhere]">
                       {[expense.vendor, expenseDescriptionLabel(expense.description, lang)].filter(Boolean).join(' · ')}
                     </p>
                   )}
                 </div>
                 <div className="flex flex-shrink-0 items-center justify-between gap-3 sm:justify-end">
-                  <p className={`text-base font-semibold tabular-nums ${tone.amount}`}>{formatCurrency(expense.amount)}</p>
+                  <p className={`whitespace-nowrap text-base font-semibold tabular-nums ${tone.amount}`}>{formatCurrency(expense.amount)}</p>
                   {canDelete && getExpenseHistoryDeleteTarget(expense) && (
                     <button
                       type="button"

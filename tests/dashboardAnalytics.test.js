@@ -3,7 +3,9 @@ import assert from 'node:assert/strict'
 
 import {
   formatReadableDateTime,
+  getBusyHourHeatPct,
   getDashboardProductContribution,
+  getProductContributionSummary,
   getDashboardOrderTypePerformance,
   getDashboardPaymentMethods,
   getDashboardDayOrders,
@@ -480,4 +482,26 @@ test('product contribution ranks revenue and preserves missing historical cost c
   assert.deepEqual([rows[0].revenue, rows[0].profit, rows[0].marginPct, rows[0].revenueSharePct], [40_000, 24_000, 60, 80])
   assert.equal(rows[1].profit, null)
   assert.equal(rows[1].marginPct, null)
+})
+
+test('busy-hours heat stops where the foreground ink still reads, in both themes', () => {
+  assert.equal(getBusyHourHeatPct(0, 10), 0)
+  assert.equal(getBusyHourHeatPct(5, 0), 0)
+  assert.equal(getBusyHourHeatPct(10, 10), 95)
+  assert.equal(getBusyHourHeatPct(10, 10, true), 70)
+  assert.equal(getBusyHourHeatPct(5, 10), 53)
+  assert.equal(getBusyHourHeatPct(5, 10, true), 40)
+  // A count above the maximum never mixes past the ceiling.
+  assert.equal(getBusyHourHeatPct(30, 10, true), 70)
+  assert.ok(getBusyHourHeatPct(1, 293) >= 10)
+})
+
+test('product contribution summary adds up the listed rows and marks partial cost', () => {
+  const summary = getProductContributionSummary([
+    { revenue: 40_000, profit: 24_000 },
+    { revenue: 10_000, profit: null },
+  ])
+  assert.deepEqual(summary, { count: 2, revenue: 50_000, profit: 24_000, marginPct: 60, partial: true })
+  assert.deepEqual(getProductContributionSummary([{ revenue: 10_000, profit: null }]), { count: 1, revenue: 10_000, profit: null, marginPct: null, partial: false })
+  assert.deepEqual(getProductContributionSummary([]), { count: 0, revenue: 0, profit: null, marginPct: null, partial: false })
 })

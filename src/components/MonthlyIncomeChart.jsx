@@ -10,7 +10,7 @@ import { formatMonthYear } from '../lib/dateFormat'
 const labels = {
   uz: { title: "Oylar bo'yicha o'rtacha kunlik daromad", sub: "Oxirgi 12 oy ko'rsatiladi; nol daromad qiymatlari yashiriladi.", savedMonth: 'Saqlangan oy', currentMonth: 'Joriy oy', breakEven: 'Kunlik zararsizlik', failed: "Oylik daromad ma'lumotlarini yuklab bo'lmadi", retry: 'Qayta urinish', empty: "Ma'lumot yo'q" },
   ru: { title: 'Средний дневной доход по месяцам', sub: 'Показаны последние 12 месяцев; нулевые значения дохода скрыты.', savedMonth: 'Сохранённый месяц', currentMonth: 'Текущий месяц', breakEven: 'Безубыточность в день', failed: 'Не удалось загрузить среднемесячный доход', retry: 'Повторить', empty: 'Нет данных' },
-  en: { title: 'Average Daily Income by Month', sub: 'The latest 12 months are shown; zero income values are hidden.', savedMonth: 'Saved month', currentMonth: 'Current month', breakEven: 'Daily break-even', failed: 'Could not load monthly income averages', retry: 'Retry', empty: 'No data yet' },
+  en: { title: 'Average daily income by month', sub: 'The latest 12 months are shown; zero income values are hidden.', savedMonth: 'Saved month', currentMonth: 'Current month', breakEven: 'Daily break-even', failed: 'Could not load monthly income averages', retry: 'Retry', empty: 'No data yet' },
 }
 
 function formatCompactIncome(amount, lang = 'uz') {
@@ -115,7 +115,7 @@ export default function MonthlyIncomeChart({ rows, status, onRetry, lang, target
                     tabIndex={0}
                     aria-label={`${row.label}: ${formatCurrency(row.averageDailyIncome)}${row.target > 0 ? ` · ${l.breakEven}: ${formatCurrency(row.target)}` : ''}`}
                   >
-                    <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-[#22201d] px-2 py-1 text-[10px] font-medium tabular-nums text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-[#22201d] px-2 py-1 text-xs font-medium tabular-nums text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                       {formatCurrency(row.averageDailyIncome)}{row.target > 0 ? ` · ${l.breakEven}: ${formatCurrency(row.target)}` : ''}
                     </div>
                     <div
@@ -136,14 +136,14 @@ export default function MonthlyIncomeChart({ rows, status, onRetry, lang, target
             <div className="flex gap-3 px-2 pt-2">
               {monthlyIncomeChartRows.map(row => (
                 <div key={row.monthStart} className="min-w-[44px] flex-1 text-center leading-tight">
-                  <p className={`text-[10px] font-medium ${row.isCurrent ? 'text-[#ff5a00]' : 'text-[#68655f]'}`}>
+                  <p className={`text-xs font-medium ${row.isCurrent ? 'text-[#bf4300]' : 'text-[#68655f]'}`}>
                     {row.label}
                   </p>
-                  <p className={`mt-1 text-[10px] font-semibold tabular-nums ${
+                  <p className={`mt-1 whitespace-nowrap text-xs font-semibold tabular-nums ${
                     row.averageDailyIncome <= 0
                       ? 'text-[#dcd9d6]'
                       : row.isCurrent
-                      ? 'text-[#ff5a00]'
+                      ? 'text-[#bf4300]'
                       : 'text-[#0f766e]'
                   }`}>
                     {row.averageDailyIncome > 0 ? formatCompactIncome(row.averageDailyIncome, lang) : ''}

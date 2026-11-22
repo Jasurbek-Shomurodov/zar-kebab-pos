@@ -83,7 +83,7 @@ test('KPI rules cannot enter finalized dates and old missing runs remain recover
 })
 
 test('Reports fails closed on incomplete expense data and buckets hours in Tashkent', () => {
-  assert.match(reports, /setExpensesError\(current => current \|\| salaryError\?\.message/)
+  assert.match(reports, /setExpensesError\(current => current \|\| 'salary'\)/)
   assert.match(reports, /canViewExpenses && expensesError/)
   assert.match(reports, /value=\{expensesError \? '—' : formatCurrency\(expenseSummary\.total\)\}/)
   // Hour buckets now come from migration 281 in Tashkent time, not from the browser clock.

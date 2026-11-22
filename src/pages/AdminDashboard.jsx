@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
-import { formatCurrency, formatCurrencyWithPercentage } from '../lib/formatCurrency'
+import { formatCurrency, formatCurrencyWithPercentage, formatGroupedNumber, formatPercent } from '../lib/formatCurrency'
 import { normalizeDateLang } from '../lib/dateFormat'
 import {
   addRestaurantDays,
@@ -31,7 +31,7 @@ import PageShimmer from '../components/PageShimmer'
 import BusyHoursCard from '../components/BusyHoursCard'
 import ProductContributionCard from '../components/ProductContributionCard'
 import { loadPaidOrdersForRange, mergePaidOrderHistory } from '../lib/orderHistory'
-import { getOrdersNetProfit, getSaleProfitSummary } from '../lib/profit'
+import { getOrdersNetProfit, getSaleProfitSummary, hasOrdersCostCoverage } from '../lib/profit'
 import { RollingValue } from '../components/RollingNumber'
 
 // ── Localisation ──────────────────────────────────────────────────────────────
@@ -41,7 +41,12 @@ const L = {
     loyaltyIncome:  'Loyallik daromadi',
     netProfit:      'Sof foyda',
     activeBills:    'Faol hisoblar',
-    needAttention:  'DIQQAT TALAB QILADI',
+    needAttention:  'Diqqat talab qiladi',
+    partialCost:    'Sotilgan ayrim taomlarda saqlangan tannarx yo‘q, foyda hisoblanmaydi',
+    comparisonFailed:'Kechagi kun bilan taqqoslashni yuklab bo‘lmadi. Bugungi raqamlar to‘g‘ri.',
+    retry:          'Qayta urinish',
+    loyalty:        'Sodiqlik',
+    lastUpdated:    'Oxirgi yangilanish',
     revenueStats:   'Daromad statistikasi',
     today:          'Bugun',
     yesterday:      'Kecha',
@@ -59,7 +64,7 @@ const L = {
     avgOrderShort:  "O'rtacha",
     items:          'taom',
     footer:         'Barcha ma\'lumotlar to\'langan buyurtmalarga asoslangan',
-    loading:        'Yuklanmoqda...',
+    loading:        'Yuklanmoqda…',
     noData:         "Ma'lumot yo'q",
   },
   ru: {
@@ -67,7 +72,12 @@ const L = {
     loyaltyIncome:  'Доход по лояльности',
     netProfit:      'Чистая прибыль',
     activeBills:    'Активные счета',
-    needAttention:  'ТРЕБУЕТ ВНИМАНИЯ',
+    needAttention:  'Требует внимания',
+    partialCost:    'У части проданных блюд нет сохранённой себестоимости, прибыль не считается',
+    comparisonFailed:'Не удалось загрузить сравнение со вчерашним днём. Сегодняшние цифры верны.',
+    retry:          'Повторить',
+    loyalty:        'Лояльность',
+    lastUpdated:    'Последнее обновление',
     revenueStats:   'Статистика дохода',
     today:          'Сегодня',
     yesterday:      'Вчера',
@@ -85,25 +95,30 @@ const L = {
     avgOrderShort:  'Средний',
     items:          'блюд',
     footer:         'Все данные основаны на оплаченных заказах',
-    loading:        'Загрузка...',
+    loading:        'Загрузка…',
     noData:         'Нет данных',
   },
   en: {
     title:          'Dashboard',
     loyaltyIncome:  'Loyalty income',
-    netProfit:      'Net Profit',
-    activeBills:    'Active Bills',
-    needAttention:  'NEED ATTENTION',
-    revenueStats:   'Income Statistics',
+    netProfit:      'Net profit',
+    activeBills:    'Active bills',
+    needAttention:  'Needs attention',
+    partialCost:    'Some sold items have no saved cost, so profit is not shown',
+    comparisonFailed:'Could not load yesterday for comparison. Today’s figures are correct.',
+    retry:          'Retry',
+    loyalty:        'Loyalty',
+    lastUpdated:    'Last updated',
+    revenueStats:   'Income statistics',
     today:          'Today',
     yesterday:      'Yesterday',
-    paymentMethods: 'Payment Methods',
+    paymentMethods: 'Payment methods',
     cash:           'Cash',
     card:           'Card',
     terminal:       'Terminal',
     unknown:        'Unknown',
-    salesByCategory:'Sales by Category',
-    orderTypePerformance:'Order Type Performance',
+    salesByCategory:'Sales by category',
+    orderTypePerformance:'Order type performance',
     topOrderType:    'Best',
     noSales:        'No sales data yet',
     orders:         'orders',
@@ -111,7 +126,7 @@ const L = {
     avgOrderShort:  'Avg',
     items:          'items',
     footer:         'All data is based on paid orders',
-    loading:        'Loading...',
+    loading:        'Loading…',
     noData:         'No data yet',
   },
 }
@@ -147,7 +162,7 @@ function KpiCard({ icon: Icon, label, value, sub, subColor, badge, highlight, to
           {loading ? (
             <ShimmerBlock className="mt-2 h-6 w-2/3" />
           ) : (
-            <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueClass}`}><RollingValue value={value} /></p>
+            <p className={`mt-1 whitespace-nowrap text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueClass}`}><RollingValue value={value} /></p>
           )}
         </div>
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
@@ -174,18 +189,20 @@ function KpiCard({ icon: Icon, label, value, sub, subColor, badge, highlight, to
   )
 }
 
+// Chart colours are theme tokens: a hex passed as an inline style or SVG attribute
+// is invisible to the dark palette build. Card keeps its violet, which reads on both themes.
 const PAYMENT_COLORS = {
-  cash:     '#1d7a52',
+  cash:     'var(--ws-positive)',
   card:     '#8b5cf6',
-  terminal: '#2a6fdb',
-  loyalty:  '#9a5a00',
-  unknown:  '#dcd9d6',
+  terminal: 'var(--ws-info)',
+  loyalty:  'var(--ws-caution)',
+  unknown:  'var(--ws-input)',
 }
 
 const ORDER_TYPE_PERFORMANCE_STYLE = {
-  game_club: { Icon: Package, bar: '#1d7a52' },
-  dine_in: { Icon: Users, bar: '#ff5a00' },
-  take_away: { Icon: ShoppingBag, bar: '#2a6fdb' },
+  game_club: { Icon: Package, bar: 'var(--ws-positive)' },
+  dine_in: { Icon: Users, bar: 'var(--ws-primary)' },
+  take_away: { Icon: ShoppingBag, bar: 'var(--ws-info)' },
   delivery: { Icon: Package, bar: '#8b5cf6' },
 }
 
@@ -193,7 +210,7 @@ function DonutChart({ slices }) {
   const total = slices.reduce((s, x) => s + x.value, 0)
   if (total === 0) return (
     <svg viewBox="0 0 36 36" className="w-28 h-28">
-      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#efece9" strokeWidth="3.8" />
+      <circle cx="18" cy="18" r="15.9" fill="none" style={{ stroke: 'var(--ws-muted)' }} strokeWidth="3.8" />
     </svg>
   )
   const circ = 2 * Math.PI * 15.9
@@ -204,7 +221,7 @@ function DonutChart({ slices }) {
         const dash = (seg.value / total) * circ
         const el = (
           <circle key={i} cx="18" cy="18" r="15.9" fill="none"
-            stroke={seg.color} strokeWidth="3.8"
+            style={{ stroke: seg.color }} strokeWidth="3.8"
             strokeDasharray={`${dash} ${circ - dash}`}
             strokeDashoffset={-offset}
           />
@@ -240,7 +257,7 @@ function OrderTypePerformanceCard({ rows, lang }) {
           const isTop = row.key === topKey
 
           return (
-            <div key={row.key} className="min-w-0 rounded-[10px] border border-[#e4e1de] bg-white px-4 py-3">
+            <div key={row.key} className="min-w-0 rounded-[10px] bg-[#f6f5f3] px-4 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
@@ -258,16 +275,16 @@ function OrderTypePerformanceCard({ rows, lang }) {
                 )}
               </div>
               <div className="mt-3">
-                <div className="flex items-end justify-between gap-2 mb-2">
-                  <p className="text-lg font-semibold tracking-[-.01em] tabular-nums truncate text-[#22201d]">{formatCurrency(row.revenue)}</p>
-                  <p className="ws-caption font-medium tabular-nums flex-shrink-0">{row.pct}%</p>
+                <div className="mb-2 flex flex-wrap items-end justify-between gap-x-2">
+                  <p className="whitespace-nowrap text-lg font-semibold tracking-[-.01em] tabular-nums text-[#22201d]">{formatCurrency(row.revenue)}</p>
+                  <p className="ws-caption font-medium tabular-nums flex-shrink-0">{formatPercent(row.pct, lang, 0)}</p>
                 </div>
                 <div className="h-1.5 rounded-full bg-[#efece9] overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${width}%`, backgroundColor: visual.bar }} />
                 </div>
-                <div className="ws-caption mt-2 flex items-center justify-between gap-2 tabular-nums">
+                <div className="ws-caption mt-2 flex flex-wrap items-center justify-between gap-x-2 tabular-nums">
                   <span>{row.items} {l.items}</span>
-                  <span>{l.avgOrderShort}: {formatCurrency(row.avgOrder)}</span>
+                  <span className="whitespace-nowrap">{l.avgOrderShort}: {formatCurrency(row.avgOrder)}</span>
                 </div>
               </div>
             </div>
@@ -288,8 +305,10 @@ export default function AdminDashboard() {
   const displayName = profile?.full_name || state.user?.name || 'Admin'
 
   const [yesterdayHistoryOrders, setYesterdayHistoryOrders] = useState([])
-  const [historyError, setHistoryError] = useState('')
+  // A failed read of yesterday is a flag, not zeros: comparisons print "—" until a retry succeeds.
+  const [historyError, setHistoryError] = useState(false)
   const [comparisonLoading, setComparisonLoading] = useState(true)
+  const [comparisonRetry, setComparisonRetry] = useState(0)
 
   // The Dashboard shows today only. Today's paid orders already arrive with POS
   // hydration and stay live through realtime (state.orders), so the only fetch
@@ -297,6 +316,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     let cancelled = false
     const yesterday = yesterdayStr()
+    setHistoryError(false)
+    setComparisonLoading(true)
     loadPaidOrdersForRange(yesterday, yesterday)
       .then(orders => {
         if (cancelled) return
@@ -306,11 +327,12 @@ export default function AdminDashboard() {
       .catch(error => {
         if (cancelled) return
         setYesterdayHistoryOrders([])
-        setHistoryError(error?.message || 'Could not load yesterday for comparison')
+        console.error('[dashboard] yesterday comparison load failed:', error)
+        setHistoryError(true)
         setComparisonLoading(false)
       })
     return () => { cancelled = true }
-  }, [])
+  }, [comparisonRetry])
 
   // ── Core derived sets ─────────────────────────────────────────────────────
   const paidOrders = useMemo(
@@ -369,6 +391,12 @@ export default function AdminDashboard() {
     }
   }, [todayPaidOrders, yesterdayPaidOrders, menuItemMap])
 
+  // Net profit is only a number when every sold item carries its cost snapshot;
+  // a missing cost would count as zero and overstate the profit.
+  const todayCostCovered = useMemo(() => hasOrdersCostCoverage(todayPaidOrders), [todayPaidOrders])
+  const yesterdayCostCovered = useMemo(() => hasOrdersCostCoverage(yesterdayPaidOrders), [yesterdayPaidOrders])
+  const yesterdayKnown = !historyError
+
   const activeBills = useMemo(
     () => state.tables.filter(t => t.status === 'needs_bill').length,
     [state.tables]
@@ -392,7 +420,7 @@ export default function AdminDashboard() {
       cash: l.cash,
       card: l.card,
       terminal: l.terminal,
-      loyalty: lang === 'uz' ? 'Sodiqlik' : lang === 'ru' ? 'Лояльность' : 'Loyalty',
+      loyalty: l.loyalty,
       unknown: l.unknown,
       colors: PAYMENT_COLORS,
     }).map(row => ({
@@ -419,7 +447,7 @@ export default function AdminDashboard() {
   function pctBadge(change) {
     if (change === null) return null
     return {
-      text: `${change > 0 ? '+' : ''}${change}%`,
+      text: `${change > 0 ? '+' : ''}${formatPercent(change, lang, 0)}`,
       cls:  change >= 0 ? 'ws-tone-positive' : 'ws-tone-negative',
       up:   change >= 0,
     }
@@ -449,8 +477,9 @@ export default function AdminDashboard() {
         <div className="ws-page min-w-0 overflow-x-hidden">
 
         {historyError && (
-          <div role="alert" className="ws-notice ws-tone-negative">
-            {historyError}
+          <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-3">
+            <span>{l.comparisonFailed}</span>
+            <button type="button" onClick={() => setComparisonRetry(value => value + 1)} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button>
           </div>
         )}
 
@@ -461,33 +490,35 @@ export default function AdminDashboard() {
             loading={comparisonLoading}
             label={`${l.revenue} · ${l.today}`}
             value={formatCurrency(todayRevenue)}
-            sub={`${l.loyaltyIncome}: ${formatCurrency(todayLoyaltyIncome)} · ${l.yesterday}: ${formatCurrency(yesterdayRevenue)}`}
-            badge={pctBadge(revenueChange)}
+            sub={`${l.loyaltyIncome}: ${formatCurrency(todayLoyaltyIncome)} · ${l.yesterday}: ${yesterdayKnown ? formatCurrency(yesterdayRevenue) : '—'}`}
+            badge={yesterdayKnown ? pctBadge(revenueChange) : null}
           />
           <KpiCard
             icon={BadgeDollarSign}
             loading={comparisonLoading}
             label={`${l.netProfit} · ${l.today}`}
-            value={formatCurrencyWithPercentage(todayNetProfit, todayProfitMargin, lang)}
-            sub={`${l.yesterday}: ${formatCurrency(yesterdayNetProfit)}`}
-            badge={pctBadge(netProfitChange)}
-            tone={todayNetProfit < 0 ? 'loss' : 'profit'}
+            value={todayCostCovered ? formatCurrencyWithPercentage(todayNetProfit, todayProfitMargin, lang) : '—'}
+            sub={todayCostCovered
+              ? `${l.yesterday}: ${yesterdayKnown && yesterdayCostCovered ? formatCurrency(yesterdayNetProfit) : '—'}`
+              : l.partialCost}
+            subColor={todayCostCovered ? '' : '!text-[#9a5a00]'}
+            badge={todayCostCovered && yesterdayKnown && yesterdayCostCovered ? pctBadge(netProfitChange) : null}
+            tone={!todayCostCovered ? 'default' : todayNetProfit < 0 ? 'loss' : 'profit'}
           />
           <KpiCard
             icon={ShoppingBag}
             loading={comparisonLoading}
             label={`${l.orders} · ${l.today}`}
             value={todayOrderCount}
-            sub={`${l.yesterday}: ${yesterdayOrderCount}`}
-            badge={pctBadge(orderChange)}
+            sub={`${l.yesterday}: ${yesterdayKnown ? yesterdayOrderCount : '—'}`}
+            badge={yesterdayKnown ? pctBadge(orderChange) : null}
           />
           <KpiCard
             icon={Receipt}
             label={l.activeBills}
             value={activeBills}
             sub={activeBills > 0 ? l.needAttention : '—'}
-            subColor={activeBills > 0 ? '!text-[#c4262c] font-medium' : ''}
-            highlight={activeBills > 0}
+            subColor={activeBills > 0 ? '!text-[#9a5a00] font-medium' : ''}
           />
         </div>
 
@@ -508,7 +539,7 @@ export default function AdminDashboard() {
                   return (
                     <div key={i} className="flex-1 flex items-end h-full group relative min-w-[6px]">
                       {bar.revenue > 0 && (
-                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-[#22201d] text-white text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-[#22201d] text-white text-xs font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                           {formatCurrency(bar.revenue)}
                         </div>
                       )}
@@ -529,8 +560,8 @@ export default function AdminDashboard() {
               {chartBars.map((bar, i) => {
                 const show = chartBars.length <= 10 || i === chartBars.length - 1 || i % Math.ceil(chartBars.length / 10) === 0
                 return (
-                  <p key={i} className={`flex-1 text-center text-[10px] font-medium truncate min-w-[6px] ${
-                    bar.isCurrent ? 'text-[#ff5a00]' : 'text-[#68655f]'
+                  <p key={i} className={`flex-1 text-center text-xs font-medium tabular-nums min-w-[6px] ${
+                    bar.isCurrent ? 'text-[#bf4300]' : 'text-[#68655f]'
                   } ${!show ? 'opacity-0 pointer-events-none' : ''}`}>
                     {bar.label}
                   </p>
@@ -549,7 +580,7 @@ export default function AdminDashboard() {
                 <div className="relative flex-shrink-0">
                   <DonutChart slices={paymentMethods.map(p => ({ value: p.amount, color: p.color }))} />
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <p className="font-semibold text-[#22201d] text-xs leading-none tabular-nums">{formatCurrency(paymentMethods.reduce((s, p) => s + p.amount, 0)).split(' ')[0]}</p>
+                    <p className="whitespace-nowrap font-semibold text-[#22201d] text-xs leading-none tabular-nums">{formatGroupedNumber(paymentMethods.reduce((s, p) => s + p.amount, 0))}</p>
                   </div>
                 </div>
                 <div className="flex-1 space-y-1.5 min-w-0">
@@ -557,7 +588,7 @@ export default function AdminDashboard() {
                     <div key={p.key} className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
                       <span className="text-xs text-[#68655f] flex-1 truncate">{p.label}</span>
-                      <span className="text-xs font-semibold text-[#22201d] tabular-nums flex-shrink-0">{p.pct}%</span>
+                      <span className="text-xs font-semibold text-[#22201d] tabular-nums flex-shrink-0">{formatPercent(p.pct, lang, 0)}</span>
                     </div>
                   ))}
                 </div>
@@ -583,8 +614,8 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between mb-1 gap-2">
                       <p className="text-xs font-medium text-[#22201d] truncate flex-1">{cat.name}</p>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <p className="text-xs font-semibold text-[#22201d] tabular-nums">{formatCurrency(cat.revenue)}</p>
-                        <p className="text-xs text-[#68655f] tabular-nums w-8 text-right">{cat.pct}%</p>
+                        <p className="whitespace-nowrap text-xs font-semibold text-[#22201d] tabular-nums">{formatCurrency(cat.revenue)}</p>
+                        <p className="text-xs text-[#68655f] tabular-nums w-9 text-right">{formatPercent(cat.pct, lang, 0)}</p>
                       </div>
                     </div>
                     <div className="h-1.5 bg-[#efece9] rounded-full overflow-hidden">
@@ -603,7 +634,7 @@ export default function AdminDashboard() {
 
         {/* Footer */}
         <p className="ws-caption text-center">
-          {l.footer} • {lang === 'uz' ? 'Oxirgi yangilanish' : lang === 'ru' ? 'Последнее обновление' : 'Last updated'}: {lastUpdated}
+          {l.footer} • {l.lastUpdated}: <span className="whitespace-nowrap">{lastUpdated}</span>
         </p>
 
         </div>

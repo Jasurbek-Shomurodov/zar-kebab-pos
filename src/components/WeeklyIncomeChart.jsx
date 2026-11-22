@@ -6,6 +6,7 @@ import { loadEarliestOrderDate } from '../lib/db'
 import { restaurantTodayStr, toRestaurantDateStr } from '../lib/analytics'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatMonthYear } from '../lib/dateFormat'
+import { Shimmer } from './PageShimmer'
 
 const labels = {
   en: { title: 'Average daily income by 10-day period', sub: 'Latest 20 periods · zero-income months hidden · 1–10 · 11–20 · 21–month end · completed days only, including days without sales', empty: 'No income in this range', month: 'Through month', retry: 'Retry', error: 'Could not load income by period', loading: 'Loading…', days: 'days', total: 'Total', target: 'Daily target' },
@@ -92,7 +93,12 @@ export default function WeeklyIncomeChart({ lang, targetForPeriod = null }) {
         </label>
       </div>
       {failed || startFailed ? <div role="alert" className="ws-notice ws-tone-negative flex flex-wrap items-center justify-between gap-3">{l.error} <button type="button" onClick={() => setRetry(value => value + 1)} className="ws-btn ws-btn-outline ws-btn-sm">{l.retry}</button></div>
-        : !rows ? <p role="status" className="ws-empty">{l.loading}</p>
+        : !rows ? <div role="status">
+          <span className="sr-only">{l.loading}</span>
+          <div className="flex h-48 items-end gap-2" aria-hidden="true">
+            {[36, 52, 44, 70, 58, 82, 64, 90, 72, 60].map((height, index) => <div key={index} className="flex-1" style={{ height: `${height}%` }}><Shimmer className="h-full w-full rounded-t-lg" /></div>)}
+          </div>
+        </div>
         : rows.length === 0 ? <p className="ws-empty">{l.empty}</p>
         : <div ref={scrollContainer} className="overflow-x-auto">
           <div style={{ minWidth: rows.length * 90 }}>
@@ -120,8 +126,8 @@ export default function WeeklyIncomeChart({ lang, targetForPeriod = null }) {
             </div>
             <div className="flex">{chartRows.map(row => <div key={row.weekStart} className="zk-income-month min-w-0 flex-1 px-2 pb-3 pt-2 text-center text-xs text-[#68655f]" style={row.monthStyle}>
               <p className="tabular-nums">{Number(row.weekStart.slice(8))}–{Number(row.weekEnd.slice(8))}</p>
-              <p className="mt-1 font-semibold tabular-nums" style={{ color: row.barColor }}>{row.averageDailyIncome > 0 ? formatCurrency(row.averageDailyIncome) : '—'}</p>
-              <p className="mt-1 text-[10px] tabular-nums">{row.dayCount} {l.days}</p>
+              <p className="mt-1 whitespace-nowrap font-semibold tabular-nums" style={{ color: row.barColor }}>{row.averageDailyIncome > 0 ? formatCurrency(row.averageDailyIncome) : '—'}</p>
+              <p className="mt-1 text-xs tabular-nums">{row.dayCount} {l.days}</p>
             </div>)}</div>
           </div>
         </div>}

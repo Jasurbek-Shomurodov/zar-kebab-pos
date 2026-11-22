@@ -155,3 +155,31 @@ export function getDashboardPaymentMethods(orders, labels = {}) {
 export function formatReadableDateTime(date, locale = 'en-US') {
   return formatDateTime(date)
 }
+
+// Busy-hours heat cell: how much brand orange to mix into the card colour.
+// The label is always the foreground ink, so the mix stops where that ink still
+// reads at 4.5:1 (dark ink on any orange tint in light; light ink up to 70% in dark).
+export function getBusyHourHeatPct(count, max, dark = false) {
+  const value = Math.max(0, Number(count) || 0)
+  const top = Math.max(0, Number(max) || 0)
+  if (value <= 0 || top <= 0) return 0
+  const ceiling = dark ? 70 : 95
+  return Math.round(10 + Math.min(1, value / top) * (ceiling - 10))
+}
+
+// Totals of the rows the Product Contribution card lists (its top products),
+// so the card's summary can say exactly what it adds up.
+export function getProductContributionSummary(rows = []) {
+  const list = rows || []
+  const revenue = list.reduce((sum, row) => sum + row.revenue, 0)
+  const costed = list.filter(row => row.profit !== null && row.profit !== undefined)
+  const costedRevenue = costed.reduce((sum, row) => sum + row.revenue, 0)
+  const profit = costed.reduce((sum, row) => sum + row.profit, 0)
+  return {
+    count: list.length,
+    revenue,
+    profit: costed.length ? profit : null,
+    marginPct: costedRevenue > 0 ? Math.round(profit / costedRevenue * 1000) / 10 : null,
+    partial: costed.length > 0 && costed.length < list.length,
+  }
+}

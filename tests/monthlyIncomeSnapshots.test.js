@@ -174,7 +174,7 @@ test('Monthly income chart reads snapshots plus only the live current month aggr
   assert.match(monthlyChart, /border-dotted border-\[#c4262c\]/)
   assert.match(monthlyChart, /monthlyIncomeChartRows\.map/)
   assert.match(monthlyChart, /formatCompactIncome\(row\.averageDailyIncome, lang\)/)
-  assert.match(monthlyChart, /Average Daily Income by Month/)
+  assert.match(monthlyChart, /Average daily income by month/)
 })
 
 test('current Dashboard month includes completed Tashkent days only', () => {

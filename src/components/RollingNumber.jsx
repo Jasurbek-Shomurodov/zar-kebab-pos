@@ -72,7 +72,8 @@ export function RollingText({ text }) {
   const value = String(text)
   return (
     <roll-text>
-      <roll-chars aria-hidden="true">
+      {/* A figure never breaks between its digits or from its unit: the tile wraps around it instead. */}
+      <roll-chars aria-hidden="true" style={{ flexWrap: 'nowrap' }}>
         {rollingColumns(value).map(({ key, char, digit }) => digit === null
           ? <roll-char key={`c${key}`}>{char}</roll-char>
           : <RollingDigit key={`d${key}`} digit={digit} column={key} />)}
