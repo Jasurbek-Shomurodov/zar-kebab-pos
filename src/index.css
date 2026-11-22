@@ -37,8 +37,9 @@ body {
   --lux-text: #2A221B;
   --lux-title: #1F1A15;
   --lux-body: #4A423A;
-  --lux-muted: #7A6E62;
-  --lux-gold: #B07A3A;
+  --lux-muted: #6F6358;
+  /* 5.2:1 on the cream page, so small gold labels and prices stay readable in daylight. */
+  --lux-gold: #8A5A22;
   --lux-line: rgb(120 90 60 / 14%);
   --lux-glass: linear-gradient(180deg, rgb(255 253 249 / 82%) 0%, rgb(250 244 235 / 92%) 100%);
   --lux-glass-border: rgb(120 90 60 / 13%);
@@ -246,8 +247,8 @@ html[data-theme="dark"] .lux-photo-strip p { color: rgb(255 248 238 / 78%); }
    Override the smallest Tailwind arbitrary sizes globally.
    Specificity matches Tailwind's generated classes so no !important needed.
    ─────────────────────────────────────────────────────────────────────────── */
-.text-\[8px\]  { font-size: 11px; }
-.text-\[9px\]  { font-size: 11px; }
+.text-\[8px\]  { font-size: 12px; }
+.text-\[9px\]  { font-size: 12px; }
 .text-\[10px\] { font-size: 12px; }
 .text-\[11px\] { font-size: 12px; }
 
@@ -503,4 +504,15 @@ roll-in[data-rolling]{animation:roll-in .9s cubic-bezier(.16,1,.3,1)}
 @keyframes zk-qr-countdown {
   from { transform: scaleX(var(--zk-from, 1)); }
   to { transform: scaleX(0); }
+}
+
+/* One rule for everything animated: when the device asks for less motion, state changes
+   apply at once. Shimmers and the check-in countdown keep their own reduced-motion rules. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.zk-qr-countdown), *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

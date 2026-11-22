@@ -81,6 +81,7 @@
     "src/components/TimePicker24.jsx",
     "src/components/UnifiedSidebar.jsx",
     "src/components/WeeklyIncomeChart.jsx",
+    "src/components/WorkspaceDialog.jsx",
     "src/components/WorkspaceTopBar.jsx",
     "src/contexts/AuthContext.jsx",
     "src/hooks/useGuestModeSession.js",

@@ -6,7 +6,7 @@ Read this before changing code; then load only the feature guide relevant to the
 
 Zar Kebab POS is a Vite/React 18 app on Supabase: menus, ordering, kitchen checks, billing, admin, reporting, accounting, payroll and Telegram.
 
-Core locations:
+Core:
 
 - Routes: `src/App.jsx`
 - Shared POS orchestration: `src/store/AppContext.jsx`
@@ -16,7 +16,7 @@ Core locations:
 - SQL migrations: `migrations/`
 - Tests: `tests/`
 
-Run from the repository root:
+From the root:
 
 ```bash
 npm run dev
@@ -50,6 +50,8 @@ Read the feature's guide fully; read more only when a task crosses boundaries.
 | Dashboard, reports, historical snapshots, profit and date ranges | `docs/agent/reporting.md` |
 | AI assistant chat and datasets | `docs/agent/assistant.md` |
 | Migrations, DB compatibility, tests, source guards, deployment checks | `docs/agent/database-testing.md` |
+
+UI rules: `DESIGN.md`.
 
 `docs/agent/legacy-context.md` is the former guide; read it only for regressions absent from focused guides.
 

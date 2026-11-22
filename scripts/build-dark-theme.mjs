@@ -27,7 +27,8 @@ const DARK = {
   text: '#edf3ef',
   textMuted: '#a1afa5',
   textSubtle: '#839087',
-  textFaint: '#5d6a61',
+  // Faint text still has to be read: 4.8:1 on the card, not the 2.9:1 it used to be.
+  textFaint: '#7f8c83',
   border: '#303b33',
   borderStrong: '#3d4a41',
 }
@@ -265,6 +266,10 @@ export function buildDarkThemeCss() {
     --ws-accent: #33241a;
     --ws-positive: #4cc38a;
     --ws-negative: #f0a096;
+    --ws-negative-solid: #b3261e;
+    --ws-negative-solid-hover: #99201a;
+    --ws-primary-ink: #ff7a30;
+    --ws-info: #8ab4f8;
     --ws-caution: #dfb883;
     --ws-shadow-card: 0 1px 2px rgb(0 0 0 / 30%);
   }

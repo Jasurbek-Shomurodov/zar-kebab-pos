@@ -2,38 +2,62 @@ import React from 'react'
 import { useApp } from '../store/AppContext'
 import { t } from '../lib/i18n'
 
-const STATUS_MAP = {
+/**
+ * One status, one tone, on every screen (DESIGN.md "Colour"): free or paid is positive,
+ * waiting is caution, needs attention is negative, in progress is accent, in transit is info.
+ * The word is always shown, so colour is never the only signal.
+ */
+export const STATUS_TONE = {
   // Table statuses
-  available:  { labelKey: 'available',  classes: 'bg-green-50 text-green-700 border-green-200'  },
-  occupied:   { labelKey: 'occupied',   classes: 'bg-orange-50 text-orange-700 border-orange-200' },
-  needs_bill: { labelKey: 'needsBill', classes: 'bg-red-50 text-red-600 border-red-200'         },
-  waiting_kitchen: { labelKey: 'waiting', classes: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  // User statuses
-  active:     { labelKey: 'active',     classes: 'bg-green-50 text-green-700 border-green-200'  },
-  pending:    { labelKey: 'pending',    classes: 'bg-amber-50 text-amber-700 border-amber-200'  },
-  disabled:   { labelKey: 'disabled',   classes: 'bg-red-50 text-red-600 border-red-200'        },
+  available: 'positive',
+  occupied: 'accent',
+  needs_bill: 'negative',
+  waiting_kitchen: 'caution',
+  // Account statuses
+  active: 'positive',
+  pending: 'caution',
+  disabled: 'negative',
   // Order statuses
-  sent_to_kitchen: { labelKey: 'sent', classes: 'bg-blue-50 text-blue-700 border-blue-200' },
-  new:        { labelKey: 'new',        classes: 'bg-blue-50 text-blue-700 border-blue-200'     },
-  preparing:  { labelKey: 'preparing',  classes: 'bg-orange-50 text-orange-700 border-orange-200' },
-  ready:      { labelKey: 'ready',      classes: 'bg-blue-50 text-blue-700 border-blue-200'     },
-  paid:       { labelKey: 'paid',       classes: 'bg-gray-50 text-gray-500 border-gray-200'     },
-  unpaid:     { labelKey: 'unpaid',     classes: 'bg-amber-50 text-amber-700 border-amber-200' },
+  sent_to_kitchen: 'info',
+  new: 'info',
+  preparing: 'accent',
+  ready: 'positive',
+  paid: 'neutral',
+  unpaid: 'caution',
+}
+
+const STATUS_LABEL_KEY = {
+  available: 'available',
+  occupied: 'occupied',
+  needs_bill: 'needsBill',
+  waiting_kitchen: 'waiting',
+  active: 'active',
+  pending: 'pending',
+  disabled: 'disabled',
+  sent_to_kitchen: 'sent',
+  new: 'new',
+  preparing: 'preparing',
+  ready: 'ready',
+  paid: 'paid',
+  unpaid: 'unpaid',
+}
+
+/** The `ws-tone-*` class for a status, for badges, chart legends and tiles alike. */
+export function statusToneClass(status) {
+  const tone = STATUS_TONE[status]
+  return tone && tone !== 'neutral' ? `ws-tone-${tone}` : ''
 }
 
 /**
- * @param {{ status: string, className?: string }} props
+ * @param {{ status: string, className?: string, lang?: string }} props
  */
 export default function StatusBadge({ status, className = '', lang: langProp }) {
   const { state } = useApp()
   const lang = langProp || state.lang || 'ru'
-  const config = STATUS_MAP[status] || { label: status, classes: 'bg-gray-50 text-gray-500 border-gray-200' }
-  const label = config.labelKey ? t(lang, config.labelKey) : config.label
+  const labelKey = STATUS_LABEL_KEY[status]
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${config.classes} ${className}`}
-    >
-      {label}
+    <span className={`ws-status ${statusToneClass(status)} ${className}`}>
+      {labelKey ? t(lang, labelKey) : status}
     </span>
   )
 }

@@ -856,7 +856,7 @@ test('menu item deletion is soft-delete only so history analytics keep lookup co
   assert.match(itemRow, /onPointerDown=\{event => event\.stopPropagation\(\)\}/)
   assert.match(itemRow, /onClick=\{\(\) => onDelete\(item\)\}/)
   assert.match(itemRow, /touch-manipulation ws-btn /)
-  assert.match(readSource('src/styles/workspace.css'), /@media \(pointer: coarse\) \{\s*\.ws-btn-sm \{ height: 44px; \}/)
+  assert.match(readSource('src/styles/workspace.css'), /@media \(pointer: coarse\) \{\s*\.ws-btn \{ min-height: 44px; \}\s*\.ws-btn-sm \{ height: 44px; \}/)
   assert.match(itemRow, /Archive item/)
   assert.match(itemRow, /<Archive size=/)
   assert.match(functionBody(adminMenu, 'requestDeleteItem'), /setDeleteItemCandidate\(item\)/)

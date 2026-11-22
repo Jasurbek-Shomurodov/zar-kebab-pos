@@ -5,7 +5,7 @@ export default function AttentionBadge({ count, label = '', className = '' }) {
   if (!count) return null
   return (
     <span
-      className={`inline-flex h-5 min-w-[20px] flex-shrink-0 items-center justify-center rounded-full bg-[#ff5a00] px-1.5 text-xs font-semibold tabular-nums text-white ${className}`}
+      className={`inline-flex h-5 min-w-[20px] flex-shrink-0 items-center justify-center rounded-full bg-[#cc4800] px-1.5 text-xs font-semibold tabular-nums text-white ${className}`}
       aria-label={label ? `${count} ${label}` : undefined}
       title={label || undefined}
     >
