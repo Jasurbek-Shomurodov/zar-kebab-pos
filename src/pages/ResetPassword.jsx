@@ -29,10 +29,10 @@ export default function ResetPassword() {
       }
     }
 
-    const t = setTimeout(checkSession, 800)
+    const sessionCheckTimer = setTimeout(checkSession, 800)
     return () => {
       alive = false
-      clearTimeout(t)
+      clearTimeout(sessionCheckTimer)
     }
   }, [])
 

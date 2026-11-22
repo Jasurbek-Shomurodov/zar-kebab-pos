@@ -12,6 +12,7 @@ import { PAYMENT_FEE_METHODS, parsePaymentFeeRate, savePaymentFeeRate } from '..
 const L = {
   uz: {
     anomalyTitle: '{n} ta sotilgan mahsulot narxidan qimmat tannarx bilan saqlangan',
+    anomalyTitleOne: '1 ta sotilgan mahsulot narxidan qimmat tannarx bilan saqlangan',
     anomalySub: 'Ular sotilgan mahsulot tannarxiga {excess} qo‘shadi, shuning uchun yalpi foyda shuncha kam ko‘rinadi. Texnologik kartadagi tannarxni tuzating; to‘langan buyurtmalardagi saqlangan tannarx o‘zgarmaydi.',
     showItems: 'Mahsulotlarni ko‘rsatish', hideItems: 'Yashirish',
     item: 'Mahsulot', soldOn: 'Sana', qty: 'Soni', price: 'Narx', savedCost: 'Saqlangan tannarx', more: 'Yana {n} ta ko‘rsatilmadi',
