@@ -100,8 +100,11 @@ test('build runs the prerender and Vercel keeps staff screens out of search', ()
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
   assert.equal(pkg.scripts.postbuild, 'node scripts/prerender-public-seo.mjs')
   const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'))
-  // cleanUrls serves dist/menu/item/<key>.html at /menu/item/<key>; unknown keys fall back to the SPA.
-  assert.equal(vercel.cleanUrls, true)
+  // cleanUrls broke the SPA catch-all (every app route returned 404 in production): never enable it.
+  assert.equal(vercel.cleanUrls, undefined)
+  for (const route of ['catering', 'corporate-sets', 'frozen-meals', 'vacancies']) {
+    assert.ok(vercel.rewrites.some(rule => rule.source === `/${route}` && rule.destination === `/${route}.html`), route)
+  }
   const adminHost = vercel.headers.find(rule => rule.has?.some(cond => cond.value === 'admin.zarkebab.uz'))
   assert.deepEqual(adminHost.headers, [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }])
   const privatePaths = vercel.headers.find(rule => !rule.has)
