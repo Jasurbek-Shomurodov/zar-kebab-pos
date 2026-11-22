@@ -83,9 +83,10 @@ test('public menu keeps homepage search metadata without rendering an SEO copy b
 })
 
 test('search engine ownership checks stay in place', () => {
-  // Google Search Console (HTML file) and Yandex Webmaster (meta tag) verify the site with these.
+  // Google Search Console (HTML file), Yandex Webmaster and Bing Webmaster (meta tags) verify the site with these.
   assert.equal(fs.readFileSync(path.join(root, 'public/google5e89cb9dc432b8ff.html'), 'utf8'), 'google-site-verification: google5e89cb9dc432b8ff.html')
   assert.match(html, /<meta name="yandex-verification" content="096436ea8ba8dfa1" \/>/)
+  assert.match(html, /<meta name="msvalidate\.01" content="54CA4940C806199C4B593A7E89018F9D" \/>/)
 })
 
 test('search crawlers receive real robots and sitemap files', () => {
