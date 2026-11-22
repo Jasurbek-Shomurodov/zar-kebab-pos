@@ -3,17 +3,7 @@ import { getGroupedOrderItems } from './analytics.js'
 import { formatMenuQuantity, isMenuItemSoldByWeight } from './menuSaleUnits.js'
 
 const CANCELLED_STATUS = 'cancelled'
-const DEFAULT_TITLE = 'ЧЕК ДЛЯ КУХНИ'
-const SEPARATOR = '━━━━━━━━━━━━━━━━━━━━'
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
+export const KITCHEN_CHECK_TITLE = 'ЧЕК ДЛЯ КУХНИ'
 
 function orderItemRoundId(item, fallbackOrderId) {
   return (
@@ -33,10 +23,6 @@ function orderItemRoundId(item, fallbackOrderId) {
 
 function itemCreatedAt(item) {
   return item?.submitted_at || item?.submittedAt || item?.created_at || item?.createdAt || ''
-}
-
-function formatKitchenTime(value) {
-  return formatTime(value || new Date())
 }
 
 export function formatKitchenOrderNumber(group) {
@@ -93,97 +79,38 @@ export function getKitchenCheckGroup(order, roundId = '') {
   return groups.find(group => String(group.roundId) === String(roundId)) || null
 }
 
-export function kitchenCheckLabels(lang = 'en') {
-  const labels = {
-    uz: {
-      title: 'Oshpaz cheki',
-      table: 'Stol',
-      waiter: 'Ofitsiant',
-      order: 'Buyurtma',
-      time: 'Vaqt',
-      qty: 'Soni',
-      notes: 'Izoh',
-    },
-    ru: {
-      title: 'Чек для повара',
-      table: 'Стол',
-      waiter: 'Официант',
-      order: 'Заказ',
-      time: 'Время',
-      qty: 'Кол-во',
-      notes: 'Заметка',
-    },
-    en: {
-      title: 'Cook Check',
-      table: 'Table',
-      waiter: 'Waiter',
-      order: 'Order',
-      time: 'Time',
-      qty: 'Qty',
-      notes: 'Note',
-    },
+/**
+ * Everything the kitchen slip prints, as plain text: the one description of a check that the
+ * on-screen/printed paper (`KitchenCheckReceipt.jsx`) renders. Identical rows of the round are
+ * combined; prices never appear on a kitchen check.
+ */
+export function buildKitchenCheckModel(group) {
+  return {
+    title: KITCHEN_CHECK_TITLE,
+    tableName: formatKitchenTableName(group?.tableName),
+    orderNumber: formatKitchenOrderNumber(group),
+    time: formatTime(group?.createdAt || new Date()),
+    waiterName: String(group?.waiterName || '').trim() || '-',
+    rows: getGroupedOrderItems(group?.items || []).map(item => ({
+      key: String(item.id || `${item.menu_item_id}-${item.name}`),
+      quantity: `${formatMenuQuantity(item.quantity, item)} ${isMenuItemSoldByWeight(item) ? '·' : '×'}`,
+      name: kitchenItemName(item),
+      notes: String(item.notes || '').trim(),
+    })),
   }
-  return labels[lang] || labels.en
 }
 
-export function buildKitchenCheckHtml({ group, lang = 'en', restaurantName = 'Zar Kebab' }) {
-  const title = DEFAULT_TITLE
-  const time = formatKitchenTime(group?.createdAt)
-  const orderNumber = formatKitchenOrderNumber(group)
-  const tableName = formatKitchenTableName(group?.tableName)
-  const waiterName = group?.waiterName || '-'
-
-  const rows = getGroupedOrderItems(group?.items || []).map(item => `
-    <div class="item">
-      ${escapeHtml(formatMenuQuantity(item.quantity, item))}${isMenuItemSoldByWeight(item) ? ' ·' : ' ×'} ${escapeHtml(kitchenItemName(item))}
-      ${item.notes ? `<div class="notes">${escapeHtml(item.notes)}</div>` : ''}
-    </div>
-  `).join('')
-
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeHtml(title)}</title>
-  <style>
-    @page { size: 80mm auto; margin: 0; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 5mm 4mm;
-      width: 80mm;
-      font-family: "Courier New", monospace;
-      color: #000;
-      font-size: 15px;
-      line-height: 1.35;
-      font-weight: 700;
-    }
-    h1 {
-      margin: 0 0 14px;
-      text-align: center;
-      font-size: 18px;
-      line-height: 1.1;
-      font-weight: 900;
-      letter-spacing: 0;
-    }
-    .meta { margin-bottom: 13px; }
-    .line { display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; }
-    .separator { margin: 12px 0; text-align: center; font-weight: 900; }
-    .items { margin: 0; }
-    .item { margin: 0 0 16px; font-size: 16px; font-weight: 900; }
-    .item:last-child { margin-bottom: 0; }
-    .notes { margin: 3px 0 0 28px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(title)}</h1>
-  <div class="meta">
-    <div class="line"><span>${escapeHtml(tableName)}</span><span>${escapeHtml(orderNumber)}</span></div>
-    <div class="line"><span>${escapeHtml(time)}</span><span>${escapeHtml(waiterName)}</span></div>
-  </div>
-  <div class="separator">${SEPARATOR}</div>
-  <div class="items">${rows}</div>
-  <div class="separator">${SEPARATOR}</div>
-</body>
-</html>`
+/**
+ * Which requested rounds can be printed. A round that could not be found is reported, never
+ * dropped silently: the page warns about it and does not print by itself.
+ */
+export function resolveKitchenCheckTargets(targets, findGroup) {
+  const groups = []
+  let missingCount = 0
+  for (const target of targets || []) {
+    const group = findGroup(target)
+    if (group) groups.push(group)
+    else missingCount += 1
+  }
+  return { groups, missingCount, complete: groups.length > 0 && missingCount === 0 }
 }

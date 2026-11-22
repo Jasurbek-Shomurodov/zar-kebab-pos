@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { getGroupedOrderItems } from '../src/lib/analytics.js'
 import { buildItemRows } from '../api/telegram/_lib/orderStatusMessages.js'
-import { buildKitchenCheckHtml, getKitchenCheckGroup } from '../src/lib/kitchenCheck.js'
+import { buildKitchenCheckModel, getKitchenCheckGroup } from '../src/lib/kitchenCheck.js'
 
 const wings = { menu_item_id: 'wings', name: 'Куриные крылышки', quantity: 1, price: 25_000 }
 
@@ -45,9 +45,8 @@ test('kitchen printing combines identical rows only inside the requested round',
     { ...wings, id: 'c', kitchen_round_id: 'two', quantity: 3 },
   ] }
   const group = getKitchenCheckGroup(order, 'one')
-  const html = buildKitchenCheckHtml({ group })
-  assert.match(html, /2 × КУРИНЫЕ КРЫЛЫШКИ/)
-  assert.equal((html.match(/КУРИНЫЕ КРЫЛЫШКИ/g) || []).length, 1)
+  const printedRows = check => check.rows.map(row => `${row.quantity} ${row.name}`)
+  assert.deepEqual(printedRows(buildKitchenCheckModel(group)), ['2 × КУРИНЫЕ КРЫЛЫШКИ'])
   assert.equal(group.items.length, 2)
-  assert.match(buildKitchenCheckHtml({ group: getKitchenCheckGroup(order, 'two') }), /3 × КУРИНЫЕ КРЫЛЫШКИ/)
+  assert.deepEqual(printedRows(buildKitchenCheckModel(getKitchenCheckGroup(order, 'two'))), ['3 × КУРИНЫЕ КРЫЛЫШКИ'])
 })

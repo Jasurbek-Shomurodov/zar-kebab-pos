@@ -1,14 +1,15 @@
-import React, { useMemo, useEffect, useState } from 'react'
+import React, { useCallback, useMemo, useEffect, useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useApp } from '../store/AppContext'
 import { getItemName, t } from '../lib/i18n'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { FileQuestion } from 'lucide-react'
 import {
   getGroupedOrderItems,
+  getOrderItemLineTotal,
   getOrderItemProductId,
   isCancelledOrderItem,
 } from '../lib/analytics'
-import { getOrderItemUnitPrice, PRICE_MODE_TOURIST } from '../lib/priceModes'
+import { PRICE_MODE_TOURIST } from '../lib/priceModes'
 import { isCashierQuickItem } from '../lib/menuItems'
 import { inferOrderType, isOffPremiseOrderType, orderTypeLabel } from '../lib/orderTypes'
 import { expensePaymentMethodLabel } from '../lib/expenses'
@@ -19,13 +20,16 @@ import { OperationalError, OperationalLoading } from '../components/OperationalS
 import { formatMenuQuantity } from '../lib/menuSaleUnits'
 import { getReceiptFooterVisibility, normalizeReceiptMarketing } from '../lib/receiptMarketing'
 import { getFreshCashierPaymentQuote, getOrderGroupPaymentQuote } from '../lib/cashierCheckout'
+import { formatCurrency, formatGroupedNumber } from '../lib/formatCurrency'
+import { stripPrintParam, usePrintOnce } from '../lib/usePrintOnce'
+import { useAppDataStatus } from '../store/appHooks'
+import ReceiptTopBar from '../components/ReceiptTopBar'
 
 // ── Localisation ──────────────────────────────────────────────────────────────
 
 const L = {
   uz: {
     slogan:      "Olov. Ta'm. An'ana.",
-    receiptTitle:'CHEK',
     table:       'Stol',
     waiter:      'Ofitsiant',
     completedBy: 'Yopgan',
@@ -39,17 +43,14 @@ const L = {
     cashbackEarned: 'Cashback hisoblandi',
     total:       "To'lovga jami",
     thanks1:     'Tashrifingiz uchun rahmat!',
-    thanks2:     'Sizni yana kutib qolamiz!',
-    scanLabel:   'Instagram uchun skanerlang',
-    scanPitch:   "Har hafta yangi aksiyalar — o'tkazib yubormang!",
     cashbackPromo: 'Cashback 10% gacha',
-    loyaltyTitle: 'Sodiqlik kartalarimiz',
-    loyaltyPitch: 'Kartani oling va keyingi tashriflarda kamroq tolang',
-    loyaltyInfo:  "Batafsil ma'lumot uchun menejerga murojaat qiling",
+    loadFailedTitle: 'Chekni yuklab bo‘lmadi',
+    loadFailedHint: 'Ulanishni tekshiring va chekni qayta yuklang. Buyurtmani qayta yubormang.',
+    retry: 'Qayta urinish',
+    reload: 'Qayta yuklash',
   },
   ru: {
     slogan:      'Огонь. Вкус. Традиции.',
-    receiptTitle:'ЧЕК',
     table:       'Стол',
     waiter:      'Официант',
     completedBy: 'Закрыл',
@@ -63,17 +64,14 @@ const L = {
     cashbackEarned: 'Начислен кешбэк',
     total:       'Итого к оплате',
     thanks1:     'Спасибо, что выбрали ZarKebab!',
-    thanks2:     'Будем рады видеть вас снова!',
-    scanLabel:   'Сканируйте Instagram',
-    scanPitch:   'Каждую неделю новые акции — не пропустите!',
     cashbackPromo: 'Cashback до 10%',
-    loyaltyTitle: 'Наши карты лояльности',
-    loyaltyPitch: 'Оформите карту и платите меньше в следующий раз',
-    loyaltyInfo:  'Подробности уточняйте у менеджера',
+    loadFailedTitle: 'Не удалось загрузить чек',
+    loadFailedHint: 'Проверьте соединение и повторите загрузку чека. Не отправляйте заказ повторно.',
+    retry: 'Повторить',
+    reload: 'Перезагрузить',
   },
   en: {
     slogan:      'Fire. Flavor. Tradition.',
-    receiptTitle:'RECEIPT',
     table:       'Table',
     waiter:      'Waiter',
     completedBy: 'Completed by',
@@ -87,24 +85,22 @@ const L = {
     cashbackEarned: 'Cashback earned',
     total:       'Total to pay',
     thanks1:     'Thank you for choosing ZarKebab!',
-    thanks2:     'We hope to see you again!',
-    scanLabel:   'Scan our Instagram',
-    scanPitch:   "New deals every week — don't miss out!",
     cashbackPromo: 'Cashback up to 10%',
-    loyaltyTitle: 'Our loyalty cards',
-    loyaltyPitch: 'Get a card and pay less on your next visit',
-    loyaltyInfo:  'Ask our manager for more details',
+    loadFailedTitle: 'Could not load receipt',
+    loadFailedHint: 'Check the connection and retry loading the receipt. Do not resubmit the order.',
+    retry: 'Try again',
+    reload: 'Reload',
   },
 }
 
 // ── Number formatters ─────────────────────────────────────────────────────────
 
+// Whole UZS through the shared formatter, so the receipt groups digits like every other screen.
 function fmtNum(n) {
-  // Space-separated thousands, no currency symbol — for item line amounts
-  return new Intl.NumberFormat('ru-RU').format(Math.round(n))
+  return formatGroupedNumber(Math.round(n))
 }
 function fmtUZS(n) {
-  return `${fmtNum(n)} UZS`
+  return formatCurrency(Math.round(n))
 }
 
 function normalizeReceiptItems(rawItems, menuItemMap) {
@@ -128,6 +124,19 @@ function getReceiptItems(rawItems, menuItemMap, lang) {
   })
 }
 
+// The parts of a receipt that depend on the language printed on it. The quote (money) is
+// computed once; switching the receipt language only renames things.
+function localizeReceipt(data, menuItemMap, lang) {
+  if (!data) return null
+  const { rawItems, labelOrder, table, tableFallback, ...rest } = data
+  return {
+    ...rest,
+    tableName: receiptTableLabel(labelOrder, table, lang, tableFallback),
+    items: getReceiptItems(rawItems, menuItemMap, lang),
+    salaryLabel: expensePaymentMethodLabel('salary', lang),
+  }
+}
+
 function receiptTableLabel(order, table, lang, fallback) {
   const orderType = inferOrderType(order)
   return isOffPremiseOrderType(orderType) ? orderTypeLabel(orderType, lang) : (table?.name || order?.table_name || fallback)
@@ -140,9 +149,12 @@ const POPPINS = "'Onest', sans-serif"
 
 // ── Print + font CSS ──────────────────────────────────────────────────────────
 
+// Onest is loaded once by index.html; the receipt does not import it again.
 const PRINT_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap');
-
+/* "80mm auto" is not a valid size value (CSS Paged Media: a length cannot be combined with
+   auto), so browsers ignore it and the roll width comes from the printer driver's paper size.
+   Left as is: the valid forms ("80mm" = an 80x80mm page, or a fixed height) would cut or feed
+   real receipts differently. See PRINTING.md. */
 @page {
   size: 80mm auto;
   margin: 0;
@@ -227,12 +239,9 @@ const PRINT_CSS = `
 }
 `
 
-function handlePrintReceipt(delay = 300) {
-  // Browser JavaScript cannot select a printer. For silent Windows thermal
-  // printing, set the Xprinter as the Windows default printer and launch Chrome
-  // with --kiosk-printing; then window.print() prints directly to that printer.
-  window.setTimeout(() => window.print(), delay)
-}
+// Printing goes through usePrintOnce (one print at a time). Browser JavaScript cannot select a
+// printer: for silent Windows thermal printing, set the Xprinter as the Windows default printer
+// and launch Chrome with --kiosk-printing; the browser print call then goes straight to it.
 
 // ── ReceiptPaper ──────────────────────────────────────────────────────────────
 
@@ -253,20 +262,20 @@ function ReceiptMarketingFooter({ labels, mode, priceMode, receiptFooter }) {
       <div className={`receipt-marketing receipt-marketing-${marketingMode}`} style={{
         textAlign: 'center',
         fontFamily: INTER,
-        fontSize: '9.5px',
+        fontSize: '10px',
         lineHeight: 1.2,
         color: '#111',
         pageBreakInside: 'avoid',
       }}>
         {showCustomFooter && receiptFooter && (
-          <div style={{ fontSize: '9px', fontWeight: 400, color: '#333', marginBottom: '3px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 400, color: '#333', marginBottom: '3px' }}>
             {receiptFooter}
           </div>
         )}
         {showLoyalty && (
           <>
-            <div style={{ fontSize: '9.5px', fontWeight: 700, marginBottom: '2px' }}>{labels.cashbackPromo}</div>
-            <div style={{ fontSize: '8.8px', color: '#333', marginBottom: showInstagram ? '3px' : 0 }}>{LOYALTY_LEVELS}</div>
+            <div style={{ fontSize: '10px', fontWeight: 700, marginBottom: '2px' }}>{labels.cashbackPromo}</div>
+            <div style={{ fontSize: '10px', color: '#333', marginBottom: showInstagram ? '3px' : 0 }}>{LOYALTY_LEVELS}</div>
           </>
         )}
         {showInstagram && (
@@ -294,15 +303,19 @@ function firstNonEmpty(orders, keys, fallback = '—') {
   return fallback
 }
 
-function useTouristReceiptEnglish(priceMode, receiptKey, dispatch) {
-  useEffect(() => {
-    if (priceMode !== PRICE_MODE_TOURIST) return
-    dispatch({ type: 'SET_LANG', payload: 'en' })
-  }, [dispatch, priceMode, receiptKey])
+// The language printed on this receipt. It is the receipt's own choice: English by default for
+// a Tourist bill, the staff language otherwise, and the switcher above the paper changes only
+// this receipt. The app language (and every other screen) is never touched from here.
+function useReceiptLanguage(appLang, priceMode) {
+  const [chosenLang, setChosenLang] = useState(null)
+  const fallback = priceMode === PRICE_MODE_TOURIST ? 'en' : appLang
+  const receiptLang = chosenLang || (L[fallback] ? fallback : 'en')
+  return [receiptLang, setChosenLang]
 }
 
-function ReceiptPaper({ tableName, priceMode, waiterName, completedByName, dateStr, items, subtotal, serviceFee, serviceRate, loyaltyAmt, cashbackEarned, total, salaryAmount = 0, salaryLabel, labels, receiptFooter, receiptMarketing }) {
+function ReceiptPaper({ restaurantName, tableName, priceMode, waiterName, completedByName, dateStr, items, subtotal, serviceFee, serviceRate, loyaltyAmt, cashbackEarned, total, salaryAmount = 0, salaryLabel, labels, receiptFooter, receiptMarketing }) {
   const marketingMode = normalizeReceiptMarketing(receiptMarketing)
+  const brandName = String(restaurantName || '').trim() || 'ZarKebab'
 
   return (
     <div
@@ -329,12 +342,13 @@ function ReceiptPaper({ tableName, priceMode, waiterName, completedByName, dateS
           letterSpacing: '0',
           lineHeight: 1.05,
           marginBottom: '2px',
+          overflowWrap: 'anywhere',
         }}>
-          ZarKebab
+          {brandName}
         </div>
         <div style={{
           fontFamily: INTER,
-          fontSize: '9px',
+          fontSize: '10px',
           fontWeight: 500,
           color: '#333',
         }}>
@@ -361,7 +375,7 @@ function ReceiptPaper({ tableName, priceMode, waiterName, completedByName, dateS
         display: 'grid',
         gridTemplateColumns: '1fr 48px 74px',
         fontFamily: INTER,
-        fontSize: '9.5px',
+        fontSize: '10px',
         fontWeight: 700,
         color: '#111',
         paddingBottom: '2px',
@@ -388,8 +402,8 @@ function ReceiptPaper({ tableName, priceMode, waiterName, completedByName, dateS
           }}>
             <span style={{ paddingRight: '6px', lineHeight: 1.25, color: '#111', fontStyle: 'italic' }}>{item.name}</span>
             <span style={{ textAlign: 'center', fontWeight: 500, color: '#333' }}>{formatMenuQuantity(item.quantity, item)}</span>
-            <span style={{ textAlign: 'right', fontWeight: 600, color: '#111' }}>
-              {fmtNum(getOrderItemUnitPrice(item) * (Number(item.quantity) || 1))}
+            <span style={{ textAlign: 'right', fontWeight: 600, color: '#111', whiteSpace: 'nowrap' }}>
+              {fmtNum(getOrderItemLineTotal(item))}
             </span>
           </div>
         ))}
@@ -417,6 +431,7 @@ function ReceiptPaper({ tableName, priceMode, waiterName, completedByName, dateS
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'baseline',
+        gap: '8px',
         fontFamily: POPPINS,
         fontSize: '14px',
         fontWeight: 800,
@@ -424,8 +439,8 @@ function ReceiptPaper({ tableName, priceMode, waiterName, completedByName, dateS
         marginBottom: 0,
         fontVariantNumeric: 'tabular-nums',
       }}>
-        <span>{labels.total}</span>
-        <span>{fmtUZS(total)}</span>
+        <span style={{ minWidth: 0 }}>{labels.total}</span>
+        <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{fmtUZS(total)}</span>
       </div>
 
       <ReceiptMarketingFooter
@@ -517,9 +532,10 @@ export function TableReceipt() {
   const { tableId } = useParams()
   const navigate    = useNavigate()
   const location    = useLocation()
-  const { state, dispatch } = useApp()
+  const { state } = useApp()
+  const { loaded, loadError } = useAppDataStatus()
   const lang     = state.lang
-  const labels   = L[lang] || L.en
+  const screenLabels = L[lang] || L.en
   const settings = state.settings
 
   const menuItemMap = useMemo(() => {
@@ -551,15 +567,16 @@ export function TableReceipt() {
       orders.flatMap(o => o.items || []).filter(item => !isCancelledOrderItem(item)),
       menuItemMap
     )
-    const items = getReceiptItems(allItems, menuItemMap, lang)
 
     return {
-      tableName:  receiptTableLabel(primaryOrder, table, lang, tableId),
+      rawItems: allItems,
+      labelOrder: primaryOrder,
+      table,
+      tableFallback: tableId,
       priceMode: quote.priceMode,
       waiterName: firstNonEmpty(orders, ['opened_by_name', 'waiter_name']),
       completedByName: firstNonEmpty(orders, ['completed_by_name']),
       receiptAt:  primaryOrder?.paid_at || primaryOrder?.created_at,
-      items,
       subtotal: quote.subtotal,
       serviceFee: quote.serviceFee,
       serviceRate: quote.serviceRatePct,
@@ -567,23 +584,41 @@ export function TableReceipt() {
       cashbackEarned: quote.cashbackEarned,
       total: quote.total,
     }
-  }, [state.orders, state.tables, tableId, settings, menuItemMap, lang])
+  }, [state.orders, state.tables, state.menuItems, tableId, settings, menuItemMap])
 
-  useTouristReceiptEnglish(data?.priceMode, tableId, dispatch)
+  const [receiptLang, setReceiptLang] = useReceiptLanguage(lang, data?.priceMode)
+  const paper = useMemo(() => localizeReceipt(data, menuItemMap, receiptLang), [data, menuItemMap, receiptLang])
+
+  // Orders arrive with the app data: until it has loaded, "no open bill" is not known yet.
+  if (!loaded) return <OperationalLoading layout="form" title={t(lang, 'loading')} />
+
+  if (loadError) {
+    return (
+      <OperationalError
+        lang={lang}
+        title={screenLabels.loadFailedTitle}
+        description={screenLabels.loadFailedHint}
+        actionLabel={screenLabels.reload}
+        // The app data has no loader a page can call.
+        onAction={() => window.location.reload()}
+      />
+    )
+  }
 
   if (!data) return <NotFound onBack={() => navigate(-1)} />
 
   return (
     <ReceiptShell
       lang={lang}
-      dispatch={dispatch}
+      receiptLang={receiptLang}
+      onReceiptLangChange={setReceiptLang}
       onBack={() => navigate(-1)}
       autoPrint={new URLSearchParams(location.search).get('print') === '1'}
     >
       <ReceiptPaper
-        {...data}
+        {...paper}
         dateStr={formatDateTime(data.receiptAt)}
-        labels={labels}
+        labels={L[receiptLang]}
         restaurantName={settings.restaurantName}
         receiptFooter={settings.receiptFooter}
         receiptMarketing={settings.receiptMarketing}
@@ -598,9 +633,9 @@ export default function Receipt() {
   const { orderId } = useParams()
   const navigate    = useNavigate()
   const location    = useLocation()
-  const { state, dispatch } = useApp()
+  const { state } = useApp()
   const lang     = state.lang
-  const labels   = L[lang] || L.en
+  const screenLabels = L[lang] || L.en
   const settings = state.settings
   const localOrder = state.orders.find(order => order.id === orderId)
   const [historicalOrders, setHistoricalOrders] = useState([])
@@ -625,7 +660,9 @@ export default function Receipt() {
       .catch(error => {
         if (cancelled) return
         setHistoricalOrders([])
-        setLookupState({ loading: false, error: error?.message || 'Could not load receipt' })
+        // Only a code is kept: the message is translated at render, the raw one stays in the console.
+        console.error('[receipt] order lookup failed', error)
+        setLookupState({ loading: false, error: 'load_failed' })
       })
     return () => { cancelled = true }
   }, [localOrder, lookupVersion, orderId])
@@ -678,39 +715,41 @@ export default function Receipt() {
       contributingOrders.flatMap(o => o.items || []).filter(item => !isCancelledOrderItem(item)),
       menuItemMap
     )
-    const items = getReceiptItems(allItems, menuItemMap, lang)
     const table      = state.tables.find(t => t.id === order.table_id)
 
     return {
-      tableName:  receiptTableLabel(primaryOrder, table, lang, '—'),
+      rawItems: allItems,
+      labelOrder: primaryOrder,
+      table,
+      tableFallback: '—',
       priceMode: quote.priceMode,
       waiterName: firstNonEmpty(contributingOrders, ['opened_by_name', 'waiter_name']),
       completedByName: firstNonEmpty(contributingOrders, ['completed_by_name']),
       receiptAt:  order.paid_at || order.created_at,
-      items,
       subtotal: quote.subtotal,
       serviceFee: quote.serviceFee,
       serviceRate: quote.serviceRatePct,
       loyaltyAmt: quote.loyaltyUsedAmount,
       salaryAmount: allOrders.flatMap(getOrderPaymentBreakdown).filter(row => row.method === 'salary').reduce((sum, row) => sum + row.amount, 0),
-      salaryLabel: expensePaymentMethodLabel('salary', lang),
       cashbackEarned: quote.cashbackEarned,
       total: quote.total,
     }
-  }, [receiptOrders, state.tables, orderId, settings, menuItemMap, lang])
+  }, [receiptOrders, state.tables, state.menuItems, orderId, settings, menuItemMap])
 
-  useTouristReceiptEnglish(data?.priceMode, orderId, dispatch)
+  const [receiptLang, setReceiptLang] = useReceiptLanguage(lang, data?.priceMode)
+  const paper = useMemo(() => localizeReceipt(data, menuItemMap, receiptLang), [data, menuItemMap, receiptLang])
 
   if (!localOrder && lookupState.loading) {
-    return <OperationalLoading layout="form" title={t(lang, 'loading')} description="" />
+    return <OperationalLoading layout="form" title={t(lang, 'loading')} />
   }
 
   if (!localOrder && lookupState.error) {
     return (
       <OperationalError
-        title={lang === 'ru' ? 'Не удалось загрузить чек' : lang === 'uz' ? 'Chekni yuklab bo‘lmadi' : 'Could not load receipt'}
-        description={lang === 'ru' ? 'Проверьте соединение и повторите загрузку чека. Не отправляйте заказ повторно.' : lang === 'uz' ? 'Ulanishni tekshiring va chekni qayta yuklang. Buyurtmani qayta yubormang.' : 'Check the connection and retry loading the receipt. Do not resubmit the order.'}
-        actionLabel={lang === 'ru' ? 'Повторить' : lang === 'uz' ? 'Qayta urinish' : 'Retry'}
+        lang={lang}
+        title={screenLabels.loadFailedTitle}
+        description={screenLabels.loadFailedHint}
+        actionLabel={screenLabels.retry}
         onAction={() => setLookupVersion(version => version + 1)}
       />
     )
@@ -721,14 +760,15 @@ export default function Receipt() {
   return (
     <ReceiptShell
       lang={lang}
-      dispatch={dispatch}
+      receiptLang={receiptLang}
+      onReceiptLangChange={setReceiptLang}
       onBack={() => navigate(-1)}
       autoPrint={new URLSearchParams(location.search).get('print') === '1'}
     >
       <ReceiptPaper
-        {...data}
+        {...paper}
         dateStr={formatDateTime(data.receiptAt)}
-        labels={labels}
+        labels={L[receiptLang]}
         restaurantName={settings.restaurantName}
         receiptFooter={settings.receiptFooter}
         receiptMarketing={settings.receiptMarketing}
@@ -739,52 +779,31 @@ export default function Receipt() {
 
 // ── Shell (screen top-bar + background) ──────────────────────────────────────
 
-function ReceiptShell({ lang, dispatch, onBack, autoPrint, children }) {
-  useEffect(() => {
-    if (!autoPrint) return
-    const t = setTimeout(() => handlePrintReceipt(0), 600)
-    return () => clearTimeout(t)
-  }, [autoPrint])
+function ReceiptShell({ lang, receiptLang, onReceiptLangChange, onBack, autoPrint, children }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // `print=1` is used up by the one automatic print: Back, a reload or a restored tab then
+  // shows the receipt without printing it again.
+  const consumeAutoPrint = useCallback(() => {
+    navigate(`${location.pathname}${stripPrintParam(location.search)}`, { replace: true })
+  }, [location.pathname, location.search, navigate])
+
+  const { busy: printBusy, print } = usePrintOnce({ autoPrint, ready: true, onAutoPrintConsumed: consumeAutoPrint })
 
   return (
     <>
       <style>{PRINT_CSS}</style>
 
       {/* Top bar – hidden during print */}
-      <div className="no-print sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 font-semibold text-sm hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          Back
-        </button>
-
-        {/* Language switcher */}
-        <div className="flex gap-1">
-          {['uz', 'ru', 'en'].map(l => (
-            <button
-              key={l}
-              onClick={() => dispatch({ type: 'SET_LANG', payload: l })}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase transition-colors ${
-                lang === l
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => handlePrintReceipt()}
-          className="flex items-center gap-1.5 bg-[#ff5a00] text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-[#cc4800] transition-colors shadow-sm shadow-orange-200"
-        >
-          <Printer size={15} />
-          {lang === 'uz' ? 'Chop etish' : lang === 'ru' ? 'Печать' : 'Print'}
-        </button>
-      </div>
+      <ReceiptTopBar
+        lang={lang}
+        onBack={onBack}
+        onPrint={print}
+        printBusy={printBusy}
+        receiptLang={receiptLang}
+        onReceiptLangChange={onReceiptLangChange}
+      />
 
       {/* Receipt preview background */}
       <div className="receipt-bg min-h-screen bg-gray-100 flex justify-center py-10 px-4">
@@ -801,13 +820,11 @@ function NotFound({ onBack }) {
   const lang = state.lang || 'ru'
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white rounded-2xl p-10 text-center shadow-lg max-w-xs">
-        <p className="text-4xl mb-3">🧾</p>
-        <p className="text-gray-600 font-semibold">{t(lang, 'orderNotFound')}</p>
-        <button onClick={onBack} className="mt-5 text-[#ff5a00] font-bold hover:underline text-sm">
-          ← {t(lang, 'back')}
-        </button>
+    <div className="flex min-h-screen items-center justify-center bg-[#f6f5f3] p-4">
+      <div className="ws-empty">
+        <FileQuestion aria-hidden="true" />
+        <h3>{t(lang, 'orderNotFound')}</h3>
+        <button type="button" onClick={onBack} className="ws-btn ws-btn-outline min-h-11">{t(lang, 'back')}</button>
       </div>
     </div>
   )

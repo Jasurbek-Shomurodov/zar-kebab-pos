@@ -47,10 +47,10 @@
 
 ## Kitchen checks and printing
 
-- Printed kitchen checks combine identical product/options/notes/price/unit rows within the selected round only, using `getGroupedOrderItems` in both print renderers. Coverage: `tests/orderItemPresentation.test.js`.
+- Printed kitchen checks combine identical product/options/notes/price/unit rows within the selected round only, using `getGroupedOrderItems` in `buildKitchenCheckModel`. Coverage: `tests/orderItemPresentation.test.js`.
 
 - Never substitute an older round while the requested round loads.
-- Refresh a missing round directly before printing and auto-print each round only once.
+- Refresh a missing round first; `usePrintOnce.js` prints once (`tests/printOnce.test.js`).
 - "Print all" in the preparation header passes repeated `round`/`order` pairs to `/kitchen-check/:orderId`; each round prints as its own check with a page break, and auto-print waits until every missing round is looked up.
 - See `PRINTING.md` for receipt-printer setup.
 

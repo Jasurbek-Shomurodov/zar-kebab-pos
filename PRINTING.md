@@ -22,7 +22,8 @@ Without `--kiosk-printing`, Chrome shows the normal print dialog.
 
 Receipt CSS is optimized for 80mm thermal paper:
 
-- `@page size: 80mm auto`
+- paper width comes from the printer driver's 80mm paper size (the `@page { size: 80mm auto }` rule in the code is not valid CSS and browsers ignore it); the receipt itself is laid out 80mm wide
+- a print starts once per tap, and `?print=1` prints once and is then removed from the URL (`src/lib/usePrintOnce.js`)
 - zero page margin
 - black and white print styles
 - only `.receipt-print-area` is visible during print

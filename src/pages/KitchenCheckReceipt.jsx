@@ -1,22 +1,62 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Loader2, Printer } from 'lucide-react'
+import { FileQuestion } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { getItemName } from '../lib/i18n'
-import { getGroupedOrderItems } from '../lib/analytics'
-import { formatTime } from '../lib/dateFormat'
 import {
-  formatKitchenOrderNumber,
-  formatKitchenTableName,
+  buildKitchenCheckModel,
   getKitchenCheckGroup,
-  kitchenItemName,
+  resolveKitchenCheckTargets,
 } from '../lib/kitchenCheck'
 import { loadKitchenCheckOrder } from '../lib/db'
 import { getManualOrderNotes, getOrderItemOptionLines } from '../components/MenuProductCards'
+import { OperationalError, OperationalLoading } from '../components/OperationalState'
+import ReceiptTopBar from '../components/ReceiptTopBar'
 import { useAppDataStatus } from '../store/appHooks'
-import { formatMenuQuantity, isMenuItemSoldByWeight } from '../lib/menuSaleUnits'
+import { stripPrintParam, usePrintOnce } from '../lib/usePrintOnce'
+
+// Screen chrome only: the slip itself is always printed in Russian for the kitchen.
+const L = {
+  uz: {
+    loading: 'Oshxona cheki yuklanmoqda',
+    loadFailedTitle: 'Oshxona chekini yuklab bo‘lmadi',
+    loadFailedHint: 'Ulanishni tekshirib, qayta urinib ko‘ring. Buyurtmani qayta yubormang: u saqlangan.',
+    retry: 'Qayta urinish',
+    reload: 'Qayta yuklash',
+    notFoundTitle: 'Oshxona cheki topilmadi',
+    notFoundHint: 'Bu buyurtmada chop etiladigan taom yo‘q yoki u bekor qilingan.',
+    back: 'Orqaga',
+    missing: (missing, total) => `${total} ta chekdan ${missing} tasi topilmadi va chop etilmaydi. Avtomatik chop etish to‘xtatildi: avval tekshiring.`,
+  },
+  ru: {
+    loading: 'Загрузка чека кухни',
+    loadFailedTitle: 'Не удалось загрузить чек кухни',
+    loadFailedHint: 'Проверьте соединение и повторите. Не отправляйте заказ повторно: он сохранён.',
+    retry: 'Повторить',
+    reload: 'Перезагрузить',
+    notFoundTitle: 'Чек кухни не найден',
+    notFoundHint: 'В этом заказе нет блюд для печати, или он отменён.',
+    back: 'Назад',
+    missing: (missing, total) => `Не найдено чеков: ${missing} из ${total}. Они не будут напечатаны. Автопечать остановлена: сначала проверьте.`,
+  },
+  en: {
+    loading: 'Loading kitchen check',
+    loadFailedTitle: 'Could not load the kitchen check',
+    loadFailedHint: 'Check the connection and try again. Do not resend the order: it is saved.',
+    retry: 'Try again',
+    reload: 'Reload',
+    notFoundTitle: 'Kitchen check not found',
+    notFoundHint: 'This order has nothing to print, or it was cancelled.',
+    back: 'Back',
+    missing: (missing, total) => `${missing} of ${total} checks could not be found and will not print. Automatic printing is stopped: check first.`,
+  },
+}
 
 const PRINT_CSS = `
+/* "80mm auto" is not a valid size value (CSS Paged Media: a length cannot be combined with
+   auto), so browsers ignore it and the roll width comes from the printer driver's paper size.
+   Left as is: the valid forms ("80mm" = an 80x80mm page, or a fixed height) would cut or feed
+   real tickets differently. See PRINTING.md. */
 @page {
   size: 80mm auto;
   margin: 0;
@@ -103,10 +143,6 @@ function sanitizeBackPath(value) {
   return raw
 }
 
-function handlePrintKitchenCheck(delay = 300) {
-  window.setTimeout(() => window.print(), delay)
-}
-
 function localizeKitchenGroup(group, menuItemMap, lang = 'ru') {
   return {
     ...group,
@@ -124,11 +160,14 @@ function localizeKitchenGroup(group, menuItemMap, lang = 'ru') {
   }
 }
 
+// One meta line of the slip: the fixed part (order number, time) never shrinks, the name next
+// to it is cut with an ellipsis instead of pushing the line off the 80mm paper.
+const META_ROW = { display: 'flex', justifyContent: 'space-between', gap: '6px', whiteSpace: 'nowrap' }
+const META_FIXED = { flexShrink: 0 }
+const META_FLEXIBLE = { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }
+
 function KitchenCheckPaper({ group }) {
-  const time = formatTime(group?.createdAt || new Date())
-  const orderNumber = formatKitchenOrderNumber(group)
-  const tableName = formatKitchenTableName(group?.tableName)
-  const waiterName = group?.waiterName || '-'
+  const check = buildKitchenCheckModel(group)
 
   return (
     <div
@@ -145,37 +184,34 @@ function KitchenCheckPaper({ group }) {
       }}
     >
       <h1 style={{ margin: '0 0 8px', textAlign: 'center', fontSize: '17px', lineHeight: 1.05, fontWeight: 900 }}>
-        ЧЕК ДЛЯ КУХНИ
+        {check.title}
       </h1>
 
       <div style={{ display: 'grid', gap: '2px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', whiteSpace: 'nowrap' }}>
-          <span>{tableName}</span>
-          <span>{orderNumber}</span>
+        <div style={META_ROW}>
+          <span style={META_FLEXIBLE}>{check.tableName}</span>
+          <span style={META_FIXED}>{check.orderNumber}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', whiteSpace: 'nowrap' }}>
-          <span>{time}</span>
-          <span>{waiterName}</span>
+        <div style={META_ROW}>
+          <span style={META_FIXED}>{check.time}</span>
+          <span style={{ ...META_FLEXIBLE, textAlign: 'right' }}>{check.waiterName}</span>
         </div>
       </div>
 
       <div aria-hidden="true" style={{ margin: '7px 0', borderTop: '2px solid #000' }} />
 
       <div style={{ display: 'grid', gap: '6px' }}>
-        {getGroupedOrderItems(group?.items || []).map(item => (
+        {check.rows.map(row => (
           <div
-            key={item.id || `${item.menu_item_id}-${item.name}`}
+            key={row.key}
             style={{ display: 'grid', gridTemplateColumns: 'max-content minmax(0, 1fr)', columnGap: '7px', fontSize: '15px', fontWeight: 900 }}
           >
-            <span style={{ whiteSpace: 'nowrap' }}>
-              {isMenuItemSoldByWeight(item)
-                ? `${formatMenuQuantity(item.quantity, item)} ·`
-                : `${formatMenuQuantity(item.quantity, item)} ×`}
-            </span>
-            <span>{kitchenItemName(item)}</span>
-            {item.notes && (
-              <div style={{ gridColumn: '2', marginTop: '1px', fontSize: '11px', lineHeight: 1.15, fontWeight: 700, textTransform: 'uppercase' }}>
-                {item.notes}
+            <span style={{ whiteSpace: 'nowrap' }}>{row.quantity}</span>
+            <span style={{ overflowWrap: 'anywhere' }}>{row.name}</span>
+            {row.notes && (
+              // Options and the waiter's note are separate lines joined with "\n": keep the breaks.
+              <div style={{ gridColumn: '2', marginTop: '1px', fontSize: '12px', lineHeight: 1.15, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
+                {row.notes}
               </div>
             )}
           </div>
@@ -201,9 +237,10 @@ export default function KitchenCheckReceipt() {
   const autoPrint = params.get('print') === '1'
   const backPath = sanitizeBackPath(params.get('back')) || '/waiter/tables'
   const lang = state.lang || 'ru'
+  const l = L[lang] || L.en
   const [fetchedGroups, setFetchedGroups] = useState({})
   const [roundLookupState, setRoundLookupState] = useState('idle')
-  const printedRoundRef = useRef('')
+  const [lookupVersion, setLookupVersion] = useState(0)
 
   // One check per `round`; repeated `round`/`order` pairs print several rounds at once.
   const targets = useMemo(() => {
@@ -226,12 +263,14 @@ export default function KitchenCheckReceipt() {
     return selected ? localizeKitchenGroup(selected, menuItemMap, 'ru') : null
   }), [menuItemMap, state.orders, targets])
 
-  const missingTargets = targets.filter((target, index) => target.roundId && !stateGroups[index])
+  // Anything this device does not hold (another waiter's round, a paid order) is read directly.
+  const missingTargets = targets.filter((target, index) => target.orderId && !stateGroups[index])
   const missingKey = missingTargets.map(kitchenTargetKey).join('\n\n')
 
-  const groups = targets
-    .map((target, index) => stateGroups[index] || fetchedGroups[kitchenTargetKey(target)] || null)
-    .filter(Boolean)
+  const { groups, missingCount } = resolveKitchenCheckTargets(
+    targets,
+    target => stateGroups[targets.indexOf(target)] || fetchedGroups[kitchenTargetKey(target)] || null,
+  )
 
   useEffect(() => {
     setFetchedGroups({})
@@ -263,8 +302,11 @@ export default function KitchenCheckReceipt() {
         setFetchedGroups(found)
         setRoundLookupState(Object.keys(found).length > 0 ? 'found' : 'missing')
       })
-      .catch(() => {
-        if (!cancelled) setRoundLookupState('error')
+      .catch(error => {
+        if (cancelled) return
+        // A failed or timed-out read is not "no such check": say so and offer a retry.
+        console.error('[kitchen-check] round lookup failed', error)
+        setRoundLookupState('error')
       })
       .finally(() => clearTimeout(timeout))
 
@@ -273,72 +315,84 @@ export default function KitchenCheckReceipt() {
       clearTimeout(timeout)
       controller.abort()
     }
-  }, [loaded, loadError, menuItemMap, missingKey])
+  }, [loaded, loadError, lookupVersion, menuItemMap, missingKey])
 
   const isLookingUpRound = loaded && !loadError && !!missingKey && (
     roundLookupState === 'idle' || roundLookupState === 'loading'
   )
-  const printKey = groups.map(group => `${group.orderId}:${group.roundId}`).join('|')
+  const lookupFailed = !!missingKey && roundLookupState === 'error'
+  const settled = loaded && !loadError && !isLookingUpRound && !lookupFailed
+  const hasMissingRounds = settled && groups.length > 0 && missingCount > 0
 
-  useEffect(() => {
-    if (!autoPrint || !printKey || isLookingUpRound) return
-    if (printedRoundRef.current === printKey) return
-    const timer = setTimeout(() => {
-      printedRoundRef.current = printKey
-      handlePrintKitchenCheck(0)
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [autoPrint, isLookingUpRound, printKey])
+  // `print=1` is used up by the one automatic print (or by the decision not to print):
+  // without it Back, a reload or a restored tab shows the check and prints nothing.
+  const consumeAutoPrint = useCallback(() => {
+    navigate(`${location.pathname}${stripPrintParam(location.search)}`, { replace: true })
+  }, [location.pathname, location.search, navigate])
+
+  const { busy: printBusy, print } = usePrintOnce({
+    autoPrint,
+    ready: settled && groups.length > 0 && missingCount === 0,
+    blocked: hasMissingRounds,
+    onAutoPrintConsumed: consumeAutoPrint,
+  })
+
+  // Replace, so the waiter's own Back from the table does not land on this check again.
+  const goBack = () => navigate(backPath, { replace: true })
 
   if (!loaded || isLookingUpRound) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100">
-        <Loader2 size={28} className="animate-spin text-[#ff5a00]" />
+      <div className="min-h-screen bg-[#f6f5f3]">
+        <OperationalLoading layout="form" title={l.loading} className="mx-auto max-w-md" />
       </div>
     )
   }
 
-  if (loadError || groups.length === 0) {
+  if (loadError || lookupFailed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-        <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-sm">
-          <p className="mb-4 text-sm font-black text-red-600">
-            {lang === 'uz' ? 'Oshxona cheki topilmadi.' : lang === 'ru' ? 'Чек кухни не найден.' : 'Kitchen check not found.'}
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate(backPath)}
-            className="rounded-xl bg-[#ff5a00] px-4 py-2 text-sm font-black text-white"
-          >
-            {lang === 'uz' ? 'Orqaga' : lang === 'ru' ? 'Назад' : 'Back'}
-          </button>
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f5f3] p-4">
+        <div className="grid justify-items-center">
+          <OperationalError
+            lang={lang}
+            title={l.loadFailedTitle}
+            description={l.loadFailedHint}
+            actionLabel={lookupFailed ? l.retry : l.reload}
+            // The app data has no loader a page can call; a failed round lookup is re-run in place.
+            onAction={lookupFailed ? () => setLookupVersion(version => version + 1) : () => window.location.reload()}
+          />
+          <button type="button" onClick={goBack} className="ws-btn ws-btn-ghost min-h-11">{l.back}</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (groups.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f5f3] p-4">
+        <div className="ws-empty">
+          <FileQuestion aria-hidden="true" />
+          <h3>{l.notFoundTitle}</h3>
+          <p>{l.notFoundHint}</p>
+          <button type="button" onClick={goBack} className="ws-btn ws-btn-outline min-h-11">{l.back}</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#f6f5f3]">
       <style>{PRINT_CSS}</style>
 
-      <div className="no-print sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
-        <button
-          type="button"
-          onClick={() => navigate(backPath)}
-          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-100"
-        >
-          <ArrowLeft size={16} />
-          {lang === 'uz' ? 'Orqaga' : lang === 'ru' ? 'Назад' : 'Back'}
-        </button>
-        <button
-          type="button"
-          onClick={() => handlePrintKitchenCheck()}
-          className="flex items-center gap-2 rounded-xl bg-[#ff5a00] px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-[#e64d00]"
-        >
-          <Printer size={15} />
-          {lang === 'uz' ? 'Chop etish' : lang === 'ru' ? 'Печать' : 'Print'}
-        </button>
-      </div>
+      <ReceiptTopBar lang={lang} onBack={goBack} onPrint={print} printBusy={printBusy} />
+
+      {hasMissingRounds && (
+        <div role="alert" className="no-print ws-notice ws-tone-caution mx-auto mt-4 flex w-[calc(100%-2rem)] max-w-md flex-wrap items-center justify-between gap-2">
+          <span className="min-w-0 flex-1 basis-56">{l.missing(missingCount, targets.length)}</span>
+          <button type="button" onClick={() => setLookupVersion(version => version + 1)} className="ws-btn ws-btn-sm ws-btn-outline min-h-11">
+            {l.retry}
+          </button>
+        </div>
+      )}
 
       <div className="kitchen-check-bg flex min-h-screen justify-center px-4 py-4">
         <div className="flex flex-col items-center gap-4">

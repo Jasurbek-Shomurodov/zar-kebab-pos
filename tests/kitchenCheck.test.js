@@ -1,11 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
-  buildKitchenCheckHtml,
+  buildKitchenCheckModel,
   formatKitchenOrderNumber,
   getKitchenCheckGroup,
   getKitchenCheckGroups,
+  resolveKitchenCheckTargets,
 } from '../src/lib/kitchenCheck.js'
+
+const readSource = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
 test('cook checks shorten long database ids to a four-digit display number', () => {
   assert.equal(formatKitchenOrderNumber({ orderId: '1786802387273' }), '#7273')
@@ -83,7 +87,7 @@ test('cook checks exclude cancelled unavailable items', () => {
   assert.deepEqual(groups[0].items.map(row => row.name), ['Available item'])
 })
 
-test('cook check print html contains item notes but no prices', () => {
+test('cook check contains item notes but no prices', () => {
   const [group] = getKitchenCheckGroups({
     id: 'order-173',
     table_name: 'Table 3',
@@ -93,18 +97,19 @@ test('cook check print html contains item notes but no prices', () => {
       item({ id: 'a', order_id: 'order-173', name: 'Молотый шашлык', quantity: 2, notes: 'No onion', price: 18000 }),
     ],
   })
-  const html = buildKitchenCheckHtml({ group, lang: 'en', restaurantName: 'Zar Kebab' })
+  const check = buildKitchenCheckModel(group)
+  const printed = JSON.stringify(check)
 
-  assert.match(html, /ЧЕК ДЛЯ КУХНИ/)
-  assert.match(html, /СТОЛ 3/)
-  assert.match(html, /#173/)
-  assert.match(html, /2 × МОЛОТЫЙ ШАШЛЫК/)
-  assert.match(html, /No onion/)
-  assert.doesNotMatch(html, /18000/)
-  assert.doesNotMatch(html, /UZS/)
+  assert.equal(check.title, 'ЧЕК ДЛЯ КУХНИ')
+  assert.equal(check.tableName, 'СТОЛ 3')
+  assert.equal(check.orderNumber, '#173')
+  assert.deepEqual(check.rows.map(row => `${row.quantity} ${row.name}`), ['2 × МОЛОТЫЙ ШАШЛЫК'])
+  assert.equal(check.rows[0].notes, 'No onion')
+  assert.doesNotMatch(printed, /18000/)
+  assert.doesNotMatch(printed, /UZS/)
 })
 
-test('cook check renders the compact Russian kitchen slip format', () => {
+test('cook check keeps the compact Russian kitchen slip format', () => {
   const [group] = getKitchenCheckGroups({
     id: 'order-173',
     table_name: 'Table 10',
@@ -116,13 +121,86 @@ test('cook check renders the compact Russian kitchen slip format', () => {
       item({ id: 'c', menu_item_id: 'ground', order_id: 'order-173', name: 'Молотый шашлык', quantity: 1 }),
     ],
   })
-  const html = buildKitchenCheckHtml({ group, lang: 'ru', restaurantName: 'Zar Kebab' })
+  const check = buildKitchenCheckModel(group)
 
-  assert.match(html, /<h1>ЧЕК ДЛЯ КУХНИ<\/h1>/)
-  assert.match(html, /<div class="line"><span>СТОЛ 10<\/span><span>#173<\/span><\/div>/)
-  assert.match(html, /<div class="line"><span>09:34<\/span><span>Jasurbek<\/span><\/div>/)
-  assert.match(html, /━━━━━━━━━━━━━━━━━━━━/)
-  assert.match(html, /1 × КУРИНЫЕ КРЫЛЫШКИ/)
-  assert.match(html, /1 × ШАШЛЫК ИЗ ГОВЯДИНЫ/)
-  assert.match(html, /1 × МОЛОТЫЙ ШАШЛЫК/)
+  assert.equal(check.title, 'ЧЕК ДЛЯ КУХНИ')
+  assert.deepEqual([check.tableName, check.orderNumber], ['СТОЛ 10', '#173'])
+  assert.deepEqual([check.time, check.waiterName], ['09:34', 'Jasurbek'])
+  assert.deepEqual(check.rows.map(row => `${row.quantity} ${row.name}`), [
+    '1 × КУРИНЫЕ КРЫЛЫШКИ',
+    '1 × ШАШЛЫК ИЗ ГОВЯДИНЫ',
+    '1 × МОЛОТЫЙ ШАШЛЫК',
+  ])
+  assert.equal(buildKitchenCheckModel({ items: [] }).waiterName, '-')
+})
+
+test('cook check keeps option and note lines apart and marks weight rows', () => {
+  const check = buildKitchenCheckModel({
+    items: [
+      item({ id: 'a', name: 'Plov', quantity: 1, notes: 'Острый\nБез лука' }),
+      item({ id: 'b', menu_item_id: 'm2', name: 'Lamb', quantity: 0.355, sale_unit: 'kg' }),
+    ],
+  })
+
+  assert.equal(check.rows[0].notes, 'Острый\nБез лука')
+  assert.match(check.rows[1].quantity, / ·$/)
+  assert.match(check.rows[0].quantity, / ×$/)
+})
+
+test('print-all reports rounds that were not found instead of dropping them', () => {
+  const targets = [{ orderId: 'o1', roundId: 'r1' }, { orderId: 'o1', roundId: 'r2' }, { orderId: 'o2', roundId: 'r3' }]
+  const known = { r1: { roundId: 'r1' }, r3: { roundId: 'r3' } }
+
+  const partial = resolveKitchenCheckTargets(targets, target => known[target.roundId] || null)
+  assert.deepEqual(partial.groups.map(group => group.roundId), ['r1', 'r3'])
+  assert.equal(partial.missingCount, 1)
+  assert.equal(partial.complete, false)
+
+  const all = resolveKitchenCheckTargets(targets.slice(0, 1), target => known[target.roundId] || null)
+  assert.deepEqual([all.missingCount, all.complete], [0, true])
+
+  const none = resolveKitchenCheckTargets(targets.slice(1, 2), () => null)
+  assert.deepEqual([none.groups.length, none.missingCount, none.complete], [0, 1, false])
+})
+
+test('kitchen check page: one print, readable notes, honest loading and error states', () => {
+  const page = readSource('src/pages/KitchenCheckReceipt.jsx')
+  const lib = readSource('src/lib/kitchenCheck.js')
+
+  // K1/K2: the shared controller prints; `print=1` is stripped with a replace navigation.
+  assert.match(page, /import \{ stripPrintParam, usePrintOnce \} from '\.\.\/lib\/usePrintOnce'/)
+  assert.doesNotMatch(page, /window\.print\(/)
+  assert.match(page, /navigate\(`\$\{location\.pathname\}\$\{stripPrintParam\(location\.search\)\}`, \{ replace: true \}\)/)
+  assert.match(page, /onAutoPrintConsumed: consumeAutoPrint/)
+  assert.match(page, /navigate\(backPath, \{ replace: true \}\)/)
+  assert.match(page, /<ReceiptTopBar lang=\{lang\} onBack=\{goBack\} onPrint=\{print\} printBusy=\{printBusy\} \/>/)
+
+  // K5: auto-print needs every requested round; a missing one blocks it and is shown.
+  assert.match(page, /ready: settled && groups\.length > 0 && missingCount === 0/)
+  assert.match(page, /blocked: hasMissingRounds/)
+  assert.match(page, /\{hasMissingRounds && \(\s*<div role="alert" className="no-print /)
+  assert.match(page, /l\.missing\(missingCount, targets\.length\)/)
+
+  // K3/K13: notes keep their line breaks at 12px; long names cannot push a meta line off the paper.
+  assert.match(page, /fontSize: '12px'[^\n]*whiteSpace: 'pre-line'/)
+  assert.match(page, /const META_FLEXIBLE = \{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' \}/)
+  assert.doesNotMatch(page, /fontSize: '(?:[0-9]|1[01])(?:\.\d+)?px'/)
+
+  // K4/K6: shimmer while loading, a retryable error for a failed lookup, "not found" only when settled.
+  assert.doesNotMatch(page, /Loader2|animate-spin/)
+  assert.match(page, /<OperationalLoading layout="form"/)
+  assert.match(page, /setRoundLookupState\('error'\)/)
+  assert.match(page, /if \(loadError \|\| lookupFailed\) \{[\s\S]*?<OperationalError[\s\S]*?setLookupVersion\(version => version \+ 1\)/)
+  assert.ok(page.indexOf('if (loadError || lookupFailed)') < page.indexOf('if (groups.length === 0)'))
+  assert.match(page, /\[loaded, loadError, lookupVersion, menuItemMap, missingKey\]/)
+
+  // Chrome labels exist in all three languages; the slip itself stays Russian.
+  for (const key of ['loading', 'loadFailedTitle', 'loadFailedHint', 'retry', 'reload', 'notFoundTitle', 'notFoundHint', 'back', 'missing']) {
+    assert.equal((page.match(new RegExp(`\\n    ${key}: `, 'g')) || []).length, 3, key)
+  }
+  assert.match(page, /localizeKitchenGroup\(selected, menuItemMap, 'ru'\)/)
+
+  // K18: the unused HTML renderer is gone; the page renders the tested model.
+  assert.doesNotMatch(lib, /buildKitchenCheckHtml|kitchenCheckLabels|<!doctype/)
+  assert.match(page, /const check = buildKitchenCheckModel\(group\)/)
 })
