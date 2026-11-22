@@ -582,7 +582,7 @@ function FlyingCartItem({ flyer, onDone }) {
 
   return (
     <div
-      className="pointer-events-none fixed z-[90] flex items-center justify-center overflow-hidden rounded-[22px] border-2 border-white bg-orange-50 shadow-2xl ring-2 ring-[#ff5a00]/25 will-change-transform"
+      className="pointer-events-none fixed z-toast flex items-center justify-center overflow-hidden rounded-[22px] border-2 border-white bg-orange-50 shadow-2xl ring-2 ring-[#ff5a00]/25 will-change-transform"
       style={{
         left: source.left,
         top: source.top,
@@ -1762,7 +1762,7 @@ export default function WaiterOrder() {
       {/* ── Cart drawer ─────────────────────────────────────────────────── */}
       {!detailItem && cartOpen && (
         // Centred glass panel; tapping the blurred backdrop closes it.
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+        <div className="fixed inset-0 z-drawer flex items-center justify-center p-3 sm:p-6">
           <div className="absolute inset-0 backdrop-blur-[6px]" style={{ background: 'rgb(20 15 11 / 38%)' }} onClick={() => closeCart()} />
           <div
             className="zk-lux relative flex h-[min(860px,calc(100dvh-24px))] w-full max-w-[540px] flex-col overflow-hidden rounded-[30px] shadow-[0_30px_80px_rgb(20_15_11/35%)]"

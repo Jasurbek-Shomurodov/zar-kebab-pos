@@ -319,7 +319,7 @@ function ExpenseBreakdownDialog({ rows, expenseSummary, expenseCashflow, cashflo
     : `${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#22201d]/40 backdrop-blur-[2px] sm:items-center sm:p-5" onClick={onClose}>
+    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 backdrop-blur-[2px] sm:items-center sm:p-5" onClick={onClose}>
       <section
         role="dialog"
         aria-modal="true"
@@ -766,7 +766,7 @@ function DishSalesTab({ reportArgs, loadExportOrders, menuItems, categories, lan
             {/* Phones get a bottom sheet sized to the visible screen; wider screens keep the dropdown under the button. */}
             {pickerOpen && <div aria-hidden="true" onClick={() => setPickerOpen(false)} className="fixed inset-0 z-40 bg-[#22201d]/40 sm:hidden" />}
             {pickerOpen && (
-              <div className="ws-dialog fixed inset-x-0 bottom-0 z-50 flex h-[min(640px,85dvh)] flex-col overflow-hidden !rounded-b-none !rounded-t-2xl pb-[env(safe-area-inset-bottom)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-[calc(100%+8px)] sm:z-30 sm:h-auto sm:w-[620px] sm:!rounded-xl sm:pb-0">
+              <div className="ws-dialog fixed inset-x-0 bottom-0 z-dialog flex h-[min(640px,85dvh)] flex-col overflow-hidden !rounded-b-none !rounded-t-2xl pb-[env(safe-area-inset-bottom)] sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-[calc(100%+8px)] sm:z-30 sm:h-auto sm:w-[620px] sm:!rounded-xl sm:pb-0">
                 <div className="flex flex-shrink-0 items-center gap-2 border-b border-[#e4e1de] p-3">
                   <div className="relative min-w-0 flex-1">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />

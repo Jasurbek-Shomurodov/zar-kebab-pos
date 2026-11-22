@@ -314,7 +314,7 @@ function normalizeTable(table, zones = []) {
 
 function Modal({ title, description, onClose, children, maxWidth = 'sm:max-w-lg' }) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-dialog flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className={`relative bg-white w-full ${maxWidth} rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92dvh] overflow-hidden`}>
         <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-gray-100">

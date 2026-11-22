@@ -175,7 +175,7 @@ function SortMenu({ value, onChange, labels }) {
         <ArrowUpDown size={14} />{value === 'default' ? labels.sort : labels[value]}
       </button>
       {open && (
-        <div role="listbox" aria-label={labels.sort} className="absolute right-0 top-[calc(100%+8px)] z-50 w-[min(280px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-2xl shadow-slate-900/20">
+        <div role="listbox" aria-label={labels.sort} className="absolute right-0 top-[calc(100%+8px)] z-40 w-[min(280px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-2xl shadow-slate-900/20">
           {SORT_OPTIONS.map(option => {
             const selected = option === value
             return (

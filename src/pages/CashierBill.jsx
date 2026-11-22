@@ -1582,7 +1582,7 @@ export default function CashierBill() {
           role="dialog"
           aria-modal="true"
           aria-label={lang === 'uz' ? 'Chekni chop etish' : lang === 'ru' ? 'Печать чека' : 'Print receipt'}
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-3 sm:p-6"
+          className="fixed inset-0 z-dialog flex items-center justify-center bg-slate-950/55 p-3 sm:p-6"
         >
           <div className="flex h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">

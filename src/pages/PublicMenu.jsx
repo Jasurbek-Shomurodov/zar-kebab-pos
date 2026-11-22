@@ -189,7 +189,7 @@ function MapChooserSheet({ open, lang, onClose }) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center p-3 sm:items-center" role="presentation" onClick={onClose} style={{ background: 'rgb(15 11 8 / 45%)' }}>
+    <div className="fixed inset-0 z-dialog flex items-end justify-center p-3 sm:items-center" role="presentation" onClick={onClose} style={{ background: 'rgb(15 11 8 / 45%)' }}>
       <div
         role="dialog"
         aria-modal="true"
@@ -441,7 +441,7 @@ function MobileSearchPage({
   }
 
   return (
-    <div className="zk-lux fixed inset-0 z-[90] flex flex-col">
+    <div className="zk-lux fixed inset-0 z-overlay flex flex-col">
       <div className="lux-header sticky top-0 z-10 border-b px-4 py-3">
         <div className="mx-auto w-full max-w-[1280px]">
           <div className="mb-3 flex items-center gap-3">
@@ -1133,7 +1133,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
             variant="lux"
             collapsedPosition="fixed"
             collapsedSurfaceClass="lux-header lux-bar"
-            collapsedClassName="z-50 !border-0 !px-0 !py-1 !translate-y-0 !transition-none"
+            collapsedClassName="z-drawer !border-0 !px-0 !py-1 !translate-y-0 !transition-none"
           />
         </div>}
 
@@ -1225,7 +1225,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
       </main>
       {!premium && <PublicMenuFooter copy={siteCopy} lang={lang} onOpenMenu={openMenuHome} onOpenCorporateSets={openCorporateSets} onOpenFrozenMeals={openFrozenMeals} onOpenVacancies={openVacancies} onOpenMap={openMapChooser} />}
       {showDetailOverlay && (
-        <div className="fixed inset-0 z-[80]">
+        <div className="fixed inset-0 z-overlay">
           <PublicDishDetailPage
             item={detailItem}
             category={categoryMap[detailItem.category_id]}

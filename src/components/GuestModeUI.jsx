@@ -323,7 +323,7 @@ export function GuestPinDialog({ mode = 'setup', lang = 'en', pinLength = GUEST_
   const visibleError = lockSeconds > 0 ? l.locked(lockSeconds) : validationError || error
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-4 backdrop-blur-sm sm:items-center">
+    <div className="fixed inset-0 z-dialog flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-4 backdrop-blur-sm sm:items-center">
       <form
         ref={dialogRef}
         onSubmit={submit}
@@ -470,7 +470,7 @@ export function TableGuestEntryDialog({
   ].filter(choice => touristMenuEnabled || priceModeLocked || choice.value !== PRICE_MODE_TOURIST)
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-4 backdrop-blur-sm sm:items-center">
+    <div className="fixed inset-0 z-dialog flex items-start justify-center overflow-y-auto bg-slate-950/55 px-4 py-4 backdrop-blur-sm sm:items-center">
       <form
         ref={dialogRef}
         onSubmit={submit}
@@ -561,7 +561,7 @@ export function GuestSelectionReady({ lang = 'en', staffLang = lang, itemCount =
   })
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-[#FAF7F0] px-5 py-4 sm:items-center">
+    <div className="fixed inset-0 z-overlay flex items-start justify-center overflow-y-auto bg-[#FAF7F0] px-5 py-4 sm:items-center">
       <div
         ref={dialogRef}
         role="dialog"

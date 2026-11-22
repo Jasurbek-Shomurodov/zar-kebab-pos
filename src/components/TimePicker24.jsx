@@ -83,7 +83,7 @@ export default function TimePicker24({ value, onChange, label, hourLabel, minute
       {visible && (createPortal(
         <div ref={panel} id={`${id}-picker`} role="dialog" aria-label={label}
           style={position || { left: -9999, top: 0, width: PANEL_MIN_WIDTH }}
-          className="fixed z-[200] rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
+          className="fixed z-picker rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <label className="min-w-0 text-center text-xs font-semibold text-gray-500">
               {hourLabel}

@@ -240,7 +240,7 @@ export default function NewEmployeeDialog({ lang, canManage, onClose, onCreated 
   }[registration?.errorCode || '']
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
       <button type="button" aria-label={l.cancel} onClick={close}
         className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
       <form role="dialog" aria-modal="true" aria-labelledby="new-employee-title" onSubmit={createSalaryProfile}

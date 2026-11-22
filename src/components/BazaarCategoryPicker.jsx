@@ -98,7 +98,7 @@ export default function BazaarCategoryPicker({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-50 w-[min(360px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
+        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[min(360px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
           <div className="border-b border-gray-100 p-3">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />

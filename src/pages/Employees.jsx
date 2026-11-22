@@ -1366,7 +1366,7 @@ export default function Employees() {
       )}
 
       {screenOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
           <button type="button" aria-label={l.cancel} onClick={() => setScreenOpen(false)}
             className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
           <div role="dialog" aria-modal="true" aria-labelledby="checkin-screen-title"
@@ -1443,7 +1443,7 @@ export default function Employees() {
       {savedNotice && (
         <div key={savedNotice.id} role="status" aria-live="polite"
           style={{ animation: 'zk-sheet-in 220ms ease-out' }}
-          className="pointer-events-none fixed inset-x-0 bottom-6 z-[130] mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-[#22201d] px-4 py-3 text-white shadow-[0_12px_32px_rgb(0_0_0/24%)]">
+          className="pointer-events-none fixed inset-x-0 bottom-6 z-toast mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-2xl bg-[#22201d] px-4 py-3 text-white shadow-[0_12px_32px_rgb(0_0_0/24%)]">
           <CheckCircle2 size={20} className="flex-shrink-0 text-[#4ade80]" />
           <span className="min-w-0">
             <span className="block text-[14px] font-semibold">{l.employeeSaved}</span>
@@ -1586,7 +1586,7 @@ function EmployeeEditDialog({
   const ownOrders = kpiForm?.sales_basis === 'employee_opened_orders'
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
       <button type="button" aria-label={l.cancel} onClick={close}
         className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
       <div role="dialog" aria-modal="true" aria-labelledby="employee-edit-title"

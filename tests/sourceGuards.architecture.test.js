@@ -395,11 +395,11 @@ test('global AppShell mobile drawer overlays content consistently', () => {
   // The phone dish picker stacks categories above dishes, so the dish list must take the remaining height and scroll.
   assert.match(reports, /min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:max-h-\[440px\]/)
   // On phones the dish picker is a bottom sheet sized to the visible screen, not a dropdown that runs off it.
-  assert.match(reports, /ws-dialog fixed inset-x-0 bottom-0 z-50 flex h-\[min\(640px,85dvh\)\]/)
+  assert.match(reports, /ws-dialog fixed inset-x-0 bottom-0 z-dialog flex h-\[min\(640px,85dvh\)\]/)
   // iOS zooms into sub-16px fields on focus; touch screens get 16px form fields.
   assert.match(readSource('src/index.css'), /@media \(hover: none\) and \(pointer: coarse\) \{\s*input:not\(\[type="checkbox"\]\)/)
   assert.match(shell, /<MobileDrawer open=\{mobileOpen\} onClose=\{\(\) => setMobileOpen\(false\)\}>/)
-  assert.match(drawer, /lg:hidden fixed inset-0 z-50 flex h-\[100dvh\]/)
+  assert.match(drawer, /lg:hidden fixed inset-0 z-drawer flex h-\[100dvh\]/)
   assert.match(drawer, /absolute inset-0 bg-black\/40/)
   assert.match(drawer, /onClick=\{onClose\}/)
   assert.match(drawer, /max-w-\[85vw\]/)

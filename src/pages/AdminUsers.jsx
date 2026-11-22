@@ -431,7 +431,7 @@ export default function AdminUsers() {
     const nameChanged = nameDraft.trim().replace(/\s+/g, ' ') !== String(user.full_name || '').trim()
 
     return (
-      <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center sm:p-6">
+      <div className="fixed inset-0 z-dialog flex items-end justify-center sm:items-center sm:p-6">
         <button type="button" aria-label={l.close} onClick={closeMember}
           className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
         <div role="dialog" aria-modal="true" aria-labelledby="team-member-title"

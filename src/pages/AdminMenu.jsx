@@ -178,7 +178,7 @@ function SafeMenuImage({ src, alt = '', className = '', fallbackClassName = '', 
 
 function Modal({ title, onClose, children, closeDisabled = false }) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-dialog flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-[#22201d]/40 backdrop-blur-sm" onClick={closeDisabled ? undefined : onClose} />
       <div className="ws-dialog relative w-full sm:max-w-lg !rounded-b-none sm:!rounded-[16px] max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[#e4e1de] flex-shrink-0">
@@ -3807,7 +3807,7 @@ export default function AdminMenu() {
 
       {canDeleteMenuCatalog && archiveCandidate && (
 
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
           <button
             type="button"
             aria-label={lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'}

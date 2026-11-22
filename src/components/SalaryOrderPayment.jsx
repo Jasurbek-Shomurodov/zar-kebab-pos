@@ -92,7 +92,7 @@ export default function SalaryOrderPayment({ lang, disabled, total, loyaltyUsed,
 
   return <>
     <button type="button" disabled={disabled} onClick={() => { setOpen(true); onOpenChange(true); void loadEmployees() }} className="w-full rounded-xl border-2 border-[#0f3b2e] py-3 font-bold text-[#0f3b2e] disabled:opacity-50">{copy.title}</button>
-    {open && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    {open && <div className="fixed inset-0 z-dialog flex items-center justify-center bg-black/40 p-4">
       <section role="dialog" aria-modal="true" aria-labelledby="salary-order-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
         <h2 id="salary-order-title" className="text-xl font-bold">{copy.title}</h2>
         <label className="block text-sm font-semibold">{copy.employee}

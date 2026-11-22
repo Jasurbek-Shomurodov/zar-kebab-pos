@@ -280,7 +280,7 @@ function PurchaseDetail({ detail, lang, l, onClose }) {
   }, [onClose])
   const unit = detail.unit ? unitLabel(detail.unit, lang) : ''
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
       <section role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title" className="ws-dialog max-h-[92vh] w-full overflow-y-auto !rounded-b-none sm:max-w-lg sm:!rounded-2xl">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#e4e1de] bg-white px-5 py-4 sm:px-6">
           <div className="min-w-0">

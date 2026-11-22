@@ -101,7 +101,7 @@ export default function AnimatedSearch({
         </button>
 
         <div
-          className={`${isFloating ? 'z-[70]' : 'absolute inset-x-3 top-1/2 z-20 -translate-y-1/2 sm:inset-x-4'} rounded-2xl border border-[#E5E7EB] bg-white p-1 shadow-lg transition-all duration-200 ease-out ${
+          className={`${isFloating ? 'z-floating' : 'absolute inset-x-3 top-1/2 z-20 -translate-y-1/2 sm:inset-x-4'} rounded-2xl border border-[#E5E7EB] bg-white p-1 shadow-lg transition-all duration-200 ease-out ${
             open
               ? 'pointer-events-auto scale-x-100 scale-y-100 opacity-100'
               : 'pointer-events-none scale-x-[0.08] scale-y-90 opacity-0'
@@ -176,7 +176,7 @@ export default function AnimatedSearch({
       )}
 
       <div
-        className={`${isFloating ? 'z-[70]' : 'relative'} flex h-10 min-w-0 items-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] transition-all duration-200 ease-out focus-within:border-[#ff5a00] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#ff5a00]/20 ${
+        className={`${isFloating ? 'z-floating' : 'relative'} flex h-10 min-w-0 items-center rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] transition-all duration-200 ease-out focus-within:border-[#ff5a00] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#ff5a00]/20 ${
           isOpen ? 'pointer-events-auto w-full scale-x-100 opacity-100' : 'pointer-events-none w-10 scale-x-0 opacity-0'
         } ${panelClassName}`}
         style={isFloating ? (floatingStyle || {

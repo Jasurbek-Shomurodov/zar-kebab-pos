@@ -834,7 +834,7 @@ test('waiter cart opens as a centred panel that morphs from the cart button', ()
   const source = readFileSync(new URL('../src/pages/WaiterOrder.jsx', import.meta.url), 'utf8')
   assert.match(source, /onClick=\{openCart\}/)
   assert.match(source, /style=\{\{ viewTransitionName: 'zk-cart'/)
-  assert.match(source, /fixed inset-0 z-50 flex items-center justify-center/)
+  assert.match(source, /fixed inset-0 z-drawer flex items-center justify-center/)
   // Tapping the blurred backdrop closes the cart.
   assert.match(source, /backdrop-blur-\[6px\][^\n]*onClick=\{\(\) => closeCart\(\)\}/)
   // The panel closes itself after a successful send even while the order is still locked.

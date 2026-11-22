@@ -527,7 +527,7 @@ export default function BazaarIngredients() {
       </div>
 
       {canManage && editForm && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
           <button
             type="button"
             aria-label={l.cancel}
@@ -569,7 +569,7 @@ export default function BazaarIngredients() {
         </div>
       )}
       {canManage && archiveCheck && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
           <button
             type="button"
             aria-label={l.cancel}
@@ -661,7 +661,7 @@ export default function BazaarIngredients() {
         </div>
       )}
       {canManage && categoryPanelOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
           <button
             type="button"
             aria-label={l.cancel}

@@ -12,6 +12,6 @@ test('Bazaar ingredient picker preserves a legacy Tech Card ingredient name unti
 
 test('Bazaar ingredient picker portals its popover so overflow-hidden tables cannot clip it', () => {
   assert.match(picker, /open && createPortal\(/)
-  assert.match(picker, /className="fixed z-\[200\]/)
+  assert.match(picker, /className="fixed z-picker/)
   assert.match(picker, /!panelRef\.current\?\.contains\(event\.target\)/)
 })

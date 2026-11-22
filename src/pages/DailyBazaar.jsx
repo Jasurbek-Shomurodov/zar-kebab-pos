@@ -1306,7 +1306,7 @@ function BazaarLineDialog({ l, lang, item, index, isNew, suggestions, saving, li
   const firstError = localErrors[0] ? { ...localErrors[0], index } : null
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#22201d]/40 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onCancel()}>
+    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onCancel()}>
       <form
         role="dialog"
         aria-modal="true"

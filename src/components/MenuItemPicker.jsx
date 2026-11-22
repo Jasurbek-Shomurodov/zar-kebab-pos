@@ -171,7 +171,7 @@ export default function MenuItemPicker({
         <div
           ref={panelRef}
           style={panelPosition}
-          className="fixed z-[90] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-900/20"
+          className="fixed z-picker flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-900/20"
         >
           <div className="shrink-0 border-b border-gray-100 p-3">
             <div className="relative">

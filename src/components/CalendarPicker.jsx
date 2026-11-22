@@ -67,7 +67,7 @@ export default function CalendarPicker({ value = '', onChange, lang = 'en', min,
     </button>
     {visible && createPortal(<div ref={panel} id={id} role="dialog" aria-label={title}
       style={{ ...position, width: 'min(320px, calc(100vw - 16px))', maxHeight: 'calc(100dvh - 16px)' }}
-      className="fixed z-[200] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl"
+      className="fixed z-picker overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl"
       onClick={event => event.stopPropagation()}
       onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close() } }}>
       {mode === 'month' ? <>

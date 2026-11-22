@@ -135,7 +135,7 @@ export default function BazaarIngredientPicker({
         <div
           ref={panelRef}
           style={{ ...position, width: 'min(680px, calc(100vw - 16px))', maxHeight: 'calc(100dvh - 16px)' }}
-          className="fixed z-[200] flex flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
+          className="fixed z-picker flex flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
           <div className="border-b border-gray-100 p-3">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />

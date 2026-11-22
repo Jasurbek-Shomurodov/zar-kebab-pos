@@ -480,7 +480,7 @@ function HelpDialog({ title, text, closeLabel, onClose }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
       <section role="dialog" aria-modal="true" aria-labelledby="analysis-help-title" className="ws-dialog w-full !rounded-b-none sm:max-w-md sm:!rounded-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-[#e4e1de] px-5 py-4">
           <h2 id="analysis-help-title" className="ws-heading flex items-center gap-2"><HelpCircle size={18} className="text-[#ff5a00]" aria-hidden="true" />{title}</h2>
@@ -2672,7 +2672,7 @@ function DayFlowDialog({ date, entries, menuItems, l, lang, categoryName, onOpen
   const max = flow.payments[0]?.amount || 1
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
       <section role="dialog" aria-modal="true" aria-labelledby="day-flow-title" className="ws-dialog max-h-[92vh] w-full overflow-y-auto !rounded-b-none sm:max-w-4xl sm:!rounded-2xl">
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#e4e1de] bg-white px-5 py-4 sm:px-6">
           <div className="min-w-0">
