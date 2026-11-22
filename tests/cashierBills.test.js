@@ -94,3 +94,104 @@ test('empty-order recovery includes only loaded unpaid shells for the requested 
   assert.deepEqual(getEmptyCashierOrders(rows), [])
   assert.equal(isCashierVisibleBill(base), false)
 })
+
+// ── Tile total == bill total (audit B8) ─────────────────────────────────────
+// The Cashier list tile and the bill page it opens must print the same amount.
+async function tileAndBillTotals({ orders, menuItems = [], settings = {} }, bill) {
+  const { getCashierBillTotal, getCashierBillTarget } = await import('../src/lib/cashierBills.js')
+  const { getFreshCashierPaymentQuote, applyLoyaltyToCashierPaymentQuote } = await import('../src/lib/cashierCheckout.js')
+  const { getOrderTotal } = await import('../src/lib/analytics.js')
+  const { getConfiguredServiceRatePct } = await import('../src/lib/serviceRates.js')
+  const target = getCashierBillTarget(bill)
+  // Exactly what CashierBill.jsx renders before a loyalty amount is typed.
+  const pageQuote = getFreshCashierPaymentQuote({ orders, menuItems, settings, ...target })
+  const billTotal = applyLoyaltyToCashierPaymentQuote(pageQuote, 0).total
+  const tileTotal = getCashierBillTotal(bill, { orders, menuItems, settings })
+  // What the tile printed before the fix: per-order getOrderTotal over cashier-visible orders.
+  const oldTileTotal = orders
+    .filter(isCashierVisibleBill)
+    .filter(candidate => target.orderId ? candidate.id === target.orderId : candidate.table_id === target.tableId)
+    .reduce((sum, candidate) => sum + getOrderTotal(candidate, getConfiguredServiceRatePct(settings, candidate.price_mode)), 0)
+  return { tileTotal, billTotal, oldTileTotal }
+}
+
+// order() keeps a fixed set of columns; extra ones (price_mode, loyalty_used_amount) are spread on top.
+const dineIn = overrides => ({ ...order({ order_type: 'dine_in', table_id: 't1', table_name: 'T1', status: 'needs_bill', ...overrides }), ...overrides })
+
+test('tile total equals bill total for rounds saved with different service rates', async () => {
+  const orders = [
+    dineIn({ id: 'regular', service_rate_pct: 15, items: [item({ id: 'a', price: 33_333 })] }),
+    dineIn({ id: 'tourist', service_rate_pct: 20, price_mode: 'tourist', items: [item({ id: 'b', price: 41_000, quantity: 0.7 })] }),
+  ]
+  const { tileTotal, billTotal } = await tileAndBillTotals({ orders }, orders[0])
+  // 33 333 + 5 000 service, plus 28 700 (41 000 x 0.7) + 5 740 service.
+  assert.equal(billTotal, 72_773)
+  assert.equal(tileTotal, billTotal)
+  assert.equal(Number.isInteger(tileTotal), true)
+})
+
+test('tile total equals bill total when an unpaid order still stores a loyalty amount', async () => {
+  const orders = [
+    dineIn({ id: 'o1', service_rate_pct: 10, loyalty_used_amount: 20_000, items: [item({ price: 100_000 })] }),
+  ]
+  const { tileTotal, billTotal, oldTileTotal } = await tileAndBillTotals({ orders }, orders[0])
+  // The bill page ignores a loyalty amount left on an unpaid order (it is re-entered at checkout).
+  assert.equal(billTotal, 110_000)
+  assert.equal(tileTotal, billTotal)
+  assert.equal(oldTileTotal, 90_000)
+})
+
+test('tile total equals bill total for a quick counter item, which carries no service fee', async () => {
+  const menuItems = [
+    { id: 'm1', show_in_cashier_quick_items: false },
+    { id: 'box', show_in_cashier_quick_items: true },
+  ]
+  const orders = [
+    dineIn({ id: 'o1', service_rate_pct: 15, items: [
+      item({ id: 'food', menu_item_id: 'm1', price: 80_000 }),
+      // Sent by a waiter: the row itself is not flagged as a counter item, the menu item is.
+      item({ id: 'box', menu_item_id: 'box', price: 3_000, quantity: 2 }),
+    ] }),
+  ]
+  const { tileTotal, billTotal, oldTileTotal } = await tileAndBillTotals({ orders, menuItems }, orders[0])
+  assert.equal(billTotal, 80_000 + 12_000 + 6_000)
+  assert.equal(tileTotal, billTotal)
+  assert.equal(oldTileTotal, 98_900)
+})
+
+test('tile total covers every open round of the table, as the bill page does', async () => {
+  const orders = [
+    dineIn({ id: 'billed', service_rate_pct: 0, items: [item({ id: 'a', price: 50_000 })] }),
+    dineIn({ id: 'later', status: 'sent_to_kitchen', service_rate_pct: 0, items: [item({ id: 'b', price: 10_000 })] }),
+    dineIn({ id: 'other-table', table_id: 't2', service_rate_pct: 0, items: [item({ id: 'c', price: 7_000 })] }),
+    dineIn({ id: 'paid', payment_status: 'paid', service_rate_pct: 0, items: [item({ id: 'd', price: 9_000 })] }),
+  ]
+  const { tileTotal, billTotal, oldTileTotal } = await tileAndBillTotals({ orders }, orders[0])
+  assert.equal(billTotal, 60_000)
+  assert.equal(tileTotal, billTotal)
+  assert.equal(oldTileTotal, 50_000)
+})
+
+test('an off-premise tile is quoted by order, never by a shared table id', async () => {
+  const { getCashierBillTarget } = await import('../src/lib/cashierBills.js')
+  const orders = [
+    order({ id: 'ta-1', table_id: 'counter', items: [item({ id: 'a', price: 20_000 })] }),
+    order({ id: 'ta-2', table_id: 'counter', items: [item({ id: 'b', price: 30_000 })] }),
+  ]
+  assert.deepEqual(getCashierBillTarget(orders[1]), { tableId: null, orderId: 'ta-2' })
+  assert.deepEqual(getCashierBillTarget(dineIn({ id: 'x' })), { tableId: 't1', orderId: null })
+  const { tileTotal, billTotal } = await tileAndBillTotals({ orders }, orders[1])
+  assert.equal(tileTotal, 30_000)
+  assert.equal(tileTotal, billTotal)
+})
+
+test('a bill line total is whole UZS for a weight line', async () => {
+  const { getOrderItemLineTotal } = await import('../src/lib/analytics.js')
+  assert.equal(84_500 * 0.355, 29_997.5)
+  assert.equal(getOrderItemLineTotal({ unit_price: 84_500, quantity: 0.355 }), 29_998)
+  assert.equal(getOrderItemLineTotal({ unit_price: 42_000, quantity: 0.7 }), 29_400)
+  assert.equal(getOrderItemLineTotal({ price: 25_000, quantity: 3 }), 75_000)
+  // Same quantity fallback as the bill summary: a missing quantity is one portion.
+  assert.equal(getOrderItemLineTotal({ price: 25_000 }), 25_000)
+  assert.equal(getOrderItemLineTotal(null), 0)
+})

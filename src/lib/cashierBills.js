@@ -3,6 +3,7 @@ import {
   isCancelledOrderItem,
   isPaidOrder,
 } from './analytics.js'
+import { getFreshCashierPaymentQuote } from './cashierCheckout.js'
 import { inferOrderType, isOffPremiseOrderType, isDeliveryOrderType, isTakeAwayOrderType } from './orderTypes.js'
 
 export function isTakeAwayBill(order) {
@@ -32,6 +33,25 @@ export function isCashierVisibleBill(order) {
 // One cashier bill per table for dine-in; take-away/delivery stay one bill per order.
 export function cashierBillKey(order) {
   return isOffPremiseBill(order) || !order?.table_id ? `order:${order?.id}` : `table:${order.table_id}`
+}
+
+// The route target the Cashier list opens for a bill: the whole table for dine-in,
+// one order for take-away, delivery and Game Club. Mirrors cashierBillKey.
+export function getCashierBillTarget(order) {
+  return isOffPremiseBill(order) || !order?.table_id
+    ? { tableId: null, orderId: order?.id ?? null }
+    : { tableId: order.table_id, orderId: null }
+}
+
+/**
+ * The amount on a Cashier list tile. It is the same quote the bill page opens with
+ * (getFreshCashierPaymentQuote over every open order of the target, rounded, before a
+ * loyalty amount is entered), so the tile and the bill can never show different totals.
+ */
+export function getCashierBillTotal(bill, { orders = [], menuItems = [], settings = {} } = {}) {
+  const { tableId, orderId } = getCashierBillTarget(bill)
+  if (!tableId && !orderId) return 0
+  return getFreshCashierPaymentQuote({ orders, menuItems, settings, tableId, orderId }).total
 }
 
 /** Bills waiting on the cashier, counted the same way the Cashier page groups them. */

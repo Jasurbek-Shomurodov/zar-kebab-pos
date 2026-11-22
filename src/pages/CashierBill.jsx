@@ -5,7 +5,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft, Printer, CheckCircle2, Banknote,
   Receipt, Users, Clock, Tag, UtensilsCrossed,
-  Monitor, MoreHorizontal, Plus, Minus, Trash2, ClipboardPaste, X,
+  Monitor, Plus, Minus, Trash2, ClipboardPaste, X, Loader2,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useOrderDeletionDate } from '../store/useOrderDeletionDate'
@@ -15,6 +15,7 @@ import { formatCurrency } from '../lib/formatCurrency'
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
 import {
   getGroupedOrderItems,
+  getOrderItemLineTotal,
   getPaymentMethodSummary,
   getOrderPaymentSummary,
   getSplitPaymentValidation,
@@ -34,6 +35,8 @@ import UnifiedSidebar from '../components/UnifiedSidebar'
 import MobileDrawer from '../components/MobileDrawer'
 import WorkspaceTopBar from '../components/WorkspaceTopBar'
 import StatusBadge from '../components/StatusBadge'
+import WorkspaceDialog from '../components/WorkspaceDialog'
+import { Shimmer } from '../components/PageShimmer'
 import { getQuickItemSortOrder, isActiveMenuItem, isCashierQuickItem } from '../lib/menuItems'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
 import { useAppDataStatus, useCashierAttentionCount } from '../store/appHooks'
@@ -406,7 +409,7 @@ export default function CashierBill() {
     setLoyaltyLookupMessage('')
     setCheckingLoyalty(false)
     if (!/^\d{8}$/.test(cardNumber)) {
-      setLoyaltyLookupMessage(lbl.loyaltyInvalid)
+      setLoyaltyLookupMessage('loyaltyInvalid')
       return
     }
 
@@ -420,15 +423,16 @@ export default function CashierBill() {
       if (requestId !== loyaltyLookupRequest.current) return
       if (error) throw error
       if (!data || data.is_active === false) {
-        setLoyaltyLookupMessage(lbl.loyaltyNotFound)
+        setLoyaltyLookupMessage('loyaltyNotFound')
         return
       }
       const balance = Math.max(0, Math.round(Number(data.balance ?? data.balance_amount ?? 0) || 0))
       setLoyaltyCard({ ...data, balance })
-      setLoyaltyLookupMessage(lbl.loyaltyFound)
+      setLoyaltyLookupMessage('loyaltyFound')
     } catch (error) {
       if (requestId !== loyaltyLookupRequest.current) return
-      setLoyaltyLookupMessage(error?.message || lbl.loyaltyLookupFailed)
+      console.error('[cashier] loyalty card lookup failed', error)
+      setLoyaltyLookupMessage('loyaltyLookupFailed')
     } finally {
       if (requestId === loyaltyLookupRequest.current) setCheckingLoyalty(false)
     }
@@ -439,7 +443,7 @@ export default function CashierBill() {
       const clipboardText = await navigator.clipboard.readText()
       const cardNumber = String(clipboardText || '').replace(/\D/g, '').slice(0, 8)
       if (!cardNumber) {
-        setLoyaltyLookupMessage(lbl.clipboardNoCardNumber)
+        setLoyaltyLookupMessage('clipboardNoCardNumber')
         return
       }
       setLoyaltyCardNumber(cardNumber)
@@ -448,7 +452,7 @@ export default function CashierBill() {
       setLoyaltyLookupMessage('')
       await checkLoyaltyCard(cardNumber)
     } catch {
-      setLoyaltyLookupMessage(lbl.clipboardUnavailable)
+      setLoyaltyLookupMessage('clipboardUnavailable')
     }
   }
 
@@ -465,7 +469,7 @@ export default function CashierBill() {
   function fillMaxLoyaltyRedeem() {
     if (maxLoyaltyRedeemAmount <= 0) {
       setLoyaltyRedeemAmount('')
-      setLoyaltyLookupMessage(lbl.noLoyaltyBalance)
+      setLoyaltyLookupMessage('noLoyaltyBalance')
       return
     }
     setLoyaltyRedeemAmount(String(clampMoneyInput(maxLoyaltyRedeemAmount, maxLoyaltyRedeemAmount)))
@@ -496,22 +500,14 @@ export default function CashierBill() {
         loyaltyUsedAmount: loyaltyAmt,
       })
       if (freshQuote.orderIds.length === 0) {
-        setPaymentRefreshMessage(lang === 'uz'
-          ? 'Buyurtma allaqachon yopilgan yoki o‘zgargan. Kassir sahifasiga qayting.'
-          : lang === 'ru'
-            ? 'Заказ уже закрыт или изменился. Вернитесь на страницу кассира.'
-            : 'The order was already closed or changed. Return to the cashier page.')
+        setPaymentRefreshMessage({ code: 'orderClosed' })
         return
       }
       if (freshQuote.total !== total) {
         if (splitPayments.length === 1 && paymentValidation.canConfirmPayment) {
           setSplitPayments(prev => prev.map(row => ({ ...row, amount: freshQuote.total > 0 ? String(freshQuote.total) : '' })))
         }
-        setPaymentRefreshMessage(lang === 'uz'
-          ? `Hisob yangilandi: ${formatCurrency(freshQuote.total)}. Summani tekshirib, to‘lovni yana tasdiqlang.`
-          : lang === 'ru'
-            ? `Счёт обновлён: ${formatCurrency(freshQuote.total)}. Проверьте сумму и подтвердите оплату ещё раз.`
-            : `The bill was refreshed to ${formatCurrency(freshQuote.total)}. Check the amount and confirm again.`)
+        setPaymentRefreshMessage({ code: 'billRefreshed', total: freshQuote.total })
         return
       }
       const result = await dispatch({
@@ -558,7 +554,7 @@ export default function CashierBill() {
         orderId,
       })
       if (!freshQuote.primaryOrderId) {
-        setPaymentRefreshMessage(lbl.noOrder)
+        setPaymentRefreshMessage({ code: 'noOrder' })
         return
       }
       setPrintRequest({
@@ -636,21 +632,21 @@ export default function CashierBill() {
 
   // ── Localized strings ───────────────────────────────────────────────────────
   const lbl = {
-    backTables:   lang === 'uz' ? 'Storlarga qaytish' : lang === 'ru' ? 'Назад к столам' : 'Back to Tables',
+    backTables:   lang === 'uz' ? 'Storlarga qaytish' : lang === 'ru' ? 'Назад к столам' : 'Back to tables',
     waiter:       lang === 'uz' ? 'Ofitsiant' : lang === 'ru' ? 'Официант' : 'Waiter',
     opened:       lang === 'uz' ? 'Ochildi' : lang === 'ru' ? 'Открыт' : 'Opened',
     openedBy:     lang === 'uz' ? 'Ochgan' : lang === 'ru' ? 'Открыл' : 'Opened by',
-    orderItems:   lang === 'uz' ? 'Buyurtma elementlari' : lang === 'ru' ? 'Позиции заказа' : 'Order Items',
+    orderItems:   lang === 'uz' ? 'Buyurtma elementlari' : lang === 'ru' ? 'Позиции заказа' : 'Order items',
     item:         lang === 'uz' ? 'Mahsulot' : lang === 'ru' ? 'Блюдо' : 'Item',
     qty:          lang === 'uz' ? 'Miqdor' : lang === 'ru' ? 'Кол-во' : 'Qty',
-    unitPrice:    lang === 'uz' ? 'Narxi' : lang === 'ru' ? 'Цена' : 'Unit Price',
+    unitPrice:    lang === 'uz' ? 'Narxi' : lang === 'ru' ? 'Цена' : 'Unit price',
     total:        lang === 'uz' ? 'Jami' : lang === 'ru' ? 'Итого' : 'Total',
-    paySummary:   lang === 'uz' ? "To'lov xulosasi" : lang === 'ru' ? 'Итоговый счёт' : 'Payment Summary',
+    paySummary:   lang === 'uz' ? "To'lov xulosasi" : lang === 'ru' ? 'Итоговый счёт' : 'Payment summary',
     subtotal:     lang === 'uz' ? 'Buyurtma summasi' : lang === 'ru' ? 'Сумма заказа' : 'Subtotal',
     service:      lang === 'uz' ? `Xizmat (${serviceRatePct}%)` : lang === 'ru' ? `Обслуживание (${serviceRatePct}%)` : `Service (${serviceRatePct}%)`,
     loyalty:      lang === 'uz' ? 'Sodiqlik ishlatildi' : lang === 'ru' ? 'Использовано с карты' : 'Loyalty used',
-    totalAmt:     lang === 'uz' ? "To'lovga jami" : lang === 'ru' ? 'Итого к оплате' : 'Total Amount',
-    payMethod:    lang === 'uz' ? "To'lov usuli" : lang === 'ru' ? 'Способ оплаты' : 'Payment Method',
+    totalAmt:     lang === 'uz' ? "To'lovga jami" : lang === 'ru' ? 'Итого к оплате' : 'Total amount',
+    payMethod:    lang === 'uz' ? "To'lov usuli" : lang === 'ru' ? 'Способ оплаты' : 'Payment method',
     splitPay:     lang === 'uz' ? "Bo'lib to'lash" : lang === 'ru' ? 'Смешанная оплата' : 'Split payment',
     addPayment:   lang === 'uz' ? "To'lov qo'shish" : lang === 'ru' ? 'Добавить оплату' : 'Add payment',
     fillRest:     lang === 'uz' ? 'Qoldiqni to‘ldirish' : lang === 'ru' ? 'Заполнить остаток' : 'Fill remaining',
@@ -658,22 +654,22 @@ export default function CashierBill() {
     receivedAmt:  lang === 'uz' ? 'Qabul qilingan summa' : lang === 'ru' ? 'Полученная сумма' : 'Enter received amount',
     fullyPaid:    lang === 'uz' ? "To'liq to'landi" : lang === 'ru' ? 'Оплачено полностью' : 'Fully paid',
     remaining:    lang === 'uz' ? 'Yetishmaydi' : lang === 'ru' ? 'Не хватает' : 'Remaining',
-    quickAmt:     lang === 'uz' ? 'Tez summa' : lang === 'ru' ? 'Быстрая сумма' : 'Quick Amount',
+    quickAmt:     lang === 'uz' ? 'Tez summa' : lang === 'ru' ? 'Быстрая сумма' : 'Quick amount',
     exact:        lang === 'uz' ? 'Aniq' : lang === 'ru' ? 'Точно' : 'Exact',
-    confirmPay:   lang === 'uz' ? "To'lovni tasdiqlash" : lang === 'ru' ? 'Подтвердить оплату' : 'Confirm Payment',
+    confirmPay:   lang === 'uz' ? "To'lovni tasdiqlash" : lang === 'ru' ? 'Подтвердить оплату' : 'Confirm payment',
     processingPay: lang === 'uz' ? "To'lov saqlanmoqda" : lang === 'ru' ? 'Сохранение оплаты' : 'Saving payment',
     refreshingBill: lang === 'uz' ? 'Hisob tekshirilmoqda' : lang === 'ru' ? 'Проверка счёта' : 'Checking bill',
     cashierAccessRequired: lang === 'uz' ? 'To‘lovni yakunlash uchun Kassa tahrirlash ruxsati kerak.' : lang === 'ru' ? 'Для завершения оплаты нужен доступ на изменение кассы.' : 'Cashier write access is required to complete payment.',
     resolveLoyaltyBeforePayment: lang === 'uz' ? 'Sodiqlik kartasini tekshiring yoki karta raqamini tozalang.' : lang === 'ru' ? 'Проверьте карту лояльности или очистите номер карты.' : 'Check the loyalty card or clear its number.',
     clearLoyalty: lang === 'uz' ? 'Kartani tozalash' : lang === 'ru' ? 'Очистить карту' : 'Clear card',
-    printBill:    lang === 'uz' ? 'Hisob chiqarish' : lang === 'ru' ? 'Распечатать счёт' : 'Print Bill',
-    printReceipt: lang === 'uz' ? 'Chek chiqarish' : lang === 'ru' ? 'Распечатать чек' : 'Print Receipt',
+    printBill:    lang === 'uz' ? 'Hisob chiqarish' : lang === 'ru' ? 'Распечатать счёт' : 'Print bill',
+    printReceipt: lang === 'uz' ? 'Chek chiqarish' : lang === 'ru' ? 'Распечатать чек' : 'Print receipt',
     printingBill: lang === 'uz' ? 'Hisob tayyorlanmoqda…' : lang === 'ru' ? 'Подготовка счёта…' : 'Preparing bill…',
     deleteOrder:  lang === 'uz' ? 'Buyurtmani o‘chirish' : lang === 'ru' ? 'Удалить заказ' : 'Delete order',
     confirmDeleteOrder: lang === 'uz' ? 'O‘chirishni tasdiqlash' : lang === 'ru' ? 'Подтвердить удаление' : 'Confirm delete',
-    deletingOrder: lang === 'uz' ? 'O‘chirilmoqda...' : lang === 'ru' ? 'Удаление...' : 'Deleting...',
+    deletingOrder: lang === 'uz' ? 'O‘chirilmoqda…' : lang === 'ru' ? 'Удаление…' : 'Deleting…',
     cancelDelete: lang === 'uz' ? 'Bekor qilish' : lang === 'ru' ? 'Отмена' : 'Cancel',
-    loyaltyLabel: lang === 'uz' ? 'Sodiqlik kartasi' : lang === 'ru' ? 'Карта лояльности' : 'Loyalty Card',
+    loyaltyLabel: lang === 'uz' ? 'Sodiqlik kartasi' : lang === 'ru' ? 'Карта лояльности' : 'Loyalty card',
     cardOwner: lang === 'uz' ? 'Karta egasi' : lang === 'ru' ? 'Владелец карты' : 'Card owner',
     unnamedCardOwner: lang === 'uz' ? 'Ism ko‘rsatilmagan' : lang === 'ru' ? 'Имя не указано' : 'Name not provided',
     cashbackBalance: lang === 'uz' ? 'Cashback balansi' : lang === 'ru' ? 'Баланс кешбэка' : 'Cashback balance',
@@ -697,11 +693,34 @@ export default function CashierBill() {
     noteLabel:    lang === 'uz' ? 'Izoh' : lang === 'ru' ? 'Примечание' : 'Note',
     overpaid:     lang === 'uz' ? 'Ortiqcha to‘lov' : lang === 'ru' ? 'Переплата' : 'Overpayment',
     exceedsTotal: lang === 'uz' ? 'Kiritilgan summa jami to‘lovdan oshib ketdi' : lang === 'ru' ? 'Введённая сумма превышает итоговую сумму' : 'Entered amount exceeds total amount',
-    counterItems: lang === 'uz' ? 'Kassa mahsulotlari' : lang === 'ru' ? 'Товары у кассы' : 'Counter Items',
+    counterItems: lang === 'uz' ? 'Kassa mahsulotlari' : lang === 'ru' ? 'Товары у кассы' : 'Counter items',
     counterItemsSub: lang === 'uz' ? 'Bu hisobga tezkor kassa mahsulotlarini qo‘shing' : lang === 'ru' ? 'Добавьте быстрые товары кассы к этому счёту' : 'Add quick cashier items to this bill',
     noTable:      lang === 'uz' ? 'Stol tanlanmagan' : lang === 'ru' ? 'Стол не выбран' : 'No table selected',
     removePayment: t(lang, 'removePayment'),
+    decreaseQty:  lang === 'uz' ? 'Bittaga kamaytirish' : lang === 'ru' ? 'Уменьшить на один' : 'Decrease by one',
+    increaseQty:  lang === 'uz' ? 'Bittaga ko‘paytirish' : lang === 'ru' ? 'Увеличить на один' : 'Increase by one',
+    removeItem:   lang === 'uz' ? 'Hisobdan olib tashlash' : lang === 'ru' ? 'Убрать из счёта' : 'Remove from bill',
+    addToBill:    lang === 'uz' ? 'Hisobga qo‘shish' : lang === 'ru' ? 'Добавить в счёт' : 'Add to bill',
+    menuType:     lang === 'uz' ? 'Menyu turi' : lang === 'ru' ? 'Тип меню' : 'Menu type',
+    back:         lang === 'uz' ? 'Orqaga' : lang === 'ru' ? 'Назад' : 'Back',
+    close:        lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close',
+    retry:        lang === 'uz' ? 'Qayta urinish' : lang === 'ru' ? 'Повторить' : 'Retry',
+    printTitle:   lang === 'uz' ? 'Chekni chop etish' : lang === 'ru' ? 'Печать чека' : 'Print receipt',
+    receiptFrame: lang === 'uz' ? 'Chek' : lang === 'ru' ? 'Чек' : 'Receipt',
+    orderClosed:  lang === 'uz' ? 'Buyurtma allaqachon yopilgan yoki o‘zgargan. Kassir sahifasiga qayting.' : lang === 'ru' ? 'Заказ уже закрыт или изменился. Вернитесь на страницу кассира.' : 'The order was already closed or changed. Return to the cashier page.',
+    billRefreshed: amount => lang === 'uz' ? `Hisob yangilandi: ${amount}. Summani tekshirib, to‘lovni yana tasdiqlang.` : lang === 'ru' ? `Счёт обновлён: ${amount}. Проверьте сумму и подтвердите оплату ещё раз.` : `The bill was refreshed to ${amount}. Check the amount and confirm again.`,
+    emptyOrder:   lang === 'uz' ? 'Buyurtmada mahsulot yo‘q' : lang === 'ru' ? 'В заказе нет позиций' : 'This order has no items',
+    emptyOrderSub: lang === 'uz' ? 'To‘lanmagan bo‘sh buyurtma saqlanib qolgan. Saqlangan summa to‘lov uchun hisob emas.' : lang === 'ru' ? 'Остался пустой неоплаченный заказ. Сохранённая сумма не является счётом к оплате.' : 'An empty unpaid order remains. Its saved amount is not a bill to charge.',
+    maybePaid:    lang === 'uz' ? "Buyurtma allaqachon to'langan bo'lishi mumkin." : lang === 'ru' ? 'Возможно, заказ уже оплачен.' : 'The order may have already been paid.',
+    deleteNeedsAccess: lang === 'uz' ? 'Bugungi buyurtmani o‘chirish uchun ruxsatli hisob kerak. Yordam uchun rahbarga murojaat qiling.' : lang === 'ru' ? 'Удаление доступно уполномоченной учётной записи только в день заказа. Обратитесь к руководителю.' : 'Deletion requires an authorized account and is available only on the order’s date. Ask a manager for help.',
   }
+  // State holds a code (or the caught error); the sentence is built here, in the current language.
+  const refreshMessageText = !paymentRefreshMessage ? ''
+    : paymentRefreshMessage.error ? cashierRefreshErrorMessage(paymentRefreshMessage.error, lang)
+    : paymentRefreshMessage.code === 'billRefreshed' ? lbl.billRefreshed(formatCurrency(paymentRefreshMessage.total))
+    : lbl[paymentRefreshMessage.code] || ''
+  const remainingLabel = isOverpaid ? lbl.overpaid : isFullyPaid ? lbl.fullyPaid : lbl.remaining
+  const remainingAmount = isOverpaid ? overpaidAmount : isFullyPaid ? 0 : shortfall
   const checkoutBlockMessage = checkoutBlockReason === 'access'
     ? lbl.cashierAccessRequired
     : checkoutBlockReason === 'loyalty'
@@ -721,9 +740,10 @@ export default function CashierBill() {
               description={lang === 'uz' ? 'Buyurtma va to‘lov maʼlumotlari olinmoqda.' : lang === 'ru' ? 'Получаем заказ и данные оплаты.' : 'Fetching order and payment details.'}
             />
           ) : (
+            // The app-level load has no retry of its own; the raw store message stays in the console.
             <OperationalError
+              lang={lang}
               title={lang === 'uz' ? 'Hisobni yuklab bo‘lmadi' : lang === 'ru' ? 'Не удалось загрузить счёт' : 'Could not load bill'}
-              description={loadError}
               actionLabel={lang === 'uz' ? 'Qayta yuklash' : lang === 'ru' ? 'Перезагрузить' : 'Reload'}
               onAction={() => window.location.reload()}
             />
@@ -738,55 +758,66 @@ export default function CashierBill() {
     return (
       <div className="flex overflow-hidden bg-[#f6f5f3]" style={{ height: '100dvh' }}>
         <div className="hidden lg:block flex-shrink-0 h-full"><UnifiedSidebar /></div>
-        <div className="flex flex-col flex-1 min-w-0 items-center justify-center p-8">
-          <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-10 flex flex-col items-center text-center max-w-sm w-full">
+        <div className="flex flex-col flex-1 min-w-0 items-center justify-center overflow-y-auto p-4 sm:p-8">
+          <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-6 sm:p-10 flex flex-col items-center text-center max-w-sm w-full">
             <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mb-4">
-              <Receipt size={28} className="text-orange-300" strokeWidth={1.5} />
+              <Receipt size={28} className="text-orange-300" strokeWidth={1.5} aria-hidden="true" />
             </div>
-            <p className="font-black text-[#1F2937] text-base mb-1">{isRefreshingBill ? lbl.refreshingBill : emptyOrders.length > 0
-              ? (lang === 'uz' ? 'Buyurtmada mahsulot yo‘q' : lang === 'ru' ? 'В заказе нет позиций' : 'This order has no items')
-              : lbl.noOrder}</p>
-            <p className="text-sm text-[#6B7280] mt-1 mb-5">
-              {!isRefreshingBill && !paymentRefreshMessage && (emptyOrders.length > 0
-                ? (lang === 'uz' ? 'To‘lanmagan bo‘sh buyurtma saqlanib qolgan. Saqlangan summa to‘lov uchun hisob emas.' : lang === 'ru' ? 'Остался пустой неоплаченный заказ. Сохранённая сумма не является счётом к оплате.' : 'An empty unpaid order remains. Its saved amount is not a bill to charge.')
-                : (lang === 'uz' ? "Buyurtma allaqachon to'langan bo'lishi mumkin." : lang === 'ru' ? 'Возможно, заказ уже оплачен.' : 'The order may have already been paid.'))}
-            </p>
+            {isRefreshingBill ? (
+              // The bill is being read: a shimmer in the shape of the two lines, never a "checking" text.
+              <div role="status" className="mb-5 grid w-full justify-items-center gap-2">
+                <span className="sr-only">{lbl.refreshingBill}</span>
+                <Shimmer className="h-5 w-44 rounded" />
+                <Shimmer className="h-4 w-56 max-w-full rounded" />
+              </div>
+            ) : (
+              <>
+                <h1 className="font-black text-[#1F2937] text-base mb-1">{emptyOrders.length > 0 ? lbl.emptyOrder : lbl.noOrder}</h1>
+                <p className="text-sm text-[#6B7280] mt-1 mb-5">
+                  {!paymentRefreshMessage && (emptyOrders.length > 0 ? lbl.emptyOrderSub : lbl.maybePaid)}
+                </p>
+              </>
+            )}
             {!isRefreshingBill && !paymentRefreshMessage && emptyOrders.map(candidate => (
               <div key={candidate.id} className="mb-4 w-full rounded-xl border border-orange-100 bg-orange-50 p-3">
-                <p className="mb-2 break-all text-xs text-gray-500">{candidate.table_name || table?.name} · {candidate.id}</p>
+                <p className="mb-2 text-xs text-[#68655f]">{candidate.table_name || table?.name} · {candidate.order_number || `#${String(candidate.id).slice(0, 8)}`}</p>
                 {canDeleteOrder(candidate) ? (
                   <button type="button" disabled={isDeletingOrder} onClick={() => handleDeleteOrder(candidate)}
-                    className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">
+                    className="ws-btn ws-btn-danger-solid w-full">
+                    {isDeletingOrder && <Loader2 className="animate-spin" aria-hidden="true" />}
                     {isDeletingOrder ? lbl.deletingOrder : lbl.deleteOrder}
                   </button>
                 ) : (
-                  <p className="text-sm text-gray-600">{lang === 'uz' ? 'Bugungi buyurtmani o‘chirish uchun ruxsatli hisob kerak. Yordam uchun rahbarga murojaat qiling.' : lang === 'ru' ? 'Удаление доступно уполномоченной учётной записи только в день заказа. Обратитесь к руководителю.' : 'Deletion requires an authorized account and is available only on the order’s date. Ask a manager for help.'}</p>
+                  <p className="text-sm text-[#68655f]">{lbl.deleteNeedsAccess}</p>
                 )}
               </div>
             ))}
-            {deleteOrderError && <p role="alert" className="mb-4 text-sm text-red-600">{formatWriteError(deleteOrderError, lang, 'DELETE_ORDER')}</p>}
+            {deleteOrderError && <p role="alert" className="mb-4 text-sm text-[#c4262c]">{formatWriteError(deleteOrderError, lang, 'DELETE_ORDER')}</p>}
             {paymentRefreshMessage && (
-              <div role="alert" className="mb-4 text-sm text-red-600">
-                <p>{paymentRefreshMessage.error ? cashierRefreshErrorMessage(paymentRefreshMessage.error, lang) : paymentRefreshMessage}</p>
-                <button type="button" disabled={isRefreshingBill} className="mt-2 font-bold underline"
+              <div role="alert" className="mb-4 grid justify-items-center gap-2 text-sm text-[#c4262c]">
+                <p>{refreshMessageText}</p>
+                <button type="button" disabled={isRefreshingBill} className="ws-btn ws-btn-outline ws-btn-sm"
                   onClick={async () => {
                     setRefreshingBill(true)
                     setPaymentRefreshMessage('')
                     try { await refreshCurrentBill() } catch (error) { setPaymentRefreshMessage({ error }) }
                     finally { setRefreshingBill(false) }
-                  }}>{lang === 'uz' ? 'Qayta urinish' : lang === 'ru' ? 'Повторить' : 'Retry'}</button>
+                  }}>{lbl.retry}</button>
               </div>
             )}
             {canDeletePaidOrders(profile || { role: state.user?.role }) && hasPendingSalarySettlement(orderId || tableId) && (
-              <SalaryOrderPayment lang={lang} disabled={false} total={0} loyaltyUsed={0} cashback={0}
-                tableId={tableId} orderId={orderId} getFreshQuote={async () => ({ orderIds: [] })}
-                onOpenChange={() => {}} onDone={() => navigate('/cashier/tables')} />
+              <div className="mb-3 w-full">
+                <SalaryOrderPayment lang={lang} disabled={false} total={0} loyaltyUsed={0} cashback={0}
+                  tableId={tableId} orderId={orderId} getFreshQuote={async () => ({ orderIds: [] })}
+                  onOpenChange={() => {}} onDone={() => navigate('/cashier/tables')} />
+              </div>
             )}
             <button
+              type="button"
               onClick={() => navigate('/cashier/tables')}
-              className="flex items-center gap-2 text-[#ff5a00] font-semibold hover:underline text-sm"
+              className="ws-btn ws-btn-ghost"
             >
-              <ArrowLeft size={15} /> {lbl.backTables}
+              <ArrowLeft aria-hidden="true" /> {lbl.backTables}
             </button>
           </div>
         </div>
@@ -795,6 +826,44 @@ export default function CashierBill() {
   }
 
   const totalItems = order.items.reduce((s, i) => s + i.quantity, 0)
+
+  const confirmButton = (
+    <button
+      type="button"
+      onClick={handlePaid}
+      disabled={!canProcess}
+      className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-black transition-colors active:scale-[0.98] ${
+        canProcess
+          ? 'bg-[#cc4800] text-white hover:bg-[#b23f00]'
+          : 'bg-gray-100 text-[#68655f] cursor-not-allowed'
+      }`}
+    >
+      {isProcessingPayment ? <Loader2 size={19} className="animate-spin" aria-hidden="true" /> : <CheckCircle2 size={19} aria-hidden="true" />}
+      {isProcessingPayment ? lbl.processingPay : lbl.confirmPay}
+    </button>
+  )
+  // Why Confirm is disabled, or what the last check found: shown beside every Confirm button.
+  const checkoutMessages = (
+    <>
+      {checkoutBlockMessage && !isProcessingPayment && (
+        checkoutBlockReason === 'refresh' ? (
+          <div role="status" className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+            <span className="sr-only">{checkoutBlockMessage}</span>
+            <Shimmer className="h-3.5 w-40 rounded" />
+          </div>
+        ) : (
+          <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-[#68655f]">
+            {checkoutBlockMessage}
+          </p>
+        )
+      )}
+      {paymentRefreshMessage && (
+        <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          {refreshMessageText}
+        </p>
+      )}
+    </>
+  )
 
   return (
     <div className="flex overflow-hidden bg-[#f6f5f3]" style={{ height: '100dvh' }}>
@@ -819,17 +888,7 @@ export default function CashierBill() {
           badgeLabel={lang === 'uz' ? 'hisob kassirni kutmoqda' : lang === 'ru' ? 'счетов ждут кассира' : 'bills waiting for the cashier'}
           title={lang === 'uz' ? 'Kassir' : lang === 'ru' ? 'Кассир' : 'Cashier'}
           onOpenDrawer={() => setSidebarOpen(true)}
-          drawerLabel={lang === 'uz' ? 'Yon panel' : lang === 'ru' ? 'Боковая панель' : 'Toggle Sidebar'}
-          leading={(
-            <button
-              type="button"
-              onClick={() => navigate('/cashier/tables')}
-              aria-label={lang === 'uz' ? 'Orqaga' : lang === 'ru' ? 'Назад' : 'Back'}
-              className="grid h-[38px] w-[38px] flex-shrink-0 place-items-center rounded-[10px] text-[#68655f] transition-colors hover:bg-[#ebe8e5] hover:text-[#22201d]"
-            >
-              <ArrowLeft size={18} />
-            </button>
-          )}
+          back={{ onClick: () => navigate('/cashier/tables'), label: lbl.back }}
         />
 
         {/* Scrollable area */}
@@ -843,60 +902,49 @@ export default function CashierBill() {
               <div className="receipt-print-area bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
 
                 {/* Bill header */}
-                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
-                  {/* Table info */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
+                <div className="px-4 sm:px-5 py-4 border-b border-gray-100 bg-gray-50">
+                  {/* Table info: the print button drops under the title when the card is narrow. */}
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 basis-56">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h1 className="font-black text-[#1F2937] text-2xl leading-tight">{orderLabel}</h1>
+                        <h2 className="font-black text-[#1F2937] text-2xl leading-tight">{orderLabel}</h2>
                         <StatusBadge status={order.payment_status === 'paid' ? 'paid' : order.status} />
-                        <span className="rounded-full border border-orange-100 bg-orange-50 px-2.5 py-1 text-[11px] font-black text-[#ff5a00]">
-                          {lang === 'uz' ? 'Menyu turi' : lang === 'ru' ? 'Тип меню' : 'Menu type'}: {getPriceModeLabel(orderPriceMode, lang)}
+                        <span className="ws-badge ws-tone-accent">
+                          {lbl.menuType}: {getPriceModeLabel(orderPriceMode, lang)}
                         </span>
                       </div>
-                      {isOffPremise && <p className="text-[11px] font-bold text-[#ff5a00] mt-0.5">{lbl.noTable}</p>}
-                      <div className="flex items-center gap-3 mt-1 text-[11px] text-[#6B7280]">
+                      {isOffPremise && <p className="text-xs font-semibold text-[#bf4300] mt-0.5">{lbl.noTable}</p>}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-[#68655f]">
                         {order.waiter_name && (
                           <span className="flex items-center gap-1">
-                            <Users size={11} />
+                            <Users size={12} aria-hidden="true" />
                             {lbl.openedBy}: {order.opened_by_name || order.waiter_name}
                           </span>
                         )}
                         {order.created_at && (
                           <span className="flex items-center gap-1">
-                            <Clock size={11} />
+                            <Clock size={12} aria-hidden="true" />
                             {lbl.opened}: {elapsedSince(order.created_at, lang)}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={handlePrintBill}
-                        disabled={isPrintingBill || isRefreshingBill}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#E5E7EB] text-[#1F2937] text-[12px] font-semibold hover:bg-gray-100 transition-colors disabled:cursor-wait disabled:opacity-50"
-                      >
-                        <Printer size={14} />
-                        {isPrintingBill ? lbl.printingBill : lbl.printBill}
-                      </button>
-                      <button className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E5E7EB] hover:bg-gray-100 text-[#6B7280] transition-colors">
-                        <MoreHorizontal size={16} />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handlePrintBill}
+                      disabled={isPrintingBill || isRefreshingBill}
+                      className="ws-btn ws-btn-outline ws-btn-sm"
+                    >
+                      {isPrintingBill ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Printer aria-hidden="true" />}
+                      {isPrintingBill ? lbl.printingBill : lbl.printBill}
+                    </button>
                   </div>
                 </div>
 
-                {/* Column headers */}
-                <div className="hidden sm:grid grid-cols-12 gap-2 px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">
-                  <div className="col-span-6">{lbl.item}</div>
-                  <div className="col-span-2 text-center">{lbl.qty}</div>
-                  <div className="col-span-2 text-right">{lbl.unitPrice}</div>
-                  <div className="col-span-2 text-right">{lbl.total}</div>
-                </div>
-
-                {/* Item rows */}
-                <div className="divide-y divide-[#F9FAFB]">
+                {/* Item rows: the row wraps by its own width (the card sits beside a sidebar and a
+                    payment panel), and an amount is never split across lines. */}
+                <div className="divide-y divide-[#F3F4F6]">
                   {order.items.map((item, i) => {
                     const mi   = menuItemMap[item.menu_item_id]
                     const displayName = getCashierItemName(item, mi, lang)
@@ -909,18 +957,19 @@ export default function CashierBill() {
                     const manualNotes = getManualOrderNotes(item, mi, lang)
                     const isCounter = isCashierQuickItem(mi)
                     const unitPrice = getOrderItemUnitPrice(item)
-                    const lineTotal = unitPrice * (Number(item.quantity) || 1)
+                    const lineTotal = getOrderItemLineTotal(item)
                     const quantitySource = { ...mi, sale_unit: item.sale_unit || mi?.sale_unit }
                     const quantityLabel = isMenuItemSoldByWeight(quantitySource)
                       ? formatMenuQuantity(item.quantity, quantitySource)
                       : `×${formatMenuQuantity(item.quantity, quantitySource)}`
+                    const facts = [grams, millilitres, kcal, serves].filter(Boolean)
                     return (
                       <div
                         key={i}
-                        className="grid grid-cols-12 gap-3 px-5 py-4 items-center hover:bg-gray-50/50 transition-colors"
+                        className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-4"
                       >
                         {/* Image + name + desc */}
-                        <div className="col-span-12 sm:col-span-6 flex items-center gap-3 min-w-0">
+                        <div className="flex min-w-0 flex-1 basis-60 items-center gap-3">
                           <div className="w-14 h-14 rounded-xl overflow-hidden bg-orange-50 border border-gray-100 flex-shrink-0">
                             {mi?.image_url ? (
                               <img
@@ -931,181 +980,89 @@ export default function CashierBill() {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <UtensilsCrossed size={18} className="text-orange-200" />
+                                <UtensilsCrossed size={18} className="text-orange-200" aria-hidden="true" />
                               </div>
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="font-bold text-sm text-[#1F2937] line-clamp-1">{displayName}</p>
+                            <p className="font-bold text-sm text-[#1F2937] line-clamp-2">{displayName}</p>
                             {optionLines.map((line, index) => (
-                              <p key={`${item.id || i}-option-${index}`} className="text-[12px] font-black text-[#111827] line-clamp-1 mt-0.5">{line}</p>
+                              <p key={`${item.id || i}-option-${index}`} className="text-xs font-semibold text-[#111827] line-clamp-1 mt-0.5">{line}</p>
                             ))}
                             {desc && (
-                              <p className="text-[11px] text-[#6B7280] line-clamp-1 mt-0.5">{desc}</p>
+                              <p className="text-xs text-[#68655f] line-clamp-1 mt-0.5">{desc}</p>
                             )}
-                            {(grams || millilitres || kcal || serves) && (
+                            {facts.length > 0 && (
                               <div className="mt-1 flex flex-wrap gap-1">
-                                {grams && (
-                                  <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
-                                    {grams}
-                                  </span>
-                                )}
-                                {millilitres && (
-                                  <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
-                                    {millilitres}
-                                  </span>
-                                )}
-                                {kcal && (
-                                  <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
-                                    {kcal}
-                                  </span>
-                                )}
-                                {serves && (
-                                  <span className="inline-flex rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-black text-[#64748B] ring-1 ring-[#E5E7EB]">
-                                    {serves}
-                                  </span>
-                                )}
+                                {facts.map(fact => <span key={fact} className="ws-badge">{fact}</span>)}
                               </div>
                             )}
                             {manualNotes && (
-                              <p className="text-[11px] text-amber-600 mt-0.5 line-clamp-1">
+                              <p className="text-xs text-[#9a5a00] mt-0.5 line-clamp-2">
                                 {lbl.noteLabel}: {manualNotes}
                               </p>
                             )}
-                            {/* Mobile: qty + price */}
-                            <div className="flex items-center gap-3 mt-1.5 sm:hidden">
-                              <span className="inline-flex items-center justify-center bg-[#fff1e8] text-[#ff5a00] font-black text-[11px] rounded-lg px-2 py-0.5">
-                                {quantityLabel}
-                              </span>
-                              <span className="text-xs text-[#6B7280]">{formatCurrency(unitPrice)}</span>
-                              <span className="text-sm font-black text-[#1F2937]">{formatCurrency(lineTotal)}</span>
-                            </div>
-                            {isCounter && (
-                              <div className="mt-2 flex w-fit items-center gap-1 rounded-xl border border-[#FFE0CC] bg-[#fff7f2] p-1 sm:hidden">
-                                <button
-                                  type="button"
-                                  onClick={() => updateBillItemQty(item, (Number(item.quantity) || 1) - 1)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#6B7280]"
-                                >
-                                  <Minus size={12} />
-                                </button>
-                                <span className="min-w-[24px] text-center text-xs font-black text-[#ff5a00]">{item.quantity}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => updateBillItemQty(item, (Number(item.quantity) || 1) + 1)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ff5a00] text-white"
-                                >
-                                  <Plus size={12} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => updateBillItemQty(item, 0)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-red-500"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            )}
                           </div>
                         </div>
 
-                        {/* Qty */}
-                        <div className="hidden sm:flex col-span-2 justify-center">
+                        {/* Quantity, unit price, line total: one group that moves under the name together. */}
+                        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
                           {isCounter ? (
-                            <div className="flex items-center gap-1 rounded-xl border border-[#FFE0CC] bg-[#fff7f2] p-1">
+                            <div className="flex items-center gap-1" role="group" aria-label={`${displayName}: ${lbl.qty}`}>
                               <button
                                 type="button"
+                                disabled={!canEditCashier}
                                 onClick={() => updateBillItemQty(item, (Number(item.quantity) || 1) - 1)}
-                                className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-[#6B7280] hover:bg-red-50 hover:text-red-600"
+                                aria-label={`${lbl.decreaseQty}: ${displayName}`}
+                                className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
                               >
-                                <Minus size={12} />
+                                <Minus aria-hidden="true" />
                               </button>
-                              <span className="min-w-[24px] text-center text-xs font-black text-[#ff5a00]">×{item.quantity}</span>
+                              <span className="min-w-8 text-center text-sm font-semibold tabular-nums text-[#22201d]">×{item.quantity}</span>
                               <button
                                 type="button"
+                                disabled={!canEditCashier}
                                 onClick={() => updateBillItemQty(item, (Number(item.quantity) || 1) + 1)}
-                                className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#ff5a00] text-white hover:bg-[#cc4800]"
+                                aria-label={`${lbl.increaseQty}: ${displayName}`}
+                                className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"
                               >
-                                <Plus size={12} />
+                                <Plus aria-hidden="true" />
                               </button>
                             </div>
                           ) : (
-                            <span className="inline-flex items-center justify-center bg-[#fff1e8] text-[#ff5a00] font-black text-xs rounded-lg w-9 h-7">
-                              {quantityLabel}
-                            </span>
+                            <span className="ws-badge ws-tone-accent tabular-nums">{quantityLabel}</span>
                           )}
-                        </div>
-
-                        {/* Unit price */}
-                        <div className="hidden sm:block col-span-2 text-right text-sm text-[#6B7280] font-medium">
-                          {formatCurrency(unitPrice)}
-                        </div>
-
-                        {/* Line total */}
-                        <div className="hidden sm:block col-span-2 text-right font-black text-sm text-[#1F2937]">
-                          <div className="flex items-center justify-end gap-2">
-                            <span>{formatCurrency(lineTotal)}</span>
-                            {isCounter && (
-                              <button
-                                type="button"
-                                onClick={() => updateBillItemQty(item, 0)}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#D1D5DB] hover:bg-red-50 hover:text-red-500"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            )}
-                          </div>
+                          <span className="whitespace-nowrap text-right text-sm tabular-nums text-[#68655f]">
+                            <span className="sr-only">{lbl.unitPrice}: </span>{formatCurrency(unitPrice)}
+                          </span>
+                          <span className="min-w-[7rem] whitespace-nowrap text-right text-sm font-black tabular-nums text-[#1F2937]">
+                            <span className="sr-only">{lbl.total}: </span>{formatCurrency(lineTotal)}
+                          </span>
+                          {isCounter && (
+                            <button
+                              type="button"
+                              disabled={!canEditCashier}
+                              onClick={() => updateBillItemQty(item, 0)}
+                              aria-label={`${lbl.removeItem}: ${displayName}`}
+                              className="ws-btn ws-btn-danger ws-btn-sm ws-btn-icon"
+                            >
+                              <Trash2 aria-hidden="true" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     )
                   })}
                 </div>
-
-                {/* Items footer: subtotal strip */}
-                <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 space-y-2">
-                  <div className="flex justify-between text-sm text-[#6B7280]">
-                    <span>{lbl.subtotal}</span>
-                    <span>{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-[#6B7280]">
-                    <span>{lbl.service}</span>
-                    <span>{formatCurrency(serviceFee)}</span>
-                  </div>
-                  {counterItemsSubtotal > 0 && (
-                    <div className="flex justify-between text-sm text-[#6B7280]">
-                      <span>{lbl.counterItems}</span>
-                      <span>{formatCurrency(counterItemsSubtotal)}</span>
-                    </div>
-                  )}
-                  {loyaltyAmt > 0 && (
-                    <div className="flex justify-between text-sm text-[#16A34A] font-medium">
-                      <span>{lbl.loyalty}</span>
-                      <span>− {formatCurrency(loyaltyAmt)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-200">
-                    <span className="font-black text-[#1F2937]">{lbl.totalAmt}</span>
-                    <span className="font-black text-2xl text-[#ff5a00]"><RollingText text={formatCurrency(total)} /></span>
-                  </div>
-                  {cashbackToBeEarned > 0 && (
-                    <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-2.5">
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="font-bold text-[#92400E]">{lbl.cashbackRewardHint}</span>
-                        <span className="font-black text-[#D97706]">+ {formatCurrency(cashbackToBeEarned)}</span>
-                      </div>
-                      <p className="mt-0.5 text-[11px] font-semibold text-[#B45309]">{lbl.cashbackToBeEarned}</p>
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* Counter Items */}
               {quickItems.length > 0 && (
-                <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5">
+                <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4 sm:p-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-black text-[#1F2937]">{lbl.counterItems}</h3>
-                      <p className="mt-0.5 text-xs font-semibold text-[#6B7280]">{lbl.counterItemsSub}</p>
+                      <p className="mt-0.5 text-xs font-medium text-[#68655f]">{lbl.counterItemsSub}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -1115,6 +1072,7 @@ export default function CashierBill() {
                         (row.is_counter_item || row.isCounterItem || row.item_type === 'counter' || row.itemType === 'counter')
                       )
                       const qty = Number(current?.quantity) || 0
+                      const itemName = getItemName(item, lang)
                       return (
                         <div
                           key={item.id}
@@ -1122,36 +1080,42 @@ export default function CashierBill() {
                         >
                           <button
                             type="button"
+                            disabled={!canEditCashier}
                             onClick={() => addQuickItem(item)}
-                            className="w-full text-left"
+                            aria-label={`${lbl.addToBill}: ${itemName}`}
+                            className="min-h-11 w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            <p className="line-clamp-1 text-[13px] font-black text-[#1F2937]">{getItemName(item, lang)}</p>
-                            <div className="mt-2 flex items-center justify-between gap-2">
-                              <span className="text-xs font-bold text-[#ff5a00]">{formatCurrency(item.price)}</span>
+                            <span className="line-clamp-2 block text-[13px] font-black text-[#1F2937]">{itemName}</span>
+                            <span className="mt-2 flex items-center justify-between gap-2">
+                              <span className="whitespace-nowrap text-xs font-bold tabular-nums text-[#bf4300]">{formatCurrency(item.price)}</span>
                               {qty > 0 ? (
-                                <span className="rounded-lg bg-[#fff1e8] px-2 py-0.5 text-[11px] font-black text-[#ff5a00]">×{qty}</span>
+                                <span className="ws-badge ws-tone-accent tabular-nums">×{qty}</span>
                               ) : (
                                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0f3b2e] text-white">
-                                  <Plus size={13} />
+                                  <Plus size={13} aria-hidden="true" />
                                 </span>
                               )}
-                            </div>
+                            </span>
                           </button>
                           {qty > 0 && current && (
-                            <div className="mt-2 flex items-center gap-1">
+                            <div className="mt-2 flex items-center gap-2">
                               <button
                                 type="button"
+                                disabled={!canEditCashier}
                                 onClick={() => updateBillItemQty(current, qty - 1)}
-                                className="flex h-8 flex-1 items-center justify-center rounded-lg border border-[#E5E7EB] text-[#6B7280] hover:bg-red-50 hover:text-red-600"
+                                aria-label={`${lbl.decreaseQty}: ${itemName}`}
+                                className="ws-btn ws-btn-outline ws-btn-sm flex-1"
                               >
-                                <Minus size={12} />
+                                <Minus aria-hidden="true" />
                               </button>
                               <button
                                 type="button"
+                                disabled={!canEditCashier}
                                 onClick={() => updateBillItemQty(current, qty + 1)}
-                                className="flex h-8 flex-1 items-center justify-center rounded-lg bg-[#0f3b2e] text-white hover:bg-[#0A2A20]"
+                                aria-label={`${lbl.increaseQty}: ${itemName}`}
+                                className="ws-btn ws-btn-outline ws-btn-sm flex-1"
                               >
-                                <Plus size={12} />
+                                <Plus aria-hidden="true" />
                               </button>
                             </div>
                           )}
@@ -1163,10 +1127,10 @@ export default function CashierBill() {
               )}
 
               {/* Loyalty card */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5">
+              <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4 sm:p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Tag size={15} className="text-[#ff5a00]" />
-                  <p className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-widest">{lbl.loyaltyLabel}</p>
+                  <Tag size={15} className="text-[#ff5a00]" aria-hidden="true" />
+                  <h3 className="text-sm font-black text-[#1F2937]">{lbl.loyaltyLabel}</h3>
                 </div>
                 <CashierLoyaltyNameSearch
                   lang={lang}
@@ -1177,10 +1141,11 @@ export default function CashierBill() {
                     checkLoyaltyCard(cardNumber)
                   }}
                 />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <input
                     type="text"
                     inputMode="numeric"
+                    aria-label={lbl.cardNumber}
                     value={String(loyaltyCardNumber || '').replace(/(\d{4})(?=\d)/g, '$1 ')}
                     onChange={e => {
                       loyaltyLookupRequest.current += 1
@@ -1192,54 +1157,58 @@ export default function CashierBill() {
                     }}
                     maxLength={9}
                     placeholder={lbl.cardNumber}
-                    className="min-w-0 flex-1 border-2 border-[#E5E7EB] rounded-xl px-4 py-2.5 text-sm font-semibold text-[#1F2937] focus:outline-none focus:border-[#ff5a00] transition-all"
+                    className="ws-input min-w-[9rem] flex-1 tabular-nums"
                   />
                   <button
                     type="button"
                     onClick={pasteLoyaltyCardNumber}
-                    className="flex flex-shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-[#E5E7EB] bg-white px-3 py-2.5 text-sm font-black text-[#1F2937] transition-colors hover:border-[#ff5a00] hover:text-[#ff5a00]"
+                    aria-label={lbl.paste}
+                    className="ws-btn ws-btn-outline !h-11"
                   >
-                    <ClipboardPaste size={16} />
+                    <ClipboardPaste size={16} aria-hidden="true" />
                     <span className="hidden sm:inline">{lbl.paste}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => checkLoyaltyCard()}
                     disabled={isCheckingLoyalty}
-                    className="rounded-xl bg-[#0f3b2e] px-4 py-2.5 text-sm font-black text-white disabled:bg-gray-200 disabled:text-gray-500"
+                    className="ws-btn ws-btn-outline !h-11"
                   >
-                    {isCheckingLoyalty ? '...' : lbl.checkCard}
+                    {isCheckingLoyalty && <Loader2 className="animate-spin" aria-hidden="true" />}
+                    {lbl.checkCard}
                   </button>
                 </div>
                 {loyaltyLookupMessage && (
-                  <p className="mt-2 text-[11px] font-bold text-[#6B7280]">{loyaltyLookupMessage}</p>
+                  <p role="status" className="mt-2 text-xs font-semibold text-[#68655f]">{lbl[loyaltyLookupMessage] || ''}</p>
                 )}
                 {hasLoyaltyCardEntry && !loyaltyCard && (
                   <button
                     type="button"
                     onClick={clearLoyaltyEntry}
-                    className="mt-2 text-[11px] font-black text-[#ff5a00] underline underline-offset-2"
+                    className="ws-btn ws-btn-ghost ws-btn-sm mt-1"
                   >
+                    <X aria-hidden="true" />
                     {lbl.clearLoyalty}
                   </button>
                 )}
                 {loyaltyCard && (
                   <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-[#15803D]">{lbl.cardOwner}</p>
-                        <p className="mt-1 truncate text-sm font-black text-[#1F2937]">{loyaltyCard.customer_name || lbl.unnamedCardOwner}</p>
+                        <p className="text-xs font-semibold text-[#1d7a52]">{lbl.cardOwner}</p>
+                        <p className="mt-1 text-sm font-black text-[#1F2937]">{loyaltyCard.customer_name || lbl.unnamedCardOwner}</p>
                       </div>
                       <div className="flex-shrink-0 text-right">
-                        <p className="text-xs font-bold text-[#16A34A]">{lbl.cashbackBalance}</p>
+                        <p className="text-xs font-semibold text-[#1d7a52]">{lbl.cashbackBalance}</p>
                         <button
                           type="button"
                           onClick={fillMaxLoyaltyRedeem}
                           aria-disabled={maxLoyaltyRedeemAmount <= 0}
-                          className={`mt-1 font-black underline-offset-2 hover:underline ${
+                          title={lbl.tapBalanceMax}
+                          className={`min-h-11 whitespace-nowrap font-black tabular-nums underline underline-offset-2 ${
                             maxLoyaltyRedeemAmount > 0
-                              ? 'text-[#16A34A] md:cursor-pointer'
-                              : 'text-[#9CA3AF] md:cursor-not-allowed'
+                              ? 'text-[#1d7a52] md:cursor-pointer'
+                              : 'text-[#68655f] md:cursor-not-allowed'
                           }`}
                         >
                           {formatCurrency(loyaltyCard.balance)}
@@ -1253,32 +1222,32 @@ export default function CashierBill() {
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9 ]*"
+                    aria-label={lbl.useLoyalty}
+                    aria-invalid={!loyaltyValidation.ok || undefined}
                     value={formatMoneyInput(loyaltyRedeemAmount)}
                     onChange={e => updateLoyaltyRedeem(normalizeMoneyInput(e.target.value))}
                     placeholder={lbl.useLoyalty}
-                    className={`w-full border-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#1F2937] focus:outline-none transition-all ${
-                      loyaltyValidation.ok ? 'border-[#E5E7EB] focus:border-[#ff5a00]' : 'border-red-300 focus:border-red-500'
-                    }`}
+                    className="ws-input w-full tabular-nums"
                   />
                 </div>
                 {!loyaltyValidation.ok && (
-                  <p className="mt-2 text-[11px] font-bold text-red-600">
+                  <p role="alert" className="mt-2 text-xs font-semibold text-[#c4262c]">
                     {loyaltyValidation.reason === 'balance' ? lbl.loyaltyBalanceExceeded : lbl.loyaltyBillExceeded}
                   </p>
                 )}
                 {loyaltyAmt > 0 && loyaltyValidation.ok && (
-                  <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 flex justify-between items-center">
+                  <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5 flex flex-wrap justify-between items-center gap-x-3">
                     <span className="text-sm text-[#C2410C] font-medium">{lbl.loyalty}</span>
-                    <span className="font-black text-[#C2410C]">− {formatCurrency(loyaltyAmt)}</span>
+                    <span className="whitespace-nowrap font-black tabular-nums text-[#C2410C]">− {formatCurrency(loyaltyAmt)}</span>
                   </div>
                 )}
                 {cashbackToBeEarned > 0 && (
                   <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium text-[#D97706]">{lbl.cashbackToBeEarned}</span>
-                      <span className="font-black text-[#D97706]">+ {formatCurrency(cashbackToBeEarned)}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-x-3">
+                      <span className="text-sm font-medium text-[#92400E]">{lbl.cashbackToBeEarned}</span>
+                      <span className="whitespace-nowrap font-black tabular-nums text-[#92400E]">+ {formatCurrency(cashbackToBeEarned)}</span>
                     </div>
-                    <p className="mt-0.5 text-[11px] font-semibold text-[#B45309]">{lbl.cashbackRewardHint}</p>
+                    <p className="mt-0.5 text-xs font-medium text-[#92400E]">{lbl.cashbackRewardHint}</p>
                   </div>
                 )}
               </div>
@@ -1288,39 +1257,40 @@ export default function CashierBill() {
             <div className="w-full lg:w-[360px] flex-shrink-0 flex flex-col gap-3 lg:sticky lg:top-0">
 
               {/* Payment Summary */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5">
+              {/* The one summary of the bill: subtotal, service, counter items, loyalty, total. */}
+              <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4 sm:p-5">
                 <h3 className="font-black text-[#1F2937] text-base mb-4">{lbl.paySummary}</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">{lbl.subtotal}</span>
-                    <span className="text-[#1F2937] font-semibold">{formatCurrency(subtotal)}</span>
+                  <div className="flex flex-wrap justify-between gap-x-3 text-sm">
+                    <span className="text-[#68655f]">{lbl.subtotal}</span>
+                    <span className="whitespace-nowrap tabular-nums text-[#1F2937] font-semibold">{formatCurrency(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">{lbl.service}</span>
-                    <span className="text-[#1F2937] font-semibold">{formatCurrency(serviceFee)}</span>
+                  <div className="flex flex-wrap justify-between gap-x-3 text-sm">
+                    <span className="text-[#68655f]">{lbl.service}</span>
+                    <span className="whitespace-nowrap tabular-nums text-[#1F2937] font-semibold">{formatCurrency(serviceFee)}</span>
                   </div>
                   {counterItemsSubtotal > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#6B7280]">{lbl.counterItems}</span>
-                      <span className="text-[#1F2937] font-semibold">{formatCurrency(counterItemsSubtotal)}</span>
+                    <div className="flex flex-wrap justify-between gap-x-3 text-sm">
+                      <span className="text-[#68655f]">{lbl.counterItems}</span>
+                      <span className="whitespace-nowrap tabular-nums text-[#1F2937] font-semibold">{formatCurrency(counterItemsSubtotal)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-[#6B7280]">{lbl.loyalty}</span>
-                    <span className="text-[#1F2937] font-semibold">
-                      {loyaltyAmt > 0 ? `− ${formatCurrency(loyaltyAmt)}` : `− 0 UZS`}
-                    </span>
-                  </div>
-                  <div className="pt-3 border-t border-dashed border-[#E5E7EB] flex justify-between items-baseline">
+                  {loyaltyAmt > 0 && (
+                    <div className="flex flex-wrap justify-between gap-x-3 text-sm">
+                      <span className="text-[#68655f]">{lbl.loyalty}</span>
+                      <span className="whitespace-nowrap tabular-nums text-[#1d7a52] font-semibold">− {formatCurrency(loyaltyAmt)}</span>
+                    </div>
+                  )}
+                  <div className="pt-3 border-t border-dashed border-[#E5E7EB] flex flex-wrap justify-between items-baseline gap-x-3">
                     <span className="font-black text-[#1F2937] text-sm">{lbl.totalAmt}</span>
-                    <span className="font-black text-2xl text-[#ff5a00]"><RollingText text={formatCurrency(total)} /></span>
+                    <span className="whitespace-nowrap font-black text-2xl tabular-nums text-[#ff5a00]"><RollingText text={formatCurrency(total)} /></span>
                   </div>
                   {cashbackToBeEarned > 0 && (
                     <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-2.5">
-                      <p className="text-[11px] font-bold uppercase tracking-wide text-[#B45309]">{lbl.cashbackRewardHint}</p>
-                      <div className="mt-1 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold text-[#92400E]">{lbl.cashbackRewardHint}</p>
+                      <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3">
                         <span className="text-sm font-semibold text-[#92400E]">{lbl.cashbackToBeEarned}</span>
-                        <span className="font-black text-[#D97706]">+ {formatCurrency(cashbackToBeEarned)}</span>
+                        <span className="whitespace-nowrap font-black tabular-nums text-[#92400E]">+ {formatCurrency(cashbackToBeEarned)}</span>
                       </div>
                     </div>
                   )}
@@ -1328,33 +1298,36 @@ export default function CashierBill() {
               </div>
 
               {/* Split Payment */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5">
-                <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
                   <h3 className="font-black text-[#1F2937] text-sm">{lbl.splitPay}</h3>
                   <button
                     type="button"
                     onClick={addPaymentRow}
-                    className="text-[11px] font-black text-[#0f3b2e] hover:text-[#ff5a00]"
+                    className="ws-btn ws-btn-ghost ws-btn-sm"
                   >
-                    + {lbl.addPayment}
+                    <Plus aria-hidden="true" />
+                    {lbl.addPayment}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="grid grid-cols-2 gap-2 mb-4" role="group" aria-label={lbl.payMethod}>
                   {PAY_METHODS.map(m => {
                     const Icon = m.icon
                     const active = payMethod === m.key
                     return (
                       <button
                         key={m.key}
+                        type="button"
+                        aria-pressed={active}
                         onClick={() => selectPaymentMethod(m.key)}
-                        className={`flex flex-col items-center gap-2 py-3.5 rounded-xl border-2 font-semibold text-[12px] transition-all ${
+                        className={`flex flex-col items-center gap-2 py-3.5 rounded-xl border-2 font-semibold text-xs transition-colors ${
                           active
-                            ? 'border-[#ff5a00] bg-[#fff1e8] text-[#ff5a00]'
-                            : 'border-[#E5E7EB] text-[#6B7280] hover:border-gray-300 bg-white'
+                            ? 'border-[#ff5a00] bg-[#fff1e8] text-[#bf4300]'
+                            : 'border-[#E5E7EB] text-[#68655f] hover:border-gray-300 bg-white'
                         }`}
                       >
-                        <Icon size={20} strokeWidth={active ? 2.5 : 1.5} />
+                        <Icon size={20} strokeWidth={active ? 2.5 : 1.5} aria-hidden="true" />
                         {payLabel(m, lang)}
                       </button>
                     )
@@ -1369,10 +1342,11 @@ export default function CashierBill() {
                     const rowAmount = Number(row.amount) || 0
                     const maxForRow = getMaxForPaymentRow(row.id)
                     const rowOverLimit = rowAmount > maxForRow
+                    const rowName = `${index + 1}. ${payLabel(method, lang)}`
                     return (
                       <div
                         key={row.id}
-                        className={`rounded-xl border p-3 transition-all ${
+                        className={`rounded-xl border p-3 transition-colors ${
                           rowOverLimit
                             ? 'border-red-300 bg-red-50'
                             : active ? 'border-[#ff5a00] bg-[#fff7f2]' : 'border-[#E5E7EB] bg-white'
@@ -1382,30 +1356,12 @@ export default function CashierBill() {
                           setPayMethod(row.method)
                         }}
                       >
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-2 min-w-[104px]">
-                            <Icon size={15} className={active ? 'text-[#ff5a00]' : 'text-[#6B7280]'} />
+                        {/* The method sits above the amount, so the field keeps the full row width and a
+                            nine-digit amount is never clipped on a 320px phone. */}
+                        <div className="flex min-h-9 items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <Icon size={15} aria-hidden="true" className={active ? 'text-[#ff5a00]' : 'text-[#68655f]'} />
                             <span className="text-xs font-black text-[#1F2937]">{payLabel(method, lang)}</span>
-                          </div>
-                          <div className="relative flex-1">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9 ]*"
-                              value={formatMoneyInput(row.amount)}
-                              onChange={e => updatePayment(row.id, { amount: normalizeMoneyInput(e.target.value) })}
-                              onFocus={() => {
-                                setActivePaymentId(row.id)
-                                setPayMethod(row.method)
-                              }}
-                              placeholder="0"
-                              className={`w-full border rounded-lg px-3 py-2.5 text-sm font-black text-[#1F2937] pr-11 focus:outline-none transition-colors ${
-                                rowOverLimit
-                                  ? 'border-red-300 bg-white text-red-700 focus:border-red-500'
-                                  : 'border-[#E5E7EB] focus:border-[#ff5a00]'
-                              }`}
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] text-[10px] font-bold">UZS</span>
                           </div>
                           {splitPayments.length > 1 && (
                             <button
@@ -1414,12 +1370,30 @@ export default function CashierBill() {
                                 e.stopPropagation()
                                 removePaymentRow(row.id)
                               }}
-                              className="w-8 h-8 rounded-lg border border-[#E5E7EB] text-[#9CA3AF] hover:text-red-600 hover:border-red-200"
-                              aria-label={lbl.removePayment}
+                              className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"
+                              aria-label={`${lbl.removePayment}: ${rowName}`}
                             >
-                              ×
+                              <X aria-hidden="true" />
                             </button>
                           )}
+                        </div>
+                        <div className="relative mt-1.5">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9 ]*"
+                            aria-label={`${rowName}: ${lbl.receivedAmt}`}
+                            aria-invalid={rowOverLimit || undefined}
+                            value={formatMoneyInput(row.amount)}
+                            onChange={e => updatePayment(row.id, { amount: normalizeMoneyInput(e.target.value) })}
+                            onFocus={() => {
+                              setActivePaymentId(row.id)
+                              setPayMethod(row.method)
+                            }}
+                            placeholder="0"
+                            className="ws-input w-full !pr-12 font-black tabular-nums"
+                          />
+                          <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#68655f]">{formatCurrency(0).replace(/^[\d\s]+/, '')}</span>
                         </div>
                         {active && (
                           <button
@@ -1428,13 +1402,13 @@ export default function CashierBill() {
                               e.stopPropagation()
                               fillRemaining(row.id)
                             }}
-                            className="mt-2 text-[11px] font-bold text-[#0f3b2e] hover:text-[#ff5a00]"
+                            className="ws-btn ws-btn-ghost ws-btn-sm mt-1.5"
                           >
                             {lbl.fillRest}
                           </button>
                         )}
                         {rowOverLimit && (
-                          <p className="mt-2 text-[11px] font-bold text-red-600">
+                          <p role="alert" className="mt-2 text-xs font-semibold text-[#c4262c]">
                             {lbl.exceedsTotal}
                           </p>
                         )}
@@ -1444,35 +1418,35 @@ export default function CashierBill() {
                 </div>
 
                 <div className="mt-4">
-                  <p className="text-[10px] font-semibold text-[#9CA3AF] mb-2 uppercase tracking-wide">
+                  <p className="text-xs font-medium text-[#68655f] mb-2">
                     {lbl.quickAmt}
                   </p>
                   <button
                     type="button"
                     onClick={applyExactAmount}
-                    className="flex min-h-12 w-full items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm font-bold text-[#6B7280] transition-all hover:border-[#ff5a00] hover:text-[#ff5a00] active:scale-[0.99]"
+                    className="ws-btn ws-btn-outline min-h-12 w-full"
                   >
                     {lbl.exact}
                   </button>
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  <div className="rounded-xl px-4 py-3 flex justify-between items-center bg-gray-50 border border-gray-100">
-                    <span className="text-sm font-semibold text-[#6B7280]">{lbl.paid}</span>
-                    <span className="font-black text-lg text-[#1F2937]">{formatCurrency(paidAmount)}</span>
+                  <div className="rounded-xl px-4 py-3 flex flex-wrap justify-between items-center gap-x-3 bg-gray-50 border border-gray-100">
+                    <span className="text-sm font-semibold text-[#68655f]">{lbl.paid}</span>
+                    <span className="whitespace-nowrap font-black text-lg tabular-nums text-[#1F2937]">{formatCurrency(paidAmount)}</span>
                   </div>
-                  <div className={`rounded-xl px-4 py-3 flex justify-between items-center ${
+                  <div className={`rounded-xl px-4 py-3 flex flex-wrap justify-between items-center gap-x-3 ${
                     isFullyPaid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
                   }`}>
-                    <span className={`text-sm font-semibold ${isFullyPaid ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                      {isOverpaid ? lbl.overpaid : isFullyPaid ? lbl.fullyPaid : lbl.remaining}
+                    <span className={`text-sm font-semibold ${isFullyPaid ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>
+                      {remainingLabel}
                     </span>
-                    <span className={`font-black text-lg ${isFullyPaid ? 'text-[#16A34A]' : 'text-[#DC2626]'}`}>
-                      {formatCurrency(isOverpaid ? overpaidAmount : isFullyPaid ? 0 : shortfall)}
+                    <span className={`whitespace-nowrap font-black text-lg tabular-nums ${isFullyPaid ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>
+                      {formatCurrency(remainingAmount)}
                     </span>
                   </div>
                   {isOverpaid && (
-                    <p className="text-[11px] font-bold text-red-600">
+                    <p role="alert" className="text-xs font-semibold text-[#c4262c]">
                       {lbl.exceedsTotal}
                     </p>
                   )}
@@ -1480,7 +1454,7 @@ export default function CashierBill() {
               </div>
 
               {/* Action buttons */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-5 space-y-2.5">
+              <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-4 sm:p-5 space-y-2.5">
                 {canDeletePaidOrders(profile || { role: state.user?.role }) && (
                   <SalaryOrderPayment lang={lang} disabled={isProcessingPayment || isRefreshingBill || !loyaltyReady || total <= 0}
                     total={total} loyaltyUsed={loyaltyAmt} cashback={cashbackToBeEarned} cardNumber={loyaltyCard?.card_number}
@@ -1489,59 +1463,42 @@ export default function CashierBill() {
                     onOpenChange={open => { if (open) salaryBill.current = order; setSalaryCheckoutActive(open) }}
                     onDone={() => { void refreshCurrentBill().catch(() => {}); navigate('/cashier/tables') }} />
                 )}
+                {/* Below lg the Confirm button lives in the bar pinned under the page, beside the total. */}
+                <div className="hidden lg:grid gap-2.5">
+                  {confirmButton}
+                  {checkoutMessages}
+                </div>
                 <button
-                  onClick={handlePaid}
-                  disabled={!canProcess}
-                  className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-black text-base transition-all active:scale-[0.98] ${
-                    canProcess
-                      ? 'bg-[#ff5a00] text-white hover:bg-[#cc4800] shadow-lg shadow-orange-200'
-                      : 'bg-gray-100 text-[#9CA3AF] cursor-not-allowed'
-                  }`}
-                >
-                  <CheckCircle2 size={19} />
-                  {isProcessingPayment ? lbl.processingPay : isRefreshingBill ? lbl.refreshingBill : lbl.confirmPay}
-                </button>
-                {checkoutBlockMessage && !isProcessingPayment && (
-                  <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-[#6B7280]">
-                    {checkoutBlockMessage}
-                  </p>
-                )}
-                {paymentRefreshMessage && (
-                  <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-                    {paymentRefreshMessage.error ? cashierRefreshErrorMessage(paymentRefreshMessage.error, lang) : paymentRefreshMessage}
-                  </p>
-                )}
-                <button
+                  type="button"
                   onClick={handlePrintBill}
                   disabled={isPrintingBill || isRefreshingBill}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-[#E5E7EB] text-[#1F2937] font-bold text-sm hover:bg-gray-50 transition-colors disabled:cursor-wait disabled:opacity-50"
+                  className="ws-btn ws-btn-outline min-h-12 w-full"
                 >
-                  <Printer size={16} />
+                  {isPrintingBill ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Printer aria-hidden="true" />}
                   {isPrintingBill ? lbl.printingBill : lbl.printReceipt}
                 </button>
 
                 {canDeleteOrder(order) && (
-                  <div className="grid gap-2">
+                  <div className="grid gap-2 pt-2">
                     <button
+                      type="button"
                       onClick={() => handleDeleteOrder(order)}
                       disabled={isDeletingOrder}
-                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm transition-colors ${
-                        confirmDeleteOrder
-                          ? 'bg-red-600 text-white hover:bg-red-700'
-                          : 'border-2 border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
-                      } disabled:opacity-60`}
+                      className={`ws-btn w-full ${confirmDeleteOrder ? 'ws-btn-danger-solid' : 'ws-btn-danger'}`}
                     >
-                      <Trash2 size={16} />
+                      {isDeletingOrder ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
                       {isDeletingOrder ? lbl.deletingOrder : confirmDeleteOrder ? lbl.confirmDeleteOrder : lbl.deleteOrder}
                     </button>
                     {confirmDeleteOrder && (
                       <button
+                        type="button"
                         onClick={() => setConfirmDeleteOrder(false)}
-                        className="w-full rounded-xl border border-[#E5E7EB] py-2 text-xs font-black text-[#6B7280] hover:bg-gray-50"
+                        className="ws-btn ws-btn-outline w-full"
                       >
                         {lbl.cancelDelete}
                       </button>
                     )}
+                    {deleteOrderError && <p role="alert" className="text-xs font-semibold text-[#c4262c]">{formatWriteError(deleteOrderError, lang, 'DELETE_ORDER')}</p>}
                   </div>
                 )}
 
@@ -1550,65 +1507,41 @@ export default function CashierBill() {
 
           </div>
         </div>
-        {/* Mobile sticky confirm button */}
+        {/* Pinned pay bar (below lg): the amount to collect, what is entered and what is missing
+            always sit beside the Confirm button, whatever part of the bill is scrolled into view. */}
         <div className="lg:hidden flex-shrink-0 bg-white border-t border-[#E5E7EB] px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-          <button
-            onClick={handlePaid}
-            disabled={!canProcess}
-            className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-black text-base transition-all active:scale-[0.98] ${
-              canProcess
-                ? 'bg-[#ff5a00] text-white hover:bg-[#cc4800] shadow-lg shadow-orange-200'
-                : 'bg-gray-100 text-[#9CA3AF] cursor-not-allowed'
-            }`}
-          >
-            <CheckCircle2 size={19} />
-            {isProcessingPayment ? lbl.processingPay : isRefreshingBill ? lbl.refreshingBill : lbl.confirmPay}
-          </button>
-          {checkoutBlockMessage && !isProcessingPayment && (
-            <p className="mt-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-[#6B7280]">
-              {checkoutBlockMessage}
-            </p>
-          )}
-          {paymentRefreshMessage && (
-            <p role="alert" className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-              {paymentRefreshMessage.error ? cashierRefreshErrorMessage(paymentRefreshMessage.error, lang) : paymentRefreshMessage}
-            </p>
-          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="min-w-0 flex-1 basis-40">
+              <p className="flex flex-wrap items-baseline justify-between gap-x-2">
+                <span className="text-xs font-medium text-[#68655f]">{lbl.totalAmt}</span>
+                <span className="whitespace-nowrap text-xl font-black tabular-nums text-[#22201d]">{formatCurrency(total)}</span>
+              </p>
+              <p className="flex flex-wrap items-baseline justify-between gap-x-2 text-xs">
+                <span className="text-[#68655f]">{lbl.paid}: <span className="whitespace-nowrap font-semibold tabular-nums text-[#22201d]">{formatCurrency(paidAmount)}</span></span>
+                <span className={isFullyPaid ? 'text-[#1d7a52]' : 'text-[#c4262c]'}>{remainingLabel}: <span className="whitespace-nowrap font-semibold tabular-nums">{formatCurrency(remainingAmount)}</span></span>
+              </p>
+            </div>
+            <div className="flex-1 basis-48">{confirmButton}</div>
+          </div>
+          <div className="mt-2 grid gap-2 empty:hidden">{checkoutMessages}</div>
         </div>
       </div>
 
       {printRequest && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={lang === 'uz' ? 'Chekni chop etish' : lang === 'ru' ? 'Печать чека' : 'Print receipt'}
-          className="fixed inset-0 z-dialog flex items-center justify-center bg-slate-950/55 p-3 sm:p-6"
+        <WorkspaceDialog
+          title={lbl.printTitle}
+          onClose={() => setPrintRequest(null)}
+          closeLabel={lbl.close}
+          size="xl"
+          bodyClassName="!p-0"
         >
-          <div className="flex h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Printer size={17} className="text-[#ff5a00]" />
-                <p className="text-sm font-black text-[#1F2937]">
-                  {lang === 'uz' ? 'Chekni chop etish' : lang === 'ru' ? 'Печать чека' : 'Print receipt'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPrintRequest(null)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-[#6B7280] hover:bg-gray-100 hover:text-[#1F2937]"
-                aria-label={lang === 'uz' ? 'Yopish' : lang === 'ru' ? 'Закрыть' : 'Close'}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <iframe
-              key={printRequest.key}
-              src={printRequest.path}
-              title={lang === 'uz' ? 'Chek' : lang === 'ru' ? 'Чек' : 'Receipt'}
-              className="min-h-0 flex-1 border-0 bg-white"
-            />
-          </div>
-        </div>
+          <iframe
+            key={printRequest.key}
+            src={printRequest.path}
+            title={lbl.receiptFrame}
+            className="block h-[72dvh] w-full border-0 bg-white"
+          />
+        </WorkspaceDialog>
       )}
     </div>
   )

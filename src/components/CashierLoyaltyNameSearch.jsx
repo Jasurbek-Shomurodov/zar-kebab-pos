@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { withReadTimeout } from '../lib/writeTimeout'
+import { Shimmer } from './PageShimmer'
 
 export default function CashierLoyaltyNameSearch({ lang, onSelect, onSearchChange }) {
   const [query, setQuery] = useState('')
@@ -58,30 +59,31 @@ export default function CashierLoyaltyNameSearch({ lang, onSelect, onSearchChang
           setResult(null)
           onSearchChange()
         }}
-        className="w-full border-2 border-[#E5E7EB] rounded-xl px-4 py-2.5 text-sm font-semibold text-[#1F2937] focus:outline-none focus:border-[#ff5a00]"
+        className="ws-input w-full"
       />
       {query.trim() && (
         <div className="mt-2 rounded-xl border border-[#E5E7EB] overflow-hidden">
-          <div role="status" className="text-xs text-[#6B7280]">
-            {!current && <p className="p-3">{labels.loading}</p>}
-            {current?.error && <p className="p-3">{labels.failed} <button type="button" className="font-bold underline" onClick={() => { setResult(null); setRetry(value => value + 1) }}>{labels.retry}</button></p>}
+          <div role="status" className="text-xs text-[#68655f]">
+            {/* Results are data: a row-shaped shimmer, with the words kept for screen readers. */}
+            {!current && <div className="grid gap-2 p-3"><span className="sr-only">{labels.loading}</span><Shimmer className="h-5 w-2/3 rounded" /><Shimmer className="h-5 w-1/2 rounded" /></div>}
+            {current?.error && <p className="flex flex-wrap items-center justify-between gap-2 p-3 text-[#c4262c]"><span className="min-w-0 flex-1 basis-40">{labels.failed}</span><button type="button" className="ws-btn ws-btn-outline ws-btn-sm" onClick={() => { setResult(null); setRetry(value => value + 1) }}>{labels.retry}</button></p>}
             {current?.cards?.length === 0 && <p className="p-3">{labels.empty}</p>}
           </div>
           <ul className="max-h-60 overflow-y-auto">
             {current?.cards?.slice(0, 20).map(card => (
               <li key={card.id}>
-                <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-orange-50 focus:bg-orange-50" onClick={() => {
+                <button type="button" className="flex min-h-11 w-full flex-wrap items-center justify-between gap-x-3 gap-y-0.5 px-4 py-3 text-left text-sm hover:bg-orange-50 focus:bg-orange-50" onClick={() => {
                   setQuery('')
                   setResult(null)
                   onSelect(card.card_number)
                 }}>
-                  <span className="font-bold text-[#1F2937]">{card.customer_name}</span>
-                  <span className="shrink-0 text-[#6B7280]">{card.card_number}</span>
+                  <span className="min-w-0 font-semibold text-[#1F2937]">{card.customer_name}</span>
+                  <span className="shrink-0 tabular-nums text-[#68655f]">{card.card_number}</span>
                 </button>
               </li>
             ))}
           </ul>
-          {current?.cards?.length > 20 && <p className="p-3 text-xs text-[#6B7280]">{labels.more}</p>}
+          {current?.cards?.length > 20 && <p className="p-3 text-xs text-[#68655f]">{labels.more}</p>}
         </div>
       )}
     </div>

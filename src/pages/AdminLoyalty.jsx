@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Search, BadgeDollarSign, Plus, RefreshCw, ChevronLeft, ChevronRight, ArrowLeft, Trash2, X, Copy, Check } from 'lucide-react'
+import { Search, BadgeDollarSign, Plus, RefreshCw, ChevronLeft, ChevronRight, ArrowLeft, Trash2, X, Copy, Check, Loader2 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { Shimmer } from '../components/PageShimmer'
 import { supabase } from '../lib/supabase'
@@ -97,6 +97,26 @@ export default function AdminLoyalty() {
   const transactionListTopRef = useRef(null)
   const copiedFeedbackTimeoutRef = useRef(null)
   const cardListTopRef = useRef(null)
+  // One write at a time: a second tap while a card, profile, balance or delete write is in
+  // flight is ignored (the ref) and every write button shows it (the state).
+  const [busyAction, setBusyAction] = useState('')
+  const busyRef = useRef(false)
+  const busy = busyAction !== ''
+
+  async function runBusy(name, work) {
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusyAction(name)
+    try {
+      await work()
+    } catch (error) {
+      console.error(`[loyalty] ${name} failed`, error)
+      setMessage('actionFailed')
+    } finally {
+      busyRef.current = false
+      setBusyAction('')
+    }
+  }
 
   const L = {
     uz: {
@@ -162,10 +182,20 @@ export default function AdminLoyalty() {
       deleteTransaction: 'O‘chirish',
       confirmDelete: 'O‘chirishni tasdiqlash',
       cancel: 'Bekor qilish',
-      deletingTransaction: 'O‘chirilmoqda...',
+      deletingTransaction: 'O‘chirilmoqda…',
       ownerDeleteOnly: 'Faqat owner test tranzaksiyalarini o‘chirishi mumkin.',
       deleteTransactionFailed: 'Tranzaksiyani o‘chirib bo‘lmadi. 042 migratsiyasini ishga tushiring.',
       cashbackTypeUnavailable: 'Cashback turi ustuni hali bazada qo‘llanmagan. 022 migratsiyasini ishga tushiring.',
+      loadCardsFailed: 'Kartalarni yuklab bo‘lmadi. Ulanishni tekshirib, «Yangilash»ni bosing.',
+      loadTransactionsFailed: 'Tranzaksiya tarixini yuklab bo‘lmadi. Kartani qayta oching.',
+      createCardFailed: 'Kartani ro‘yxatdan o‘tkazib bo‘lmadi. Karta raqami band emasligini tekshirib, qayta urinib ko‘ring.',
+      saveCustomerFailed: 'Mijoz ma’lumotlarini saqlab bo‘lmadi. Qayta urinib ko‘ring.',
+      adjustFailed: 'Balans o‘zgartirilmadi. Kartani qayta ochib, balansni tekshiring va qayta urinib ko‘ring.',
+      adjustHistoryFailed: 'Balans o‘zgartirildi, lekin tarix yozuvi saqlanmadi. Tuzatishni qayta kiritmang: kartani qayta ochib, balansni tekshiring.',
+      actionFailed: 'Amal bajarilmadi. Ulanishni tekshirib, qayta urinib ko‘ring.',
+      saving: 'Saqlanmoqda…',
+      clearSearch: 'Qidiruvni tozalash',
+      removingCard: 'Karta o‘chirilmoqda…',
       cardFormRequired: '8 xonali karta raqamini kiriting. Telefon ixtiyoriy, lekin kiritilsa +998 XX XXX XX XX formatida bo‘lishi kerak.',
       transactionTypes: {
         cashback_earned: 'Cashback hisoblandi',
@@ -238,10 +268,20 @@ export default function AdminLoyalty() {
       deleteTransaction: 'Удалить',
       confirmDelete: 'Подтвердить удаление',
       cancel: 'Отмена',
-      deletingTransaction: 'Удаление...',
+      deletingTransaction: 'Удаление…',
       ownerDeleteOnly: 'Только владелец может удалять тестовые транзакции.',
       deleteTransactionFailed: 'Не удалось удалить транзакцию. Запустите миграцию 042.',
       cashbackTypeUnavailable: 'Колонка типа кешбэка ещё не применена в базе. Запустите миграцию 022.',
+      loadCardsFailed: 'Не удалось загрузить карты. Проверьте соединение и нажмите «Обновить».',
+      loadTransactionsFailed: 'Не удалось загрузить историю транзакций. Откройте карту заново.',
+      createCardFailed: 'Не удалось зарегистрировать карту. Проверьте, что номер не занят, и повторите.',
+      saveCustomerFailed: 'Не удалось сохранить данные клиента. Повторите попытку.',
+      adjustFailed: 'Баланс не изменён. Откройте карту заново, проверьте баланс и повторите.',
+      adjustHistoryFailed: 'Баланс изменён, но запись в истории не сохранилась. Не вводите корректировку повторно: откройте карту заново и проверьте баланс.',
+      actionFailed: 'Действие не выполнено. Проверьте соединение и повторите.',
+      saving: 'Сохранение…',
+      clearSearch: 'Очистить поиск',
+      removingCard: 'Удаление карты…',
       cardFormRequired: 'Введите 8-значный номер карты. Телефон необязателен, но если указан, должен быть в формате +998 XX XXX XX XX.',
       transactionTypes: {
         cashback_earned: 'Кешбэк начислен',
@@ -252,7 +292,7 @@ export default function AdminLoyalty() {
       },
     },
     en: {
-      title: 'Loyalty Cards',
+      title: 'Loyalty cards',
       subtitle: 'Cashback wallet balances and transaction history',
       refresh: 'Refresh',
       loading: 'Loading...',
@@ -267,7 +307,7 @@ export default function AdminLoyalty() {
       customerName: 'Customer name',
       phoneNumber: 'Phone number',
       createCard: 'Register loyalty card',
-      profileTitle: 'Customer Loyalty Profile',
+      profileTitle: 'Customer loyalty profile',
       cardNo: 'Card No',
       balance: 'Balance',
       cashbackType: 'Cashback type',
@@ -314,10 +354,20 @@ export default function AdminLoyalty() {
       deleteTransaction: 'Delete',
       confirmDelete: 'Confirm delete',
       cancel: 'Cancel',
-      deletingTransaction: 'Deleting...',
+      deletingTransaction: 'Deleting…',
       ownerDeleteOnly: 'Only owner can delete test transactions.',
       deleteTransactionFailed: 'Could not delete transaction. Run migration 042.',
       cashbackTypeUnavailable: 'Cashback type is not available in the database yet. Run migration 022.',
+      loadCardsFailed: 'Could not load cards. Check the connection and press Refresh.',
+      loadTransactionsFailed: 'Could not load the transaction history. Open the card again.',
+      createCardFailed: 'Could not register the card. Check that the number is not already in use and try again.',
+      saveCustomerFailed: 'Could not save the customer details. Try again.',
+      adjustFailed: 'The balance was not changed. Reopen the card, check the balance and try again.',
+      adjustHistoryFailed: 'The balance was changed, but its history entry was not saved. Do not enter the adjustment again: reopen the card and check the balance.',
+      actionFailed: 'The action was not completed. Check the connection and try again.',
+      saving: 'Saving…',
+      clearSearch: 'Clear search',
+      removingCard: 'Removing card…',
       cardFormRequired: 'Enter an 8-digit card number. Phone is optional, but must match +998 XX XXX XX XX when provided.',
       transactionTypes: {
         cashback_earned: 'Cashback earned',
@@ -359,7 +409,7 @@ export default function AdminLoyalty() {
       clearTimeout(copiedFeedbackTimeoutRef.current)
       copiedFeedbackTimeoutRef.current = setTimeout(() => setCopiedCardNumber(''), 1600)
     } catch {
-      setMessage(l.copyCardNumberFailed)
+      setMessage('copyCardNumberFailed')
     }
   }
 
@@ -367,7 +417,7 @@ export default function AdminLoyalty() {
   // saved with an unsigned amount still reads as a minus.
   function transactionAmount(tx) {
     const delta = getLoyaltyTransactionDelta(tx)
-    return `${delta >= 0 ? '+' : '-'}${formatCurrency(Math.abs(delta))}`
+    return `${delta >= 0 ? '+' : '−'}${formatCurrency(Math.abs(delta))}`
   }
 
   function transactionAmountClass(tx) {
@@ -416,7 +466,8 @@ export default function AdminLoyalty() {
     if (requestId !== cardSearchRequestRef.current) return
     setLoadingCards(false)
     if (error) {
-      setMessage(error.message)
+      console.error('[loyalty] card search failed', error)
+      setMessage('loadCardsFailed')
       return
     }
     if ((data || []).some(card => !Object.prototype.hasOwnProperty.call(card, 'cashback_type'))) {
@@ -461,7 +512,8 @@ export default function AdminLoyalty() {
     if (requestId !== transactionRequestRef.current) return
     setLoadingTransactions(false)
     if (error) {
-      setMessage(error.message)
+      console.error('[loyalty] transactions failed to load', error)
+      setMessage('loadTransactionsFailed')
       setTransactions([])
       return
     }
@@ -484,7 +536,7 @@ export default function AdminLoyalty() {
   async function createCard() {
     setMessage('')
     if (!canCreate) {
-      setMessage(l.ownerOnly)
+      setMessage('ownerOnly')
       return
     }
     const now = new Date().toISOString()
@@ -500,7 +552,8 @@ export default function AdminLoyalty() {
         now,
       })
     } catch (error) {
-      setMessage(['invalid_card_number', 'invalid_phone_number'].includes(error.code) ? l.cardFormRequired : error.message)
+      if (!['invalid_card_number', 'invalid_phone_number'].includes(error.code)) console.error('[loyalty] card form rejected', error)
+      setMessage(['invalid_card_number', 'invalid_phone_number'].includes(error.code) ? 'cardFormRequired' : 'createCardFailed')
       return
     }
     const { cashback_type: ignoredCashbackType, ...legacyCardRecord } = cardRecord
@@ -519,7 +572,8 @@ export default function AdminLoyalty() {
         .single())
     }
     if (error) {
-      setMessage(error.message)
+      console.error('[loyalty] card insert failed', error)
+      setMessage('createCardFailed')
       return
     }
     setForm({ card_number: '', customer_name: '', phone_number: '', cashback_type: DEFAULT_CASHBACK_TYPE })
@@ -529,7 +583,7 @@ export default function AdminLoyalty() {
 
   async function removeCard(card) {
     if (!canRemoveCard) {
-      setMessage(l.ownerOnly)
+      setMessage('ownerOnly')
       return
     }
     if (confirmDeleteId !== `card:${card.id}`) {
@@ -540,7 +594,8 @@ export default function AdminLoyalty() {
       p_card_id: card.id,
     })
     if (error) {
-      setMessage(error.message || l.removeCardFailed)
+      console.error('[loyalty] card removal failed', error)
+      setMessage('removeCardFailed')
       return
     }
     setSelected(null)
@@ -556,7 +611,7 @@ export default function AdminLoyalty() {
   async function updateCustomerProfile() {
     if (!selected) return
     if (!canEdit) {
-      setMessage(l.ownerOnly)
+      setMessage('ownerOnly')
       return
     }
     let next
@@ -570,7 +625,8 @@ export default function AdminLoyalty() {
         },
       })
     } catch (error) {
-      setMessage(error.code === 'invalid_phone_number' ? l.cardFormRequired : error.message)
+      if (error.code !== 'invalid_phone_number') console.error('[loyalty] customer profile rejected', error)
+      setMessage(error.code === 'invalid_phone_number' ? 'cardFormRequired' : 'saveCustomerFailed')
       return
     }
     const { data, error } = await supabase
@@ -584,7 +640,8 @@ export default function AdminLoyalty() {
       .select(CARD_SELECT_COLUMNS)
       .single()
     if (error) {
-      setMessage(error.message)
+      console.error('[loyalty] customer profile update failed', error)
+      setMessage('saveCustomerFailed')
       return
     }
     setCards(prev => prev.map(row => row.id === data.id ? data : row))
@@ -596,7 +653,7 @@ export default function AdminLoyalty() {
   async function adjustBalance() {
     if (!selected) return
     if (!canAdjust) {
-      setMessage(l.ownerOnly)
+      setMessage('ownerOnly')
       return
     }
     let settlement
@@ -609,7 +666,7 @@ export default function AdminLoyalty() {
         createdBy: profile?.id || state.user?.id || null,
       })
     } catch (error) {
-      setMessage(error.code === 'negative_balance' ? l.balanceNegative : l.adjustmentRequired)
+      setMessage(error.code === 'negative_balance' ? 'balanceNegative' : 'adjustmentRequired')
       return
     }
     const { data, error } = await supabase
@@ -624,10 +681,15 @@ export default function AdminLoyalty() {
       .select(CARD_SELECT_COLUMNS)
       .single()
     if (error) {
-      setMessage(error.message)
+      console.error('[loyalty] balance adjustment failed', error)
+      setMessage('adjustFailed')
       return
     }
-    await supabase.from('loyalty_transactions').insert(settlement.transaction)
+    // The balance is already saved. If its history row fails, say so instead of looking
+    // successful: re-entering the adjustment would change the balance a second time.
+    const { error: historyError } = await supabase.from('loyalty_transactions').insert(settlement.transaction)
+    if (historyError) console.error('[loyalty] adjustment history row was not saved', historyError)
+    setMessage(historyError ? 'adjustHistoryFailed' : '')
     setAdjustment({ amount: '', reason: '' })
     setCards(prev => prev.map(row => row.id === data.id ? data : row))
     loadTransactions(data)
@@ -636,7 +698,7 @@ export default function AdminLoyalty() {
   async function deleteTransaction(tx) {
     if (!selected || !tx?.id) return
     if (!canDeleteTransactions) {
-      setMessage(l.ownerOnly)
+      setMessage('ownerOnly')
       return
     }
     if (confirmDeleteId !== tx.id) {
@@ -650,7 +712,8 @@ export default function AdminLoyalty() {
     })
     setDeletingTransactionId('')
     if (error) {
-      setMessage(error.message || l.deleteTransactionFailed)
+      console.error('[loyalty] transaction delete failed', error)
+      setMessage('deleteTransactionFailed')
       return
     }
     const nextCard = data?.card || selected
@@ -686,29 +749,30 @@ export default function AdminLoyalty() {
     <AppShell
       title={selected ? l.detailsTitle : l.title}
       headerActions={(
-        <button type="button" onClick={() => searchCards(query, { page: cardPage })} disabled={loadingCards} aria-label={l.refresh} className="ws-btn ws-btn-outline !h-[38px]">
-          <RefreshCw size={16} className={loadingCards ? 'animate-spin' : ''} /><span className="hidden sm:inline">{l.refresh}</span>
+        <button type="button" onClick={() => searchCards(query, { page: cardPage })} disabled={loadingCards} aria-label={l.refresh} className="ws-btn ws-btn-outline ws-btn-sm">
+          <RefreshCw size={16} className={loadingCards ? 'animate-spin' : ''} aria-hidden="true" /><span className="hidden sm:inline">{l.refresh}</span>
         </button>
       )}
     >
       <div className="min-h-full w-full max-w-full overflow-x-hidden bg-[#f6f5f3]">
         <div className="ws-page">
-        {message && <div className="ws-notice ws-tone-caution">{message}</div>}
+        {message && <div role="alert" className="ws-notice ws-tone-caution">{l[message] || l.actionFailed}</div>}
 
         <div className="grid max-w-full gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
           <section className={`${selected ? 'hidden lg:block' : ''} ws-panel self-start`}>
             <h2 className="ws-heading mb-4">{l.createTitle}</h2>
             <div className="space-y-2">
-              <input value={form.card_number} onChange={e => setForm({ ...form, card_number: String(e.target.value || '').replace(/\D/g, '').slice(0, 8) })} placeholder={l.cardNumber} inputMode="numeric" maxLength={8} className="ws-input" />
-              <input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} placeholder={l.customerName} className="ws-input" />
-              <input value={form.phone_number} onChange={e => setForm({ ...form, phone_number: formatUzPhoneNumberInput(e.target.value) })} placeholder="+998 91 132 32 32" className="ws-input" />
-              <select value={form.cashback_type} onChange={e => setForm({ ...form, cashback_type: e.target.value })} disabled={!canCreate} className="ws-input disabled:bg-[#efece9] disabled:text-[#68655f]">
+              <input value={form.card_number} onChange={e => setForm({ ...form, card_number: String(e.target.value || '').replace(/\D/g, '').slice(0, 8) })} placeholder={l.cardNumber} aria-label={l.cardNumber} inputMode="numeric" maxLength={8} className="ws-input" />
+              <input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })} placeholder={l.customerName} aria-label={l.customerName} className="ws-input" />
+              <input value={form.phone_number} onChange={e => setForm({ ...form, phone_number: formatUzPhoneNumberInput(e.target.value) })} placeholder="+998 91 132 32 32" aria-label={l.phoneNumber} inputMode="tel" className="ws-input" />
+              <select aria-label={l.cashbackType} value={form.cashback_type} onChange={e => setForm({ ...form, cashback_type: e.target.value })} disabled={!canCreate} className="ws-input">
                 {Object.entries(CASHBACK_TYPES).map(([key, config]) => (
                   <option key={key} value={key}>{config.label} · {config.percent}%</option>
                 ))}
               </select>
-              <button onClick={createCard} disabled={!canCreate} className="ws-btn ws-btn-primary w-full">
-                <Plus size={16} /> {l.createCard}
+              <button type="button" onClick={() => runBusy('create', createCard)} disabled={!canCreate || busy} className="ws-btn ws-btn-primary w-full">
+                {busyAction === 'create' ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
+                {busyAction === 'create' ? l.saving : l.createCard}
               </button>
               {!canCreate && <p className="ws-caption">{l.ownerOnly}</p>}
             </div>
@@ -716,7 +780,7 @@ export default function AdminLoyalty() {
             <div ref={cardListTopRef} className="mt-5 scroll-mt-4">
               <div className="relative mb-3">
                 <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" />
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder={l.searchPlaceholder} className="ws-input !pl-9" />
+                <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={l.searchPlaceholder} aria-label={l.searchPlaceholder} className="ws-input !pl-9" />
               </div>
               <div className="space-y-2" aria-busy={loadingCards}>
                 {loadingCards && Array.from({ length: cards.length || CARD_PAGE_SIZE }, (_, index) => <CardRowShimmer key={index} />)}
@@ -730,7 +794,7 @@ export default function AdminLoyalty() {
                         aria-label={`${card.card_number}, ${card.customer_name || l.unnamedCustomer}`}
                         className="absolute inset-0 rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00] focus-visible:ring-offset-1"
                       />
-                      <div className="pointer-events-none relative flex items-center justify-between gap-3">
+                      <div className="pointer-events-none relative flex flex-wrap items-center justify-between gap-x-3">
                         <div className="flex items-center gap-1.5">
                           <span className="font-semibold tabular-nums text-[#22201d]">{card.card_number}</span>
                           <button
@@ -738,17 +802,17 @@ export default function AdminLoyalty() {
                             onClick={() => copyCardNumber(card.card_number)}
                             aria-label={isCopied ? l.cardNumberCopied : `${l.copyCardNumber} ${card.card_number}`}
                             title={isCopied ? l.cardNumberCopied : l.copyCardNumber}
-                            className={`pointer-events-auto relative z-10 flex h-7 w-7 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00] ${isCopied ? 'bg-[#1d7a52]/10 text-[#1d7a52]' : 'text-[#68655f] hover:bg-[#ebe8e5] hover:text-[#22201d]'}`}
+                            className={`ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon pointer-events-auto relative z-10 ${isCopied ? '!text-[#1d7a52]' : ''}`}
                           >
                             {isCopied ? <Check size={15} strokeWidth={3} /> : <Copy size={14} />}
                           </button>
                         </div>
-                        <span className="text-sm font-semibold tabular-nums text-[#1d7a52]">{formatCurrency(card.balance || 0)}</span>
+                        <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-[#1d7a52]">{formatCurrency(card.balance || 0)}</span>
                       </div>
                       <div className="pointer-events-none relative mt-1 flex min-w-0 items-end justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] text-[#22201d]">{card.customer_name || l.unnamedCustomer} · {statusLabel(card)}</p>
-                          <p className="ws-caption mt-0.5 truncate">{card.phone_number || l.noPhoneNumber} · {cashbackTypeLabel(card.cashback_type)}</p>
+                          <p className="text-[13px] text-[#22201d] [overflow-wrap:anywhere]">{card.customer_name || l.unnamedCustomer} · {statusLabel(card)}</p>
+                          <p className="ws-caption mt-0.5"><span className="whitespace-nowrap">{card.phone_number || l.noPhoneNumber}</span> · <span className="whitespace-nowrap">{cashbackTypeLabel(card.cashback_type)}</span></p>
                         </div>
                         <ChevronRight size={16} className="flex-shrink-0 text-[#68655f] lg:hidden" />
                       </div>
@@ -757,7 +821,10 @@ export default function AdminLoyalty() {
                 })}
                 {!loadingCards && cards.length === 0 && (
                   <div className="ws-empty">
-                    {l.noCards}
+                    <p>{l.noCards}</p>
+                    {query.trim() !== '' && (
+                      <button type="button" onClick={() => setQuery('')} className="ws-btn ws-btn-outline ws-btn-sm">{l.clearSearch}</button>
+                    )}
                   </div>
                 )}
                 {totalCardPages > 1 && (
@@ -805,16 +872,16 @@ export default function AdminLoyalty() {
             {selected ? (
               <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(320px,430px)_minmax(0,1fr)]">
                 <div className="xl:col-span-2 lg:hidden">
-                  <button onClick={() => setSelected(null)} className="ws-btn ws-btn-outline ws-btn-sm mb-1">
-                    <ArrowLeft size={16} /> {l.back}
+                  <button type="button" onClick={() => setSelected(null)} className="ws-btn ws-btn-outline ws-btn-sm mb-1">
+                    <ArrowLeft aria-hidden="true" /> {l.back}
                   </button>
                 </div>
                 <div className="space-y-4">
                   <div className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-5">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="ws-caption font-medium">{l.profileTitle}</p>
-                        <h2 className="ws-display mt-1 truncate">{selectedName(selected)}</h2>
+                        <h2 className="ws-display mt-1 [overflow-wrap:anywhere]">{selectedName(selected)}</h2>
                         <p className="ws-muted mt-1">{selectedPhone(selected)} · {l.cardNo}: {selected.card_number}</p>
                       </div>
                       <span className={`ws-status ${selected.is_active === false ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
@@ -822,13 +889,16 @@ export default function AdminLoyalty() {
                       </span>
                     </div>
 
-                    <div className="mt-4 rounded-xl border border-[#e4e1de] bg-white p-4">
+                    <div className="mt-4 rounded-xl bg-white p-4">
                       <p className="ws-caption font-medium">{l.customerName}</p>
                       {canEdit ? (
                         <div className="mt-3 grid gap-2">
-                          <input value={profileForm.customer_name} onChange={e => setProfileForm({ ...profileForm, customer_name: e.target.value })} placeholder={l.noCustomerName} className="ws-input" />
-                          <input value={profileForm.phone_number} onChange={e => setProfileForm({ ...profileForm, phone_number: formatUzPhoneNumberInput(e.target.value) })} placeholder="+998 91 132 32 32" className="ws-input" />
-                          <button onClick={updateCustomerProfile} className="ws-btn ws-btn-outline">{l.saveCustomer}</button>
+                          <input value={profileForm.customer_name} onChange={e => setProfileForm({ ...profileForm, customer_name: e.target.value })} placeholder={l.noCustomerName} aria-label={l.customerName} className="ws-input" />
+                          <input value={profileForm.phone_number} onChange={e => setProfileForm({ ...profileForm, phone_number: formatUzPhoneNumberInput(e.target.value) })} placeholder="+998 91 132 32 32" aria-label={l.phoneNumber} inputMode="tel" className="ws-input" />
+                          <button type="button" onClick={() => runBusy('profile', updateCustomerProfile)} disabled={busy} className="ws-btn ws-btn-outline">
+                            {busyAction === 'profile' && <Loader2 className="animate-spin" aria-hidden="true" />}
+                            {busyAction === 'profile' ? l.saving : l.saveCustomer}
+                          </button>
                         </div>
                       ) : (
                         <div className="mt-3 space-y-1">
@@ -839,13 +909,13 @@ export default function AdminLoyalty() {
                       <p className="ws-caption mt-3">{l.cardNo}: {selected.card_number}</p>
                     </div>
 
-                    <div className="mt-4 rounded-xl border border-[#e4e1de] bg-white px-4 py-4">
+                    <div className="mt-4 rounded-xl bg-white px-4 py-4">
                       <p className="ws-caption font-medium">{l.balance}</p>
-                      <p className="mt-1 text-[clamp(26px,2.4vw,32px)] font-semibold tracking-[-.02em] tabular-nums text-[#1d7a52]"><RollingText text={formatCurrency(selected.balance || 0)} /></p>
+                      <p className="mt-1 whitespace-nowrap text-[clamp(24px,2.4vw,32px)] font-semibold tracking-[-.02em] tabular-nums text-[#1d7a52]"><RollingText text={formatCurrency(selected.balance || 0)} /></p>
                     </div>
 
-                    <div className="mt-4 rounded-xl border border-[#e4e1de] bg-white p-4">
-                      <div className="flex items-center justify-between gap-3">
+                    <div className="mt-4 rounded-xl bg-white p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="ws-caption font-medium">{l.cashbackType}</p>
                           <p className="mt-1 text-sm font-semibold text-[#22201d]">{cashbackTypeLabel(selected.cashback_type)}</p>
@@ -856,29 +926,33 @@ export default function AdminLoyalty() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.totalEarned}</p><p className="mt-1 font-semibold tabular-nums text-[#22201d]">{formatCurrency(selected.total_earned || 0)}</p></div>
-                    <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.totalUsed}</p><p className="mt-1 font-semibold tabular-nums text-[#22201d]">{formatCurrency(selected.total_redeemed || 0)}</p></div>
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-3">
+                    <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.totalEarned}</p><p className="mt-1 whitespace-nowrap font-semibold tabular-nums text-[#22201d]">{formatCurrency(selected.total_earned || 0)}</p></div>
+                    <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.totalUsed}</p><p className="mt-1 whitespace-nowrap font-semibold tabular-nums text-[#22201d]">{formatCurrency(selected.total_redeemed || 0)}</p></div>
                     <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.status}</p><p className="mt-1 font-semibold tabular-nums text-[#22201d]">{statusLabel(selected)}</p></div>
                     <div className="rounded-xl border border-[#e4e1de] bg-white p-4"><p className="ws-caption">{l.cashbackType}</p><p className="mt-1 font-semibold tabular-nums text-[#22201d]">{cashbackTypeLabel(selected.cashback_type)}</p></div>
                   </div>
 
                   <div className="rounded-xl border border-[#e4e1de] bg-white p-4">
-                    <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <h3 className="flex items-center gap-2 text-sm font-semibold text-[#22201d]"><BadgeDollarSign size={16} /> {l.ownerActions}</h3>
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-[#22201d]"><BadgeDollarSign size={16} aria-hidden="true" /> {l.ownerActions}</h3>
                         <p className="ws-caption mt-1">{l.manualAdjustment}</p>
                       </div>
-                      <button onClick={() => removeCard(selected)} disabled={!canRemoveCard} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm">
-                        <Trash2 size={14} /> {confirmDeleteId === `card:${selected.id}` ? l.confirmRemoveCard : l.removeCard}
+                      <button type="button" onClick={() => runBusy('remove', () => removeCard(selected))} disabled={!canRemoveCard || busy} className={`ws-btn ws-btn-sm ${confirmDeleteId === `card:${selected.id}` ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'}`}>
+                        {busyAction === 'remove' && confirmDeleteId === `card:${selected.id}` ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
+                        {confirmDeleteId === `card:${selected.id}` ? (busyAction === 'remove' ? l.removingCard : l.confirmRemoveCard) : l.removeCard}
                       </button>
                     </div>
                     {canRemoveCard && <p className="ws-caption mb-3 !text-[#c4262c]">{l.removeCardHelp}</p>}
                     <p className="ws-caption mb-3">{canAdjust ? l.adjustmentHelper : l.ownerAdjustOnly}</p>
                     <div className="grid gap-2">
-                      <input type="text" value={formatSignedMoneyInput(adjustment.amount)} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, amount: normalizeSignedMoneyInput(e.target.value) })} placeholder={l.amountPlaceholder} className="ws-input disabled:bg-[#efece9]" />
-                      <textarea rows={2} value={adjustment.reason} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, reason: e.target.value })} placeholder={l.reason} className="ws-input !h-auto min-h-[76px] resize-y !py-2.5 leading-relaxed disabled:bg-[#efece9]" />
-                      <button onClick={adjustBalance} disabled={!canAdjust} className="ws-btn ws-btn-primary">{l.apply}</button>
+                      <input type="text" value={formatSignedMoneyInput(adjustment.amount)} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, amount: normalizeSignedMoneyInput(e.target.value) })} placeholder={l.amountPlaceholder} aria-label={l.amountPlaceholder} inputMode="numeric" className="ws-input tabular-nums" />
+                      <textarea rows={2} value={adjustment.reason} disabled={!canAdjust} onChange={e => setAdjustment({ ...adjustment, reason: e.target.value })} placeholder={l.reason} aria-label={l.reason} className="ws-input" />
+                      <button type="button" onClick={() => runBusy('adjust', adjustBalance)} disabled={!canAdjust || busy} className="ws-btn ws-btn-primary">
+                        {busyAction === 'adjust' && <Loader2 className="animate-spin" aria-hidden="true" />}
+                        {busyAction === 'adjust' ? l.saving : l.apply}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -892,12 +966,12 @@ export default function AdminLoyalty() {
                     {loadingTransactions && Array.from({ length: transactions.length || TRANSACTION_PAGE_SIZE }, (_, index) => <TransactionShimmer key={index} />)}
                     {!loadingTransactions && transactions.map(tx => (
                       <div key={tx.id} className="rounded-xl border border-[#e4e1de] bg-white p-4 text-sm">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
+                        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                          <div className="min-w-0">
                             <p className="font-semibold text-[#22201d]">{transactionTypeLabel(tx.type)}</p>
-                            <p className="ws-caption mt-1">{transactionDescription(tx)}</p>
+                            <p className="ws-caption mt-1 [overflow-wrap:anywhere]">{transactionDescription(tx)}</p>
                           </div>
-                          <p className={`text-base font-semibold tabular-nums ${transactionAmountClass(tx)}`}>{transactionAmount(tx)}</p>
+                          <p className={`whitespace-nowrap text-base font-semibold tabular-nums ${transactionAmountClass(tx)}`}>{transactionAmount(tx)}</p>
                         </div>
                         {tx.type === 'cashback_earned' && (
                           <p className="ws-caption mt-3 !text-[#9a5a00]">{transactionCardType(tx)}</p>
@@ -907,7 +981,7 @@ export default function AdminLoyalty() {
                           {tx.created_at && <span>{formatTransactionDate(tx.created_at)}</span>}
                         </div>
                         {tx.balance_before != null && tx.balance_after != null && (
-                          <p className="mt-2 text-[13px] font-medium tabular-nums text-[#22201d]">{l.balanceFlow}: {formatCurrency(tx.balance_before)} -&gt; {formatCurrency(tx.balance_after)}</p>
+                          <p className="mt-2 text-[13px] font-medium tabular-nums text-[#22201d]">{l.balanceFlow}: <span className="whitespace-nowrap">{formatCurrency(tx.balance_before)}</span> → <span className="whitespace-nowrap">{formatCurrency(tx.balance_after)}</span></p>
                         )}
                         {canDeleteTransactions && (
                           <div className="mt-3 flex flex-wrap justify-end gap-2">
@@ -915,18 +989,19 @@ export default function AdminLoyalty() {
                               <button
                                 type="button"
                                 onClick={() => setConfirmDeleteId('')}
+                                disabled={busy}
                                 className="ws-btn ws-btn-outline ws-btn-sm"
                               >
-                                <X size={13} /> {l.cancel}
+                                <X aria-hidden="true" /> {l.cancel}
                               </button>
                             )}
                             <button
                               type="button"
-                              onClick={() => deleteTransaction(tx)}
-                              disabled={deletingTransactionId === tx.id}
+                              onClick={() => runBusy('delete', () => deleteTransaction(tx))}
+                              disabled={busy}
                               className={`ws-btn ws-btn-sm ${confirmDeleteId === tx.id ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'}`}
                             >
-                              <Trash2 size={13} />
+                              {deletingTransactionId === tx.id ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
                               {deletingTransactionId === tx.id
                                 ? l.deletingTransaction
                                 : confirmDeleteId === tx.id ? l.confirmDelete : l.deleteTransaction}
@@ -936,7 +1011,7 @@ export default function AdminLoyalty() {
                       </div>
                     ))}
                     {!loadingTransactions && transactions.length === 0 && (
-                      <div className="ws-empty rounded-xl border border-dashed border-[#e4e1de] bg-white">{l.noTransactions}</div>
+                      <div className="ws-empty rounded-xl bg-white"><p>{l.noTransactions}</p></div>
                     )}
                     {totalTransactionPages > 1 && (
                       <nav className="flex items-center justify-center gap-1 pt-1" aria-label={l.page}>

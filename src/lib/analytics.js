@@ -122,6 +122,15 @@ export function isCounterOrderItem(item) {
   )
 }
 
+/**
+ * The amount printed for one bill line: unit price x quantity, rounded to whole UZS.
+ * A weight line such as 84 500 x 0.355 kg is 29 997.5 in floating point; a line never
+ * shows a fraction of a so'm. Display only: bill totals keep using getOrderPaymentSummary.
+ */
+export function getOrderItemLineTotal(item) {
+  return Math.round(getOrderItemUnitPrice(item) * (Number(item?.quantity) || 1))
+}
+
 export function normalizeServiceRatePct(value, fallbackPct = 20) {
   if (value == null || value === '') {
     const fallback = Number(fallbackPct)
