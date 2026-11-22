@@ -82,6 +82,12 @@ test('public menu keeps homepage search metadata without rendering an SEO copy b
   assert.match(menu, /https:\/\/yandex\.com\/maps\/org\/zarkebab\/34684464035\//)
 })
 
+test('search engine ownership checks stay in place', () => {
+  // Google Search Console (HTML file) and Yandex Webmaster (meta tag) verify the site with these.
+  assert.equal(fs.readFileSync(path.join(root, 'public/google5e89cb9dc432b8ff.html'), 'utf8'), 'google-site-verification: google5e89cb9dc432b8ff.html')
+  assert.match(html, /<meta name="yandex-verification" content="096436ea8ba8dfa1" \/>/)
+})
+
 test('search crawlers receive real robots and sitemap files', () => {
   assert.match(robots, /User-agent: \*/)
   assert.match(robots, /Allow: \//)
