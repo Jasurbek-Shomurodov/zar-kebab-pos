@@ -79,7 +79,7 @@ export function CostAnomaliesNotice({ anomalies, lang }) {
       {open && (
         <div className="mt-3 overflow-x-auto rounded-lg bg-[var(--ws-card,#fff)] text-[#22201d]">
           <table className="w-full min-w-[520px] text-left text-sm">
-            <thead className="text-[11px] font-semibold uppercase tracking-wide text-[#8a867f]">
+            <thead className="text-xs font-semibold text-[#68655f]">
               <tr>{[l.item, l.soldOn, l.qty, l.price, l.savedCost].map(heading => <th key={heading} className="px-3 py-2">{heading}</th>)}</tr>
             </thead>
             <tbody>
@@ -88,8 +88,8 @@ export function CostAnomaliesNotice({ anomalies, lang }) {
                   <td className="px-3 py-2 font-semibold">{row.name || '—'}</td>
                   <td className="px-3 py-2">{row.soldOn ? formatLongDate(row.soldOn, lang, row.soldOn) : '—'}</td>
                   <td className="px-3 py-2 tabular-nums">{row.quantity}</td>
-                  <td className="px-3 py-2 tabular-nums">{formatCurrency(row.price)}</td>
-                  <td className="px-3 py-2 font-semibold tabular-nums text-[#c4262c]">{formatCurrency(row.cost)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatCurrency(row.price)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums text-[#c4262c]">{formatCurrency(row.cost)}</td>
                 </tr>
               ))}
             </tbody>
@@ -127,17 +127,17 @@ function FeeRateRow({ method, rate, fee, periodStart, today, lang, l, onSaved })
   }
 
   return (
-    <div className="rounded-xl border border-[#e4e1de] p-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="rounded-xl bg-[#f6f5f3] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
         <span className="text-sm font-semibold text-[#22201d]">{expensePaymentMethodLabel(method, lang)}</span>
-        <span className="ws-caption tabular-nums">{l.feeInPeriod}: <span className="font-semibold text-[#22201d]">{formatCurrency(fee)}</span></span>
+        <span className="ws-caption">{l.feeInPeriod}: <span className="whitespace-nowrap font-semibold tabular-nums text-[#22201d]">{formatCurrency(fee)}</span></span>
       </div>
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <label className="flex min-w-0 flex-col gap-1">
           <span className="ws-caption">{l.rate}</span>
           <span className="flex items-center gap-1">
             <input
-              className="ws-input !h-9 w-24 tabular-nums"
+              className="ws-input !w-24 tabular-nums"
               inputMode="decimal"
               value={value}
               placeholder={l.notSet}
@@ -150,13 +150,13 @@ function FeeRateRow({ method, rate, fee, periodStart, today, lang, l, onSaved })
         {canPickPeriod && (
           <label className="flex min-w-0 flex-col gap-1">
             <span className="ws-caption">{l.from}</span>
-            <select className="ws-input !h-9" value={from} onChange={event => setFrom(event.target.value)}>
+            <select className="ws-input" value={from} onChange={event => setFrom(event.target.value)}>
               <option value="today">{l.fromToday}</option>
               <option value="period">{fill(l.fromPeriod, { date: formatLongDate(periodStart, lang, periodStart) })}</option>
             </select>
           </label>
         )}
-        <button type="button" onClick={save} disabled={!changed && from === 'today' || state.status === 'saving' || parsed == null} className="ws-btn ws-btn-primary ws-btn-sm !h-9">
+        <button type="button" onClick={save} disabled={!changed && from === 'today' || state.status === 'saving' || parsed == null} className="ws-btn ws-btn-primary">
           {state.status === 'saving' && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
           {l.save}
         </button>

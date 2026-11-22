@@ -20,7 +20,6 @@ import {
   ShoppingBasket,
   Users,
   WalletCards,
-  X,
 } from 'lucide-react'
 import AppShell from '../components/AppShell'
 import { Kpi, KpiExplanationDialog, toKpiDetail } from '../components/AccountingKpi'
@@ -28,6 +27,7 @@ import DateRangePicker from '../components/DateRangePicker'
 import { OperationalLoading } from '../components/OperationalState'
 import MonthlyIncomeChart from '../components/MonthlyIncomeChart'
 import WeeklyIncomeChart from '../components/WeeklyIncomeChart'
+import WorkspaceDialog from '../components/WorkspaceDialog'
 import SankeyChart, { useElementWidth } from '../components/SankeyChart'
 import { Shimmer } from '../components/PageShimmer'
 import { supabase } from '../lib/supabase'
@@ -83,7 +83,7 @@ import { BANK_FEE_CATEGORY, buildPaymentFeeEntries, isMissingPaymentFeesRpc, loa
 import { isMissingCostAnomaliesRpc, loadCostAnomalies } from '../lib/costAnomalies'
 import { CostAnomaliesNotice, PaymentFeeRatesPanel } from '../components/AnalysisChecks'
 import { expenseCategoryLabel, expenseDescriptionLabel, expensePaymentMethodLabel, todayExpenseDate } from '../lib/expenses'
-import { formatCurrency, formatCurrencyWithPercentage } from '../lib/formatCurrency'
+import { formatCompactCurrency, formatCurrency, formatCurrencyWithPercentage, formatPercent } from '../lib/formatCurrency'
 import { formatLongDate, formatMonthYear } from '../lib/dateFormat'
 import { collectPagedRows } from '../lib/orderHistory'
 import { buildOwnerProfitOverview, loadOwnerProfitData } from '../lib/ownerProfit'
@@ -464,7 +464,7 @@ function HelpButton({ topic, title }) {
       type="button"
       onClick={() => help.open(topic, title)}
       aria-label={`${help.label}: ${title}`}
-      className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[#8a867f] transition-colors hover:bg-[#efece9] hover:text-[#22201d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40"
+      className="relative inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[#68655f] transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-[#efece9] hover:text-[#22201d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a00]/40"
     >
       <HelpCircle size={16} aria-hidden="true" />
     </button>
@@ -472,40 +472,28 @@ function HelpButton({ topic, title }) {
 }
 
 function HelpDialog({ title, text, closeLabel, onClose }) {
-  useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
   return (
-    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
-      <section role="dialog" aria-modal="true" aria-labelledby="analysis-help-title" className="ws-dialog w-full !rounded-b-none sm:max-w-md sm:!rounded-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-[#e4e1de] px-5 py-4">
-          <h2 id="analysis-help-title" className="ws-heading flex items-center gap-2"><HelpCircle size={18} className="text-[#ff5a00]" aria-hidden="true" />{title}</h2>
-          <button type="button" onClick={onClose} aria-label={closeLabel} className="ws-btn ws-btn-ghost !h-9 !w-9 !px-0"><X size={18} /></button>
-        </div>
-        <div className="space-y-4 px-5 py-5">
-          <p className="text-[15px] leading-relaxed text-[#22201d]">{text}</p>
-          <button type="button" onClick={onClose} className="ws-btn ws-btn-outline !h-11 w-full">{closeLabel}</button>
-        </div>
-      </section>
-    </div>
+    <WorkspaceDialog
+      title={title}
+      onClose={onClose}
+      closeLabel={closeLabel}
+      variant="sheet"
+      size="md"
+      footer={<button type="button" onClick={onClose} className="ws-btn ws-btn-outline">{closeLabel}</button>}
+    >
+      <p className="text-[15px] leading-relaxed text-[#22201d]">{text}</p>
+    </WorkspaceDialog>
   )
 }
 
-function formatCompact(value) {
-  const amount = Math.abs(Number(value) || 0)
-  const sign = Number(value) < 0 ? '−' : ''
-  if (amount >= 1_000_000_000) return `${sign}${(amount / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`
-  if (amount >= 1_000_000) return `${sign}${(amount / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
-  if (amount >= 1_000) return `${sign}${Math.round(amount / 1_000)}K`
-  return `${sign}${Math.round(amount)}`
+// An amount inside a sentence: the label may wrap, the figure and its unit never split.
+function Money({ value }) {
+  return <span className="whitespace-nowrap tabular-nums">{formatCurrency(value)}</span>
 }
 
-function formatPct(value) {
-  return value == null ? '—' : `${String(value).replace(/\.0$/, '')}%`
+// Percent values arrive already rounded to one decimal by src/lib/accountingAnalysis.js; null means "not known".
+function formatPct(value, lang) {
+  return value == null ? '—' : formatPercent(value, lang)
 }
 
 function shareOf(amount, total) {
@@ -914,19 +902,19 @@ export default function AccountingAnalysis() {
     const text = {
       uz: {
         cafeIncome: ['Tanlangan davrdagi to‘langan buyurtmalardan olingan haqiqiy tushum.', ['Naqd, karta va terminal orqali olingan to‘lovlar', `Loyallik mablag‘i (${formatCurrency(loyaltyIncome)}) alohida ko‘rsatiladi va sarflanadigan tushumga qo‘shilmaydi`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Kafe daromadi', 'Sotilgan mahsulotlarning buyurtma vaqtida saqlangan tannarxi', `Foiz: yalpi foyda ÷ kafe daromadi = ${profitMarginPct == null ? '—' : `${String(profitMarginPct).replace('.', ',')}%`}`]],
+        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Kafe daromadi', 'Sotilgan mahsulotlarning buyurtma vaqtida saqlangan tannarxi', `Foiz: yalpi foyda ÷ kafe daromadi = ${formatPct(profitMarginPct, 'uz')}`]],
         average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} kun = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Tanlangan davrning barcha kalendar kunlari (savdo bo‘lmagan kunlar ham)', 'Faqat kafe daromadi; loyallik mablag‘i kiritilmaydi']],
         investor: ['Tanlangan davrdagi “Investor yordami” turidagi daromad yozuvlari yig‘indisi.', ['Investor yordami yozuvlari', `Boshqa daromad (${formatCurrency(otherIncomeTotal)}) alohida hisoblanadi va bu kartaga qo‘shilmaydi`]],
       },
       ru: {
         cafeIncome: ['Фактически полученные деньги по оплаченным заказам за выбранный период.', ['Оплаты наличными, картой и терминалом', `Оплата лояльностью (${formatCurrency(loyaltyIncome)}) показана отдельно и не входит в доступную выручку`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Доход кафе', 'Историческая себестоимость проданных позиций, сохранённая в заказах', `Процент: валовая прибыль ÷ доход кафе = ${profitMarginPct == null ? '—' : `${String(profitMarginPct).replace('.', ',')}%`}`]],
+        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Доход кафе', 'Историческая себестоимость проданных позиций, сохранённая в заказах', `Процент: валовая прибыль ÷ доход кафе = ${formatPct(profitMarginPct, 'ru')}`]],
         average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} дн. = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Все календарные дни выбранного периода, включая дни без продаж', 'Только доход кафе; оплата лояльностью не включена']],
         investor: ['Сумма записей дохода с категорией «Поддержка инвестора» за выбранный период.', ['Внесённая поддержка инвестора', `Другой доход (${formatCurrency(otherIncomeTotal)}) считается отдельно и в эту карточку не входит`]],
       },
       en: {
         cafeIncome: ['Money actually received from paid orders in the selected period.', ['Cash, card, and terminal payments', `Loyalty value (${formatCurrency(loyaltyIncome)}) is shown separately and is not spendable revenue`]],
-        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Cafe income', 'Historical cost of sold items saved with the orders', `Percentage: gross profit ÷ cafe income = ${profitMarginPct == null ? '—' : `${profitMarginPct}%`}`]],
+        netProfit: [`${formatCurrency(cafeIncome)} − ${formatCurrency(costTotal)} = ${formatCurrency(netProfit)}`, ['Cafe income', 'Historical cost of sold items saved with the orders', `Percentage: gross profit ÷ cafe income = ${formatPct(profitMarginPct, 'en')}`]],
         average: [`${formatCurrency(selectedRangeCafeIncome.total)} ÷ ${selectedRangeCafeIncome.dayCount} days = ${formatCurrency(selectedRangeCafeIncome.averageDaily)}`, ['Every calendar day in the selected period, including days with no sales', 'Cafe income only; loyalty value is excluded']],
         investor: ['Total income entries categorized as Investor support in the selected period.', ['Recorded investor support', `Other income (${formatCurrency(otherIncomeTotal)}) is separate and excluded from this card`]],
       },
@@ -971,7 +959,7 @@ export default function AccountingAnalysis() {
             onClick={() => navigate('/admin/financial-analysis/estimate')}
             aria-label={l.estimate}
             title={l.estimate}
-            className="ws-btn ws-btn-outline !h-[38px] !px-2.5 xl:!px-3.5"
+            className="ws-btn ws-btn-outline !px-2.5 xl:!px-3.5"
           >
             <ReceiptText size={16} />
             <span className="hidden xl:inline">{l.estimate}</span>
@@ -983,7 +971,7 @@ export default function AccountingAnalysis() {
           disabled={loading}
           aria-label={l.refresh}
           title={l.refresh}
-          className="ws-btn ws-btn-outline !h-[38px] !w-[38px] !px-0"
+          className="ws-btn ws-btn-outline ws-btn-icon"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           </button>
@@ -1052,8 +1040,8 @@ export default function AccountingAnalysis() {
 
           <section aria-labelledby="analysis-income-heading">
             <SectionHeading id="analysis-income-heading" title={l.incomeTitle} description={`${l.incomeHelp} · ${periodLabel}`} />
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Kpi loading={loading} icon={WalletCards} label={l.cafeIncome} value={loading ? '—' : formatCurrency(cafeIncome)} sub={loading ? '' : `${l.loyaltyIncome}: ${formatCurrency(loyaltyIncome)}`} tone="green" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.cafeIncome)} />
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(17rem,1fr))] gap-3">
+              <Kpi loading={loading} icon={WalletCards} label={l.cafeIncome} value={loading ? '—' : formatCurrency(cafeIncome)} sub={loading ? '' : <>{l.loyaltyIncome}: <Money value={loyaltyIncome} /></>} tone="green" detailHint={l.tapForDetails} onClick={loading ? null : () => setSelectedKpi(kpiDetails.cafeIncome)} />
               <Kpi loading={loading}
                 icon={BadgeDollarSign}
                 label={l.netProfit}
@@ -1068,7 +1056,7 @@ export default function AccountingAnalysis() {
                 icon={CalendarDays}
                 label={l.avgDailyCafeIncome}
                 value={loading ? '—' : formatCurrency(selectedRangeCafeIncome.averageDaily)}
-                sub={loading ? '' : `${l.periodCafeIncome}: ${formatCurrency(selectedRangeCafeIncome.total)} · ${l.loyaltyIncome}: ${formatCurrency(selectedRangeCafeIncome.loyaltyTotal)}`}
+                sub={loading ? '' : <>{l.periodCafeIncome}: <Money value={selectedRangeCafeIncome.total} /> · {l.loyaltyIncome}: <Money value={selectedRangeCafeIncome.loyaltyTotal} /></>}
                 tone="blue"
                 detailHint={l.tapForDetails}
                 onClick={loading ? null : () => setSelectedKpi(kpiDetails.average)}
@@ -1077,13 +1065,13 @@ export default function AccountingAnalysis() {
                 icon={HandCoins}
                 label={l.investorSupport}
                 value={loading ? '—' : formatCurrency(investorSupportTotal)}
-                sub={loading ? '' : otherIncomeTotal > 0 ? `${l.otherIncomeSub}: ${formatCurrency(otherIncomeTotal)}` : l.investorSupportSub}
+                sub={loading ? '' : otherIncomeTotal > 0 ? <>{l.otherIncomeSub}: <Money value={otherIncomeTotal} /></> : l.investorSupportSub}
                 tone="purple"
                 detailHint={l.tapForDetails}
                 onClick={loading ? null : () => setSelectedKpi(kpiDetails.investor)}
               />
             </div>
-            <SalesRow sales={loading ? null : analysis?.sales} previous={analysis?.previousSales} l={l} />
+            <SalesRow lang={lang} sales={loading ? null : analysis?.sales} previous={analysis?.previousSales} l={l} />
             {costAnomalies && <div className="mt-3"><CostAnomaliesNotice anomalies={costAnomalies} lang={lang} /></div>}
           </section>
 
@@ -1103,18 +1091,18 @@ export default function AccountingAnalysis() {
           ) : (
             <section aria-labelledby="analysis-flow-heading" className="space-y-5">
               <SectionHeading id="analysis-flow-heading" title={l.analysisTitle} description={l.analysisHelp} />
-              <div className="grid gap-3 sm:grid-cols-3">
-                <TotalTile help="moneyIn" label={l.moneyIn} value={indicators.moneyIn} change={getPercentChange(indicators.moneyIn, previousIndicators.moneyIn)} goodWhenUp vsLabel={l.vsPrevious} tone="green" />
-                <TotalTile help="spent" label={l.spent} value={indicators.spent} change={getPercentChange(indicators.spent, previousIndicators.spent)} goodWhenUp={false} vsLabel={l.vsPrevious} tone="orange" />
-                <TotalTile help="left" label={l.left} value={indicators.left} change={getPercentChange(indicators.left, previousIndicators.left)} goodWhenUp vsLabel={l.vsPrevious} tone={indicators.left >= 0 ? 'blue' : 'red'} />
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
+                <TotalTile lang={lang} help="moneyIn" label={l.moneyIn} value={indicators.moneyIn} change={getPercentChange(indicators.moneyIn, previousIndicators.moneyIn)} goodWhenUp vsLabel={l.vsPrevious} tone="green" />
+                <TotalTile lang={lang} help="spent" label={l.spent} value={indicators.spent} change={getPercentChange(indicators.spent, previousIndicators.spent)} goodWhenUp={false} vsLabel={l.vsPrevious} tone="orange" />
+                <TotalTile lang={lang} help="left" label={l.left} value={indicators.left} change={getPercentChange(indicators.left, previousIndicators.left)} goodWhenUp vsLabel={l.vsPrevious} tone={indicators.left >= 0 ? 'blue' : 'red'} />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <Indicator icon={PiggyBank} help="savingsRate" label={l.savingsRate} value={formatPct(indicators.savingsRatePct)} sub={l.savingsRateSub} meter={indicators.savingsRatePct} tone={indicators.savingsRatePct != null && indicators.savingsRatePct < 0 ? 'red' : 'green'} />
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-3">
+                <Indicator icon={PiggyBank} help="savingsRate" label={l.savingsRate} value={formatPct(indicators.savingsRatePct, lang)} sub={l.savingsRateSub} meter={indicators.savingsRatePct} tone={indicators.savingsRatePct != null && indicators.savingsRatePct < 0 ? 'red' : 'green'} />
                 <Indicator icon={Flame} help="burnRate" label={l.burnRate} value={formatCurrency(indicators.avgDailySpend)} sub={l.burnRateSub} tone="orange" />
                 <Indicator icon={Hourglass} help="runway" label={l.runway} value={indicators.runwayDays == null ? '—' : `${indicators.runwayDays} ${l.days}`} sub={l.runwaySub} tone="blue" />
-                <Indicator icon={ShoppingBasket} help="foodCost" label={l.foodCost} value={formatPct(indicators.foodCostPct)} sub={l.foodCostSub} meter={indicators.foodCostPct} tone="teal" />
-                <Indicator icon={Users} help="payrollShare" label={l.payrollShare} value={formatPct(indicators.payrollSharePct)} sub={l.payrollShareSub} meter={indicators.payrollSharePct} tone="purple" />
+                <Indicator icon={ShoppingBasket} help="foodCost" label={l.foodCost} value={formatPct(indicators.foodCostPct, lang)} sub={l.foodCostSub} meter={indicators.foodCostPct} tone="teal" />
+                <Indicator icon={Users} help="payrollShare" label={l.payrollShare} value={formatPct(indicators.payrollSharePct, lang)} sub={l.payrollShareSub} meter={indicators.payrollSharePct} tone="purple" />
               </div>
 
               <MoneyFlowCard
@@ -1144,6 +1132,7 @@ export default function AccountingAnalysis() {
               <div className="grid gap-5 lg:grid-cols-2">
                 <ChartCard title={l.categoriesTitle} help="categories" description={l.categoriesSub}>
                   <DonutChart
+                    lang={lang}
                     categories={analysis.categories}
                     colors={analysis.colors}
                     total={analysis.summary.expenseSummary.total}
@@ -1154,7 +1143,7 @@ export default function AccountingAnalysis() {
                   />
                 </ChartCard>
                 <ChartCard title={l.compareTitle} help="compare" description={l.compareSub}>
-                  <CategoryComparison rows={analysis.comparison} labelFor={categoryName} l={l} />
+                  <CategoryComparison lang={lang} rows={analysis.comparison} labelFor={categoryName} l={l} />
                 </ChartCard>
               </div>
 
@@ -1239,7 +1228,7 @@ function ChartCard({ title, description, children, className = '', help = null }
   )
 }
 
-function ChangeBadge({ change, goodWhenUp, label }) {
+function ChangeBadge({ change, goodWhenUp, label, lang }) {
   if (change == null || change === 0) return <span className="ws-caption">— {label}</span>
   const up = change > 0
   const good = up === goodWhenUp
@@ -1247,7 +1236,7 @@ function ChangeBadge({ change, goodWhenUp, label }) {
   return (
     <span className="ws-caption inline-flex flex-wrap items-center gap-1">
       <span className={`ws-badge ${good ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
-        <Icon size={12} />{formatPct(Math.abs(change))}
+        <Icon size={12} />{formatPct(Math.abs(change), lang)}
       </span>
       {label}
     </span>
@@ -1263,27 +1252,27 @@ function LabelWithHelp({ label, help, as: Tag = 'p' }) {
   )
 }
 
-function TotalTile({ label, value, change, goodWhenUp, vsLabel, tone, help = null }) {
-  const tones = { green: 'text-[#1d7a52]', orange: 'text-[#ff5a00]', blue: 'text-[#22201d]', red: 'text-[#c4262c]' }
+function TotalTile({ label, value, change, goodWhenUp, vsLabel, tone, help = null, lang }) {
+  const tones = { green: 'text-[#1d7a52]', orange: 'text-[#bf4300]', blue: 'text-[#22201d]', red: 'text-[#c4262c]' }
   return (
     <div className="ws-panel">
       <LabelWithHelp label={label} help={help} />
-      <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${tones[tone] || tones.blue}`}><RollingText text={formatCurrency(value)} /></p>
-      <div className="mt-2"><ChangeBadge change={change} goodWhenUp={goodWhenUp} label={vsLabel} /></div>
+      <p className={`mt-1 whitespace-nowrap text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${tones[tone] || tones.blue}`}><RollingText text={formatCurrency(value)} /></p>
+      <div className="mt-2"><ChangeBadge lang={lang} change={change} goodWhenUp={goodWhenUp} label={vsLabel} /></div>
     </div>
   )
 }
 
 // Orders, average check and cost of sold items for the picked range, each
 // against the previous period of the same length.
-function SalesRow({ sales, previous, l }) {
+function SalesRow({ sales, previous, l, lang }) {
   const tiles = [
     { key: 'orders', icon: ShoppingCart, label: l.ordersCount, value: sales ? String(sales.orderCount) : '—', sub: sales ? fillText(l.ordersCountSub, { n: sales.ordersPerDay }) : '', change: sales && previous ? getPercentChange(sales.orderCount, previous.orderCount) : null, goodWhenUp: true },
     { key: 'check', icon: Receipt, label: l.avgCheck, value: sales?.averageCheck != null ? formatCurrency(sales.averageCheck) : '—', sub: l.avgCheckSub, change: sales?.averageCheck != null && previous?.averageCheck != null ? getPercentChange(sales.averageCheck, previous.averageCheck) : null, goodWhenUp: true },
-    { key: 'cost', icon: Package, label: l.costOfSold, value: sales ? formatCurrency(sales.costTotal) : '—', sub: sales?.costPct != null ? fillText(l.costOfSoldSub, { pct: formatPct(sales.costPct) }) : '', change: sales && previous ? getPercentChange(sales.costTotal, previous.costTotal) : null, goodWhenUp: false },
+    { key: 'cost', icon: Package, label: l.costOfSold, value: sales ? formatCurrency(sales.costTotal) : '—', sub: sales?.costPct != null ? fillText(l.costOfSoldSub, { pct: formatPct(sales.costPct, lang) }) : '', change: sales && previous ? getPercentChange(sales.costTotal, previous.costTotal) : null, goodWhenUp: false },
   ]
   return (
-    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+    <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
       {tiles.map(tile => (
         <div key={tile.key} className="ws-panel flex h-full flex-col">
           <div className="flex items-start justify-between gap-2">
@@ -1291,10 +1280,10 @@ function SalesRow({ sales, previous, l }) {
             <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]"><tile.icon size={15} aria-hidden="true" /></span>
           </div>
           {sales
-            ? <p className="mt-1 break-words text-lg font-semibold leading-tight tracking-[-.01em] text-[#22201d] tabular-nums">{tile.value}</p>
+            ? <p className="mt-1 whitespace-nowrap text-lg font-semibold leading-tight tracking-[-.01em] text-[#22201d] tabular-nums">{tile.value}</p>
             : <Shimmer className="mt-1 h-6 w-28 rounded-md" />}
           <p className="ws-caption mt-1 leading-snug">{sales ? tile.sub : ''}</p>
-          {sales && <div className="mt-auto pt-2"><ChangeBadge change={tile.change} goodWhenUp={tile.goodWhenUp} label={l.vsPrevious} /></div>}
+          {sales && <div className="mt-auto pt-2"><ChangeBadge lang={lang} change={tile.change} goodWhenUp={tile.goodWhenUp} label={l.vsPrevious} /></div>}
         </div>
       ))}
     </div>
@@ -1302,7 +1291,7 @@ function SalesRow({ sales, previous, l }) {
 }
 
 function Indicator({ icon: Icon, label, value, sub, meter = null, tone = 'orange', help = null }) {
-  const barColors = { green: '#1d7a52', orange: '#ff5a00', blue: '#2a78d6', red: '#c4262c', teal: '#1baf7a', purple: '#4a3aa7' }
+  const barColors = { green: 'bg-[#1d7a52]', orange: 'bg-[#ff5a00]', blue: 'bg-[#2a78d6]', red: 'bg-[#c4262c]', teal: 'bg-[#1baf7a]', purple: 'bg-[#4a3aa7]' }
   const width = meter == null ? null : Math.max(0, Math.min(100, meter))
   return (
     <div className="ws-panel flex h-full flex-col">
@@ -1310,10 +1299,10 @@ function Indicator({ icon: Icon, label, value, sub, meter = null, tone = 'orange
         <LabelWithHelp label={label} help={help} />
         <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]"><Icon size={15} /></span>
       </div>
-      <p className="mt-1 break-words text-lg font-semibold leading-tight tracking-[-.01em] text-[#22201d] tabular-nums">{value}</p>
+      <p className="mt-1 whitespace-nowrap text-lg font-semibold leading-tight tracking-[-.01em] text-[#22201d] tabular-nums">{value}</p>
       {width != null && (
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#efece9]" aria-hidden="true">
-          <div className="h-full rounded-full" style={{ width: `${width}%`, backgroundColor: barColors[tone] || barColors.orange }} />
+          <div className={`h-full rounded-full ${barColors[tone] || barColors.orange}`} style={{ width: `${width}%` }} />
         </div>
       )}
       <p className="ws-caption mt-auto pt-2 leading-snug">{sub}</p>
@@ -1331,11 +1320,13 @@ function trendTone(value) {
   return value > 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'
 }
 
-function signedPct(value) {
-  return value == null ? '—' : `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatPct(Math.abs(value))}`
+function signedPct(value, lang) {
+  return value == null ? '—' : `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatPct(Math.abs(value), lang)}`
 }
 
-function Sparkline({ values, color = '#1d7a52', highlightLast = false }) {
+const SPARK_TONES = { positive: 'text-[#1d7a52]', negative: 'text-[#c4262c]' }
+
+function Sparkline({ values, tone = 'positive', highlightLast = false }) {
   const points = values.filter(value => Number.isFinite(value))
   if (points.length < 2) return null
   const max = Math.max(...points, 1)
@@ -1343,21 +1334,21 @@ function Sparkline({ values, color = '#1d7a52', highlightLast = false }) {
   const x = index => (index / (points.length - 1)) * 100
   const y = value => 30 - ((value - min) / (max - min || 1)) * 28
   return (
-    <svg viewBox="0 0 100 32" preserveAspectRatio="none" className="mt-3 h-8 w-full" aria-hidden="true">
-      <polyline points={points.map((value, index) => `${x(index)},${y(value)}`).join(' ')} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-      {highlightLast && <circle cx={x(points.length - 1)} cy={y(points.at(-1))} r={2.5} fill={color} vectorEffect="non-scaling-stroke" />}
+    <svg viewBox="0 0 100 32" preserveAspectRatio="none" className={`mt-3 h-8 w-full ${SPARK_TONES[tone] || SPARK_TONES.positive}`} aria-hidden="true">
+      <polyline points={points.map((value, index) => `${x(index)},${y(value)}`).join(' ')} fill="none" className="stroke-current" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+      {highlightLast && <circle cx={x(points.length - 1)} cy={y(points.at(-1))} r={2.5} className="fill-current" vectorEffect="non-scaling-stroke" />}
     </svg>
   )
 }
 
-function GrowthTile({ label, value, valueTone, sub, change, changeLabel, spark, sparkColor, help = null }) {
+function GrowthTile({ label, value, valueTone, sub, change, changeLabel, spark, sparkTone, help = null, lang }) {
   return (
     <div className="ws-panel flex h-full flex-col">
       <LabelWithHelp label={label} help={help} />
-      <p className={`mt-1 break-words text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone || 'text-[#22201d]'}`}><RollingValue value={value} /></p>
-      {changeLabel != null && <div className="mt-2"><ChangeBadge change={change} goodWhenUp label={changeLabel} /></div>}
+      <p className={`mt-1 whitespace-nowrap text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${valueTone || 'text-[#22201d]'}`}><RollingValue value={value} /></p>
+      {changeLabel != null && <div className="mt-2"><ChangeBadge lang={lang} change={change} goodWhenUp label={changeLabel} /></div>}
       {sub && <p className="ws-caption mt-1 leading-snug">{sub}</p>}
-      <div className="mt-auto">{spark && <Sparkline values={spark} color={sparkColor} highlightLast />}</div>
+      <div className="mt-auto">{spark && <Sparkline values={spark} tone={sparkTone} highlightLast />}</div>
     </div>
   )
 }
@@ -1369,21 +1360,21 @@ function RecordsCard({ overview, l, lang }) {
       <dl className="space-y-3">
         {best && (
           <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-sm font-semibold text-[#22201d]">{l.bestMonth}<span className="block text-[12px] font-normal text-[#8a867f]">{formatMonthYear(best.monthStart, lang, best.monthStart)}</span></dt>
-            <dd className="text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCompact(best.averageDailyIncome)}<span className="block text-[12px] font-normal text-[#8a867f]">{l.avgPerDay}</span></dd>
+            <dt className="text-sm font-semibold text-[#22201d]">{l.bestMonth}<span className="block text-xs font-normal text-[#68655f]">{formatMonthYear(best.monthStart, lang, best.monthStart)}</span></dt>
+            <dd className="text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCompactCurrency(best.averageDailyIncome, lang)}<span className="block text-xs font-normal text-[#68655f]">{l.avgPerDay}</span></dd>
           </div>
         )}
         {bestTenDay && (
           <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-sm font-semibold text-[#22201d]">{l.bestTenDay}<span className="block text-[12px] font-normal text-[#8a867f]">{formatLongDate(bestTenDay.weekStart, lang, bestTenDay.weekStart, { includeYear: false })} — {formatLongDate(bestTenDay.weekEnd, lang, bestTenDay.weekEnd)}</span></dt>
-            <dd className="text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCompact(bestTenDay.averageDailyIncome)}<span className="block text-[12px] font-normal text-[#8a867f]">{l.avgPerDay}</span></dd>
+            <dt className="text-sm font-semibold text-[#22201d]">{l.bestTenDay}<span className="block text-xs font-normal text-[#68655f]">{formatLongDate(bestTenDay.weekStart, lang, bestTenDay.weekStart, { includeYear: false })} — {formatLongDate(bestTenDay.weekEnd, lang, bestTenDay.weekEnd)}</span></dt>
+            <dd className="text-right text-sm font-semibold tabular-nums text-[#22201d]">{formatCompactCurrency(bestTenDay.averageDailyIncome, lang)}<span className="block text-xs font-normal text-[#68655f]">{l.avgPerDay}</span></dd>
           </div>
         )}
         {latest && latestOfBestPct != null && best && latest.monthStart !== best.monthStart && (
           <div>
-            <div className="mb-1 flex justify-between text-[12px] font-semibold text-[#68655f]">
+            <div className="mb-1 flex justify-between text-xs font-semibold text-[#68655f]">
               <span>{formatMonthYear(latest.monthStart, lang, latest.monthStart)}</span>
-              <span className="tabular-nums">{fillText(l.ofRecord, { pct: formatPct(latestOfBestPct) })}</span>
+              <span className="tabular-nums">{fillText(l.ofRecord, { pct: formatPct(latestOfBestPct, lang) })}</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-[#efece9]"><div className="h-full rounded-full bg-[#1d7a52]" style={{ width: `${Math.min(100, latestOfBestPct)}%` }} /></div>
           </div>
@@ -1398,7 +1389,7 @@ function StatCell({ label, value, sub, tone, help = null }) {
   return (
     <div className="min-w-0">
       <LabelWithHelp as="dt" label={label} help={help} />
-      <dd className={`mt-0.5 break-words text-base font-semibold leading-tight tabular-nums ${tone || 'text-[#22201d]'}`}>{value}</dd>
+      <dd className={`mt-0.5 text-base font-semibold leading-tight tabular-nums ${tone || 'text-[#22201d]'}`}>{value}</dd>
       {sub && <dd className="ws-caption mt-0.5 leading-snug">{sub}</dd>}
     </div>
   )
@@ -1409,19 +1400,19 @@ function InvestorSupportBars({ months, l, lang }) {
   return (
     <div>
       <p className="ws-caption mb-2">{l.supportByMonth}</p>
-      <div className="flex h-32 items-end gap-1" role="list">
+      <div className="overflow-x-auto"><div className="flex h-32 items-end gap-1" role="list">
         {months.map(row => {
           const name = formatMonthYear(row.key, lang, row.key)
           return (
-            <div key={row.key} role="listitem" className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${name}: ${formatCurrency(row.amount)}`}>
-              {row.amount > 0 && <span className="text-[10px] font-semibold tabular-nums text-[#2a78d6]">{formatCompact(row.amount)}</span>}
+            <div key={row.key} role="listitem" className="flex h-full min-w-[60px] flex-1 flex-col items-center justify-end gap-1" title={`${name}: ${formatCurrency(row.amount)}`}>
+              {row.amount > 0 && <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-[#2a78d6]">{formatCompactCurrency(row.amount, lang)}</span>}
               <div className={`w-full max-w-[28px] rounded-t ${row.amount > 0 ? 'bg-[#2a78d6]' : 'bg-[#efece9]'}`} style={{ height: row.amount > 0 && max > 0 ? `${Math.max(6, (row.amount / max) * 80)}%` : '3px' }} />
-              <span className="text-[10px] text-[#8a867f]">{name.slice(0, 3)}</span>
+              <span className="text-xs text-[#68655f]">{name.slice(0, 3)}</span>
               <span className="sr-only">{formatCurrency(row.amount)}</span>
             </div>
           )
         })}
-      </div>
+      </div></div>
     </div>
   )
 }
@@ -1451,21 +1442,21 @@ function InvestorSupportPanel({ investor, payback, status, l, lang }) {
           <div className="min-w-0 space-y-3">
             <div>
               <p className="ws-caption">{investor.firstMonth ? fillText(l.investedSince, { month: formatMonthYear(investor.firstMonth, lang, investor.firstMonth) }) : l.investedTotal}</p>
-              <p className="mt-1 break-words text-[clamp(28px,2.6vw,38px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#2a78d6]"><RollingText text={formatCurrency(investor.invested)} /></p>
+              <p className="mt-1 whitespace-nowrap text-[clamp(28px,2.6vw,38px)] font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#2a78d6]"><RollingText text={formatCurrency(investor.invested)} /></p>
             </div>
             {payback && (
               <>
                 <div>
-                  <div className="mb-1 flex justify-between gap-2 text-[12px] font-semibold text-[#68655f]">
-                    <span>{formatPct(payback.paidBackPct)} {l.paidBack}</span>
-                    <span className="tabular-nums">{l.stillToRecover}: {formatCompact(payback.remaining)}</span>
+                  <div className="mb-1 flex justify-between gap-2 text-xs font-semibold text-[#68655f]">
+                    <span>{formatPct(payback.paidBackPct, lang)} {l.paidBack}</span>
+                    <span className="tabular-nums">{l.stillToRecover}: {formatCompactCurrency(payback.remaining, lang)}</span>
                   </div>
                   <div className="h-2.5 overflow-hidden rounded-full bg-[#efece9]"><div className="h-full rounded-full bg-[#1d7a52]" style={{ width: `${payback.paidBackPct}%` }} /></div>
                 </div>
                 <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <StatCell help="generated" label={l.generated} value={formatCompact(payback.generated)} tone={payback.generated < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'} />
-                  <StatCell label={l.stillToRecover} value={formatCompact(payback.remaining)} />
-                  {payback.monthlyPace != null && <StatCell help="pace" label={l.pace} value={formatCompact(payback.monthlyPace)} tone={payback.monthlyPace < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'} />}
+                  <StatCell help="generated" label={l.generated} value={formatCompactCurrency(payback.generated, lang)} tone={payback.generated < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'} />
+                  <StatCell label={l.stillToRecover} value={formatCompactCurrency(payback.remaining, lang)} />
+                  {payback.monthlyPace != null && <StatCell help="pace" label={l.pace} value={formatCompactCurrency(payback.monthlyPace, lang)} tone={payback.monthlyPace < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'} />}
                 </dl>
                 <p className="ws-caption">{note}</p>
               </>
@@ -1474,17 +1465,17 @@ function InvestorSupportPanel({ investor, payback, status, l, lang }) {
           <InvestorSupportBars months={investor.months} l={l} lang={lang} />
         </div>
         <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-[#efece9] pt-4 md:grid-cols-3 xl:grid-cols-6">
-          <StatCell label={l.thisMonthSupport} value={investor.thisMonth > 0 ? formatCompact(investor.thisMonth) : l.noneLabel} />
-          <StatCell label={fillText(l.recentSupport, { n })} value={formatCompact(investor.recentTotal)} sub={`${l.supportedMonths}: ${investor.supportedMonthCount} ${fillText(l.ofMonths, { n })}`} />
-          <StatCell label={l.lastSupport} value={investor.last ? formatCompact(investor.last.amount) : '—'} sub={investor.last ? formatMonthYear(investor.last.key, lang, investor.last.key) : ''} />
-          <StatCell label={l.averagePerMonth} value={investor.averagePerSupportedMonth == null ? '—' : formatCompact(investor.averagePerSupportedMonth)} sub={investor.largest ? `${l.largestSupport}: ${formatMonthYear(investor.largest.key, lang, investor.largest.key)}` : ''} />
-          <StatCell help="shareOfSpending" label={l.shareOfSpending} value={formatPct(investor.shareOfSpendingPct)} sub={fillText(l.shareOfSpendingSub, { n })} />
+          <StatCell label={l.thisMonthSupport} value={investor.thisMonth > 0 ? formatCompactCurrency(investor.thisMonth, lang) : l.noneLabel} />
+          <StatCell label={fillText(l.recentSupport, { n })} value={formatCompactCurrency(investor.recentTotal, lang)} sub={`${l.supportedMonths}: ${investor.supportedMonthCount} ${fillText(l.ofMonths, { n })}`} />
+          <StatCell label={l.lastSupport} value={investor.last ? formatCompactCurrency(investor.last.amount, lang) : '—'} sub={investor.last ? formatMonthYear(investor.last.key, lang, investor.last.key) : ''} />
+          <StatCell label={l.averagePerMonth} value={investor.averagePerSupportedMonth == null ? '—' : formatCompactCurrency(investor.averagePerSupportedMonth, lang)} sub={investor.largest ? `${l.largestSupport}: ${formatMonthYear(investor.largest.key, lang, investor.largest.key)}` : ''} />
+          <StatCell help="shareOfSpending" label={l.shareOfSpending} value={formatPct(investor.shareOfSpendingPct, lang)} sub={fillText(l.shareOfSpendingSub, { n })} />
           <StatCell
             label={l.shortfallTitle}
             help="shortfall"
-            value={formatCompact(investor.shortfall)}
+            value={formatCompactCurrency(investor.shortfall, lang)}
             tone={investor.shortfall > 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'}
-            sub={investor.shortfall > 0 ? fillText(l.shortfallCovered, { pct: formatPct(investor.shortfallCoveredPct) }) : l.noShortfall}
+            sub={investor.shortfall > 0 ? fillText(l.shortfallCovered, { pct: formatPct(investor.shortfallCoveredPct, lang) }) : l.noShortfall}
           />
         </dl>
       </>
@@ -1510,11 +1501,11 @@ function PeriodTotalsCard({ totals, l, lang }) {
   return (
     <ChartCard title={fillText(l.totalsTitle, { n })} help="totals" description={l.totalsSub}>
       <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <StatCell label={l.cafeIncome} value={formatCompact(totals.cafeIncome)} sub={`${l.orders}: ${formatCompact(totals.orderCount)} · ${l.avgCheck}: ${totals.averageCheck == null ? '—' : formatCompact(totals.averageCheck)}`} />
-        <StatCell label={l.grossProfit} value={formatCompact(totals.grossProfit)} sub={fillText(l.marginOf, { pct: formatPct(totals.grossMarginPct) })} />
-        <StatCell label={l.spent} value={formatCompact(totals.spent)} tone="text-[#ff5a00]" sub={`${l.avgMonthlySpend}: ${formatCompact(totals.averageMonthlySpent)}`} />
-        <StatCell label={l.resultLabel} value={formatCompact(totals.left)} tone={trendTone(totals.left)} sub={fillText(l.marginOf, { pct: formatPct(totals.leftMarginPct) })} />
-        <StatCell label={l.salaries} value={formatCompact(totals.salaries)} sub={`${l.salaryShare}: ${formatPct(totals.salaryShareOfSpendingPct)}`} />
+        <StatCell label={l.cafeIncome} value={formatCompactCurrency(totals.cafeIncome, lang)} sub={`${l.orders}: ${formatCompactCurrency(totals.orderCount, lang)} · ${l.avgCheck}: ${totals.averageCheck == null ? '—' : formatCompactCurrency(totals.averageCheck, lang)}`} />
+        <StatCell label={l.grossProfit} value={formatCompactCurrency(totals.grossProfit, lang)} sub={fillText(l.marginOf, { pct: formatPct(totals.grossMarginPct, lang) })} />
+        <StatCell label={l.spent} value={formatCompactCurrency(totals.spent, lang)} tone="text-[#bf4300]" sub={`${l.avgMonthlySpend}: ${formatCompactCurrency(totals.averageMonthlySpent, lang)}`} />
+        <StatCell label={l.resultLabel} value={formatCompactCurrency(totals.left, lang)} tone={trendTone(totals.left)} sub={fillText(l.marginOf, { pct: formatPct(totals.leftMarginPct, lang) })} />
+        <StatCell label={l.salaries} value={formatCompactCurrency(totals.salaries, lang)} sub={`${l.salaryShare}: ${formatPct(totals.salaryShareOfSpendingPct, lang)}`} />
         <StatCell
           label={l.profitableMonths}
           value={`${totals.profitableMonths} / ${totals.completedMonths}`}
@@ -1531,14 +1522,14 @@ function BreakEvenCard({ summary, l, lang }) {
   return (
     <ChartCard title={l.breakEven} description={l.breakEvenSub} help="breakEven">
       <div className="space-y-3">
-        <p className={`text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${reached ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>{fillText(l.ofTarget, { pct: formatPct(summary.coveragePct) })}</p>
+        <p className={`text-[clamp(20px,1.7vw,24px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${reached ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>{fillText(l.ofTarget, { pct: formatPct(summary.coveragePct, lang) })}</p>
         <div className="h-2.5 overflow-hidden rounded-full bg-[#efece9]"><div className={`h-full rounded-full ${reached ? 'bg-[#1d7a52]' : 'bg-[#ff5a00]'}`} style={{ width: `${Math.min(100, summary.coveragePct || 0)}%` }} /></div>
         <dl className="grid grid-cols-3 gap-3">
-          <StatCell label={l.avgPerDay} value={formatCompact(summary.latestDaily)} sub={formatMonthYear(summary.latestMonth, lang, summary.latestMonth)} />
-          <StatCell label={l.targetPerDay} value={formatCompact(summary.target)} />
+          <StatCell label={l.avgPerDay} value={formatCompactCurrency(summary.latestDaily, lang)} sub={formatMonthYear(summary.latestMonth, lang, summary.latestMonth)} />
+          <StatCell label={l.targetPerDay} value={formatCompactCurrency(summary.target, lang)} />
           <StatCell label={l.monthsAboveTarget} value={`${summary.monthsAbove} / ${summary.completedMonths}`} />
         </dl>
-        <p className="ws-caption">{fillText(reached ? l.abovePerDay : l.shortPerDay, { amount: formatCompact(Math.abs(summary.dailyGap)) })}</p>
+        <p className="ws-caption">{fillText(reached ? l.abovePerDay : l.shortPerDay, { amount: formatCompactCurrency(Math.abs(summary.dailyGap), lang) })}</p>
       </div>
     </ChartCard>
   )
@@ -1551,22 +1542,22 @@ function MonthlyStatementTable({ rows, totals, l, lang }) {
   const cell = 'py-2 px-3 text-right tabular-nums whitespace-nowrap'
   const columns = [l.cafeIncome, l.otherIncome, l.costOfSold, l.grossProfit, l.spent, l.salaries, l.resultLabel, l.grossMargin, l.investorSupport]
   const line = row => [
-    [formatCompact(row.cafeIncome)],
-    [formatCompact(row.otherIncome)],
-    [formatCompact(row.salesCost)],
-    [formatCompact(row.grossProfit)],
-    [formatCompact(row.spent), 'text-[#ff5a00]'],
-    [formatCompact(row.salaries)],
-    [formatCompact(row.left), `font-semibold ${trendTone(row.left)}`],
-    [formatPct(row.grossMarginPct)],
-    [row.investorSupport > 0 ? formatCompact(row.investorSupport) : '—', row.investorSupport > 0 ? 'font-semibold text-[#2a78d6]' : 'text-[#8a867f]'],
+    [formatCompactCurrency(row.cafeIncome, lang)],
+    [formatCompactCurrency(row.otherIncome, lang)],
+    [formatCompactCurrency(row.salesCost, lang)],
+    [formatCompactCurrency(row.grossProfit, lang)],
+    [formatCompactCurrency(row.spent, lang), 'text-[#bf4300]'],
+    [formatCompactCurrency(row.salaries, lang)],
+    [formatCompactCurrency(row.left, lang), `font-semibold ${trendTone(row.left)}`],
+    [formatPct(row.grossMarginPct, lang)],
+    [row.investorSupport > 0 ? formatCompactCurrency(row.investorSupport, lang) : '—', row.investorSupport > 0 ? 'font-semibold text-[#2a78d6]' : 'text-[#68655f]'],
   ]
   return (
     <ChartCard title={l.statementTitle} help="statement" description={l.statementSub}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-[13px]">
           <thead>
-            <tr className="border-b border-[#e4e1de] text-[12px] text-[#8a867f]">
+            <tr className="border-b border-[#e4e1de] text-xs text-[#68655f]">
               <th scope="col" className="py-2 px-3 text-left font-semibold">{l.trendPeriod}</th>
               {columns.map(label => <th key={label} scope="col" className="py-2 px-3 text-right font-semibold">{label}</th>)}
             </tr>
@@ -1576,7 +1567,7 @@ function MonthlyStatementTable({ rows, totals, l, lang }) {
               <tr key={row.key} className="border-b border-[#efece9] text-[#22201d]">
                 <th scope="row" className="py-2 px-3 text-left font-semibold whitespace-nowrap">
                   {formatMonthYear(row.key, lang, row.key)}
-                  {row.days < daysInMonth(row.dateFrom) && <span className="ml-1 text-[11px] font-normal text-[#8a867f]">({l.soFar})</span>}
+                  {row.days < daysInMonth(row.dateFrom) && <span className="ml-1 text-xs font-normal text-[#68655f]">({l.soFar})</span>}
                 </th>
                 {line(row).map(([value, tone], column) => <td key={column} className={`${cell} ${tone || ''}`}>{value}</td>)}
               </tr>
@@ -1619,27 +1610,27 @@ function MonthlySpendingCard({ spending, status, l, lang, categoryName, onRetry 
     body = (
       <div className="space-y-5">
         <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <StatCell label={l.avgMonthlySpend} value={formatCompact(spending.averageMonthly)} tone="text-[#ff5a00]" sub={fillText(l.overCompleted, { n: spending.completedCount })} />
-          {top && <StatCell label={l.biggestCost} value={label(top.key)} sub={`${formatPct(top.sharePct)} · ${l.avgPerMonthShort}: ${formatCompact(top.averagePerMonth)}`} />}
-          <StatCell label={fillText(l.spentInMonths, { n: spending.months.length })} value={formatCompact(spending.total)} />
+          <StatCell label={l.avgMonthlySpend} value={formatCompactCurrency(spending.averageMonthly, lang)} tone="text-[#bf4300]" sub={fillText(l.overCompleted, { n: spending.completedCount })} />
+          {top && <StatCell label={l.biggestCost} value={label(top.key)} sub={`${formatPct(top.sharePct, lang)} · ${l.avgPerMonthShort}: ${formatCompactCurrency(top.averagePerMonth, lang)}`} />}
+          <StatCell label={fillText(l.spentInMonths, { n: spending.months.length })} value={formatCompactCurrency(spending.total, lang)} />
         </dl>
         <div>
-          <div className="flex h-44 items-end gap-1.5 sm:gap-3" role="list">
+          <div className="overflow-x-auto"><div className="flex h-44 items-end gap-1.5 sm:gap-3" role="list">
             {spending.months.map(month => {
               const name = formatMonthYear(month.key, lang, month.key)
               return (
-                <div key={month.key} role="listitem" className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${name}: ${formatCurrency(month.total)}`}>
-                  <span className="text-[10px] font-semibold tabular-nums text-[#68655f]">{month.total > 0 ? formatCompact(month.total) : ''}</span>
+                <div key={month.key} role="listitem" className="flex h-full min-w-[60px] flex-1 flex-col items-center justify-end gap-1" title={`${name}: ${formatCurrency(month.total)}`}>
+                  <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-[#68655f]">{month.total > 0 ? formatCompactCurrency(month.total, lang) : ''}</span>
                   <div className="flex w-full max-w-[44px] flex-col-reverse overflow-hidden rounded-t" style={{ height: `${Math.max(month.total > 0 ? 4 : 0, (month.total / max) * 82)}%` }}>
                     {month.parts.map(part => <div key={part.key} style={{ height: `${(part.amount / month.total) * 100}%`, backgroundColor: colorOf[part.key] }} />)}
                   </div>
-                  <span className="text-[10px] text-[#8a867f]">{name.slice(0, 3)}</span>
+                  <span className="text-xs text-[#68655f]">{name.slice(0, 3)}</span>
                   <span className="sr-only">{month.parts.map(part => `${label(part.key)} ${formatCurrency(part.amount)}`).join(', ')}</span>
                 </div>
               )
             })}
-          </div>
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#68655f]">
+          </div></div>
+          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#68655f]">
             {spending.categories.map(category => (
               <li key={category.key} className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: category.color }} />{label(category.key)}</li>
             ))}
@@ -1648,7 +1639,7 @@ function MonthlySpendingCard({ spending, status, l, lang, categoryName, onRetry 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] border-collapse text-[13px]">
             <thead>
-              <tr className="border-b border-[#e4e1de] text-[12px] text-[#8a867f]">
+              <tr className="border-b border-[#e4e1de] text-xs text-[#68655f]">
                 <th scope="col" className="py-2 px-3 text-left font-semibold">{l.category}</th>
                 <th scope="col" className="py-2 px-3 text-right font-semibold">{l.avgPerMonthShort}</th>
                 <th scope="col" className="py-2 px-3 text-right font-semibold">{l.shareShort}</th>
@@ -1661,16 +1652,16 @@ function MonthlySpendingCard({ spending, status, l, lang, categoryName, onRetry 
               {spending.categories.map(category => (
                 <tr key={category.key} className="border-b border-[#efece9] text-[#22201d]">
                   <th scope="row" className="py-2 px-3 text-left font-semibold"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ backgroundColor: category.color }} />{label(category.key)}</th>
-                  <td className={`${cell} font-semibold`}>{formatCompact(category.averagePerMonth)}</td>
+                  <td className={`${cell} font-semibold`}>{formatCompactCurrency(category.averagePerMonth, lang)}</td>
                   <td className={cell}>
                     <span className="inline-flex items-center justify-end gap-2">
                       <span className="hidden h-1.5 w-16 overflow-hidden rounded-full bg-[#efece9] sm:inline-block"><span className="block h-full rounded-full" style={{ width: `${Math.min(100, category.sharePct || 0)}%`, backgroundColor: category.color }} /></span>
-                      {formatPct(category.sharePct)}
+                      {formatPct(category.sharePct, lang)}
                     </span>
                   </td>
-                  <td className={`${cell} ${category.current > category.averagePerMonth ? 'text-[#c4262c]' : ''}`}>{formatCompact(category.current)}</td>
-                  <td className={cell}>{category.previous == null ? '—' : formatCompact(category.previous)}</td>
-                  <td className={cell}>{formatCompact(category.total)}</td>
+                  <td className={`${cell} ${category.current > category.averagePerMonth ? 'text-[#c4262c]' : ''}`}>{formatCompactCurrency(category.current, lang)}</td>
+                  <td className={cell}>{category.previous == null ? '—' : formatCompactCurrency(category.previous, lang)}</td>
+                  <td className={cell}>{formatCompactCurrency(category.total, lang)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1707,7 +1698,7 @@ function incomeSourceLabel(key, l) {
 function IncomeSourcesChart({ sources, hidden, l, lang }) {
   const [wrapRef, width] = useElementWidth()
   const height = 240
-  const pad = { top: 16, right: 12, bottom: 28, left: 52 }
+  const pad = { top: 16, right: 12, bottom: 28, left: 68 }
   const shown = sources.series.filter(row => !hidden.has(row.key))
   const max = Math.max(1, ...shown.flatMap(row => sources.months.map(month => month.values[row.key])))
   const innerWidth = Math.max(0, width - pad.left - pad.right)
@@ -1722,12 +1713,12 @@ function IncomeSourcesChart({ sources, hidden, l, lang }) {
         <svg width={width} height={height} role="img" aria-label={l.incomeSourcesTitle}>
           {ticks.map(tick => (
             <g key={tick}>
-              <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} stroke="#efece9" />
-              <text x={pad.left - 8} y={y(tick)} dy="0.32em" textAnchor="end" fontSize="10" fill="#8a867f">{formatCompact(tick)}</text>
+              <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
+              <text x={pad.left - 8} y={y(tick)} dy="0.32em" textAnchor="end" className="fill-current text-[#68655f] text-xs">{formatCompactCurrency(tick, lang)}</text>
             </g>
           ))}
           {sources.months.map((month, index) => (
-            <text key={month.key} x={x(index)} y={height - 8} textAnchor="middle" fontSize="10" fill="#8a867f">{formatMonthYear(month.key, lang, month.key).slice(0, 3)}</text>
+            <text key={month.key} x={x(index)} y={height - 8} textAnchor="middle" className="fill-current text-[#68655f] text-xs">{formatMonthYear(month.key, lang, month.key).slice(0, 3)}</text>
           ))}
           {shown.map(row => (
             <g key={row.key}>
@@ -1781,9 +1772,9 @@ function IncomeSourcesCard({ sources, status, l, lang, onRetry }) {
     body = (
       <div className="space-y-5">
         <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <StatCell label={l.avgIncomeMonth} value={formatCompact(sources.averageMonthly)} tone="text-[#1d7a52]" sub={fillText(l.overCompleted, { n: sources.completedCount })} />
-          {top && <StatCell label={l.biggestSource} value={incomeSourceLabel(top.key, l)} sub={`${formatPct(top.sharePct)} · ${l.avgPerMonthShort}: ${formatCompact(top.averagePerMonth)}`} />}
-          <StatCell label={l.touristShare} value={formatPct(tourist?.sharePct ?? 0)} sub={tourist?.averageCheck != null ? `${l.avgCheck}: ${formatCompact(tourist.averageCheck)}` : ''} />
+          <StatCell label={l.avgIncomeMonth} value={formatCompactCurrency(sources.averageMonthly, lang)} tone="text-[#1d7a52]" sub={fillText(l.overCompleted, { n: sources.completedCount })} />
+          {top && <StatCell label={l.biggestSource} value={incomeSourceLabel(top.key, l)} sub={`${formatPct(top.sharePct, lang)} · ${l.avgPerMonthShort}: ${formatCompactCurrency(top.averagePerMonth, lang)}`} />}
+          <StatCell label={l.touristShare} value={formatPct(tourist?.sharePct ?? 0, lang)} sub={tourist?.averageCheck != null ? `${l.avgCheck}: ${formatCompactCurrency(tourist.averageCheck, lang)}` : ''} />
         </dl>
         <div>
           <ul className="mb-3 flex flex-wrap gap-2" aria-label={l.chartLegend}>
@@ -1793,7 +1784,7 @@ function IncomeSourcesCard({ sources, status, l, lang, onRetry }) {
                   type="button"
                   onClick={() => toggle(row.key)}
                   aria-pressed={!hidden.has(row.key)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold transition-opacity ${hidden.has(row.key) ? 'border-[#e4e1de] text-[#8a867f] opacity-60' : 'border-[#e4e1de] text-[#22201d]'}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-opacity ${hidden.has(row.key) ? 'border-[#e4e1de] text-[#68655f] opacity-60' : 'border-[#e4e1de] text-[#22201d]'}`}
                 >
                   <span className="h-0.5 w-4 rounded-full" style={{ backgroundColor: INCOME_SOURCE_COLORS[row.key] }} />
                   {incomeSourceLabel(row.key, l)}
@@ -1806,7 +1797,7 @@ function IncomeSourcesCard({ sources, status, l, lang, onRetry }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] border-collapse text-[13px]">
             <thead>
-              <tr className="border-b border-[#e4e1de] text-[12px] text-[#8a867f]">
+              <tr className="border-b border-[#e4e1de] text-xs text-[#68655f]">
                 {[l.sourceLabel, l.avgPerMonthShort, l.shareShort, l.orders, l.avgCheck, l.thisMonthSoFar, l.lastMonthShort, l.total].map((label, index) => (
                   <th key={label} scope="col" className={`py-2 px-3 font-semibold ${index === 0 ? 'text-left' : 'text-right'}`}>{label}</th>
                 ))}
@@ -1816,13 +1807,13 @@ function IncomeSourcesCard({ sources, status, l, lang, onRetry }) {
               {sources.series.map(row => (
                 <tr key={row.key} className="border-b border-[#efece9] text-[#22201d]">
                   <th scope="row" className="py-2 px-3 text-left font-semibold whitespace-nowrap"><span className="mr-2 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ backgroundColor: INCOME_SOURCE_COLORS[row.key] }} />{incomeSourceLabel(row.key, l)}</th>
-                  <td className={`${cell} font-semibold`}>{formatCompact(row.averagePerMonth)}</td>
-                  <td className={cell}>{row.sharePct == null ? '—' : formatPct(row.sharePct)}</td>
-                  <td className={cell}>{row.orders > 0 ? formatCompact(row.orders) : '—'}</td>
-                  <td className={cell}>{row.averageCheck == null ? '—' : formatCompact(row.averageCheck)}</td>
-                  <td className={cell}>{formatCompact(row.current)}</td>
-                  <td className={cell}>{row.previous == null ? '—' : formatCompact(row.previous)}</td>
-                  <td className={cell}>{formatCompact(row.total)}</td>
+                  <td className={`${cell} font-semibold`}>{formatCompactCurrency(row.averagePerMonth, lang)}</td>
+                  <td className={cell}>{row.sharePct == null ? '—' : formatPct(row.sharePct, lang)}</td>
+                  <td className={cell}>{row.orders > 0 ? formatCompactCurrency(row.orders, lang) : '—'}</td>
+                  <td className={cell}>{row.averageCheck == null ? '—' : formatCompactCurrency(row.averageCheck, lang)}</td>
+                  <td className={cell}>{formatCompactCurrency(row.current, lang)}</td>
+                  <td className={cell}>{row.previous == null ? '—' : formatCompactCurrency(row.previous, lang)}</td>
+                  <td className={cell}>{formatCompactCurrency(row.total, lang)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1855,24 +1846,24 @@ function OwnerProfitCard({ overview, status, l, lang, onOpen }) {
         <div className="min-w-0 space-y-3">
           <div>
             <p className="ws-caption">{fillText(l.ownerProfitTotal, { n: overview.count })}</p>
-            <p className={`mt-1 break-words text-[clamp(26px,2.4vw,34px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${trendTone(overview.total)}`}><RollingText text={formatCurrency(overview.total)} /></p>
+            <p className={`mt-1 whitespace-nowrap text-[clamp(26px,2.4vw,34px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${trendTone(overview.total)}`}><RollingText text={formatCurrency(overview.total)} /></p>
           </div>
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <StatCell label={l.avgPerMonthShort} value={formatCompact(overview.average)} tone={trendTone(overview.average)} sub={fillText(l.marginOf, { pct: formatPct(overview.marginPct) })} />
+            <StatCell label={l.avgPerMonthShort} value={formatCompactCurrency(overview.average, lang)} tone={trendTone(overview.average)} sub={fillText(l.marginOf, { pct: formatPct(overview.marginPct, lang) })} />
             <StatCell label={l.profitableMonths} value={`${overview.profitableCount} / ${overview.count}`} />
-            {overview.best && <StatCell label={l.bestResult} value={formatCompact(overview.best.ownerProfit)} sub={formatMonthYear(overview.best.monthStart, lang, overview.best.monthStart)} />}
+            {overview.best && <StatCell label={l.bestResult} value={formatCompactCurrency(overview.best.ownerProfit, lang)} sub={formatMonthYear(overview.best.monthStart, lang, overview.best.monthStart)} />}
           </dl>
-          {overview.pending.length > 0 && <p className="ws-notice text-[12px]">{fillText(l.ownerProfitPending, { months: overview.pending.map(month => formatMonthYear(month, lang, month)).join(', ') })}</p>}
+          {overview.pending.length > 0 && <p className="ws-notice text-xs">{fillText(l.ownerProfitPending, { months: overview.pending.map(month => formatMonthYear(month, lang, month)).join(', ') })}</p>}
           {open}
         </div>
         <div>
           <p className="ws-caption mb-2">{l.ownerProfitByMonth}</p>
           <ul className="space-y-2">
             {[...overview.months].reverse().map(row => (
-              <li key={row.key} className="grid grid-cols-[96px_minmax(0,1fr)_72px] items-center gap-3 text-[12px]">
+              <li key={row.key} className="grid grid-cols-[96px_minmax(0,1fr)_72px] items-center gap-3 text-xs">
                 <span className="truncate font-semibold text-[#22201d]">{formatMonthYear(row.monthStart, lang, row.monthStart)}</span>
                 <span className="h-2.5 overflow-hidden rounded-full bg-[#efece9]"><span className={`block h-full rounded-full ${row.ownerProfit >= 0 ? 'bg-[#1d7a52]' : 'bg-[#c4262c]'}`} style={{ width: `${Math.max(2, (Math.abs(row.ownerProfit) / max) * 100)}%` }} /></span>
-                <span className={`text-right font-semibold tabular-nums ${trendTone(row.ownerProfit)}`}>{formatCompact(row.ownerProfit)}</span>
+                <span className={`text-right font-semibold tabular-nums ${trendTone(row.ownerProfit)}`}>{formatCompactCurrency(row.ownerProfit, lang)}</span>
               </li>
             ))}
           </ul>
@@ -1891,12 +1882,12 @@ function daysInMonth(monthStart) {
 function UnitEconomicsTable({ months, profitRows, l, lang }) {
   const marginByMonth = Object.fromEntries((profitRows || []).map(row => [row.dateFrom, row.grossMarginPct]))
   const rows = [...months].reverse()
-  const cell = 'py-2 px-3 text-right tabular-nums'
+  const cell = 'whitespace-nowrap py-2 px-3 text-right tabular-nums'
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[420px] border-collapse text-[13px]">
         <thead>
-          <tr className="border-b border-[#e4e1de] text-[12px] text-[#8a867f]">
+          <tr className="border-b border-[#e4e1de] text-xs text-[#68655f]">
             <th scope="col" className="py-2 px-3 text-left font-semibold">{l.trendPeriod}</th>
             <th scope="col" className="py-2 px-3 text-right font-semibold">{l.ordersPerDay}</th>
             <th scope="col" className="py-2 px-3 text-right font-semibold">{l.avgCheck}</th>
@@ -1916,8 +1907,8 @@ function UnitEconomicsTable({ months, profitRows, l, lang }) {
               <tr key={row.monthStart} className="border-b border-[#efece9] text-[#22201d]">
                 <th scope="row" className="py-2 px-3 text-left font-semibold">{formatMonthYear(row.monthStart, lang, row.monthStart)}</th>
                 <td className={`${cell} ${trendTone(ordersMove)}`}>{row.ordersPerDay}{arrow(ordersMove)}</td>
-                <td className={`${cell} ${trendTone(checkMove)}`}>{row.averageCheck == null ? '—' : formatCompact(row.averageCheck)}{arrow(checkMove)}</td>
-                {profitRows && <td className={`${cell} ${trendTone(marginMove)}`}>{formatPct(margin)}{arrow(marginMove)}</td>}
+                <td className={`${cell} ${trendTone(checkMove)}`}>{row.averageCheck == null ? '—' : formatCompactCurrency(row.averageCheck, lang)}{arrow(checkMove)}</td>
+                {profitRows && <td className={`${cell} ${trendTone(marginMove)}`}>{formatPct(margin, lang)}{arrow(marginMove)}</td>}
               </tr>
             )
           })}
@@ -1954,6 +1945,7 @@ function GrowthSection({ growth, overview, profitRows, periodTotals, breakEven, 
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <GrowthTile
+          lang={lang}
           label={l.avgSalesPerDay}
           help="avgSalesPerDay"
           value={latest ? formatCurrency(latest.averageDailyIncome) : '—'}
@@ -1962,27 +1954,30 @@ function GrowthSection({ growth, overview, profitRows, periodTotals, breakEven, 
           changeLabel={previous ? fillText(l.vsMonth, { month: formatMonthYear(previous.monthStart, lang, previous.monthStart) }) : l.vsPrevious}
           sub={overview.latestIsCurrent ? `${latestName} · ${latest.dayCount} ${l.days}` : latestName}
           spark={averages}
-          sparkColor={overview.vsPreviousPct < 0 ? '#c4262c' : '#1d7a52'}
+          sparkTone={overview.vsPreviousPct < 0 ? 'negative' : 'positive'}
         />
         <GrowthTile
+          lang={lang}
           label={l.threeMonthGrowth}
           help="threeMonthGrowth"
-          value={signedPct(overview.vsThreeAgoPct)}
+          value={signedPct(overview.vsThreeAgoPct, lang)}
           valueTone={trendTone(overview.vsThreeAgoPct)}
           sub={threeAgo ? fillText(l.vsMonth, { month: formatMonthYear(threeAgo.monthStart, lang, threeAgo.monthStart) }) : ''}
           spark={averages.slice(-4)}
-          sparkColor={overview.vsThreeAgoPct < 0 ? '#c4262c' : '#1d7a52'}
+          sparkTone={overview.vsThreeAgoPct < 0 ? 'negative' : 'positive'}
         />
         <GrowthTile
+          lang={lang}
           label={l.monthlyGrowth}
           help="monthlyGrowth"
-          value={overview.monthlyGrowthPct == null ? '—' : `${signedPct(overview.monthlyGrowthPct)} ${l.perMonth}`}
+          value={overview.monthlyGrowthPct == null ? '—' : `${signedPct(overview.monthlyGrowthPct, lang)} ${l.perMonth}`}
           valueTone={trendTone(overview.monthlyGrowthPct)}
           sub={overview.monthlyGrowthPct == null ? '' : fillText(l.overMonths, { n: overview.monthlyGrowthSpan })}
           spark={months.filter(row => row.isFinalized).map(row => row.averageDailyIncome)}
-          sparkColor={overview.monthlyGrowthPct < 0 ? '#c4262c' : '#1d7a52'}
+          sparkTone={overview.monthlyGrowthPct < 0 ? 'negative' : 'positive'}
         />
         <GrowthTile
+          lang={lang}
           label={l.ordersPerDay}
           help="ordersPerDay"
           value={latest ? String(latest.ordersPerDay) : '—'}
@@ -1990,10 +1985,10 @@ function GrowthSection({ growth, overview, profitRows, periodTotals, breakEven, 
           change={overview.ordersPerDayChangePct}
           changeLabel={previous ? fillText(l.vsMonth, { month: formatMonthYear(previous.monthStart, lang, previous.monthStart) }) : l.vsPrevious}
           sub={latest?.averageCheck != null ? (
-            <>{l.avgCheck}: {formatCompact(latest.averageCheck)} <span className={`font-semibold ${trendTone(overview.averageCheckChangePct)}`}>({signedPct(overview.averageCheckChangePct)})</span></>
+            <>{l.avgCheck}: {formatCompactCurrency(latest.averageCheck, lang)} <span className={`font-semibold ${trendTone(overview.averageCheckChangePct)}`}>({signedPct(overview.averageCheckChangePct, lang)})</span></>
           ) : ''}
           spark={months.map(row => row.ordersPerDay)}
-          sparkColor={overview.ordersPerDayChangePct < 0 ? '#c4262c' : '#1d7a52'}
+          sparkTone={overview.ordersPerDayChangePct < 0 ? 'negative' : 'positive'}
         />
       </div>
 
@@ -2030,6 +2025,18 @@ function Segmented({ label, options, value, onChange }) {
           {option.label}
         </button>
       ))}
+    </div>
+  )
+}
+
+// Chart-shaped placeholder while the trend buckets load (never a spinner for data).
+const TREND_SHIMMER_BARS = ['h-[45%]', 'h-[70%]', 'h-[55%]', 'h-[85%]', 'h-[60%]', 'h-[75%]', 'h-[40%]', 'h-[65%]']
+
+function TrendShimmer({ label }) {
+  return (
+    <div role="status" aria-busy="true" className="flex h-[300px] items-end gap-2">
+      <span className="sr-only">{label}</span>
+      {TREND_SHIMMER_BARS.map((height, index) => <Shimmer key={index} className={`min-w-0 flex-1 rounded-t ${height}`} />)}
     </div>
   )
 }
@@ -2071,12 +2078,12 @@ function MoneyFlowCard({
       <div className="mt-4">
         {mode === 'trends' ? (
           trendStatus === 'error' ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-sm font-bold text-[#8a867f]">
+            <div role="alert" className="flex flex-col items-center gap-3 py-10 text-sm font-medium text-[#68655f]">
               <p>{l.trendsFailed}</p>
-              <button type="button" className="ws-btn" onClick={onTrendRetry}><RefreshCw size={14} aria-hidden="true" />{l.retry}</button>
+              <button type="button" className="ws-btn ws-btn-outline" onClick={onTrendRetry}><RefreshCw size={14} aria-hidden="true" />{l.retry}</button>
             </div>
           ) : !trendRows ? (
-            <div className="flex h-[300px] items-center justify-center text-[#8a867f]" role="status" aria-label={l.loading}><Loader2 className="animate-spin" size={22} aria-hidden="true" /></div>
+            <TrendShimmer label={l.loading} />
           ) : (
             trendStyle === 'table'
               ? <TrendTable rows={trendRows} interval={interval} breakEvenFor={breakEvenFor} l={l} lang={lang} />
@@ -2086,6 +2093,7 @@ function MoneyFlowCard({
           <ProfitLossTable pnl={analysis.pnl} breakdown={pnlBreakdown} l={l} lang={lang} categoryName={categoryName} onOpenHistory={onOpenHistory} onOpenIncomeHistory={onOpenIncomeHistory} />
         ) : (
           <SankeyChart
+            lang={lang}
             sankey={analysis.sankey}
             colors={analysis.colors}
             hubLabel={l.hub}
@@ -2111,7 +2119,7 @@ const PNL_ROW = {
 // a category line opens its history.
 function ProfitLossTable({ pnl, breakdown, l, lang, categoryName, onOpenHistory, onOpenIncomeHistory }) {
   const [closed, setClosed] = useState([])
-  if (!pnl.incomeTotal && !pnl.expenseTotal) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
+  if (!pnl.incomeTotal && !pnl.expenseTotal) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
 
   const groupLabels = { salaries: l.salaries, bazaar: l.bazaar, meals: l.meals, other: l.otherSpend }
   const toggle = key => setClosed(list => (list.includes(key) ? list.filter(item => item !== key) : [...list, key]))
@@ -2124,7 +2132,7 @@ function ProfitLossTable({ pnl, breakdown, l, lang, categoryName, onOpenHistory,
         <th scope="row" className="py-2.5 pr-3 text-left text-[13px] font-[inherit]" style={{ paddingLeft: 12 + level * 20 }}>
           <span className="inline-flex items-center gap-1.5">
             {section && (
-              <button type="button" className="-ml-1 rounded p-0.5 text-[#8a867f] hover:bg-[#efece9]" aria-expanded={!isClosed} aria-label={`${isClosed ? l.showSection : l.hideSection}: ${label}`} onClick={() => toggle(key)}>
+              <button type="button" className="-ml-1 rounded p-0.5 text-[#68655f] hover:bg-[#efece9]" aria-expanded={!isClosed} aria-label={`${isClosed ? l.showSection : l.hideSection}: ${label}`} onClick={() => toggle(key)}>
                 <ChevronDown size={15} className={`transition-transform ${isClosed ? '-rotate-90' : ''}`} aria-hidden="true" />
               </button>
             )}
@@ -2133,7 +2141,7 @@ function ProfitLossTable({ pnl, breakdown, l, lang, categoryName, onOpenHistory,
             ) : label}
           </span>
         </th>
-        <td className={`py-2.5 pr-3 text-right text-[13px] tabular-nums ${tone === 'negative' ? 'text-red-600' : tone === 'positive' ? 'text-green-700' : ''}`}>
+        <td className={`whitespace-nowrap py-2.5 pr-3 text-right text-[13px] tabular-nums ${tone === 'negative' ? 'text-[#c4262c]' : tone === 'positive' ? 'text-[#1d7a52]' : ''}`}>
           {tone === 'negative' && amount > 0 ? `−${formatCurrency(amount)}` : formatCurrency(amount)}
         </td>
       </tr>
@@ -2158,7 +2166,7 @@ function ProfitLossTable({ pnl, breakdown, l, lang, categoryName, onOpenHistory,
     <div className="overflow-x-auto">
       <table className="w-full min-w-[420px] border-collapse">
         <thead>
-          <tr className="border-b border-[#e4e1de] text-[12px] text-[#8a867f]">
+          <tr className="border-b border-[#e4e1de] text-xs text-[#68655f]">
             <th scope="col" className="py-2 pl-3 text-left font-semibold">{l.lineItem}</th>
             <th scope="col" className="py-2 pr-3 text-right font-semibold">{l.amount}</th>
           </tr>
@@ -2166,7 +2174,7 @@ function ProfitLossTable({ pnl, breakdown, l, lang, categoryName, onOpenHistory,
         <tbody>
           {pnl.gross && (
             <>
-              {row({ key: 'gross', label: `${l.grossProfit}${pnl.gross.marginPct == null ? '' : ` · ${formatPct(pnl.gross.marginPct)}`}`, amount: Math.abs(pnl.gross.profit), level: 0, kind: 'total', section: true, tone: pnl.gross.profit < 0 ? 'negative' : undefined })}
+              {row({ key: 'gross', label: `${l.grossProfit}${pnl.gross.marginPct == null ? '' : ` · ${formatPct(pnl.gross.marginPct, lang)}`}`, amount: Math.abs(pnl.gross.profit), level: 0, kind: 'total', section: true, tone: pnl.gross.profit < 0 ? 'negative' : undefined })}
               {!closed.includes('gross') && (
                 <>
                   {row({ key: 'gross:sales', label: l.cafeIncome, amount: pnl.gross.sales, level: 1 })}
@@ -2220,7 +2228,7 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
   const [hidden, setHidden] = useState([])
   const [hoverIndex, setHoverIndex] = useState(null)
   const [wrapRef, measuredWidth] = useElementWidth()
-  if (!rows.length || rows.every(row => !row.income && !row.spent)) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
+  if (!rows.length || rows.every(row => !row.income && !row.spent)) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
 
   const stacked = styleKey === 'groups'
   const seriesLabels = { income: l.moneyIn, spent: l.spent, left: l.left, salaries: l.salaries, bazaar: l.bazaar, meals: l.meals, other: l.otherSpend, breakEven: l.breakEven }
@@ -2242,7 +2250,7 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
 
   const width = Math.max(rows.length * 28 + 70, measuredWidth || 0)
   const height = 280
-  const pad = { top: 12, right: 8, bottom: 28, left: 58 }
+  const pad = { top: 12, right: 8, bottom: 28, left: 68 }
   const plotW = width - pad.left - pad.right
   const plotH = height - pad.top - pad.bottom
   const y = value => pad.top + ((maxValue - value) / (maxValue - minValue)) * plotH
@@ -2265,7 +2273,7 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
             type="button"
             aria-pressed={!hidden.includes(item.key)}
             onClick={() => toggle(item.key)}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold hover:bg-[#f6f5f3] ${hidden.includes(item.key) ? 'text-[#8a867f] line-through' : 'text-[#68655f]'}`}
+            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold hover:bg-[#f6f5f3] ${hidden.includes(item.key) ? 'text-[#68655f] line-through' : 'text-[#68655f]'}`}
           >
             {item.line || item.marker
               ? <span className={`h-0 w-4 border-t-2 ${item.marker ? 'border-dotted' : 'border-dashed'}`} style={{ borderColor: item.color }} />
@@ -2279,7 +2287,7 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
           {ticks.map(tick => (
             <g key={tick}>
               <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
-              <text x={pad.left - 8} y={y(tick)} dy="0.35em" textAnchor="end" className="fill-current text-[#8a867f] text-[11px] font-bold">{formatCompact(tick)}</text>
+              <text x={pad.left - 8} y={y(tick)} dy="0.35em" textAnchor="end" className="fill-current text-[#68655f] text-xs font-medium">{formatCompactCurrency(tick, lang)}</text>
             </g>
           ))}
           {minValue < 0 && <line x1={pad.left} x2={width - pad.right} y1={y(0)} y2={y(0)} className="stroke-current text-[#c9c5bf]" />}
@@ -2303,7 +2311,7 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
                     return <rect key={item.key} x={start + barIndex * (barWidth + 2)} y={top} width={barWidth} height={Math.max(1, Math.abs(y(value) - y(0)))} rx={barWidth > 6 ? 2 : 0} fill={item.color} />
                   })}
                 {index % labelEvery === 0 && (
-                  <text x={centerX(index)} y={height - 8} textAnchor="middle" className="fill-current text-[#8a867f] text-[11px] font-bold">{trendAxisLabel(row, interval, lang)}</text>
+                  <text x={centerX(index)} y={height - 8} textAnchor="middle" className="fill-current text-[#68655f] text-xs font-medium">{trendAxisLabel(row, interval, lang)}</text>
                 )}
               </g>
             )
@@ -2329,11 +2337,11 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
               return (
                 <p key={item.key} className="flex items-center justify-between gap-2 font-bold text-[#68655f]">
                   <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: item.color }} />{seriesLabels[item.key]}</span>
-                  <span className={`tabular-nums ${value < 0 ? 'text-red-600' : 'text-[#22201d]'}`}>{formatCompact(value)}</span>
+                  <span className={`tabular-nums ${value < 0 ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>{formatCompactCurrency(value, lang)}</span>
                 </p>
               )
             })}
-            <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-bold text-[#68655f]"><span>{l.avgPerDay}</span><span className="tabular-nums text-[#22201d]">{formatCompact(hovered.averageDaily)}</span></p>
+            <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-bold text-[#68655f]"><span>{l.avgPerDay}</span><span className="tabular-nums text-[#22201d]">{formatCompactCurrency(hovered.averageDaily, lang)}</span></p>
             {stacked && (
               <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-semibold text-[#22201d]"><span>{l.spent}</span><span className="tabular-nums">{formatCurrency(hovered.spent)}</span></p>
             )}
@@ -2348,23 +2356,23 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
 // and its change and growth against the previous period, orders, average
 // check, spending and what was left. Average per day is red below break-even.
 function TrendTable({ rows, interval, breakEvenFor, l, lang }) {
-  if (!rows.length) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
+  if (!rows.length) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
   const totals = rows.reduce((sum, row) => ({
     days: sum.days + row.days, cafeIncome: sum.cafeIncome + row.cafeIncome, orderCount: sum.orderCount + row.orderCount, spent: sum.spent + row.spent, left: sum.left + row.left,
   }), { days: 0, cafeIncome: 0, orderCount: 0, spent: 0, left: 0 })
-  const signed = value => (value == null ? '—' : `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCompact(Math.abs(value))}`)
-  const tone = value => (value == null || value === 0 ? 'text-[#8a867f]' : value > 0 ? 'text-green-700' : 'text-red-600')
+  const signed = value => (value == null ? '—' : `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatCompactCurrency(Math.abs(value), lang)}`)
+  const tone = value => (value == null || value === 0 ? 'text-[#68655f]' : value > 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]')
   // Each row uses the average target of its days; the total row uses their day-weighted average.
   const targetOf = row => (breakEvenFor ? breakEvenFor(row.dateFrom, row.dateTo) : 0)
   const totalTarget = totals.days ? rows.reduce((sum, row) => sum + targetOf(row) * row.days, 0) / totals.days : 0
   const belowBreakEven = (value, target) => target > 0 && value < target
-  const cell = 'py-2.5 px-3 text-right tabular-nums'
+  const cell = 'whitespace-nowrap py-2.5 px-3 text-right tabular-nums'
   const columns = [l.trendPeriod, l.cafeIncome, l.trendDays, l.avgPerDay, l.avgChange, l.growth, l.orders, l.avgCheck, l.spent, l.left]
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[860px] border-collapse text-[13px]">
         <thead>
-          <tr className="border-b border-[#e4e1de] text-[12px] text-[#8a867f]">
+          <tr className="border-b border-[#e4e1de] text-xs text-[#68655f]">
             {columns.map((column, index) => <th key={column} scope="col" className={`py-2 px-3 font-semibold ${index === 0 ? 'text-left' : 'text-right'}`}>{column}</th>)}
           </tr>
         </thead>
@@ -2372,29 +2380,29 @@ function TrendTable({ rows, interval, breakEvenFor, l, lang }) {
           {rows.map(row => (
             <tr key={row.key} className="border-b border-[#efece9] text-[#22201d]">
               <th scope="row" className="py-2.5 px-3 text-left font-semibold">{trendRangeLabel(row, interval, lang)}</th>
-              <td className={cell}>{formatCompact(row.cafeIncome)}</td>
+              <td className={cell}>{formatCompactCurrency(row.cafeIncome, lang)}</td>
               <td className={`${cell} text-[#68655f]`}>{row.days}</td>
-              <td className={`${cell} font-semibold ${belowBreakEven(row.averageDaily, targetOf(row)) ? 'text-red-600' : ''}`} title={targetOf(row) > 0 ? `${l.breakEven}: ${formatCurrency(targetOf(row))}` : undefined}>{formatCompact(row.averageDaily)}</td>
+              <td className={`${cell} font-semibold ${belowBreakEven(row.averageDaily, targetOf(row)) ? 'text-[#c4262c]' : ''}`} title={targetOf(row) > 0 ? `${l.breakEven}: ${formatCurrency(targetOf(row))}` : undefined}>{formatCompactCurrency(row.averageDaily, lang)}</td>
               <td className={`${cell} ${tone(row.averageDailyChange)}`}>{signed(row.averageDailyChange)}</td>
-              <td className={`${cell} ${tone(row.growthPct)}`}>{row.growthPct == null ? '—' : `${row.growthPct > 0 ? '+' : ''}${formatPct(row.growthPct)}`}</td>
+              <td className={`${cell} ${tone(row.growthPct)}`}>{row.growthPct == null ? '—' : `${row.growthPct > 0 ? '+' : ''}${formatPct(row.growthPct, lang)}`}</td>
               <td className={`${cell} text-[#68655f]`}>{row.orderCount}</td>
-              <td className={cell}>{row.averageCheck == null ? '—' : formatCompact(row.averageCheck)}</td>
-              <td className={cell}>{formatCompact(row.spent)}</td>
-              <td className={`${cell} ${row.left < 0 ? 'text-red-600' : 'text-green-700'}`}>{signed(row.left)}</td>
+              <td className={cell}>{row.averageCheck == null ? '—' : formatCompactCurrency(row.averageCheck, lang)}</td>
+              <td className={cell}>{formatCompactCurrency(row.spent, lang)}</td>
+              <td className={`${cell} ${row.left < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'}`}>{signed(row.left)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="bg-[#f6f5f3] font-semibold text-[#22201d]">
             <th scope="row" className="py-2.5 px-3 text-left">{l.total}</th>
-            <td className={cell}>{formatCompact(totals.cafeIncome)}</td>
+            <td className={cell}>{formatCompactCurrency(totals.cafeIncome, lang)}</td>
             <td className={cell}>{totals.days}</td>
-            <td className={`${cell} ${belowBreakEven(totals.days ? totals.cafeIncome / totals.days : 0, totalTarget) ? 'text-red-600' : ''}`}>{formatCompact(totals.days ? totals.cafeIncome / totals.days : 0)}</td>
-            <td className={cell} colSpan={2}>{totalTarget > 0 ? <span className="text-[12px] font-bold text-[#8a867f]">{l.breakEven}: {formatCompact(totalTarget)}</span> : null}</td>
+            <td className={`${cell} ${belowBreakEven(totals.days ? totals.cafeIncome / totals.days : 0, totalTarget) ? 'text-[#c4262c]' : ''}`}>{formatCompactCurrency(totals.days ? totals.cafeIncome / totals.days : 0, lang)}</td>
+            <td className={cell} colSpan={2}>{totalTarget > 0 ? <span className="text-xs font-bold text-[#68655f]">{l.breakEven}: {formatCompactCurrency(totalTarget, lang)}</span> : null}</td>
             <td className={cell}>{totals.orderCount}</td>
-            <td className={cell}>{totals.orderCount ? formatCompact(totals.cafeIncome / totals.orderCount) : '—'}</td>
-            <td className={cell}>{formatCompact(totals.spent)}</td>
-            <td className={`${cell} ${totals.left < 0 ? 'text-red-600' : 'text-green-700'}`}>{signed(totals.left)}</td>
+            <td className={cell}>{totals.orderCount ? formatCompactCurrency(totals.cafeIncome / totals.orderCount, lang) : '—'}</td>
+            <td className={cell}>{formatCompactCurrency(totals.spent, lang)}</td>
+            <td className={`${cell} ${totals.left < 0 ? 'text-[#c4262c]' : 'text-[#1d7a52]'}`}>{signed(totals.left)}</td>
           </tr>
         </tfoot>
       </table>
@@ -2403,7 +2411,7 @@ function TrendTable({ rows, interval, breakEvenFor, l, lang }) {
 }
 
 function LargestPayments({ rows, l, lang, categoryName, onOpen }) {
-  if (!rows.length) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
+  if (!rows.length) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
   const max = rows[0].amount || 1
   return (
     <ol className="divide-y divide-[#efece9]">
@@ -2414,9 +2422,9 @@ function LargestPayments({ rows, l, lang, categoryName, onOpen }) {
             <button type="button" onClick={() => onOpen(row.category)} title={l.openHistory} className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-lg px-2 py-2.5 text-left hover:bg-[#f6f5f3]">
               <span className="min-w-0">
                 <span className="block truncate text-[13px] font-semibold text-[#22201d]">{categoryName(row.category)}{details ? <span className="font-normal text-[#68655f]"> · {details}</span> : null}</span>
-                <span className="block text-[12px] text-[#8a867f]">{formatLongDate(row.date, lang, row.date)} · {expensePaymentMethodLabel(row.method, lang)}</span>
+                <span className="block text-xs text-[#68655f]">{formatLongDate(row.date, lang, row.date)} · {expensePaymentMethodLabel(row.method, lang)}</span>
               </span>
-              <span className="text-right text-[13px] font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.amount)}</span>
+              <span className="whitespace-nowrap text-right text-[13px] font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.amount)}</span>
               <span className="col-span-2 h-1 overflow-hidden rounded-full bg-[#efece9]"><span className="block h-full rounded-full bg-[#eb6834]" style={{ width: `${(row.amount / max) * 100}%` }} /></span>
             </button>
           </li>
@@ -2428,9 +2436,9 @@ function LargestPayments({ rows, l, lang, categoryName, onOpen }) {
 
 // Same layout rules as the personal-finance Reports Sankey: real pixels (no viewBox scaling), a height that grows with
 // the node count, node heights proportional to amounts, and side margins sized to the longest label so nothing is cut off.
-function DonutChart({ categories, colors, total, totalLabel, emptyLabel, labelFor, onSelect }) {
+function DonutChart({ categories, colors, total, totalLabel, emptyLabel, labelFor, onSelect, lang }) {
   const [hovered, setHovered] = useState(null)
-  if (!total) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{emptyLabel}</p>
+  if (!total) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{emptyLabel}</p>
 
   const size = 200
   const radius = 80
@@ -2470,11 +2478,11 @@ function DonutChart({ categories, colors, total, totalLabel, emptyLabel, labelFo
             return segment
           })}
         </g>
-        <text x={size / 2} y={size / 2 - 6} textAnchor="middle" className="fill-current text-[#68655f] text-[11px] font-bold">
+        <text x={size / 2} y={size / 2 - 6} textAnchor="middle" className="fill-current text-[#68655f] text-xs font-medium">
           {active ? labelFor(active.key).slice(0, 22) : totalLabel}
         </text>
         <text x={size / 2} y={size / 2 + 14} textAnchor="middle" className="fill-current text-[#22201d] text-[17px] font-semibold">
-          {formatCompact(active ? active.amount : total)}
+          {formatCompactCurrency(active ? active.amount : total, lang)}
         </text>
       </svg>
       <ul className="w-full min-w-0 space-y-1">
@@ -2489,9 +2497,9 @@ function DonutChart({ categories, colors, total, totalLabel, emptyLabel, labelFo
               className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors disabled:cursor-default ${hovered === category.key ? 'bg-orange-50' : 'hover:bg-orange-50'}`}
             >
               <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm" style={{ backgroundColor: colors[category.key] }} />
-              <span className="min-w-0 flex-1 truncate text-sm font-bold text-[#22201d]">{labelFor(category.key)}</span>
-              <span className="text-xs font-bold text-[#8a867f] tabular-nums">{formatPct(shareOf(category.amount, total))}</span>
-              <span className="w-24 text-right text-sm font-semibold text-[#22201d] tabular-nums">{formatCompact(category.amount)}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#22201d]">{labelFor(category.key)}</span>
+              <span className="text-xs font-medium text-[#68655f] tabular-nums">{formatPct(shareOf(category.amount, total), lang)}</span>
+              <span className="w-24 whitespace-nowrap text-right text-sm font-semibold text-[#22201d] tabular-nums">{formatCompactCurrency(category.amount, lang)}</span>
             </button>
           </li>
         ))}
@@ -2501,29 +2509,29 @@ function DonutChart({ categories, colors, total, totalLabel, emptyLabel, labelFo
 }
 
 
-function CategoryComparison({ rows, labelFor, l }) {
-  if (!rows.length) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
+function CategoryComparison({ rows, labelFor, l, lang }) {
+  if (!rows.length) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
   const max = Math.max(...rows.map(row => Math.max(row.current, row.previous)), 1)
   // Largest categories first; the full list scrolls inside the card.
   return (
     <div>
-      <div className="mb-3 flex items-center gap-4 text-[11px] font-bold text-[#68655f]">
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-[#68655f]">
         <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#ff5a00]" />{l.current}</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#D1D5DB]" />{l.previous}</span>
       </div>
       <div data-comparison-scroll="true" className="max-h-[340px] space-y-3 overflow-y-auto overscroll-contain pr-2 [scrollbar-gutter:stable]">
       {rows.map(row => {
         const up = row.change > 0
-        const badgeClass = row.change === 0 ? 'bg-gray-100 text-[#68655f]' : up ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
+        const badgeClass = row.change === 0 ? '' : up ? 'ws-tone-negative' : 'ws-tone-positive'
         const Icon = up ? ArrowUpRight : ArrowDownRight
         return (
           <div key={row.key} title={`${l.current}: ${formatCurrency(row.current)} · ${l.previous}: ${formatCurrency(row.previous)}`}>
             <div className="mb-1 flex items-center justify-between gap-2">
-              <span className="min-w-0 truncate text-sm font-bold text-[#22201d]">{labelFor(row.key)}</span>
-              <span className={`inline-flex flex-shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${badgeClass}`}>
+              <span className="min-w-0 truncate text-sm font-medium text-[#22201d]">{labelFor(row.key)}</span>
+              <span className={`ws-badge flex-shrink-0 tabular-nums ${badgeClass}`}>
                 {row.change !== 0 && <Icon size={11} />}
-                {row.changePct == null ? l.newItem : formatPct(Math.abs(row.changePct))}
-                <span className="ml-1 font-bold opacity-80">{row.change > 0 ? '+' : row.change < 0 ? '−' : ''}{formatCompact(Math.abs(row.change))}</span>
+                {row.changePct == null ? l.newItem : formatPct(Math.abs(row.changePct), lang)}
+                <span className="ml-1 font-semibold">{row.change > 0 ? '+' : row.change < 0 ? '−' : ''}{formatCompactCurrency(Math.abs(row.change), lang)}</span>
               </span>
             </div>
             <div className="space-y-0.5">
@@ -2541,11 +2549,11 @@ function CategoryComparison({ rows, labelFor, l }) {
 function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSelectDay }) {
   const [hoverIndex, setHoverIndex] = useState(null)
   const runningAverage = useMemo(() => (incomeByDate ? buildRunningAverageIncome(days, incomeByDate) : null), [days, incomeByDate])
-  if (!days.length || days.every(day => day.total === 0)) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
+  if (!days.length || days.every(day => day.total === 0)) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
 
   const width = 960
   const height = 260
-  const pad = { top: 12, right: 12, bottom: 28, left: 52 }
+  const pad = { top: 12, right: 12, bottom: 28, left: 68 }
   const plotW = width - pad.left - pad.right
   const plotH = height - pad.top - pad.bottom
   const maxValue = Math.max(averageIncome, ...(runningAverage || []), ...days.map(day => day.total), 1) * 1.08
@@ -2559,7 +2567,7 @@ function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSele
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-bold text-[#68655f]">
+      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-[#68655f]">
         {SPENDING_GROUPS.map(group => (
           <span key={group} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: GROUP_COLORS[group] }} />{groupLabels[group]}</span>
         ))}
@@ -2570,7 +2578,7 @@ function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSele
           {ticks.map(tick => (
             <g key={tick}>
               <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
-              <text x={pad.left - 8} y={y(tick) + 4} textAnchor="end" className="fill-current text-[#8a867f] text-[11px] font-bold">{formatCompact(tick)}</text>
+              <text x={pad.left - 8} y={y(tick) + 4} textAnchor="end" className="fill-current text-[#68655f] text-xs font-medium">{formatCompactCurrency(tick, lang)}</text>
             </g>
           ))}
           {days.map((day, index) => {
@@ -2597,7 +2605,7 @@ function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSele
                   return <rect key={group} x={x} y={stackTop} width={barWidth} height={Math.max(0, h - 1)} rx={barWidth > 6 ? 2 : 0} fill={GROUP_COLORS[group]} />
                 })}
                 {index % labelEvery === 0 && (
-                  <text x={x + barWidth / 2} y={height - 8} textAnchor="middle" className="fill-current text-[#8a867f] text-[11px] font-bold">{Number(day.date.slice(8))}</text>
+                  <text x={x + barWidth / 2} y={height - 8} textAnchor="middle" className="fill-current text-[#68655f] text-xs font-medium">{Number(day.date.slice(8))}</text>
                 )}
               </g>
             )
@@ -2625,12 +2633,12 @@ function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSele
             {SPENDING_GROUPS.filter(group => hovered[group] > 0).map(group => (
               <p key={group} className="flex items-center justify-between gap-2 font-bold text-[#68655f]">
                 <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: GROUP_COLORS[group] }} />{groupLabels[group]}</span>
-                <span className="text-[#22201d] tabular-nums">{formatCompact(hovered[group])}</span>
+                <span className="text-[#22201d] tabular-nums">{formatCompactCurrency(hovered[group], lang)}</span>
               </p>
             ))}
             <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-semibold text-[#22201d]"><span>{l.total}</span><span className="tabular-nums">{formatCurrency(hovered.total)}</span></p>
             {runningAverage && (
-              <p className="mt-1 flex justify-between gap-2 font-bold text-[#68655f]"><span>{l.avgIncome}</span><span className="tabular-nums text-[#22201d]">{formatCompact(runningAverage[hoverIndex])}</span></p>
+              <p className="mt-1 flex justify-between gap-2 font-bold text-[#68655f]"><span>{l.avgIncome}</span><span className="tabular-nums text-[#22201d]">{formatCompactCurrency(runningAverage[hoverIndex], lang)}</span></p>
             )}
           </div>
         )}
@@ -2645,14 +2653,6 @@ function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSele
 function DayFlowDialog({ date, entries, menuItems, l, lang, categoryName, onOpenHistory, onClose }) {
   const [order, setOrder] = useState({ status: 'loading', summary: null })
   const [retry, setRetry] = useState(0)
-
-  useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
 
   useEffect(() => {
     let active = true
@@ -2672,38 +2672,36 @@ function DayFlowDialog({ date, entries, menuItems, l, lang, categoryName, onOpen
   const max = flow.payments[0]?.amount || 1
 
   return (
-    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onClose()}>
-      <section role="dialog" aria-modal="true" aria-labelledby="day-flow-title" className="ws-dialog max-h-[92vh] w-full overflow-y-auto !rounded-b-none sm:max-w-4xl sm:!rounded-2xl">
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#e4e1de] bg-white px-5 py-4 sm:px-6">
-          <div className="min-w-0">
-            <p className="ws-caption font-medium">{l.dayFlowTitle}</p>
-            <h2 id="day-flow-title" className="ws-display mt-1">{formatLongDate(date, lang, date)}</h2>
-          </div>
-          <button type="button" onClick={onClose} aria-label={l.close} className="ws-btn ws-btn-ghost !h-10 !w-10 !px-0">
-            <X size={19} />
-          </button>
-        </div>
-        <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            {[[l.moneyIn, moneyIn, 'text-[#22201d]', !ready], [l.spent, spent, 'text-[#22201d]', false], [l.left, moneyIn - spent, moneyIn - spent >= 0 ? 'text-green-600' : 'text-red-600', !ready]].map(([label, amount, tone, pending]) => (
+    <WorkspaceDialog
+      title={formatLongDate(date, lang, date)}
+      description={l.dayFlowTitle}
+      onClose={onClose}
+      closeLabel={l.close}
+      variant="sheet"
+      size="xl"
+      bodyClassName="space-y-5"
+    >
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-2 sm:gap-3">
+            {[[l.moneyIn, moneyIn, 'text-[#22201d]', !ready], [l.spent, spent, 'text-[#22201d]', false], [l.left, moneyIn - spent, moneyIn - spent >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]', !ready]].map(([label, amount, tone, pending]) => (
               <div key={label} className="rounded-xl bg-[#f6f5f3] p-3 sm:p-4">
                 <p className="ws-caption">{label}</p>
                 {pending
                   ? <Shimmer className="mt-1.5 h-6 w-24" />
-                  : <p className={`mt-1 break-words text-base font-semibold tabular-nums sm:text-xl ${tone}`}>{formatCurrency(amount)}</p>}
+                  : <p className={`mt-1 whitespace-nowrap text-base font-semibold tabular-nums sm:text-xl ${tone}`}>{formatCurrency(amount)}</p>}
               </div>
             ))}
           </div>
 
           {order.status === 'error' ? (
-            <div className="flex flex-col items-center gap-3 rounded-xl border border-[#e4e1de] py-10 text-sm font-bold text-[#8a867f]">
+            <div role="alert" className="flex flex-col items-center gap-3 rounded-xl bg-[#f6f5f3] py-10 text-sm font-medium text-[#68655f]">
               <p>{l.dayLoadFailed}</p>
-              <button type="button" className="ws-btn" onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />{l.retry}</button>
+              <button type="button" className="ws-btn ws-btn-outline" onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />{l.retry}</button>
             </div>
           ) : !ready ? (
             <Shimmer className="h-[300px] w-full rounded-xl" />
           ) : (
             <SankeyChart
+              lang={lang}
               sankey={flow.sankey}
               colors={flow.colors}
               hubLabel={l.hub}
@@ -2717,7 +2715,7 @@ function DayFlowDialog({ date, entries, menuItems, l, lang, categoryName, onOpen
           <div>
             <h3 className="text-sm font-semibold text-[#22201d]">{l.dayPayments}</h3>
             {!flow.payments.length ? (
-              <p className="py-6 text-center text-sm font-bold text-[#8a867f]">{l.dayNoPayments}</p>
+              <p className="py-6 text-center text-sm font-medium text-[#68655f]">{l.dayNoPayments}</p>
             ) : (
               <ol className="mt-2 divide-y divide-[#efece9]">
                 {flow.payments.map(row => {
@@ -2727,9 +2725,9 @@ function DayFlowDialog({ date, entries, menuItems, l, lang, categoryName, onOpen
                       <button type="button" onClick={() => onOpenHistory(row.category)} title={l.openHistory} className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-lg px-2 py-2.5 text-left hover:bg-[#f6f5f3]">
                         <span className="min-w-0">
                           <span className="block truncate text-[13px] font-semibold text-[#22201d]">{categoryName(row.category)}{details ? <span className="font-normal text-[#68655f]"> · {details}</span> : null}</span>
-                          <span className="inline-flex items-center gap-1.5 text-[12px] text-[#8a867f]"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: GROUP_COLORS[row.group] }} />{groupLabels[row.group]} · {expensePaymentMethodLabel(row.method, lang)}</span>
+                          <span className="inline-flex items-center gap-1.5 text-xs text-[#68655f]"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: GROUP_COLORS[row.group] }} />{groupLabels[row.group]} · {expensePaymentMethodLabel(row.method, lang)}</span>
                         </span>
-                        <span className="text-right text-[13px] font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.amount)}</span>
+                        <span className="whitespace-nowrap text-right text-[13px] font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.amount)}</span>
                         <span className="col-span-2 h-1 overflow-hidden rounded-full bg-[#efece9]"><span className="block h-full rounded-full" style={{ width: `${(row.amount / max) * 100}%`, backgroundColor: GROUP_COLORS[row.group] }} /></span>
                       </button>
                     </li>
@@ -2738,29 +2736,27 @@ function DayFlowDialog({ date, entries, menuItems, l, lang, categoryName, onOpen
               </ol>
             )}
           </div>
-        </div>
-      </section>
-    </div>
+    </WorkspaceDialog>
   )
 }
 
 function PaymentMethodFlow({ rows, lang, l }) {
   const visible = rows.filter(row => row.method !== 'loyalty_card' && (row.income > 0 || row.expenses > 0))
-  if (!visible.length) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{l.empty}</p>
+  if (!visible.length) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
   const max = Math.max(...visible.map(row => Math.max(row.income, row.expenses)), 1)
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-4">
       {visible.map(row => (
-        <div key={row.method} className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-3">
+        <div key={row.method} className="rounded-xl bg-[#f6f5f3] p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold text-[#22201d]">{expensePaymentMethodLabel(row.method, lang)}</span>
-            <span className={`text-sm font-semibold tabular-nums ${row.left >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCompact(row.left)}</span>
+            <span className={`whitespace-nowrap text-sm font-semibold tabular-nums ${row.left >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>{formatCompactCurrency(row.left, lang)}</span>
           </div>
-          {[[l.moneyIn, row.income, '#16a34a'], [l.spent, row.expenses, '#ff5a00']].map(([label, amount, color]) => (
+          {[[l.moneyIn, row.income, 'bg-[#1d7a52]'], [l.spent, row.expenses, 'bg-[#ff5a00]']].map(([label, amount, barClass]) => (
             <div key={label} className="mb-1.5" title={`${label}: ${formatCurrency(amount)}`}>
-              <div className="mb-0.5 flex justify-between text-[11px] font-bold text-[#68655f]"><span>{label}</span><span className="tabular-nums">{formatCompact(amount)}</span></div>
-              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                <div className="h-full rounded-full" style={{ width: `${(amount / max) * 100}%`, backgroundColor: color }} />
+              <div className="mb-0.5 flex justify-between gap-2 text-xs font-medium text-[#68655f]"><span>{label}</span><span className="whitespace-nowrap tabular-nums">{formatCompactCurrency(amount, lang)}</span></div>
+              <div className="h-2 overflow-hidden rounded-full bg-[#e4e1de]">
+                <div className={`h-full rounded-full ${barClass}`} style={{ width: `${(amount / max) * 100}%` }} />
               </div>
             </div>
           ))}

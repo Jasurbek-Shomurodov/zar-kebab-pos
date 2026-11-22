@@ -1,6 +1,5 @@
 import CalendarPicker from '../components/CalendarPicker'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import {
   Banknote,
   BarChart2,
@@ -26,12 +25,13 @@ import AppShell from '../components/AppShell'
 import { ChoiceGroup, ChoiceTile } from '../components/ChoiceTiles'
 import BazaarIngredientPicker from '../components/BazaarIngredientPicker'
 import DateRangePicker from '../components/DateRangePicker'
+import WorkspaceDialog from '../components/WorkspaceDialog'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { canEditFeature } from '../lib/permissions'
-import { formatCurrency } from '../lib/formatCurrency'
+import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import { formatLongDate } from '../lib/dateFormat'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { withWriteTimeout } from '../lib/writeTimeout'
@@ -848,7 +848,7 @@ export default function DailyBazaar() {
         ].filter(item => !item.hidden),
       }}
       headerActions={(
-        <button type="button" onClick={loadPurchases} disabled={loading} aria-label={l.refresh} className="ws-btn ws-btn-outline !h-[38px]">
+        <button type="button" onClick={loadPurchases} disabled={loading} aria-label={l.refresh} className="ws-btn ws-btn-outline">
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /><span className="hidden sm:inline">{l.refresh}</span>
         </button>
       )}
@@ -1161,7 +1161,7 @@ function BazaarEntryForm({
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]"><ShoppingBasket size={18} /></span>
                 <span className="ws-muted">{l.noProducts}</span>
-                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#ff5a00]"><Plus size={15} />{l.addProduct}</span>
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#bf4300]"><Plus size={15} />{l.addProduct}</span>
               </button>
             ) : (
               <ul className="divide-y divide-[#efece9] overflow-hidden rounded-[12px] border border-[#e4e1de]">
@@ -1185,15 +1185,15 @@ function BazaarEntryForm({
 
         <aside className="ws-panel xl:sticky xl:top-5">
         <p className="ws-caption font-medium">{l.totalBazaar}</p>
-        <p className="mt-1 break-words text-3xl font-semibold tracking-tight text-[#22201d] tabular-nums"><RollingText text={formatCurrency(total)} /></p>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <p className="mt-1 whitespace-nowrap text-2xl font-semibold tracking-tight text-[#22201d] tabular-nums sm:text-3xl"><RollingText text={formatCurrency(total)} /></p>
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
           <div className="rounded-[10px] bg-[#f6f5f3] px-3 py-2.5">
             <p className="ws-caption">{l.normalTotal}</p>
-            <p className="mt-1 text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(normalTotal)}</p>
+            <p className="mt-1 whitespace-nowrap text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(normalTotal)}</p>
           </div>
           <div className={`rounded-[10px] border px-3 py-2.5 ${bazaarDifferenceTone(difference)}`}>
-            <p className="text-[13px] opacity-80">{l.difference}</p>
-            <p className="mt-1 text-sm font-semibold tabular-nums">{formatBazaarSignedCurrency(difference)}</p>
+            <p className="text-[13px]">{l.difference}</p>
+            <p className="mt-1 whitespace-nowrap text-sm font-semibold tabular-nums">{formatBazaarSignedCurrency(difference)}</p>
           </div>
         </div>
         <div className="mt-3 flex items-center justify-between rounded-[10px] bg-[#f6f5f3] px-3 py-2.5 text-sm text-[#68655f]">
@@ -1253,14 +1253,14 @@ function BazaarLineRow({ l, lang, item, index, hasError, onOpen, onRemove }) {
           </span>
         </span>
         <span className="flex-shrink-0 text-right">
-          <span className="block text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(Number(item.line_total) || 0)}</span>
+          <span className="block whitespace-nowrap text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(Number(item.line_total) || 0)}</span>
           {normalLineTotal > 0 && item.line_total ? (
-            <span className={`mt-0.5 inline-block rounded-full border px-1.5 text-[11px] font-semibold tabular-nums ${bazaarDifferenceTone(priceDifference)}`}>
+            <span className={`mt-0.5 inline-block whitespace-nowrap rounded-full border px-1.5 text-xs font-semibold tabular-nums ${bazaarDifferenceTone(priceDifference)}`}>
               {formatBazaarSignedCurrency(priceDifference)}
             </span>
           ) : null}
         </span>
-        <Edit3 size={15} className="flex-shrink-0 text-[#8a867f]" aria-hidden="true" />
+        <Edit3 size={15} className="flex-shrink-0 text-[#68655f]" aria-hidden="true" />
       </button>
       <button type="button" onClick={onRemove} aria-label={l.removeLine} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon flex-shrink-0">
         <Trash2 size={14} />
@@ -1277,14 +1277,6 @@ function BazaarLineDialog({ l, lang, item, index, isNew, suggestions, saving, li
   const normalLineTotal = getBazaarNormalLineTotal(item)
   const priceDifference = getBazaarPriceDifference(item)
   const hasError = field => lineHasError(index, field) || localErrors.some(errorItem => errorItem.field === field)
-
-  useEffect(() => {
-    function closeOnEscape(event) {
-      if (event.key === 'Escape') onCancel()
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [onCancel])
 
   function updateItem(field, value) {
     setLocalErrors(current => current.filter(errorItem => errorItem.field !== field))
@@ -1305,91 +1297,78 @@ function BazaarLineDialog({ l, lang, item, index, isNew, suggestions, saving, li
 
   const firstError = localErrors[0] ? { ...localErrors[0], index } : null
 
-  return createPortal(
-    <div className="fixed inset-0 z-dialog flex items-end justify-center bg-[#22201d]/40 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={event => event.target === event.currentTarget && onCancel()}>
-      <form
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bazaar-line-dialog-title"
-        onSubmit={confirm}
-        className="ws-dialog max-h-[92vh] w-full overflow-y-auto !rounded-b-none sm:max-w-[760px] sm:overflow-visible sm:!rounded-2xl"
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-[#e4e1de] px-5 py-4 sm:px-6">
-          <div className="min-w-0">
-            <p className="ws-caption font-medium">{l.item} {index + 1}</p>
-            <h2 id="bazaar-line-dialog-title" className="ws-heading mt-0.5">{isNew ? l.addProduct : l.editProduct}</h2>
-          </div>
-          <button type="button" onClick={onCancel} aria-label={l.cancel} className="ws-btn ws-btn-ghost !h-10 !w-10 !px-0">
-            <X size={19} />
-          </button>
+  return (
+    <WorkspaceDialog
+      as="form"
+      panelProps={{ onSubmit: confirm, noValidate: true }}
+      variant="sheet"
+      size="xl"
+      title={isNew ? l.addProduct : l.editProduct}
+      description={`${l.item} ${index + 1}`}
+      onClose={onCancel}
+      closeLabel={l.cancel}
+      bodyClassName="space-y-4"
+      notice={firstError ? <p role="alert" className="ws-notice ws-tone-negative">{validationMessage(firstError, l)}</p> : null}
+      footer={(
+        <>
+          <button type="button" onClick={onCancel} className="ws-btn ws-btn-outline">{l.cancel}</button>
+          <button type="submit" disabled={saving} className="ws-btn ws-btn-primary">{isNew ? l.addLine : l.saveLine}</button>
+        </>
+      )}
+    >
+      <div data-bazaar-line-fields="true" className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.4fr)_minmax(140px,0.9fr)]">
+        <Field label={l.product} error={hasError('product_name')}>
+          <BazaarIngredientPicker suggestions={suggestions} value={item.product_key || ''} onChange={value => { setLocalErrors(current => current.filter(errorItem => errorItem.field !== 'product_name')); onUpdateProduct(index, value) }} lang={lang} disabled={saving} invalid={hasError('product_name')} />
+        </Field>
+        <Field label={l.category} error={hasError('category')}>
+          <select aria-invalid={hasError('category')} value={item.category} disabled className={SELECT}>
+            {bazaarCategoriesFor(suggestions).map(category => <option key={category.key} value={category.key}>{bazaarCategoryLabel(category.key, lang)}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      <div className="grid items-end gap-3 grid-cols-2 sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1.2fr)]">
+        <Field label={l.quantity} error={hasError('quantity')}>
+          <input aria-invalid={hasError('quantity')} type="text" inputMode="decimal" value={item.quantity} onChange={event => updateItem('quantity', event.target.value.replace(/[^0-9.,]/g, ''))} placeholder="0" className={`${INPUT} tabular-nums ${hasError('quantity') ? '!border-[#c4262c] !bg-[#fdf3f3]' : ''}`} />
+        </Field>
+        <Field label={l.unit} error={hasError('unit')}>
+          <select aria-invalid={hasError('unit')} value={item.unit} disabled className={SELECT}>
+            {BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}
+          </select>
+        </Field>
+        <div className="col-span-2 sm:col-span-1">
+          <Field label={l.totalPaid} error={hasError('line_total')}>
+            <input aria-invalid={hasError('line_total')} type="text" inputMode="numeric" value={formatMoneyInput(item.line_total)} onChange={event => updateItem('line_total', normalizeMoneyInput(event.target.value))} placeholder="0" className={`${INPUT} text-right font-semibold tabular-nums ${hasError('line_total') ? '!border-[#c4262c] !bg-[#fdf3f3]' : ''}`} />
+          </Field>
         </div>
+      </div>
 
-        <div className="space-y-4 px-5 py-5 sm:px-6">
-          <div data-bazaar-line-fields="true" className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.4fr)_minmax(140px,0.9fr)]">
-            <Field label={l.product} error={hasError('product_name')}>
-              <BazaarIngredientPicker suggestions={suggestions} value={item.product_key || ''} onChange={value => { setLocalErrors(current => current.filter(errorItem => errorItem.field !== 'product_name')); onUpdateProduct(index, value) }} lang={lang} disabled={saving} invalid={hasError('product_name')} />
-            </Field>
-            <Field label={l.category} error={hasError('category')}>
-              <select aria-invalid={hasError('category')} value={item.category} disabled className={SELECT}>
-                {bazaarCategoriesFor(suggestions).map(category => <option key={category.key} value={category.key}>{bazaarCategoryLabel(category.key, lang)}</option>)}
-              </select>
-            </Field>
-          </div>
-
-          <div className="grid items-end gap-3 grid-cols-2 sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1.2fr)]">
-            <Field label={l.quantity} error={hasError('quantity')}>
-              <input aria-invalid={hasError('quantity')} type="text" inputMode="decimal" value={item.quantity} onChange={event => updateItem('quantity', event.target.value.replace(/[^0-9.,]/g, ''))} placeholder="0" className={`${INPUT} tabular-nums ${hasError('quantity') ? '!border-[#c4262c] !bg-[#fdf3f3]' : ''}`} />
-            </Field>
-            <Field label={l.unit} error={hasError('unit')}>
-              <select aria-invalid={hasError('unit')} value={item.unit} disabled className={SELECT}>
-                {BAZAAR_ENTRY_UNITS.map(unit => <option key={unit.key} value={unit.key}>{bazaarUnitLabel(unit.key, lang)}</option>)}
-              </select>
-            </Field>
-            <div className="col-span-2 sm:col-span-1">
-              <Field label={l.totalPaid} error={hasError('line_total')}>
-                <input aria-invalid={hasError('line_total')} type="text" inputMode="numeric" value={formatMoneyInput(item.line_total)} onChange={event => updateItem('line_total', normalizeMoneyInput(event.target.value))} placeholder="0" className={`${INPUT} text-right font-semibold tabular-nums ${hasError('line_total') ? '!border-[#c4262c] !bg-[#fdf3f3]' : ''}`} />
-              </Field>
-            </div>
-          </div>
-
-          <div data-bazaar-line-summary="true" className="grid gap-3 sm:w-full sm:max-w-[430px] sm:grid-cols-2 sm:items-stretch sm:max-w-none">
-            <div className="flex h-full min-h-[70px] flex-col justify-center rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-4 py-3">
-              <p className="ws-caption">{l.unitCost}</p>
-              <p className="mt-0.5 text-sm font-semibold text-[#22201d] tabular-nums">
-                {unitCost > 0 ? `${formatCurrency(Math.round(unitCost))} / ${bazaarUnitLabel(base.unit, lang)}` : '—'}
-              </p>
-              <p className="ws-caption mt-0.5 truncate">{l.normalPrice}: {item.normal_unit_price ? formatCurrency(item.normal_unit_price) : '—'}</p>
-            </div>
-            <div className={`flex h-full min-h-[70px] flex-col justify-center rounded-[10px] border px-4 py-3 ${bazaarDifferenceTone(priceDifference)}`}>
-              <p className="text-[13px] opacity-80">{l.difference}</p>
-              <p className="mt-0.5 text-sm font-semibold tabular-nums">{normalLineTotal > 0 && item.line_total ? formatBazaarSignedCurrency(priceDifference) : '—'}</p>
-            </div>
-          </div>
-
-          <div data-bazaar-line-notes="true">
-            <Field label={l.lineNotes}>
-              <textarea
-                value={item.notes}
-                onChange={event => updateItem('notes', event.target.value)}
-                rows={3}
-                placeholder={l.lineNotesPlaceholder}
-                className={`${INPUT} !h-auto min-h-[88px] resize-y leading-5`}
-              />
-            </Field>
-          </div>
-
-          {firstError && <p role="alert" className="ws-notice ws-tone-negative">{validationMessage(firstError, l)}</p>}
+      <div data-bazaar-line-summary="true" className="grid gap-3 sm:w-full sm:max-w-[430px] sm:grid-cols-2 sm:items-stretch sm:max-w-none">
+        <div className="flex h-full min-h-[70px] flex-col justify-center rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] px-4 py-3">
+          <p className="ws-caption">{l.unitCost}</p>
+          <p className="mt-0.5 text-sm font-semibold text-[#22201d] tabular-nums">
+            {unitCost > 0 ? `${formatCurrency(Math.round(unitCost))} / ${bazaarUnitLabel(base.unit, lang)}` : '—'}
+          </p>
+          <p className="ws-caption mt-0.5">{l.normalPrice}: <span className="whitespace-nowrap tabular-nums">{item.normal_unit_price ? formatCurrency(item.normal_unit_price) : '—'}</span></p>
         </div>
-
-        <div className="flex flex-col-reverse gap-2 border-t border-[#e4e1de] px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
-          <button type="button" onClick={onCancel} className="ws-btn ws-btn-outline !h-11">{l.cancel}</button>
-          <button type="submit" disabled={saving} className="ws-btn ws-btn-primary !h-11">
-            {isNew ? <Plus size={16} /> : <Save size={16} />}{isNew ? l.addLine : l.saveLine}
-          </button>
+        <div className={`flex h-full min-h-[70px] flex-col justify-center rounded-[10px] border px-4 py-3 ${bazaarDifferenceTone(priceDifference)}`}>
+          <p className="text-[13px]">{l.difference}</p>
+          <p className="mt-0.5 whitespace-nowrap text-sm font-semibold tabular-nums">{normalLineTotal > 0 && item.line_total ? formatBazaarSignedCurrency(priceDifference) : '—'}</p>
         </div>
-      </form>
-    </div>,
-    document.body,
+      </div>
+
+      <div data-bazaar-line-notes="true">
+        <Field label={l.lineNotes}>
+          <textarea
+            value={item.notes}
+            onChange={event => updateItem('notes', event.target.value)}
+            rows={3}
+            placeholder={l.lineNotesPlaceholder}
+            className={`${INPUT} !h-auto min-h-[88px] resize-y leading-5`}
+          />
+        </Field>
+      </div>
+    </WorkspaceDialog>
   )
 }
 
@@ -1453,7 +1432,7 @@ function BazaarHistory({
                           <p className="ws-caption whitespace-nowrap">
                             {l.itemCount}: {items.length}
                           </p>
-                          <p className="max-w-[220px] truncate font-medium text-[#22201d]" title={purchase.notes || undefined}>
+                          <p className="max-w-[220px] truncate font-medium text-[#22201d]">
                             {purchase.created_by_name || '—'}
                           </p>
                           <p className="whitespace-nowrap text-sm font-semibold text-[#22201d] tabular-nums"><RollingText text={formatCurrency(total)} /></p>
@@ -1473,6 +1452,7 @@ function BazaarHistory({
                             </div>
                           )}
                         </div>
+                        {purchase.notes && <p data-bazaar-purchase-note="true" className="ws-caption mt-1.5 max-w-[70ch] whitespace-pre-line [overflow-wrap:anywhere]">{purchase.notes}</p>}
                       </td>
                     </tr>
                     {items.map((item, index) => {
@@ -1481,8 +1461,9 @@ function BazaarHistory({
                       const displayQuantity = getBazaarDisplayQuantity(item.quantity, item.unit)
                       return (
                         <tr key={`${purchase.id}-${item.id || index}`} className="ws-row text-sm text-[#68655f]">
-                          <td className="px-4 py-2.5" title={item.notes || undefined}>
+                          <td className="px-4 py-2.5">
                             <p className="truncate font-medium text-[#22201d]">{item.product_name}</p>
+                            {item.notes && <p data-bazaar-item-note="true" className="ws-caption mt-0.5 whitespace-pre-line [overflow-wrap:anywhere]">{item.notes}</p>}
                           </td>
                           <td className="whitespace-nowrap px-4 py-2.5 text-[#22201d] tabular-nums">
                             {formatBazaarQuantity(displayQuantity.quantity)} {bazaarUnitLabel(displayQuantity.unit, lang)}
@@ -1535,7 +1516,7 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-3">
         <MetricCard label={l.totalSpent} value={formatCurrency(summary.totalSpent)} sub={`${formatLongDate(dateFrom, lang, dateFrom)} — ${formatLongDate(dateTo, lang, dateTo)}`} />
         <MetricCard label={l.averageDaily} value={formatCurrency(Math.round(summary.averagePerDay))} sub={`${summary.activeDays} ${l.activeDays.toLowerCase()} · ${summary.dayCount} ${l.calendarDays}`} />
         <MetricCard label={l.purchases} value={summary.purchaseCount} />
@@ -1552,11 +1533,11 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
                 <div key={row.date} className="grid grid-cols-[92px_minmax(0,1fr)_112px] items-center gap-2 sm:grid-cols-[140px_minmax(0,1fr)_140px]">
                   <span className="ws-caption truncate">{formatLongDate(row.date, lang, row.date, { includeYear: false })}</span>
                   <div className="h-8 overflow-hidden rounded-md bg-[#efece9]">
-                    <div className="flex h-full items-center rounded-md bg-[#ff5a00] px-2" style={{ width: `${width}%` }}>
+                    <div className="flex h-full items-center rounded-md bg-[#cc4800] px-2" style={{ width: `${width}%` }}>
                       {width > 24 && <span className="truncate text-xs font-medium text-white">{row.purchases} {l.purchasesShort}</span>}
                     </div>
                   </div>
-                  <span className="text-right text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.total)}</span>
+                  <span className="whitespace-nowrap text-right text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.total)}</span>
                 </div>
               )
             })}
@@ -1567,7 +1548,7 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
           <RankedMoneyBars
             rows={summary.categories.map(row => ({ ...row, label: bazaarCategoryLabel(row.key, lang) }))}
             total={summary.totalSpent}
-            color="#ff5a00"
+            lang={lang}
             l={l}
           />
         </AnalyticsSection>
@@ -1579,16 +1560,16 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
             {summary.payments.map(row => {
               const Icon = methodIcon(row.key)
               return (
-                <div key={row.key} className="rounded-[10px] border border-[#e4e1de] p-3">
+                <div key={row.key} className="rounded-[10px] bg-[#f6f5f3] p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <Icon size={16} className="text-[#68655f]" />
                       <span className="text-sm font-medium text-[#22201d]">{bazaarPaymentMethodLabel(row.key, lang)}</span>
                     </div>
-                    <span className="text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.amount)}</span>
+                    <span className="whitespace-nowrap text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.amount)}</span>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#efece9]"><div className="h-full rounded-full bg-[#ff5a00]" style={{ width: `${Math.max(3, row.percent)}%` }} /></div>
-                  <p className="ws-caption mt-1 text-right tabular-nums">{Math.round(row.percent)}% {l.ofTotal}</p>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e4e1de]"><div className="h-full rounded-full bg-[#ff5a00]" style={{ width: `${Math.max(3, row.percent)}%` }} /></div>
+                  <p className="ws-caption mt-1 text-right tabular-nums">{formatPercent(row.percent, lang, 0)} {l.ofTotal}</p>
                 </div>
               )
             })}
@@ -1603,7 +1584,7 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
               sub: `${row.purchases} ${l.purchasesShort}`,
             }))}
             total={summary.totalSpent}
-            color="#ff5a00"
+            lang={lang}
             l={l}
           />
         </AnalyticsSection>
@@ -1630,13 +1611,13 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
                     <p className="text-sm font-medium text-[#22201d] tabular-nums">{formatBazaarQuantity(product.quantity)} {bazaarUnitLabel(product.unit, lang)}</p>
                   </div>
                   <div className="sm:text-right">
-                    <p className="text-base font-semibold text-[#22201d] tabular-nums">{formatCurrency(product.spend)}</p>
-                    <p className="ws-caption tabular-nums">{l.averageUnitCost}: {formatCurrency(Math.round(product.averageUnitCost))} / {bazaarUnitLabel(product.unit, lang)}</p>
-                    <p className="ws-caption tabular-nums">{l.latestUnitCost}: {formatCurrency(Math.round(product.latestUnitCost))} / {bazaarUnitLabel(product.unit, lang)}</p>
+                    <p className="whitespace-nowrap text-base font-semibold text-[#22201d] tabular-nums">{formatCurrency(product.spend)}</p>
+                    <p className="ws-caption">{l.averageUnitCost}: <span className="whitespace-nowrap tabular-nums">{formatCurrency(Math.round(product.averageUnitCost))} / {bazaarUnitLabel(product.unit, lang)}</span></p>
+                    <p className="ws-caption">{l.latestUnitCost}: <span className="whitespace-nowrap tabular-nums">{formatCurrency(Math.round(product.latestUnitCost))} / {bazaarUnitLabel(product.unit, lang)}</span></p>
                     {product.previousUnitCost > 0 && Math.abs(change) >= 0.1 && (
                       <p className={`ws-badge mt-1 tabular-nums ${change > 0 ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
                         {change > 0 ? <TrendingUp /> : <TrendingDown />}
-                        {Math.abs(change).toFixed(1)}% {change > 0 ? l.priceUp : l.priceDown}
+                        {formatPercent(Math.abs(change), lang)} {change > 0 ? l.priceUp : l.priceDown}
                       </p>
                     )}
                   </div>
@@ -1650,7 +1631,7 @@ function BazaarAnalytics({ l, lang, summary, categoryFilter, dateFrom, dateTo })
   )
 }
 
-function RankedMoneyBars({ rows, total, color, l }) {
+function RankedMoneyBars({ rows, total, lang, l }) {
   if (rows.length === 0) return <p className="ws-muted py-8 text-center">{l.noAnalytics}</p>
   return (
     <div className="space-y-3">
@@ -1664,11 +1645,11 @@ function RankedMoneyBars({ rows, total, color, l }) {
                 {row.sub && <p className="ws-caption truncate">{row.sub}</p>}
               </div>
               <div className="flex-shrink-0 text-right">
-                <p className="text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.amount)}</p>
-                <p className="ws-caption tabular-nums">{Math.round(percent)}%</p>
+                <p className="whitespace-nowrap text-sm font-semibold text-[#22201d] tabular-nums">{formatCurrency(row.amount)}</p>
+                <p className="ws-caption tabular-nums">{formatPercent(percent, lang, 0)}</p>
               </div>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[#efece9]"><div className="h-full rounded-full" style={{ width: `${Math.max(3, percent)}%`, backgroundColor: color }} /></div>
+            <div className="h-2 overflow-hidden rounded-full bg-[#efece9]"><div className="h-full rounded-full bg-[#ff5a00]" style={{ width: `${Math.max(3, percent)}%` }} /></div>
           </div>
         )
       })}
@@ -1689,7 +1670,7 @@ function MetricCard({ label, value, sub = '' }) {
   return (
     <div className="ws-panel">
       <p className="ws-caption font-medium">{label}</p>
-      <p className="mt-1.5 break-words text-2xl font-semibold tracking-tight text-[#22201d] tabular-nums"><RollingValue value={value} /></p>
+      <p className="mt-1.5 whitespace-nowrap text-2xl font-semibold tracking-tight text-[#22201d] tabular-nums"><RollingValue value={value} /></p>
       {sub && <p className="ws-caption mt-1">{sub}</p>}
     </div>
   )

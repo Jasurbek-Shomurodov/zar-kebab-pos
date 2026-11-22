@@ -14,7 +14,7 @@ export default function BreakEvenLine({ points }) {
         <polyline
           points={shown.length === 1 ? `0,${100 - shown[0].y} 100,${100 - shown[0].y}` : path}
           fill="none"
-          stroke="#c4262c"
+          className="stroke-current text-[#c4262c]"
           strokeWidth={2}
           strokeDasharray="2 4"
           strokeLinecap="round"
@@ -32,7 +32,7 @@ export default function BreakEvenLine({ points }) {
       {shown.filter(point => point.label).map(point => (
         <span
           key={`${point.key}-label`}
-          className="absolute -translate-x-1/2 whitespace-nowrap rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#c4262c] shadow-sm"
+          className="absolute -translate-x-1/2 whitespace-nowrap rounded bg-white/90 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[#c4262c] shadow-sm"
           style={{ left: `${point.x}%`, bottom: `calc(${point.y}% + 6px)` }}
         >
           {point.label}

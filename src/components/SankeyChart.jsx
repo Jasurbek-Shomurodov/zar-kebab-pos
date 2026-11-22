@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { ANALYSIS_OTHER_COLOR } from '../lib/accountingAnalysis'
-import { formatCurrency } from '../lib/formatCurrency'
+import { formatCompactCurrency, formatCurrency, formatPercent } from '../lib/formatCurrency'
 
 // Three-column money flow (sources -> hub -> targets) shared by Financial
 // analysis and Owner profit. Same layout rules as the personal-finance Reports
@@ -12,20 +12,6 @@ const SANKEY = { nodeWidth: 10, nodePadding: 16, perNode: 30, minHeight: 300, pa
 
 export const SANKEY_SOURCE_COLORS = { cafe: '#1baf7a', investor: '#4a3aa7', otherIncome: '#2a78d6', reserves: '#e34948' }
 export const SANKEY_LEFT_COLOR = '#16a34a'
-
-function formatCompact(value) {
-  const amount = Math.abs(Number(value) || 0)
-  const sign = Number(value) < 0 ? '−' : ''
-  if (amount >= 1_000_000_000) return `${sign}${(amount / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`
-  if (amount >= 1_000_000) return `${sign}${(amount / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
-  if (amount >= 1_000) return `${sign}${Math.round(amount / 1_000)}K`
-  return `${sign}${Math.round(amount)}`
-}
-
-function percentOf(amount, total) {
-  if (!(total > 0)) return '0%'
-  return `${String(Math.round((amount / total) * 1000) / 10).replace(/\.0$/, '')}%`
-}
 
 let sankeyCanvas
 function measureSankeyLabel(text) {
@@ -66,15 +52,16 @@ export default function SankeyChart({
   isTargetClickable = defaultTargetClickable,
   sourceColors = SANKEY_SOURCE_COLORS,
   leftColor = SANKEY_LEFT_COLOR,
+  lang = 'uz',
 }) {
   const [hovered, setHovered] = useState(null)
   const [wrapRef, measuredWidth] = useElementWidth()
-  if (!sankey.total) return <p className="py-10 text-center text-sm font-bold text-[#8a867f]">{emptyLabel}</p>
+  if (!sankey.total) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{emptyLabel}</p>
 
   const { nodeWidth, nodePadding, perNode, minHeight, padY, labelGap, perColumn } = SANKEY
   const total = sankey.total
   const clickable = node => Boolean(onTargetClick) && isTargetClickable(node)
-  const label = (name, amount) => `${name} · ${formatCompact(amount)}`
+  const label = (name, amount) => `${name} · ${formatCompactCurrency(amount, lang)}`
   const sourceText = node => label(sourceLabel(node.key), node.amount)
   const targetText = node => `${label(targetLabel(node.key), node.amount)}${clickable(node) ? ' ›' : ''}`
   const hubText = label(hubLabel, sankey.incomeTotal)
@@ -117,7 +104,7 @@ export default function SankeyChart({
   const targetColor = node => (node.isLeft ? leftColor : colors[node.key] || ANALYSIS_OTHER_COLOR)
   const linkOpacity = key => (hovered === key ? 0.5 : hovered ? 0.14 : 0.28)
   const hover = key => ({ onMouseEnter: () => setHovered(key), onMouseLeave: () => setHovered(null) })
-  const percent = amount => percentOf(amount, total)
+  const percent = amount => (total > 0 ? formatPercent((amount / total) * 100, lang) : formatPercent(0, lang))
 
   return (
     <div ref={wrapRef} className="overflow-x-auto">
@@ -185,7 +172,7 @@ export default function SankeyChart({
               x={rightX + nodeWidth + labelGap}
               y={node.y + node.h / 2}
               dy="0.35em"
-              className={`fill-current text-[12px] font-semibold ${clickable(node) ? 'text-[#22201d] group-hover:text-[#ff5a00] group-hover:underline group-focus:text-[#ff5a00]' : 'text-[#22201d]'}`}
+              className={`fill-current text-[12px] font-semibold ${clickable(node) ? 'text-[#22201d] group-hover:text-[#bf4300] group-hover:underline group-focus:text-[#bf4300]' : 'text-[#22201d]'}`}
             >
               {targetText(node)}
             </text>

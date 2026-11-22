@@ -13,7 +13,7 @@ import { loadSalaryRows } from '../lib/salaryData'
 import { withReadTimeout } from '../lib/writeTimeout'
 import { composeSalaryProfiles } from '../lib/accountingAnalysis'
 import { expenseCategoryLabel, getSalaryMonthEndDate } from '../lib/expenses'
-import { formatCurrency } from '../lib/formatCurrency'
+import { formatCompactCurrency, formatCurrency, formatPercent } from '../lib/formatCurrency'
 import { formatLongDate, formatLongDateTime, formatMonthYear } from '../lib/dateFormat'
 import { normalizeRole } from '../lib/permissions'
 import {
@@ -160,20 +160,20 @@ function ProfitChart({ rows, lang, selected, onSelect, selectLabel }) {
               onClick={() => onSelect(row.monthStart)}
               aria-pressed={selected === row.monthStart}
               aria-label={`${formatMonthYear(row.monthStart, lang)}: ${signed(row.ownerProfit)}. ${selectLabel}`}
-              className={`flex min-w-[44px] flex-1 flex-col items-center rounded-lg pb-1 transition-colors hover:bg-[#f6f5f3] ${selected === row.monthStart ? 'bg-[#f6f5f3]' : ''}`}
+              className={`flex min-w-[64px] flex-1 flex-col items-center rounded-lg pb-1 transition-colors hover:bg-[#f6f5f3] ${selected === row.monthStart ? 'bg-[#f6f5f3]' : ''}`}
               title={`${formatMonthYear(row.monthStart, lang)}: ${signed(row.ownerProfit)}`}
             >
-              <span className={`text-[11px] font-semibold tabular-nums ${profitTone(row.ownerProfit)}`}>{formatCompactSigned(row.ownerProfit)}</span>
+              <span className={`whitespace-nowrap text-xs font-semibold tabular-nums ${profitTone(row.ownerProfit)}`}>{formatCompactCurrency(row.ownerProfit, lang, { signed: true })}</span>
               <div className="relative w-full flex-1">
                 <div className="absolute inset-x-0 border-t border-[#d6d2cd]" style={{ top: `${positiveShare * 100}%` }} />
                 <div
-                  className={`absolute left-1/2 w-3/5 max-w-[40px] -translate-x-1/2 rounded-[3px] ${row.ownerProfit < 0 ? 'bg-[#c4262c]' : 'bg-[#1baf7a]'} ${open ? 'opacity-40' : ''}`}
+                  className={`absolute left-1/2 w-3/5 max-w-[40px] -translate-x-1/2 rounded-[3px] ${row.ownerProfit < 0 ? 'bg-[#c4262c]' : 'bg-[#1d7a52]'} ${open ? 'opacity-40' : ''}`}
                   style={row.ownerProfit >= 0
                     ? { bottom: `${(1 - positiveShare) * 100}%`, height: barHeight }
                     : { top: `${positiveShare * 100}%`, height: barHeight }}
                 />
               </div>
-              <span className={`mt-1 whitespace-nowrap text-[11px] ${selected === row.monthStart ? 'font-semibold text-[#22201d]' : 'text-[#8a867f]'}`}>{formatMonthYear(row.monthStart, lang).split(' ')[0]}</span>
+              <span className={`mt-1 whitespace-nowrap text-xs ${selected === row.monthStart ? 'font-semibold text-[#22201d]' : 'text-[#68655f]'}`}>{formatMonthYear(row.monthStart, lang).split(' ')[0]}</span>
             </button>
           )
         })}
@@ -227,9 +227,9 @@ function MonthFlowCard({ row, rows, categories, l, lang, onSelect, onOpenSalary 
           <p className="ws-caption mt-0.5">{l.sankeySub}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => previous && onSelect(previous.monthStart)} disabled={!previous} aria-label={l.prevMonth} title={l.prevMonth} className="ws-btn ws-btn-outline !h-[34px] !w-[34px] !px-0"><ChevronLeft size={16} /></button>
+          <button type="button" onClick={() => previous && onSelect(previous.monthStart)} disabled={!previous} aria-label={l.prevMonth} title={l.prevMonth} className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"><ChevronLeft size={16} aria-hidden="true" /></button>
           <StatusBadge row={row} l={l} lang={lang} />
-          <button type="button" onClick={() => next && onSelect(next.monthStart)} disabled={!next} aria-label={l.nextMonth} title={l.nextMonth} className="ws-btn ws-btn-outline !h-[34px] !w-[34px] !px-0"><ChevronRight size={16} /></button>
+          <button type="button" onClick={() => next && onSelect(next.monthStart)} disabled={!next} aria-label={l.nextMonth} title={l.nextMonth} className="ws-btn ws-btn-outline ws-btn-sm ws-btn-icon"><ChevronRight size={16} aria-hidden="true" /></button>
         </div>
       </div>
       <div className="mt-4">
@@ -242,6 +242,7 @@ function MonthFlowCard({ row, rows, categories, l, lang, onSelect, onOpenSalary 
           targetLabel={targetLabel}
           onTargetClick={openTarget}
           isTargetClickable={node => !node.isLeft && !node.isOther && node.key !== OWNER_PROFIT_LEGACY_BONUS_NODE}
+          lang={lang}
         />
       </div>
       {flow.sankey.total > 0 && <p className="ws-caption mt-3">{l.sankeyHint}</p>}
@@ -268,24 +269,11 @@ function TableShimmer({ label }) {
   )
 }
 
-function formatCompactSigned(value) {
-  const amount = Math.abs(Number(value) || 0)
-  const sign = value < 0 ? '−' : value > 0 ? '+' : ''
-  if (amount >= 1_000_000) return `${sign}${(amount / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
-  if (amount >= 1_000) return `${sign}${Math.round(amount / 1_000)}K`
-  return `${sign}${Math.round(amount)}`
-}
-
 function StatusBadge({ row, l, lang }) {
-  const tones = {
-    closed: 'bg-[#efece9] text-[#22201d]',
-    ready: 'bg-[#fff1e8] text-[#cc4800]',
-    waiting: 'bg-[#f6f5f3] text-[#8a867f]',
-    current: 'bg-[#eaf3fc] text-[#1f5fa8]',
-  }
+  const tones = { closed: '', ready: 'ws-tone-accent', waiting: '', current: 'ws-tone-info' }
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${tones[row.status]}`}>
-      {row.status === 'closed' && <Lock size={11} />}
+    <span className={`ws-badge ${tones[row.status] || ''}`}>
+      {row.status === 'closed' && <Lock aria-hidden="true" />}
       {l[row.status]}
       {row.status === 'current' && <span className="font-normal">· {fill(l.soFar, { date: formatLongDate(row.dateTo, lang, row.dateTo, { includeYear: false }) })}</span>}
     </span>
@@ -305,23 +293,23 @@ function MonthDetails({ row, l, lang }) {
     <div className="grid gap-4 bg-[#faf9f7] px-3 py-4 lg:grid-cols-2">
       <dl className="space-y-1.5 text-[13px]">
         {lines.map(([label, value]) => (
-          <div key={label} className="flex justify-between gap-4"><dt className="text-[#68655f]">{label}</dt><dd className="tabular-nums">{signed(value)}</dd></div>
+          <div key={label} className="flex justify-between gap-4"><dt className="text-[#68655f]">{label}</dt><dd className="whitespace-nowrap tabular-nums">{signed(value)}</dd></div>
         ))}
-        <div className="flex justify-between gap-4 border-t border-[#e4e1de] pt-1.5 font-semibold"><dt>{l.profit}</dt><dd className={`tabular-nums ${profitTone(row.ownerProfit)}`}>{signed(row.ownerProfit)}</dd></div>
+        <div className="flex justify-between gap-4 border-t border-[#e4e1de] pt-1.5 font-semibold"><dt>{l.profit}</dt><dd className={`whitespace-nowrap tabular-nums ${profitTone(row.ownerProfit)}`}>{signed(row.ownerProfit)}</dd></div>
         {row.investorSupport > 0 && (
-          <div className="flex justify-between gap-4 text-[#68655f]"><dt>{l.investorSupport}</dt><dd className="tabular-nums">{signed(row.investorSupport)}</dd></div>
+          <div className="flex justify-between gap-4 text-[#68655f]"><dt>{l.investorSupport}</dt><dd className="whitespace-nowrap tabular-nums">{signed(row.investorSupport)}</dd></div>
         )}
         {row.status !== 'current' && (
-          <div className="flex justify-between gap-4 text-[#68655f]"><dt>{row.status === 'closed' ? l.settledClosed : l.settled}</dt><dd className="tabular-nums">{formatCurrency(row.settledAmount)}</dd></div>
+          <div className="flex justify-between gap-4 text-[#68655f]"><dt>{row.status === 'closed' ? l.settledClosed : l.settled}</dt><dd className="whitespace-nowrap tabular-nums">{formatCurrency(row.settledAmount)}</dd></div>
         )}
         {row.status === 'closed' && row.closedAt && (
           <p className="ws-caption pt-1">{fill(l.closedBy, { name: row.closedByName || '—', date: formatLongDateTime(row.closedAt, lang, '') })}</p>
         )}
       </dl>
       {row.salaryBreakdown.length ? (
-        <table className="w-full border-collapse text-[12px]">
+        <div className="overflow-x-auto"><table className="w-full border-collapse text-xs">
           <thead>
-            <tr className="border-b border-[#e4e1de] text-[#8a867f]">
+            <tr className="border-b border-[#e4e1de] text-[#68655f]">
               {[l.employee, l.base, l.bonuses, l.fines, l.earned].map((column, index) => <th key={column} scope="col" className={`py-1.5 px-2 font-semibold ${index ? 'text-right' : 'text-left'}`}>{column}</th>)}
             </tr>
           </thead>
@@ -329,14 +317,14 @@ function MonthDetails({ row, l, lang }) {
             {row.salaryBreakdown.map(item => (
               <tr key={item.salary_profile_id} className="border-b border-[#efece9]">
                 <th scope="row" className="py-1.5 px-2 text-left font-medium">{item.employee_name || '—'}</th>
-                <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(item.base)}</td>
-                <td className="py-1.5 px-2 text-right tabular-nums">{item.bonuses ? formatCurrency(item.bonuses) : '—'}</td>
-                <td className="py-1.5 px-2 text-right tabular-nums">{item.fines ? `−${formatCurrency(item.fines)}` : '—'}</td>
-                <td className="py-1.5 px-2 text-right font-semibold tabular-nums">{formatCurrency(item.earned)}</td>
+                <td className="whitespace-nowrap py-1.5 px-2 text-right tabular-nums">{formatCurrency(item.base)}</td>
+                <td className="whitespace-nowrap py-1.5 px-2 text-right tabular-nums">{item.bonuses ? formatCurrency(item.bonuses) : '—'}</td>
+                <td className="whitespace-nowrap py-1.5 px-2 text-right tabular-nums">{item.fines ? `−${formatCurrency(item.fines)}` : '—'}</td>
+                <td className="whitespace-nowrap py-1.5 px-2 text-right font-semibold tabular-nums">{formatCurrency(item.earned)}</td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       ) : <p className="ws-caption">{l.noSalary}</p>}
     </div>
   )
@@ -488,13 +476,13 @@ export default function OwnerProfit() {
       disabled={loading}
       aria-label={l.refresh}
       title={l.refresh}
-      className="ws-btn ws-btn-outline !h-[38px] !w-[38px] !px-0"
+      className="ws-btn ws-btn-outline ws-btn-icon"
     >
       {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
     </button>
   )
 
-  const cell = 'py-2.5 px-3 text-right tabular-nums'
+  const cell = 'whitespace-nowrap py-2.5 px-3 text-right tabular-nums'
   const showShimmer = loading && !data
 
   return (
@@ -505,6 +493,7 @@ export default function OwnerProfit() {
 
           {loadError && !data ? (
             <OperationalError
+              lang={lang}
               title={l.loadFailed}
               description={loadError === 'migration' ? l.migrationNeeded : ''}
               actionLabel={l.retry}
@@ -513,7 +502,7 @@ export default function OwnerProfit() {
           ) : (
             <>
               {!taking && (<>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
                 <Kpi loading={showShimmer} icon={Crown} label={l.totalClosed} value={summary.count ? signed(summary.total) : '—'} sub={summary.count ? fill(l.totalClosedSub, { n: summary.count }) : l.none} tone={summary.total < 0 ? 'red' : 'green'} emphasizeValue={summary.count > 0} />
                 <Kpi loading={showShimmer} icon={WalletCards} label={l.average} value={summary.average == null ? '—' : signed(summary.average)} sub={l.averageSub} tone={summary.average < 0 ? 'red' : 'green'} />
                 <Kpi loading={showShimmer} icon={TrendingUp} label={l.best} value={summary.best ? signed(summary.best.ownerProfit) : '—'} sub={summary.best ? formatMonthYear(summary.best.monthStart, lang) : l.none} tone="green" />
@@ -557,7 +546,7 @@ export default function OwnerProfit() {
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[900px] border-collapse text-[13px]">
                         <thead>
-                          <tr className="border-b border-[#e4e1de] text-[12px] text-[#8a867f]">
+                          <tr className="border-b border-[#e4e1de] text-xs text-[#68655f]">
                             {[l.month, l.income, l.expenses, l.salary, l.meals, l.profit, l.margin, l.status].map((column, index) => (
                               <th key={column} scope="col" className={`py-2 px-3 font-semibold ${index === 0 || index === 7 ? 'text-left' : 'text-right'}`}>{column}</th>
                             ))}
@@ -574,7 +563,7 @@ export default function OwnerProfit() {
                               <React.Fragment key={row.monthStart}>
                                 <tr id={`owner-month-${row.monthStart}`} className="scroll-mt-4 border-b border-[#efece9] text-[#22201d]">
                                   <th scope="row" className="py-2.5 px-3 text-left font-semibold">
-                                    <button type="button" onClick={() => { setExpanded(isExpanded ? null : row.monthStart); if (!isExpanded) setFlowMonth(row.monthStart) }} aria-expanded={isExpanded} className="inline-flex items-center gap-1.5 hover:text-[#ff5a00]">
+                                    <button type="button" onClick={() => { setExpanded(isExpanded ? null : row.monthStart); if (!isExpanded) setFlowMonth(row.monthStart) }} aria-expanded={isExpanded} className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap hover:text-[#bf4300]">
                                       <ChevronDown size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                       {formatMonthYear(row.monthStart, lang)}
                                     </button>
@@ -584,15 +573,15 @@ export default function OwnerProfit() {
                                   <td className={cell}>{formatCurrency(row.salaryEarned)}</td>
                                   <td className={cell}>{formatCurrency(row.employeeMeals)}</td>
                                   <td className={`${cell} font-semibold ${profitTone(row.ownerProfit)}`}>{signed(row.ownerProfit)}</td>
-                                  <td className={`${cell} text-[#68655f]`}>{row.marginPct == null ? '—' : `${row.marginPct}%`}</td>
+                                  <td className={`${cell} text-[#68655f]`}>{row.marginPct == null ? '—' : formatPercent(row.marginPct, lang)}</td>
                                   <td className="py-2.5 px-3">
-                                    <div className="flex flex-wrap items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-3">
                                       <StatusBadge row={row} l={l} lang={lang} />
                                       {taking && row.status === 'ready' && isOwner && !isConfirming && (
-                                        <button type="button" onClick={() => { setConfirming(row.monthStart); setCloseError(null) }} className="ws-btn ws-btn-primary !h-[30px] !px-3 text-[12px]">{l.close}</button>
+                                        <button type="button" onClick={() => { setConfirming(row.monthStart); setCloseError(null) }} className="ws-btn ws-btn-primary !px-3">{l.close}</button>
                                       )}
                                       {taking && row === latestClosed && isOwner && !isReopening && (
-                                        <button type="button" onClick={() => { setReopening(row.monthStart); setReopenReason(''); setReopenError(null) }} className="ws-btn ws-btn-outline !h-[30px] !px-3 text-[12px]">{l.reopen}</button>
+                                        <button type="button" onClick={() => { setReopening(row.monthStart); setReopenReason(''); setReopenError(null) }} className="ws-btn ws-btn-outline !px-3">{l.reopen}</button>
                                       )}
                                       {taking && row.status === 'waiting' && (
                                         <span className="ws-caption">{row === earliestOpen ? fill(l.waitingFrom, { date: formatLongDate(row.availableFrom, lang, row.availableFrom) }) : l.waitingEarlier}</span>
@@ -606,12 +595,12 @@ export default function OwnerProfit() {
                                       <p className="text-[13px] font-semibold text-[#22201d]">{fill(l.confirmTitle, { month: formatMonthYear(row.monthStart, lang) })}</p>
                                       <p className="mt-1 text-[13px] text-[#68655f]">{fill(l.confirmText, { profit: signed(row.ownerProfit), settled: formatCurrency(row.settledAmount) })} {l.notifyClosed}</p>
                                       {error && <p role="alert" className="mt-2 text-[13px] font-semibold text-[#c4262c]">{error}</p>}
-                                      <div className="mt-3 flex gap-2">
-                                        <button type="button" onClick={() => handleClose(row)} disabled={closing} className="ws-btn ws-btn-primary !h-[34px] !px-3.5">
+                                      <div className="mt-3 flex flex-wrap gap-3">
+                                        <button type="button" onClick={() => handleClose(row)} disabled={closing} className="ws-btn ws-btn-primary">
                                           {closing && <Loader2 size={14} className="animate-spin" />}
                                           {closing ? l.closing : l.confirm}
                                         </button>
-                                        <button type="button" onClick={() => setConfirming(null)} disabled={closing} className="ws-btn ws-btn-outline !h-[34px] !px-3.5">{l.cancel}</button>
+                                        <button type="button" onClick={() => setConfirming(null)} disabled={closing} className="ws-btn ws-btn-outline">{l.cancel}</button>
                                       </div>
                                     </td>
                                   </tr>
@@ -629,16 +618,16 @@ export default function OwnerProfit() {
                                           rows={2}
                                           maxLength={1000}
                                           placeholder={l.reopenReasonPlaceholder}
-                                          className="ws-input mt-1 !h-auto min-h-[64px] w-full resize-y"
+                                          className="ws-input mt-1 min-h-[64px] w-full resize-y"
                                         />
                                       </label>
                                       {reopenMessage && <p role="alert" className="mt-2 text-[13px] font-semibold text-[#c4262c]">{reopenMessage}</p>}
-                                      <div className="mt-3 flex gap-2">
-                                        <button type="button" onClick={() => handleReopen(row)} disabled={reopenBusy} className="ws-btn ws-btn-primary !h-[34px] !px-3.5">
+                                      <div className="mt-3 flex flex-wrap gap-3">
+                                        <button type="button" onClick={() => handleReopen(row)} disabled={reopenBusy} className="ws-btn ws-btn-primary">
                                           {reopenBusy && <Loader2 size={14} className="animate-spin" />}
                                           {reopenBusy ? l.reopening : l.confirm}
                                         </button>
-                                        <button type="button" onClick={() => setReopening(null)} disabled={reopenBusy} className="ws-btn ws-btn-outline !h-[34px] !px-3.5">{l.cancel}</button>
+                                        <button type="button" onClick={() => setReopening(null)} disabled={reopenBusy} className="ws-btn ws-btn-outline">{l.cancel}</button>
                                       </div>
                                     </td>
                                   </tr>

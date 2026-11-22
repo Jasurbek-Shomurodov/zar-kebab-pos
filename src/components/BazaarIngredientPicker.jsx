@@ -28,6 +28,7 @@ export default function BazaarIngredientPicker({
   const l = pickerLabels(lang)
   const rootRef = useRef(null)
   const panelRef = useRef(null)
+  const triggerRef = useRef(null)
   const [position, setPosition] = useState({ left: 8, top: 8 })
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -113,10 +114,19 @@ export default function BazaarIngredientPicker({
     setSearch('')
   }
 
+  // Inside a dialog, Escape closes this list only: the event must not reach the dialog and discard the form.
+  function closeOnPanelEscape(event) {
+    if (event.key !== 'Escape') return
+    event.stopPropagation()
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
+
   return (
     <div ref={rootRef} className="relative min-w-0">
       <button
         type="button"
+        ref={triggerRef}
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -135,6 +145,7 @@ export default function BazaarIngredientPicker({
         <div
           ref={panelRef}
           style={{ ...position, width: 'min(680px, calc(100vw - 16px))', maxHeight: 'calc(100dvh - 16px)' }}
+          onKeyDown={closeOnPanelEscape}
           className="fixed z-picker flex flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
           <div className="border-b border-gray-100 p-3">
             <div className="relative">
@@ -154,10 +165,10 @@ export default function BazaarIngredientPicker({
               <button
                 type="button"
                 onClick={() => setActiveCategory('all')}
-                className={`mb-1 flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left ${activeCategory === 'all' ? 'bg-[#ff5a00] text-white' : 'text-[#1F2937] hover:bg-white'}`}
+                className={`mb-1 flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left ${activeCategory === 'all' ? 'bg-[#cc4800] text-white' : 'text-[#1F2937] hover:bg-white'}`}
               >
-                <span className="truncate text-sm font-black">{l.all}</span>
-                <span className={`text-[11px] font-black ${activeCategory === 'all' ? 'text-white/85' : 'text-[#9CA3AF]'}`}>{suggestions.length}</span>
+                <span className="truncate text-sm font-semibold">{l.all}</span>
+                <span className={`text-xs font-semibold tabular-nums ${activeCategory === 'all' ? 'text-white' : 'text-[#68655f]'}`}>{suggestions.length}</span>
               </button>
               <div className="space-y-1">
                 {visibleSections.map(section => (
@@ -167,10 +178,10 @@ export default function BazaarIngredientPicker({
                     onMouseEnter={() => setActiveCategory(section.key)}
                     onFocus={() => setActiveCategory(section.key)}
                     onClick={() => setActiveCategory(section.key)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left ${activeCategory === section.key ? 'bg-white text-[#ff5a00] shadow-sm' : 'text-[#1F2937] hover:bg-white'}`}
+                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left ${activeCategory === section.key ? 'bg-white text-[#bf4300] shadow-sm' : 'text-[#22201d] hover:bg-white'}`}
                   >
-                    <span className="min-w-0 truncate text-sm font-bold">{section.label}</span>
-                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-[#6B7280]">{section.items.length}</span>
+                    <span className="min-w-0 truncate text-sm font-medium">{section.label}</span>
+                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-[#68655f]">{section.items.length}</span>
                   </button>
                 ))}
               </div>
@@ -178,8 +189,8 @@ export default function BazaarIngredientPicker({
 
             <div role="listbox" aria-label={panelTitle} className="max-h-[440px] overflow-y-auto p-2">
               <div className="sticky top-0 z-10 mb-1 rounded-xl bg-white/95 px-3 py-2 backdrop-blur">
-                <p className="truncate text-xs font-black uppercase tracking-wide text-[#9CA3AF]">{panelTitle}</p>
-                <p className="text-[10px] font-bold text-[#C3C8D0]">{visibleItems.length} {l.ingredients}</p>
+                <p className="truncate text-xs font-semibold text-[#22201d]">{panelTitle}</p>
+                <p className="text-xs font-medium text-[#68655f]">{visibleItems.length} {l.ingredients}</p>
               </div>
               {visibleItems.map(item => {
                 const isSelected = item.key === value
@@ -190,18 +201,18 @@ export default function BazaarIngredientPicker({
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => selectIngredient(item.key)}
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-orange-50 text-[#ff5a00]' : 'text-[#1F2937] hover:bg-gray-50'}`}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-[#fff1e8] text-[#bf4300]' : 'text-[#22201d] hover:bg-gray-50'}`}
                   >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#ff5a00]"><Package size={16} /></div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-black">{item.name}</p>
-                      <p className="truncate text-[11px] font-semibold text-[#9CA3AF]">{bazaarCategoryLabel(item.category, lang)} · {l.normalPrice} {formatCurrency(item.normalUnitPrice)} / {bazaarUnitLabel(item.unit, lang)}{item.piecesPerUnit > 0 && ` · ${item.piecesPerUnit} ${bazaarUnitLabel('pcs', lang)}`}</p>
+                      <p className="truncate text-sm font-semibold">{item.name}</p>
+                      <p className="text-xs font-medium text-[#68655f]">{bazaarCategoryLabel(item.category, lang)} · {l.normalPrice} <span className="whitespace-nowrap tabular-nums">{formatCurrency(item.normalUnitPrice)} / {bazaarUnitLabel(item.unit, lang)}</span>{item.piecesPerUnit > 0 && ` · ${item.piecesPerUnit} ${bazaarUnitLabel('pcs', lang)}`}</p>
                     </div>
                     {isSelected && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#ff5a00]" />}
                   </button>
                 )
               })}
-              {visibleItems.length === 0 && <div className="flex min-h-40 items-center justify-center px-4 text-center text-sm font-bold text-[#9CA3AF]">{l.empty}</div>}
+              {visibleItems.length === 0 && <div className="flex min-h-40 items-center justify-center px-4 text-center text-sm font-medium text-[#68655f]">{l.empty}</div>}
             </div>
           </div>
         </div>,

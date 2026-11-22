@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  AlertCircle,
   ArrowDownRight,
   ArrowUpRight,
   CheckCircle2,
@@ -37,7 +36,7 @@ import {
   summarizeIncomeEntries,
   todayExpenseDate,
 } from '../lib/expenses'
-import { formatCurrency } from '../lib/formatCurrency'
+import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import {
   buildMonthComparisonRows,
   getEstimateMonthDays,
@@ -407,20 +406,23 @@ export default function MonthlyEstimate() {
 
     if (expenseResult.error) {
       setExpenses([])
-      setError(isMissingExpensesMigration(expenseResult.error) ? l.migrationMissing : expenseResult.error.message || l.loadFailed)
+      console.error('Monthly estimate: expenses failed to load', expenseResult.error)
+      setError(isMissingExpensesMigration(expenseResult.error) ? 'migration' : 'load')
     } else {
       setExpenses(expenseResult.data || [])
     }
     if (orderHistoryResult.error) {
       setCompletedSales(null)
-      if (!expenseResult.error) setError(orderHistoryResult.error.message || l.loadFailed)
+      console.error('Monthly estimate: sales failed to load', orderHistoryResult.error)
+      if (!expenseResult.error) setError('load')
     } else {
       setCompletedSales(orderHistoryResult.data)
     }
     if (employeeMealResult.error) {
       setEmployeeMealSnapshots([])
+      console.error('Monthly estimate: employee meals failed to load', employeeMealResult.error)
       if (!expenseResult.error && !orderHistoryResult.error) {
-        setError(employeeMealResult.error.message || l.loadFailed)
+        setError('load')
       }
     } else {
       setEmployeeMealSnapshots(employeeMealResult.data || [])
@@ -431,12 +433,14 @@ export default function MonthlyEstimate() {
     )
     if (salaryError) {
       setSalaryProfiles([])
+      console.error('Monthly estimate: salary ledger failed to load', salaryError)
       if (!expenseResult.error) {
-        setError(isMissingSalaryMigration(salaryError) ? l.migrationMissing : salaryError.message || l.loadFailed)
+        setError(isMissingSalaryMigration(salaryError) ? 'migration' : 'load')
       }
     } else {
       if (salaryFineResult.error && !expenseResult.error) {
-        setError(isMissingSalaryMigration(salaryFineResult.error) ? l.migrationMissing : salaryFineResult.error.message || l.loadFailed)
+        console.error('Monthly estimate: salary fines failed to load', salaryFineResult.error)
+        setError(isMissingSalaryMigration(salaryFineResult.error) ? 'migration' : 'load')
       }
       setSalaryProfiles(composeSalaryProfiles(
         salaryProfileResult.data || [],
@@ -745,13 +749,13 @@ export default function MonthlyEstimate() {
   const selectedMonthLabel = formatMonthYear(monthStart, lang, l.currentMonth)
 
   const headerActions = (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <button
         type="button"
         onClick={() => setMonthStart(addMonths(monthStart, -1))}
         aria-label={previousMonthLabel}
         title={previousMonthLabel}
-        className="ws-btn ws-btn-outline !h-[38px] !w-[38px] !px-0"
+        className="ws-btn ws-btn-outline ws-btn-icon"
       >
         <ChevronLeft size={16} />
       </button>
@@ -759,7 +763,7 @@ export default function MonthlyEstimate() {
         type="button"
         onClick={() => setMonthStart(monthStartFor(today))}
         title={l.currentMonth}
-        className="ws-btn ws-btn-outline !h-[38px] tabular-nums"
+        className="ws-btn ws-btn-outline tabular-nums"
       >
         {selectedMonthLabel}
         <span className="sr-only"> · {l.currentMonth}</span>
@@ -769,7 +773,7 @@ export default function MonthlyEstimate() {
         onClick={() => setMonthStart(addMonths(monthStart, 1))}
         aria-label={nextMonthLabel}
         title={nextMonthLabel}
-        className="ws-btn ws-btn-outline !h-[38px] !w-[38px] !px-0"
+        className="ws-btn ws-btn-outline ws-btn-icon"
       >
         <ChevronRight size={16} />
       </button>
@@ -780,7 +784,7 @@ export default function MonthlyEstimate() {
         disabled={loading}
         aria-label={l.refresh}
         title={l.refresh}
-        className="ws-btn ws-btn-outline !h-[38px] !w-[38px] !px-0"
+        className="ws-btn ws-btn-outline ws-btn-icon"
       >
         {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
       </button>
@@ -804,15 +808,14 @@ export default function MonthlyEstimate() {
       <div className="min-h-full bg-[#f6f5f3]">
         <div className="ws-page">
           {error && (
-            <section className="ws-panel" role="alert">
-              <div className="ws-empty">
-                <AlertCircle />
-                <h3>{l.loadFailed}</h3>
-                <p>{error}</p>
-                <button type="button" onClick={loadEstimate} className="ws-btn ws-btn-outline">
-                  <RefreshCw size={16} />{l.refresh}
-                </button>
-              </div>
+            <section className="ws-panel">
+              <OperationalError
+                lang={lang}
+                title={l.loadFailed}
+                description={error === 'migration' ? l.migrationMissing : ''}
+                actionLabel={l.refresh}
+                onAction={loadEstimate}
+              />
             </section>
           )}
 
@@ -830,13 +833,13 @@ export default function MonthlyEstimate() {
                   <h2 className="ws-display">{l.expenseBreakdown}</h2>
                   <div className="text-left sm:text-right">
                     <p className="ws-caption">{l.expectedMonthSpent}</p>
-                    <p className="mt-0.5 text-lg font-semibold leading-tight tabular-nums text-[#22201d]">{formatCurrency(expectedMonthOutflow)}</p>
+                    <p className="mt-0.5 whitespace-nowrap text-lg font-semibold leading-tight tabular-nums text-[#22201d]">{formatCurrency(expectedMonthOutflow)}</p>
                     <p className="ws-caption mt-0.5">
                       {formatLongDate(monthStart, lang, monthStart)} - {formatLongDate(monthEnd, lang, monthEnd)}
                     </p>
                   </div>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-3">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(17rem,1fr))] gap-3">
                   {expenseBreakdownCards.map(card => <BreakdownCard key={card.key} {...card} />)}
                 </div>
               </section>
@@ -848,6 +851,7 @@ export default function MonthlyEstimate() {
                 currentLabel={selectedMonthLabel}
                 showPaceNote={outlook.status !== 'closed'}
                 labels={l}
+                lang={lang}
               />
 
               <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
@@ -870,7 +874,7 @@ export default function MonthlyEstimate() {
                 {methodRows.length === 0 ? (
                   <div className="ws-empty"><p>{l.noData}</p></div>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(17rem,1fr))] gap-3">
                     {methodRows.map(row => (
                       <MethodCard
                         key={row.method}
@@ -911,14 +915,14 @@ function MonthOutlook({ outlook, salesRevenue, breakEvenDaily, labels }) {
         {statusChip && <span className="ws-badge ws-tone-info">{statusChip}</span>}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <OutlookTile label={labels.actualIn} value={formatCurrency(outlook.inSoFar)} sub={`${labels.cafePaidIn}: ${formatCurrency(salesRevenue)}`} tone="positive" />
-        <OutlookTile label={labels.actualOut} value={formatCurrency(outlook.outSoFar)} sub={`${labels.netLeft}: ${formatCurrency(outlook.currentLeft)}`} />
-        <OutlookTile label={labels.remainingCommitments} value={formatCurrency(outlook.stillDue)} sub={`${labels.expectedMonthSpent}: ${formatCurrency(outlook.expectedOut)}`} tone={outlook.stillDue > 0 ? 'caution' : 'default'} />
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
+        <OutlookTile label={labels.actualIn} value={formatCurrency(outlook.inSoFar)} sub={<>{labels.cafePaidIn}: <Amount value={salesRevenue} /></>} tone="positive" />
+        <OutlookTile label={labels.actualOut} value={formatCurrency(outlook.outSoFar)} sub={<>{labels.netLeft}: <Amount value={outlook.currentLeft} /></>} />
+        <OutlookTile label={labels.remainingCommitments} value={formatCurrency(outlook.stillDue)} sub={<>{labels.expectedMonthSpent}: <Amount value={outlook.expectedOut} /></>} tone={outlook.stillDue > 0 ? 'caution' : 'default'} />
         <OutlookTile
           label={labels.projectedLeft}
           value={outlook.hasProjection ? formatCurrency(outlook.projectedLeft) : '—'}
-          sub={outlook.hasProjection ? `${labels.expectedIncome}: ${formatCurrency(outlook.projectedIncome)}` : labels.forecastPending}
+          sub={outlook.hasProjection ? <>{labels.expectedIncome}: <Amount value={outlook.projectedIncome} /></> : labels.forecastPending}
           tone={leftTone}
           icon={!outlook.hasProjection ? null : outlook.projectedLeft >= 0 ? ArrowUpRight : ArrowDownRight}
           emphasized
@@ -926,26 +930,26 @@ function MonthOutlook({ outlook, salesRevenue, breakEvenDaily, labels }) {
       </div>
 
       {outlook.remainingDays > 0 && target != null && (
-        <div className="mt-4 rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-center">
+        <div className="mt-4 rounded-xl bg-[#f6f5f3] p-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] items-center gap-4">
             <div className="flex min-w-0 items-start gap-3">
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#68655f]"><Target size={17} /></span>
               <div className="min-w-0">
                 <p className="ws-caption">{labels.dailyTarget}</p>
                 <p className="mt-0.5 text-xl font-semibold leading-tight tracking-[-.02em] tabular-nums text-[#22201d]">
-                  {formatCurrency(target)} <span className="text-sm font-medium text-[#68655f]">{labels.perDay}</span>
+                  <span className="whitespace-nowrap">{formatCurrency(target)}</span> <span className="text-sm font-medium text-[#68655f]">{labels.perDay}</span>
                 </p>
                 <p className="ws-caption mt-0.5">{labels.dailyTargetSub} · {outlook.remainingDays} {labels.daysLeft}</p>
               </div>
             </div>
             <div>
               <p className="ws-caption">{labels.avgSoFar}</p>
-              <p className="mt-0.5 text-base font-semibold tabular-nums text-[#22201d]">{average == null ? '—' : formatCurrency(average)}</p>
+              <p className="mt-0.5 whitespace-nowrap text-base font-semibold tabular-nums text-[#22201d]">{average == null ? '—' : formatCurrency(average)}</p>
               <p className="ws-caption mt-0.5">{outlook.completedDays} {labels.completedDays}</p>
             </div>
             <div>
               <p className="ws-caption">{labels.breakEven}</p>
-              <p className="mt-0.5 text-base font-semibold tabular-nums text-[#22201d]">{breakEvenDaily > 0 ? formatCurrency(breakEvenDaily) : '—'}</p>
+              <p className="mt-0.5 whitespace-nowrap text-base font-semibold tabular-nums text-[#22201d]">{breakEvenDaily > 0 ? formatCurrency(breakEvenDaily) : '—'}</p>
               <p className="ws-caption mt-0.5">{labels.breakEvenSub}</p>
             </div>
           </div>
@@ -981,7 +985,7 @@ const COMPARISON_ROW_LABELS = {
 // Income and result are better when higher; expenses are better when lower.
 const COMPARISON_HIGHER_IS_BETTER = new Set(['cafeIncome', 'otherIncome', 'left'])
 
-function MonthComparison({ rows, unavailable, previousLabel, currentLabel, showPaceNote, labels }) {
+function MonthComparison({ rows, unavailable, previousLabel, currentLabel, showPaceNote, labels, lang }) {
   if (!unavailable && rows.length === 0) return null
   const lineRows = rows.filter(row => row.key !== 'expectedOut' && row.key !== 'left' && (row.current !== 0 || row.previous !== 0))
   const totals = rows.filter(row => row.key === 'expectedOut' || row.key === 'left')
@@ -993,7 +997,7 @@ function MonthComparison({ rows, unavailable, previousLabel, currentLabel, showP
           <h2 id="estimate-comparison-heading" className="ws-heading">{labels.cmpTitle}</h2>
           <p className="ws-caption mt-0.5">{labels.cmpHelp}</p>
         </div>
-        <div className="flex items-center gap-4 text-[11px] font-medium text-[#68655f]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-[#68655f]">
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#ff5a00]" />{currentLabel}</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#cfcac4]" />{previousLabel}</span>
         </div>
@@ -1004,18 +1008,18 @@ function MonthComparison({ rows, unavailable, previousLabel, currentLabel, showP
         <>
           <div className="divide-y divide-[#efece9]">
             {lineRows.map(row => (
-              <ComparisonRow key={row.key} row={row} label={labels[COMPARISON_ROW_LABELS[row.key]]} max={max} labels={labels} />
+              <ComparisonRow key={row.key} row={row} label={labels[COMPARISON_ROW_LABELS[row.key]]} max={max} labels={labels} lang={lang} />
             ))}
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
             {totals.map(row => (
-              <div key={row.key} className="rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-4">
+              <div key={row.key} className="rounded-xl bg-[#f6f5f3] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <p className="ws-caption">{labels[COMPARISON_ROW_LABELS[row.key]]}</p>
-                  <ChangeBadge row={row} labels={labels} />
+                  <ChangeBadge row={row} labels={labels} lang={lang} />
                 </div>
-                <p className={`mt-1 text-lg font-semibold tabular-nums ${row.key === 'left' ? (row.current >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]') : 'text-[#22201d]'}`}>{formatCurrency(row.current)}</p>
-                <p className="ws-caption mt-0.5">{previousLabel}: {formatCurrency(row.previous)}</p>
+                <p className={`mt-1 whitespace-nowrap text-lg font-semibold tabular-nums ${row.key === 'left' ? (row.current >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]') : 'text-[#22201d]'}`}>{formatCurrency(row.current)}</p>
+                <p className="ws-caption mt-0.5">{previousLabel}: <Amount value={row.previous} /></p>
               </div>
             ))}
           </div>
@@ -1026,19 +1030,19 @@ function MonthComparison({ rows, unavailable, previousLabel, currentLabel, showP
   )
 }
 
-function ChangeBadge({ row, labels }) {
-  if (row.change === 0) return <span className="ws-badge">0%</span>
+function ChangeBadge({ row, labels, lang }) {
+  if (row.change === 0) return <span className="ws-badge">{formatPercent(0, lang)}</span>
   const good = (row.change > 0) === COMPARISON_HIGHER_IS_BETTER.has(row.key)
   const Icon = row.change > 0 ? ArrowUpRight : ArrowDownRight
   return (
     <span className={`ws-badge ${good ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
       <Icon size={12} />
-      {row.changePct == null ? labels.cmpNew : `${Math.abs(row.changePct)}%`}
+      {row.changePct == null ? labels.cmpNew : formatPercent(Math.abs(row.changePct), lang)}
     </span>
   )
 }
 
-function ComparisonRow({ row, label, max, labels }) {
+function ComparisonRow({ row, label, max, labels, lang }) {
   const width = value => `${Math.max(0.5, (Math.abs(value) / max) * 100)}%`
   return (
     <div className="grid gap-x-4 gap-y-1.5 py-3 sm:grid-cols-[minmax(140px,200px)_minmax(0,1fr)_auto] sm:items-center">
@@ -1049,20 +1053,25 @@ function ComparisonRow({ row, label, max, labels }) {
       </div>
       <div className="flex items-center justify-between gap-3 sm:justify-end">
         <span className="text-right">
-          <span className="block text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.current)}</span>
-          <span className="ws-caption block tabular-nums">{formatCurrency(row.previous)}</span>
+          <span className="block whitespace-nowrap text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.current)}</span>
+          <span className="ws-caption block whitespace-nowrap tabular-nums">{formatCurrency(row.previous)}</span>
         </span>
-        <span className="w-[72px] text-right"><ChangeBadge row={row} labels={labels} /></span>
+        <span className="w-[72px] text-right"><ChangeBadge row={row} labels={labels} lang={lang} /></span>
       </div>
     </div>
   )
 }
 
+// An amount inside a sentence: the label may wrap, the figure and its unit never split.
+function Amount({ value }) {
+  return <span className="whitespace-nowrap tabular-nums">{formatCurrency(value)}</span>
+}
+
 function OutlookTile({ label, value, sub, tone = 'default', icon: Icon = null, emphasized = false }) {
   return (
-    <div className={`min-w-0 rounded-xl border p-4 ${emphasized ? 'border-[#d6d2cd] bg-white shadow-[0_1px_2px_rgb(34_32_29/6%)]' : 'border-[#e4e1de] bg-white'}`}>
+    <div className={`min-w-0 rounded-xl p-4 ${emphasized ? 'bg-[#efece9]' : 'bg-[#f6f5f3]'}`}>
       <p className="ws-caption">{label}</p>
-      <p className={`mt-1 flex items-center gap-1.5 break-words text-[clamp(18px,1.5vw,22px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${VALUE_TONES[tone] || VALUE_TONES.default}`}>
+      <p className={`mt-1 flex items-center gap-1.5 whitespace-nowrap text-[clamp(18px,1.5vw,22px)] font-semibold leading-tight tracking-[-.02em] tabular-nums ${VALUE_TONES[tone] || VALUE_TONES.default}`}>
         {Icon && <Icon size={18} className="flex-shrink-0" />}<RollingValue value={value} />
       </p>
       <p className="ws-caption mt-1.5 leading-snug">{sub}</p>
@@ -1079,21 +1088,21 @@ const VALUE_TONES = {
 
 function BreakdownCard({ icon: Icon, title, total, rows }) {
   return (
-    <article className="rounded-xl border border-[#e4e1de] bg-white p-4">
+    <article className="rounded-xl bg-[#f6f5f3] p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
+          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#68655f]">
             <Icon size={15} />
           </span>
           <h3 className="text-sm font-semibold text-[#22201d]">{title}</h3>
         </div>
-        <span className="flex-shrink-0 text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(total)}</span>
+        <span className="flex-shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(total)}</span>
       </div>
       <div className="divide-y divide-[#e4e1de]/60">
         {rows.map(row => (
           <div key={row.label} className="flex items-center justify-between gap-3 py-2">
             <span className="min-w-0 text-[13px] text-[#68655f]">{row.label}</span>
-            <span className={`flex-shrink-0 text-[13px] font-semibold tabular-nums ${VALUE_TONES[row.tone] || VALUE_TONES.default}`}>{row.value}</span>
+            <span className={`flex-shrink-0 whitespace-nowrap text-[13px] font-semibold tabular-nums ${VALUE_TONES[row.tone] || VALUE_TONES.default}`}>{row.value}</span>
           </div>
         ))}
       </div>
@@ -1104,9 +1113,9 @@ function BreakdownCard({ icon: Icon, title, total, rows }) {
 function FlowSection({ title, total, rows, emptyText }) {
   return (
     <section className="ws-panel">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <h2 className="ws-heading">{title}</h2>
-        <p className="text-base font-semibold tabular-nums text-[#22201d]">{formatCurrency(total)}</p>
+        <p className="whitespace-nowrap text-base font-semibold tabular-nums text-[#22201d]">{formatCurrency(total)}</p>
       </div>
       {rows.length === 0 ? (
         <div className="ws-empty"><p>{emptyText}</p></div>
@@ -1123,7 +1132,7 @@ function FlowSection({ title, total, rows, emptyText }) {
                       <span aria-hidden="true" className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
                       <span className="truncate">{row.label}</span>
                     </span>
-                    <span className="flex-shrink-0 text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.amount)}</span>
+                    <span className="flex-shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-[#22201d]">{formatCurrency(row.amount)}</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-[#efece9]">
                     <div className="h-full rounded-full" style={{ width: `${width}%`, backgroundColor: row.color }} />
@@ -1148,7 +1157,7 @@ function Donut({ rows, total }) {
   }).join(', ')
 
   return (
-    <div className="mx-auto flex h-[150px] w-[150px] items-center justify-center rounded-full" style={{ background: total > 0 ? `conic-gradient(${gradient})` : '#efece9' }}>
+    <div className="mx-auto flex h-[150px] w-[150px] items-center justify-center rounded-full bg-[#efece9]" style={total > 0 ? { background: `conic-gradient(${gradient})` } : undefined}>
       <div className="flex h-[104px] w-[104px] items-center justify-center rounded-full bg-white text-center">
         <span className="ws-caption px-2 tabular-nums">
           {total > 0 ? '100%' : '—'}
@@ -1170,7 +1179,7 @@ function MethodCard({ row, lang, labels }) {
   const isLoyaltyIncome = row.method === 'loyalty_card'
 
   return (
-    <div className="rounded-[10px] border border-[#e4e1de] bg-[#f6f5f3] p-3">
+    <div className="rounded-[10px] bg-[#f6f5f3] p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white text-[#68655f]">
@@ -1180,19 +1189,19 @@ function MethodCard({ row, lang, labels }) {
         </div>
         <div className="text-right">
           <span className="ws-caption block">{isLoyaltyIncome ? labels.loyaltyIncome : labels.balance}</span>
-          <span className={`mt-0.5 block text-base font-semibold leading-tight tabular-nums ${isLoyaltyIncome || balance >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>
+          <span className={`mt-0.5 block whitespace-nowrap text-base font-semibold leading-tight tabular-nums ${isLoyaltyIncome || balance >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]'}`}>
             {formatCurrency(isLoyaltyIncome ? row.inflow : balance)}
           </span>
         </div>
       </div>
-      {!isLoyaltyIncome && <div className="mt-2 grid grid-cols-2 gap-2">
+      {!isLoyaltyIncome && <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2">
         <div className="min-w-0 rounded-lg bg-white px-2.5 py-2">
           <span className="ws-caption block">{labels.inflow}</span>
-          <span className="mt-0.5 block break-words text-[13px] font-semibold leading-tight tabular-nums text-[#1d7a52]">{formatCurrency(row.inflow)}</span>
+          <span className="mt-0.5 block whitespace-nowrap text-[13px] font-semibold leading-tight tabular-nums text-[#1d7a52]">{formatCurrency(row.inflow)}</span>
         </div>
         <div className="min-w-0 rounded-lg bg-white px-2.5 py-2">
           <span className="ws-caption block">{labels.outflow}</span>
-          <span className="mt-0.5 block break-words text-[13px] font-semibold leading-tight tabular-nums text-[#22201d]">{formatCurrency(row.outflow)}</span>
+          <span className="mt-0.5 block whitespace-nowrap text-[13px] font-semibold leading-tight tabular-nums text-[#22201d]">{formatCurrency(row.outflow)}</span>
         </div>
       </div>}
     </div>

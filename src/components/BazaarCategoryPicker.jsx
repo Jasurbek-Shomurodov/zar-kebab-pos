@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Search, Tag } from 'lucide-react'
 import { bazaarCategoriesFor, bazaarCategoryLabel } from '../lib/bazaar'
 
@@ -28,6 +29,9 @@ export default function BazaarCategoryPicker({
 }) {
   const l = pickerLabels(lang)
   const rootRef = useRef(null)
+  const panelRef = useRef(null)
+  const triggerRef = useRef(null)
+  const [position, setPosition] = useState({ left: 8, top: 8 })
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
 
@@ -54,7 +58,7 @@ export default function BazaarCategoryPicker({
   useEffect(() => {
     if (!open) return undefined
     function closeOnOutsidePointer(event) {
-      if (!rootRef.current?.contains(event.target)) setOpen(false)
+      if (!rootRef.current?.contains(event.target) && !panelRef.current?.contains(event.target)) setOpen(false)
     }
     function closeOnEscape(event) {
       if (event.key === 'Escape') setOpen(false)
@@ -66,6 +70,31 @@ export default function BazaarCategoryPicker({
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [open])
+
+  // Portaled and fixed, like BazaarIngredientPicker, so a scrolling dialog body cannot clip the list.
+  useLayoutEffect(() => {
+    if (!open) return undefined
+    function place() {
+      const rect = rootRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const width = Math.min(360, window.innerWidth - 16)
+      const height = panelRef.current?.offsetHeight || 420
+      const below = rect.bottom + 8
+      const fitsBelow = below + height + 8 <= window.innerHeight
+      const fitsAbove = rect.top - height - 8 >= 8
+      setPosition({
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        top: fitsBelow || !fitsAbove ? Math.max(8, Math.min(below, window.innerHeight - height - 8)) : rect.top - height - 8,
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open, normalizedSearch])
 
   function selectCategory(key) {
     if (!key) return
@@ -80,10 +109,19 @@ export default function BazaarCategoryPicker({
     if (visible.length === 1) selectCategory(visible[0].key)
   }
 
+  // Inside a dialog, Escape closes this list only: the event must not reach the dialog and discard the form.
+  function closeOnPanelEscape(event) {
+    if (event.key !== 'Escape') return
+    event.stopPropagation()
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
+
   return (
     <div ref={rootRef} className="relative min-w-0">
       <button
         type="button"
+        ref={triggerRef}
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -94,11 +132,15 @@ export default function BazaarCategoryPicker({
         <span className={`min-w-0 flex-1 truncate text-sm ${value ? 'text-[#22201d]' : 'text-[#68655f]'}`}>
           {selectedLabel || l.select}
         </span>
-        <ChevronDown size={16} className={`shrink-0 text-[#6B7280] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`shrink-0 text-[#68655f] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[min(360px,calc(100vw-48px))] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
+      {open && createPortal(
+        <div
+          ref={panelRef}
+          style={{ ...position, width: 'min(360px, calc(100vw - 16px))', maxHeight: 'calc(100dvh - 16px)' }}
+          onKeyDown={closeOnPanelEscape}
+          className="fixed z-picker flex flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-2xl shadow-slate-900/20">
           <div className="border-b border-gray-100 p-3">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
@@ -113,9 +155,9 @@ export default function BazaarCategoryPicker({
             </div>
           </div>
 
-          <div role="listbox" aria-label={l.select} className="max-h-[360px] overflow-y-auto p-2">
+          <div role="listbox" aria-label={l.select} className="max-h-[360px] min-h-0 flex-1 overflow-y-auto p-2">
             <div className="sticky top-0 z-10 mb-1 rounded-xl bg-white/95 px-3 py-2 backdrop-blur">
-              <p className="text-[10px] font-bold text-[#C3C8D0]">{visible.length} {l.categories}</p>
+              <p className="text-xs font-medium text-[#68655f]">{visible.length} {l.categories}</p>
             </div>
             {visible.map(category => {
               const isSelected = category.key === value
@@ -126,21 +168,22 @@ export default function BazaarCategoryPicker({
                   role="option"
                   aria-selected={isSelected}
                   onClick={() => selectCategory(category.key)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-orange-50 text-[#ff5a00]' : 'text-[#1F2937] hover:bg-gray-50'}`}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${isSelected ? 'bg-[#fff1e8] text-[#bf4300]' : 'text-[#22201d] hover:bg-gray-50'}`}
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#ff5a00]"><Tag size={15} /></div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black">{category.label}</p>
-                    {category.custom && <p className="text-[11px] font-semibold text-[#9CA3AF]">{l.custom}</p>}
+                    <p className="truncate text-sm font-semibold">{category.label}</p>
+                    {category.custom && <p className="text-xs font-medium text-[#68655f]">{l.custom}</p>}
                   </div>
-                  <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-[#6B7280]">{category.count}</span>
+                  <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-[#68655f]">{category.count}</span>
                   {isSelected && <Check size={15} className="shrink-0" />}
                 </button>
               )
             })}
-            {visible.length === 0 && <div className="flex min-h-32 items-center justify-center px-4 text-center text-sm font-bold text-[#9CA3AF]">{l.empty}</div>}
+            {visible.length === 0 && <div className="flex min-h-32 items-center justify-center px-4 text-center text-sm font-medium text-[#68655f]">{l.empty}</div>}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { loadLatestDailyBreakEven } from '../lib/breakEvenTarget'
-import { formatCurrency } from '../lib/formatCurrency'
+import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import { formatLongDate } from '../lib/dateFormat'
 import { Shimmer } from './PageShimmer'
 
@@ -15,15 +15,15 @@ const labels = {
   },
   ru: {
     title: 'Расчёт за вчера', income: 'Выручка кафе', costOfGoods: 'Себестоимость', salary: 'Начисленная зарплата', kpi: 'Автоматические KPI-бонусы',
-    rent: 'Аренда', utilities: 'Коммуналка', meals: 'Питание сотрудников ({count} × {amount})', tax: 'Оценочный soliq ({rate}%)', netProfit: 'Чистая прибыль',
-    fixed: 'Постоянные расходы', formula: '{fixed} ÷ (1 − {cogs} себестоимость − {rate}% soliq)', result: 'Доход безубыточности',
+    rent: 'Аренда', utilities: 'Коммуналка', meals: 'Питание сотрудников ({count} × {amount})', tax: 'Оценочный налог ({rate}%)', netProfit: 'Чистая прибыль',
+    fixed: 'Постоянные расходы', formula: '{fixed} ÷ (1 − {cogs} себестоимость − {rate}% налог)', result: 'Доход безубыточности',
     noCost: 'Себестоимость известна не для всех проданных позиций — цель осталась прежней.', empty: 'Расчёта пока нет. Он появляется каждое утро после дневного отчёта.',
     failed: 'Не удалось загрузить расчёт за вчера', retry: 'Повторить',
   },
   en: {
     title: 'Yesterday’s calculation', income: 'Cafe income', costOfGoods: 'Cost of goods', salary: 'Accrued salary', kpi: 'Automatic KPI bonuses',
-    rent: 'Rent', utilities: 'Utilities', meals: 'Employee meals ({count} × {amount})', tax: 'Estimated soliq ({rate}%)', netProfit: 'Net profit',
-    fixed: 'Fixed costs', formula: '{fixed} ÷ (1 − {cogs} cost of goods − {rate}% soliq)', result: 'Break-even income',
+    rent: 'Rent', utilities: 'Utilities', meals: 'Employee meals ({count} × {amount})', tax: 'Estimated tax ({rate}%)', netProfit: 'Net profit',
+    fixed: 'Fixed costs', formula: '{fixed} ÷ (1 − {cogs} cost of goods − {rate}% tax)', result: 'Break-even income',
     noCost: 'Cost is not known for every item sold, so the target stayed as it was.', empty: 'No calculation yet. It runs every morning after the daily report.',
     failed: 'Could not load yesterday’s calculation', retry: 'Retry',
   },
@@ -33,15 +33,11 @@ function fill(template, values) {
   return template.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? '')
 }
 
-function percent(rate) {
-  return `${(rate * 100).toFixed(1).replace(/\.0$/, '')}%`
-}
-
 function Row({ label, value, strong = false, tone = '' }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-1.5">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-4 py-1.5">
       <dt className={`min-w-0 text-[13px] ${strong ? 'font-semibold text-[#22201d]' : 'text-[#68655f]'}`}>{label}</dt>
-      <dd className={`flex-shrink-0 text-right text-[13px] tabular-nums ${strong ? 'font-semibold text-[#22201d]' : 'font-medium text-[#22201d]'} ${tone}`}>{value}</dd>
+      <dd className={`flex-shrink-0 whitespace-nowrap text-right text-[13px] tabular-nums ${strong ? 'font-semibold text-[#22201d]' : 'font-medium text-[#22201d]'} ${tone}`}>{value}</dd>
     </div>
   )
 }
@@ -81,6 +77,7 @@ export default function DailyBreakEvenBreakdown({ lang }) {
   if (!day) return <p className="rounded-xl bg-[#f6f5f3] p-4 text-sm text-[#68655f]">{l.empty}</p>
 
   const money = value => formatCurrency(value)
+  const percent = rate => formatPercent(rate * 100, lang)
   return (
     <div className="rounded-xl bg-[#f6f5f3] px-4 py-3">
       <p className="text-sm font-semibold text-[#22201d]">{l.title} · {formatLongDate(day.businessDate, lang, day.businessDate)}</p>
@@ -93,7 +90,7 @@ export default function DailyBreakEvenBreakdown({ lang }) {
         <Row label={l.utilities} value={money(day.utilities)} />
         <Row label={fill(l.meals, { count: day.employeeMealCount, amount: formatCurrency(day.employeeMealPerEmployee) })} value={money(day.employeeMeal)} />
         <Row label={fill(l.tax, { rate: day.taxRatePercent })} value={money(day.tax)} />
-        {day.netProfit != null && <Row label={l.netProfit} value={money(day.netProfit)} strong tone={day.netProfit >= 0 ? '!text-green-600' : '!text-red-600'} />}
+        {day.netProfit != null && <Row label={l.netProfit} value={money(day.netProfit)} strong tone={day.netProfit >= 0 ? '!text-[#1d7a52]' : '!text-[#c4262c]'} />}
         <Row label={l.fixed} value={money(day.fixedCosts)} />
       </dl>
       {day.breakEven == null ? (
