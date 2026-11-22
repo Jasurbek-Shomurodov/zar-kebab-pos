@@ -906,7 +906,7 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
 
         <section data-dish-details className="relative z-10 mx-3 -mt-[20vh] mb-4 flex flex-col rounded-[30px] p-5 sm:mx-6 sm:p-7 md:m-0 md:self-stretch" style={{ ...glassCard, viewTransitionName: 'zk-dish-card' }}>
           {mediaUrls.length > 1 && (
-            <div className="-mt-1 mb-4 flex gap-2 overflow-x-auto pb-1" role="list" aria-label={name}>
+            <div className="-mt-1 mb-4 flex gap-2 overflow-x-auto overflow-y-hidden pb-1" role="list" aria-label={name}>
               {mediaUrls.map((url, index) => {
                 const active = url === displayedMediaUrl
                 return (
@@ -972,7 +972,7 @@ export function PublicDishDetailPage({ item, category, lang, onBack, formatPrice
           {optionGroups.map(group => (
             <div key={group.id} className="mt-5 flex items-center gap-2.5 md:flex-wrap">
               <span className="flex-shrink-0 text-[13px] font-medium" style={{ color: ui.muted }}>{group.title}:</span>
-              <div className="lux-no-scrollbar -my-1 flex min-w-0 gap-2 overflow-x-auto py-1 md:flex-wrap md:overflow-visible">
+              <div className="lux-no-scrollbar -my-1 flex min-w-0 gap-2 overflow-x-auto overflow-y-hidden py-1 md:flex-wrap md:overflow-visible">
                 {group.options.map(option => {
                   const active = selectedOptions[group.id] === option.id
                   return (
@@ -1288,7 +1288,7 @@ function ClassicProductDetailPage({ item, category, currentQty, currentNotes, la
                 />
               </div>
               {mediaUrls.length > 1 && (
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="list" aria-label={name}>
+                <div className="mt-3 flex gap-2 overflow-x-auto overflow-y-hidden pb-1" role="list" aria-label={name}>
                   {mediaUrls.map((url, index) => {
                     const active = url === displayedMediaUrl
                     return (

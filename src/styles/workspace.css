@@ -211,6 +211,7 @@ textarea.ws-input { height: auto; min-height: 76px; line-height: 1.45; resize: v
   border-radius: 12px;
   background: var(--ws-muted);
   overflow-x: auto;
+  overflow-y: hidden; /* one row: a sideways strip must not also drag up and down on touch */
   scrollbar-width: none;
 }
 .ws-segmented::-webkit-scrollbar { display: none; }
@@ -235,7 +236,7 @@ textarea.ws-input { height: auto; min-height: 76px; line-height: 1.45; resize: v
 .ws-segmented > button:disabled { cursor: not-allowed; opacity: .5; }
 
 /* A page's views as underlined tabs, as in a desktop app's title bar. */
-.ws-page-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.ws-page-tabs { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .ws-page-tabs::-webkit-scrollbar { display: none; }
 .ws-page-tabs > button {
   flex-shrink: 0;

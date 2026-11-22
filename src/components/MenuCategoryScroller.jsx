@@ -470,7 +470,7 @@ export default function MenuCategoryScroller({
         // Only the public fixed bar replaces the row; on phones the sticky row itself must stay visible.
         style={lux && collapsed && collapsedPosition === 'fixed' ? { visibility: 'hidden' } : undefined}
       >
-        <div ref={rowRef} className={`flex gap-2 overflow-x-auto pb-1 sm:gap-3 ${rowClassName}`} style={{ scrollbarWidth: 'none' }}>
+        <div ref={rowRef} className={`flex gap-2 overflow-x-auto overflow-y-hidden pb-1 sm:gap-3 ${rowClassName}`} style={{ scrollbarWidth: 'none' }}>
           {cards.map(category => {
             const title = titleFor(category)
             return (
