@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Archive, ImagePlus, Loader2, Plus, RotateCcw, Save, Search, Trash2, UtensilsCrossed, X } from 'lucide-react'
+import { Archive, ImagePlus, Loader2, Plus, RotateCcw, Save, Search, Trash2, UtensilsCrossed } from 'lucide-react'
 import AppShell from '../components/AppShell'
+import WorkspaceDialog from '../components/WorkspaceDialog'
 import { OperationalError, OperationalLoading } from '../components/OperationalState'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -21,13 +22,13 @@ import {
 
 const COPY = {
   en: {
-    title: 'Inventory', add: 'Add item', edit: 'Edit item', sub: 'Plates, cutlery and other equipment the cafe owns.', name: 'Name', namePlaceholder: 'e.g. Soup spoon', count: 'Count', countPlaceholder: 'e.g. 120', pieces: 'pcs', note: 'Note', notePlaceholder: 'Optional: where it is kept, size, colour…', photo: 'Photo', addPhoto: 'Add photo', changePhoto: 'Change', removePhoto: 'Remove photo', uploading: 'Uploading…', save: 'Save', cancel: 'Cancel', search: 'Search items…', status: 'Status', active: 'Active', archived: 'Archived', archive: 'Archive', restore: 'Restore', archiveTitle: 'Archive item?', archiveText: name => `“${name}” leaves the active list. You can restore it later from Archived.`, empty: 'No items yet.', emptySearch: 'No items found.', lastCount: (date, name) => name ? `Counted ${date} · ${name}` : `Counted ${date}`, shown: count => `${count} shown`, retry: 'Try again', readOnly: 'Your access is read-only.', saved: 'Item saved.', statusUpdated: 'Item status updated.', nameRequired: 'Enter a name.', nameStartInvalid: 'Name must start with a capital letter or a number.', countInvalid: 'Enter a whole number from 0 to 1 000 000.', duplicate: 'An active item with this name already exists.', loadFailed: 'Could not load inventory.', saveFailed: 'Could not save the item.', statusFailed: 'Could not update the item status.', connectionFailed: 'Connection was interrupted. Please try again; a completed save will not be duplicated.', migrationMissing: 'Apply migration 276 to use Inventory.', photoType: 'Choose a JPEG, PNG, WebP, GIF or AVIF photo.', photoSize: 'The photo must be 4 MB or smaller.', photoFailed: 'Could not upload the photo. Please try again.',
+    title: 'Inventory', add: 'Add item', edit: 'Edit item', sub: 'Plates, cutlery and other equipment the cafe owns.', name: 'Name', namePlaceholder: 'e.g. Soup spoon', count: 'Count', countPlaceholder: 'e.g. 120', pieces: 'pcs', note: 'Note', notePlaceholder: 'Optional: where it is kept, size, colour…', photo: 'Photo', addPhoto: 'Add photo', changePhoto: 'Change', removePhoto: 'Remove photo', uploading: 'Uploading…', save: 'Save', cancel: 'Cancel', search: 'Search items…', status: 'Status', active: 'Active', archived: 'Archived', archive: 'Archive', restore: 'Restore', archiveTitle: 'Archive item?', archiveText: name => `“${name}” leaves the active list. You can restore it later from Archived.`, empty: 'No items yet.', emptyHint: 'Add the first item to start counting the equipment.', emptyArchived: 'Nothing is archived.', emptySearch: 'No items found.', emptySearchHint: 'Check the spelling or clear the search.', clearSearch: 'Clear search', close: 'Close', lastCount: (date, name) => name ? `Counted ${date} · ${name}` : `Counted ${date}`, shown: count => `${count} shown`, retry: 'Try again', readOnly: 'Your access is read-only.', saved: 'Item saved.', statusUpdated: 'Item status updated.', nameRequired: 'Enter a name.', nameStartInvalid: 'Name must start with a capital letter or a number.', countInvalid: 'Enter a whole number from 0 to 1 000 000.', duplicate: 'An active item with this name already exists.', loadFailed: 'Could not load inventory.', saveFailed: 'Could not save the item.', statusFailed: 'Could not update the item status.', connectionFailed: 'Connection was interrupted. Please try again; a completed save will not be duplicated.', migrationMissing: 'Apply migration 276 to use Inventory.', photoType: 'Choose a JPEG, PNG, WebP, GIF or AVIF photo.', photoSize: 'The photo must be 4 MB or smaller.', photoFailed: 'Could not upload the photo. Please try again.',
   },
   ru: {
-    title: 'Инвентарь', add: 'Добавить', edit: 'Изменить позицию', sub: 'Посуда, приборы и другое оборудование кафе.', name: 'Название', namePlaceholder: 'Например: Суповая ложка', count: 'Количество', countPlaceholder: 'Например: 120', pieces: 'шт', note: 'Заметка', notePlaceholder: 'Необязательно: где хранится, размер, цвет…', photo: 'Фото', addPhoto: 'Добавить фото', changePhoto: 'Заменить', removePhoto: 'Удалить фото', uploading: 'Загрузка…', save: 'Сохранить', cancel: 'Отмена', search: 'Поиск позиций…', status: 'Статус', active: 'Активные', archived: 'Архивные', archive: 'В архив', restore: 'Восстановить', archiveTitle: 'Архивировать позицию?', archiveText: name => `«${name}» исчезнет из активного списка. Её можно восстановить позже во вкладке «Архивные».`, empty: 'Позиций пока нет.', emptySearch: 'Позиции не найдены.', lastCount: (date, name) => name ? `Посчитано ${date} · ${name}` : `Посчитано ${date}`, shown: count => `Показано: ${count}`, retry: 'Повторить', readOnly: 'У вас доступ только для чтения.', saved: 'Позиция сохранена.', statusUpdated: 'Статус позиции изменён.', nameRequired: 'Введите название.', nameStartInvalid: 'Название должно начинаться с заглавной буквы или цифры.', countInvalid: 'Введите целое число от 0 до 1 000 000.', duplicate: 'Активная позиция с таким названием уже есть.', loadFailed: 'Не удалось загрузить инвентарь.', saveFailed: 'Не удалось сохранить позицию.', statusFailed: 'Не удалось изменить статус позиции.', connectionFailed: 'Соединение прервалось. Повторите попытку — уже выполненное сохранение не продублируется.', migrationMissing: 'Примените миграцию 276, чтобы пользоваться инвентарём.', photoType: 'Выберите фото JPEG, PNG, WebP, GIF или AVIF.', photoSize: 'Фото должно быть не больше 4 МБ.', photoFailed: 'Не удалось загрузить фото. Повторите попытку.',
+    title: 'Инвентарь', add: 'Добавить', edit: 'Изменить позицию', sub: 'Посуда, приборы и другое оборудование кафе.', name: 'Название', namePlaceholder: 'Например: Суповая ложка', count: 'Количество', countPlaceholder: 'Например: 120', pieces: 'шт', note: 'Заметка', notePlaceholder: 'Необязательно: где хранится, размер, цвет…', photo: 'Фото', addPhoto: 'Добавить фото', changePhoto: 'Заменить', removePhoto: 'Удалить фото', uploading: 'Загрузка…', save: 'Сохранить', cancel: 'Отмена', search: 'Поиск позиций…', status: 'Статус', active: 'Активные', archived: 'Архивные', archive: 'В архив', restore: 'Восстановить', archiveTitle: 'Архивировать позицию?', archiveText: name => `«${name}» исчезнет из активного списка. Её можно восстановить позже во вкладке «Архивные».`, empty: 'Позиций пока нет.', emptyHint: 'Добавьте первую позицию, чтобы начать учёт оборудования.', emptyArchived: 'В архиве ничего нет.', emptySearch: 'Позиции не найдены.', emptySearchHint: 'Проверьте написание или очистите поиск.', clearSearch: 'Очистить поиск', close: 'Закрыть', lastCount: (date, name) => name ? `Посчитано ${date} · ${name}` : `Посчитано ${date}`, shown: count => `Показано: ${count}`, retry: 'Повторить', readOnly: 'У вас доступ только для чтения.', saved: 'Позиция сохранена.', statusUpdated: 'Статус позиции изменён.', nameRequired: 'Введите название.', nameStartInvalid: 'Название должно начинаться с заглавной буквы или цифры.', countInvalid: 'Введите целое число от 0 до 1 000 000.', duplicate: 'Активная позиция с таким названием уже есть.', loadFailed: 'Не удалось загрузить инвентарь.', saveFailed: 'Не удалось сохранить позицию.', statusFailed: 'Не удалось изменить статус позиции.', connectionFailed: 'Соединение прервалось. Повторите попытку — уже выполненное сохранение не продублируется.', migrationMissing: 'Примените миграцию 276, чтобы пользоваться инвентарём.', photoType: 'Выберите фото JPEG, PNG, WebP, GIF или AVIF.', photoSize: 'Фото должно быть не больше 4 МБ.', photoFailed: 'Не удалось загрузить фото. Повторите попытку.',
   },
   uz: {
-    title: 'Inventar', add: 'Qo‘shish', edit: 'Tahrirlash', sub: 'Kafedagi idish-tovoq, qoshiq-vilka va boshqa jihozlar.', name: 'Nomi', namePlaceholder: 'Masalan: Sho‘rva qoshig‘i', count: 'Soni', countPlaceholder: 'Masalan: 120', pieces: 'dona', note: 'Izoh', notePlaceholder: 'Ixtiyoriy: qayerda turadi, o‘lchami, rangi…', photo: 'Rasm', addPhoto: 'Rasm qo‘shish', changePhoto: 'Almashtirish', removePhoto: 'Rasmni o‘chirish', uploading: 'Yuklanmoqda…', save: 'Saqlash', cancel: 'Bekor qilish', search: 'Qidirish…', status: 'Holat', active: 'Faol', archived: 'Arxiv', archive: 'Arxivlash', restore: 'Tiklash', archiveTitle: 'Arxivlaysizmi?', archiveText: name => `“${name}” faol ro‘yxatdan chiqadi. Keyinroq «Arxiv» bo‘limidan tiklash mumkin.`, empty: 'Hozircha hech narsa yo‘q.', emptySearch: 'Hech narsa topilmadi.', lastCount: (date, name) => name ? `Sanaldi: ${date} · ${name}` : `Sanaldi: ${date}`, shown: count => `${count} ta ko‘rsatilgan`, retry: 'Qayta urinish', readOnly: 'Sizda faqat ko‘rish huquqi bor.', saved: 'Saqlandi.', statusUpdated: 'Holat yangilandi.', nameRequired: 'Nomini kiriting.', nameStartInvalid: 'Nom bosh harf yoki raqam bilan boshlanishi kerak.', countInvalid: '0 dan 1 000 000 gacha butun son kiriting.', duplicate: 'Bu nomdagi faol yozuv allaqachon mavjud.', loadFailed: 'Inventarni yuklab bo‘lmadi.', saveFailed: 'Saqlab bo‘lmadi.', statusFailed: 'Holatni o‘zgartirib bo‘lmadi.', connectionFailed: 'Aloqa uzildi. Qayta urinib ko‘ring — saqlangan yozuv takrorlanmaydi.', migrationMissing: 'Inventardan foydalanish uchun 276-migratsiyani qo‘llang.', photoType: 'JPEG, PNG, WebP, GIF yoki AVIF rasm tanlang.', photoSize: 'Rasm 4 MB dan oshmasligi kerak.', photoFailed: 'Rasmni yuklab bo‘lmadi. Qayta urinib ko‘ring.',
+    title: 'Inventar', add: 'Qo‘shish', edit: 'Tahrirlash', sub: 'Kafedagi idish-tovoq, qoshiq-vilka va boshqa jihozlar.', name: 'Nomi', namePlaceholder: 'Masalan: Sho‘rva qoshig‘i', count: 'Soni', countPlaceholder: 'Masalan: 120', pieces: 'dona', note: 'Izoh', notePlaceholder: 'Ixtiyoriy: qayerda turadi, o‘lchami, rangi…', photo: 'Rasm', addPhoto: 'Rasm qo‘shish', changePhoto: 'Almashtirish', removePhoto: 'Rasmni o‘chirish', uploading: 'Yuklanmoqda…', save: 'Saqlash', cancel: 'Bekor qilish', search: 'Qidirish…', status: 'Holat', active: 'Faol', archived: 'Arxiv', archive: 'Arxivlash', restore: 'Tiklash', archiveTitle: 'Arxivlaysizmi?', archiveText: name => `“${name}” faol ro‘yxatdan chiqadi. Keyinroq «Arxiv» bo‘limidan tiklash mumkin.`, empty: 'Hozircha hech narsa yo‘q.', emptyHint: 'Jihozlarni hisobga olish uchun birinchi yozuvni qo‘shing.', emptyArchived: 'Arxivda hech narsa yo‘q.', emptySearch: 'Hech narsa topilmadi.', emptySearchHint: 'Yozilishini tekshiring yoki qidiruvni tozalang.', clearSearch: 'Qidiruvni tozalash', close: 'Yopish', lastCount: (date, name) => name ? `Sanaldi: ${date} · ${name}` : `Sanaldi: ${date}`, shown: count => `${count} ta ko‘rsatilgan`, retry: 'Qayta urinish', readOnly: 'Sizda faqat ko‘rish huquqi bor.', saved: 'Saqlandi.', statusUpdated: 'Holat yangilandi.', nameRequired: 'Nomini kiriting.', nameStartInvalid: 'Nom bosh harf yoki raqam bilan boshlanishi kerak.', countInvalid: '0 dan 1 000 000 gacha butun son kiriting.', duplicate: 'Bu nomdagi faol yozuv allaqachon mavjud.', loadFailed: 'Inventarni yuklab bo‘lmadi.', saveFailed: 'Saqlab bo‘lmadi.', statusFailed: 'Holatni o‘zgartirib bo‘lmadi.', connectionFailed: 'Aloqa uzildi. Qayta urinib ko‘ring — saqlangan yozuv takrorlanmaydi.', migrationMissing: 'Inventardan foydalanish uchun 276-migratsiyani qo‘llang.', photoType: 'JPEG, PNG, WebP, GIF yoki AVIF rasm tanlang.', photoSize: 'Rasm 4 MB dan oshmasligi kerak.', photoFailed: 'Rasmni yuklab bo‘lmadi. Qayta urinib ko‘ring.',
   },
 }
 
@@ -38,6 +39,8 @@ function failureKey(failure, fallback) {
   if (failure?.code === '42P01' || failure?.code === 'PGRST205') return 'migrationMissing'
   return fallback
 }
+
+const NAME_ERRORS = new Set(['nameRequired', 'nameStartInvalid', 'duplicate'])
 
 function readInventoryItem(id, matches) {
   return async () => {
@@ -77,8 +80,7 @@ export default function Inventory() {
   const [statusError, setStatusError] = useState('')
   const [updatingId, setUpdatingId] = useState('')
   const photoInputRef = useRef(null)
-  const dialogRef = useRef(null)
-  const archiveDialogRef = useRef(null)
+  const nameInputRef = useRef(null)
   // After an unconfirmed save the row may already point at the new photo, so keep the file.
   const saveOutcomeUnknownRef = useRef(false)
 
@@ -99,10 +101,7 @@ export default function Inventory() {
     return { active, archived: items.length - active }
   }, [items])
 
-  const dialogOpen = !!form
-  useEffect(() => { if (dialogOpen) dialogRef.current?.querySelector('input:not([type="file"])')?.focus() }, [dialogOpen])
   const archiveOpen = !!archiveTarget
-  useEffect(() => { if (archiveOpen) archiveDialogRef.current?.focus() }, [archiveOpen])
 
   function openDialog(draft) {
     if (!canManage) return
@@ -212,7 +211,7 @@ export default function Inventory() {
     <AppShell
       title={l.title}
       headerActions={canManage ? (
-        <button type="button" onClick={() => openDialog(emptyInventoryDraft(crypto.randomUUID()))} aria-label={l.add} className="ws-btn ws-btn-primary !h-[38px]">
+        <button type="button" onClick={() => openDialog(emptyInventoryDraft(crypto.randomUUID()))} aria-label={l.add} className="ws-btn ws-btn-primary">
           <Plus size={16} /><span className="hidden sm:inline">{l.add}</span>
         </button>
       ) : null}
@@ -244,7 +243,25 @@ export default function Inventory() {
             ) : loadFailure ? (
               <OperationalError title={l.loadFailed} description={l[failureKey(loadFailure, 'loadFailed')]} actionLabel={l.retry} onAction={loadItems} />
             ) : filtered.length === 0 ? (
-              <p className="ws-muted p-8 text-center">{query.trim() ? l.emptySearch : l.empty}</p>
+              query.trim() ? (
+                <div className="ws-empty">
+                  <Search aria-hidden="true" />
+                  <h3>{l.emptySearch}</h3>
+                  <p>{l.emptySearchHint}</p>
+                  <button type="button" onClick={() => setQuery('')} className="ws-btn ws-btn-outline">{l.clearSearch}</button>
+                </div>
+              ) : (
+                <div className="ws-empty">
+                  <UtensilsCrossed aria-hidden="true" />
+                  <h3>{status === 'archived' ? l.emptyArchived : l.empty}</h3>
+                  {status === 'active' && canManage && (
+                    <>
+                      <p>{l.emptyHint}</p>
+                      <button type="button" onClick={() => openDialog(emptyInventoryDraft(crypto.randomUUID()))} className="ws-btn ws-btn-primary"><Plus aria-hidden="true" />{l.add}</button>
+                    </>
+                  )}
+                </div>
+              )
             ) : (
               <div className="grid grid-cols-2 gap-3 p-4 sm:p-5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 {filtered.map(item => (
@@ -297,91 +314,78 @@ export default function Inventory() {
       </div>
 
       {canManage && form && (
-        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-          <button type="button" aria-label={l.cancel} onClick={closeDialog} disabled={busy} className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm disabled:cursor-wait" />
-          <form
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="inventory-item-title"
-            aria-busy={busy}
-            onSubmit={saveItem}
-            onKeyDown={event => { if (event.key === 'Escape') closeDialog() }}
-            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto p-6"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 id="inventory-item-title" className="ws-display !text-[24px]">{form.isNew ? l.add : l.edit}</h2>
-                <p className="ws-muted mt-1.5">{l.sub}</p>
-              </div>
-              <button type="button" onClick={closeDialog} disabled={busy} aria-label={l.cancel} className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
-            </div>
-            <fieldset disabled={saving} className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
-              <div>
-                <span className="ws-caption mb-1.5 block font-medium">{l.photo}</span>
-                <div className="aspect-[4/3] w-full max-w-[220px] overflow-hidden rounded-[10px] border border-[#e4e1de]"><InventoryPhoto src={form.image_url} /></div>
-                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} aria-label={l.photo} />
-                <div className="mt-2 flex items-center gap-1.5">
-                  <button type="button" onClick={() => photoInputRef.current?.click()} disabled={uploading} className="ws-btn ws-btn-outline ws-btn-sm min-w-0 flex-1">
-                    {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
-                    <span className="truncate">{uploading ? l.uploading : form.image_url ? l.changePhoto : l.addPhoto}</span>
-                  </button>
-                  {form.image_url && !uploading && (
-                    <button type="button" onClick={() => replacePhoto('')} aria-label={l.removePhoto} title={l.removePhoto} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon flex-shrink-0"><Trash2 size={15} /></button>
-                  )}
-                </div>
-              </div>
-              <div className="grid content-start gap-3">
-                <label className="block">
-                  <span className="ws-caption mb-1.5 block font-medium">{l.name}</span>
-                  <input value={form.name} onChange={event => updateForm({ name: capitalizeBazaarNameInput(event.target.value) })} maxLength={INVENTORY_NAME_MAX_LENGTH} autoCapitalize="sentences" placeholder={l.namePlaceholder} className="ws-input" />
-                </label>
-                <label className="block">
-                  <span className="ws-caption mb-1.5 block font-medium">{l.count}</span>
-                  <input value={form.quantity} onChange={event => updateForm({ quantity: normalizeInventoryCountInput(event.target.value) })} inputMode="numeric" pattern="[0-9]*" placeholder={l.countPlaceholder} className="ws-input tabular-nums" />
-                </label>
-              </div>
-              <label className="block sm:col-span-2">
-                <span className="ws-caption mb-1.5 block font-medium">{l.note}</span>
-                <textarea value={form.note} onChange={event => updateForm({ note: event.target.value })} maxLength={INVENTORY_NOTE_MAX_LENGTH} rows={2} placeholder={l.notePlaceholder} className="ws-input !h-auto min-h-[64px] resize-y py-2.5" />
-              </label>
-            </fieldset>
-            {formError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{l[formError]}</p>}
-            <div className="mt-5 flex justify-end gap-2">
+        <WorkspaceDialog
+          as="form"
+          panelProps={{ onSubmit: saveItem }}
+          title={form.isNew ? l.add : l.edit}
+          description={l.sub}
+          onClose={closeDialog}
+          closeLabel={l.close}
+          size="lg"
+          busy={busy}
+          initialFocusRef={nameInputRef}
+          notice={formError ? <p role="alert" className="ws-notice ws-tone-negative">{l[formError]}</p> : null}
+          footer={(
+            <>
               <button type="button" onClick={closeDialog} disabled={busy} className="ws-btn ws-btn-outline">{l.cancel}</button>
-              <button type="submit" disabled={busy || !formDirty} className="ws-btn ws-btn-primary disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="submit" disabled={busy || !formDirty} className="ws-btn ws-btn-primary">
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}{l.save}
               </button>
+            </>
+          )}
+        >
+          <fieldset disabled={saving} className="grid gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
+            <div>
+              <span className="ws-caption mb-1.5 block font-medium">{l.photo}</span>
+              <div className="aspect-[4/3] w-full max-w-[220px] overflow-hidden rounded-[10px] border border-[#e4e1de]"><InventoryPhoto src={form.image_url} /></div>
+              <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} aria-label={l.photo} />
+              <div className="mt-2 flex items-center gap-1.5">
+                <button type="button" onClick={() => photoInputRef.current?.click()} disabled={uploading} className="ws-btn ws-btn-outline ws-btn-sm min-w-0 flex-1">
+                  {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
+                  <span className="truncate">{uploading ? l.uploading : form.image_url ? l.changePhoto : l.addPhoto}</span>
+                </button>
+                {form.image_url && !uploading && (
+                  <button type="button" onClick={() => replacePhoto('')} aria-label={l.removePhoto} title={l.removePhoto} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon ml-2 flex-shrink-0"><Trash2 size={15} /></button>
+                )}
+              </div>
             </div>
-          </form>
-        </div>
+            <div className="grid content-start gap-3">
+              <label className="block">
+                <span className="ws-caption mb-1.5 block font-medium">{l.name}</span>
+                <input ref={nameInputRef} value={form.name} onChange={event => updateForm({ name: capitalizeBazaarNameInput(event.target.value) })} maxLength={INVENTORY_NAME_MAX_LENGTH} autoCapitalize="sentences" placeholder={l.namePlaceholder} aria-invalid={NAME_ERRORS.has(formError) || undefined} className="ws-input" />
+              </label>
+              <label className="block">
+                <span className="ws-caption mb-1.5 block font-medium">{l.count}</span>
+                <input value={form.quantity} onChange={event => updateForm({ quantity: normalizeInventoryCountInput(event.target.value) })} inputMode="numeric" pattern="[0-9]*" placeholder={l.countPlaceholder} aria-invalid={formError === 'countInvalid' || undefined} className="ws-input tabular-nums" />
+              </label>
+            </div>
+            <label className="block sm:col-span-2">
+              <span className="ws-caption mb-1.5 block font-medium">{l.note}</span>
+              <textarea value={form.note} onChange={event => updateForm({ note: event.target.value })} maxLength={INVENTORY_NOTE_MAX_LENGTH} rows={2} placeholder={l.notePlaceholder} className="ws-input min-h-[64px] resize-y" />
+            </label>
+          </fieldset>
+        </WorkspaceDialog>
       )}
 
       {canManage && archiveTarget && (
-        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-          <button type="button" aria-label={l.cancel} onClick={closeArchiveDialog} disabled={!!updatingId} className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm disabled:cursor-wait" />
-          <div
-            ref={archiveDialogRef}
-            tabIndex={-1}
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="inventory-archive-title"
-            aria-describedby="inventory-archive-description"
-            aria-busy={!!updatingId}
-            onKeyDown={event => { if (event.key === 'Escape') closeArchiveDialog() }}
-            className="ws-dialog relative w-full max-w-md p-6 focus:outline-none"
-          >
-            <h2 id="inventory-archive-title" className="ws-display !text-[24px]">{l.archiveTitle}</h2>
-            <p id="inventory-archive-description" className="ws-muted mt-2">{l.archiveText(archiveTarget.name)}</p>
-            {statusError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{l[statusError]}</p>}
-            <div className="mt-5 flex justify-end gap-2">
+        <WorkspaceDialog
+          variant="alert"
+          size="md"
+          title={l.archiveTitle}
+          description={l.archiveText(archiveTarget.name)}
+          onClose={closeArchiveDialog}
+          closeLabel={l.close}
+          busy={!!updatingId}
+          notice={statusError ? <p role="alert" className="ws-notice ws-tone-negative">{l[statusError]}</p> : null}
+          footer={(
+            <>
               <button type="button" onClick={closeArchiveDialog} disabled={!!updatingId} className="ws-btn ws-btn-outline">{l.cancel}</button>
-              <button type="button" onClick={() => setItemActive(archiveTarget, false)} disabled={!!updatingId} className="ws-btn ws-btn-danger-solid disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="button" onClick={() => setItemActive(archiveTarget, false)} disabled={!!updatingId} className="ws-btn ws-btn-danger-solid">
                 {updatingId ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}{statusError ? l.retry : l.archive}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          )}
+        />
       )}
     </AppShell>
   )

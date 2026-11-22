@@ -1,5 +1,5 @@
 import { DateTimePicker } from '../components/CalendarPicker'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors,
@@ -7,12 +7,16 @@ import {
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  Plus, Edit2, Trash2, X, Table2, MapPin, Users, Hash, Power, PowerOff,
-  CalendarClock, Phone, CheckCircle2, GripVertical,
+  Plus, Edit2, Trash2, Table2, MapPin, Users, Hash, Power, PowerOff,
+  CalendarClock, Phone, CheckCircle2, GripVertical, Loader2, RefreshCw,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import AppShell from '../components/AppShell'
+import WorkspaceDialog from '../components/WorkspaceDialog'
+import StatusBadge from '../components/StatusBadge'
+import { OperationalError, OperationalLoading } from '../components/OperationalState'
+import { useAppDataStatus } from '../store/appHooks'
 import { canDeleteTable, canDisableTable } from '../lib/tableManagement'
 import { clearReservationPatch, getTodaysReservations } from '../lib/tableActivity'
 import { formatDateTime, formatTime } from '../lib/dateFormat'
@@ -82,16 +86,16 @@ const L = {
     disabledNotice: name => `${name} disabled`,
     activeOrdersDeleteBlock: 'Do not delete a table while it has active orders.',
     historyDeleteBlock: 'This table has order history. You can disable it instead.',
-    historyCheckFailed: 'Could not verify table history. Reload this page before deleting a table.',
+    historyCheckFailed: 'Could not check table history, so tables cannot be deleted yet.',
     deleteTitle: name => `Delete ${name}?`,
     deleteMessage: 'This permanently removes the table. This is only allowed because it has no order history.',
     deleteTable: 'Delete table',
     couldNotDelete: 'Could not delete table',
     deletedNotice: name => `${name} deleted`,
-    couldNotSave: 'Could not save table',
+    couldNotSave: 'Could not save the table. Check the connection and press Save again: it will not be added twice.',
     tableAdded: 'Table added',
     tableUpdated: 'Table updated',
-    todaysReservations: 'Today’s Reservations',
+    todaysReservations: 'Today’s reservations',
     noReservationsToday: 'No reservations today',
     seat: 'Seat',
     cancelReservation: 'Cancel reservation',
@@ -107,6 +111,25 @@ const L = {
     bulkUpdated: 'Tables updated',
     dragTable: 'Drag to reorder table',
     reorderFailed: 'Could not save the new table order',
+    saving: 'Saving…',
+    close: 'Close',
+    retry: 'Try again',
+    zoneName: 'Zone name',
+    defaultZone: 'Main hall',
+    selectAll: 'Select all tables',
+    noPhone: 'No phone number',
+    reservationCount: count => `${count} today`,
+    lockedByActiveOrders: 'Locked while the table has active orders.',
+    keepReservation: 'Keep reservation',
+    cancelReservationTitle: name => `Cancel the reservation for ${name}?`,
+    cancelReservationMessage: 'The guest details are removed and the table becomes free.',
+    couldNotCancelReservation: 'Could not cancel the reservation. Try again.',
+    reservationCancelled: name => `Reservation for ${name} cancelled`,
+    couldNotSeat: name => `Could not seat guests at ${name}. Try again.`,
+    bulkResult: (updated, failed) => `${updated} updated, ${failed} failed. Apply again to retry.`,
+    bulkNothingChosen: 'Choose a zone or a capacity first.',
+    noTables: 'No tables yet',
+    noTablesHint: 'Add the first table so waiters can take orders.',
   },
   ru: {
     title: 'Столы',
@@ -167,13 +190,13 @@ const L = {
     disabledNotice: name => `${name} отключён`,
     activeOrdersDeleteBlock: 'Нельзя удалять стол с активными заказами.',
     historyDeleteBlock: 'У этого стола есть история заказов. Вместо удаления его можно отключить.',
-    historyCheckFailed: 'Не удалось проверить историю стола. Обновите страницу перед удалением.',
+    historyCheckFailed: 'Не удалось проверить историю столов, поэтому удаление пока недоступно.',
     deleteTitle: name => `Удалить ${name}?`,
     deleteMessage: 'Стол будет удалён навсегда. Это разрешено только если у него нет истории заказов.',
     deleteTable: 'Удалить стол',
     couldNotDelete: 'Не удалось удалить стол',
     deletedNotice: name => `${name} удалён`,
-    couldNotSave: 'Не удалось сохранить стол',
+    couldNotSave: 'Не удалось сохранить стол. Проверьте интернет и нажмите «Сохранить» ещё раз: стол не добавится дважды.',
     tableAdded: 'Стол добавлен',
     tableUpdated: 'Стол обновлён',
     todaysReservations: 'Брони сегодня',
@@ -192,6 +215,25 @@ const L = {
     bulkUpdated: 'Столы обновлены',
     dragTable: 'Перетащите, чтобы изменить порядок',
     reorderFailed: 'Не удалось сохранить новый порядок столов',
+    saving: 'Сохранение…',
+    close: 'Закрыть',
+    retry: 'Повторить',
+    zoneName: 'Название зоны',
+    defaultZone: 'Основной зал',
+    selectAll: 'Выбрать все столы',
+    noPhone: 'Телефон не указан',
+    reservationCount: count => `Сегодня: ${count}`,
+    lockedByActiveOrders: 'Недоступно, пока у стола есть активные заказы.',
+    keepReservation: 'Оставить бронь',
+    cancelReservationTitle: name => `Отменить бронь стола ${name}?`,
+    cancelReservationMessage: 'Данные гостя будут удалены, стол станет свободным.',
+    couldNotCancelReservation: 'Не удалось отменить бронь. Попробуйте ещё раз.',
+    reservationCancelled: name => `Бронь стола ${name} отменена`,
+    couldNotSeat: name => `Не удалось посадить гостей за ${name}. Попробуйте ещё раз.`,
+    bulkResult: (updated, failed) => `Обновлено: ${updated}, не удалось: ${failed}. Нажмите «Применить» ещё раз.`,
+    bulkNothingChosen: 'Сначала выберите зону или вместимость.',
+    noTables: 'Столов пока нет',
+    noTablesHint: 'Добавьте первый стол, чтобы официанты могли принимать заказы.',
   },
   uz: {
     title: 'Stollar',
@@ -252,13 +294,13 @@ const L = {
     disabledNotice: name => `${name} o‘chirildi`,
     activeOrdersDeleteBlock: 'Faol buyurtmalari bor stolni o‘chirib tashlamang.',
     historyDeleteBlock: 'Bu stolda buyurtma tarixi bor. Uni o‘chirib tashlash o‘rniga o‘chirib qo‘yishingiz mumkin.',
-    historyCheckFailed: 'Stol tarixini tekshirib bo‘lmadi. Stolni o‘chirishdan oldin sahifani yangilang.',
+    historyCheckFailed: 'Stollar tarixini tekshirib bo‘lmadi, shuning uchun stolni o‘chirib tashlash hozircha mumkin emas.',
     deleteTitle: name => `${name} o‘chirib tashlansinmi?`,
     deleteMessage: 'Bu stol butunlay o‘chiriladi. Bu faqat buyurtma tarixi bo‘lmasa mumkin.',
     deleteTable: 'Stolni o‘chirib tashlash',
     couldNotDelete: 'Stol o‘chirilmadi',
     deletedNotice: name => `${name} o‘chirib tashlandi`,
-    couldNotSave: 'Stol saqlanmadi',
+    couldNotSave: 'Stol saqlanmadi. Internetni tekshirib, «Saqlash»ni yana bosing: stol ikki marta qo‘shilmaydi.',
     tableAdded: 'Stol qo‘shildi',
     tableUpdated: 'Stol yangilandi',
     todaysReservations: 'Bugungi bronlar',
@@ -277,6 +319,25 @@ const L = {
     bulkUpdated: 'Stollar yangilandi',
     dragTable: 'Tartibni o‘zgartirish uchun torting',
     reorderFailed: 'Stollarning yangi tartibi saqlanmadi',
+    saving: 'Saqlanmoqda…',
+    close: 'Yopish',
+    retry: 'Qayta urinish',
+    zoneName: 'Zona nomi',
+    defaultZone: 'Asosiy zal',
+    selectAll: 'Barcha stollarni tanlash',
+    noPhone: 'Telefon raqami yo‘q',
+    reservationCount: count => `Bugun: ${count} ta`,
+    lockedByActiveOrders: 'Stolda faol buyurtmalar bor ekan, o‘zgartirib bo‘lmaydi.',
+    keepReservation: 'Bronni qoldirish',
+    cancelReservationTitle: name => `${name} broni bekor qilinsinmi?`,
+    cancelReservationMessage: 'Mehmon ma’lumotlari o‘chiriladi va stol bo‘shaydi.',
+    couldNotCancelReservation: 'Bronni bekor qilib bo‘lmadi. Qayta urinib ko‘ring.',
+    reservationCancelled: name => `${name} broni bekor qilindi`,
+    couldNotSeat: name => `${name} stoliga mehmonlarni joylashtirib bo‘lmadi. Qayta urinib ko‘ring.`,
+    bulkResult: (updated, failed) => `${updated} ta yangilandi, ${failed} ta yangilanmadi. «Qo‘llash»ni yana bosing.`,
+    bulkNothingChosen: 'Avval zona yoki sig‘imni tanlang.',
+    noTables: 'Hozircha stollar yo‘q',
+    noTablesHint: 'Ofitsiantlar buyurtma olishi uchun birinchi stolni qo‘shing.',
   },
 }
 
@@ -288,9 +349,23 @@ function slugify(value) {
     .replace(/^-+|-+$/g, '') || `zone-${Date.now()}`
 }
 
-function makeTableId(name) {
-  const suffix = slugify(name).slice(0, 36)
-  return `tbl-${suffix}-${Date.now().toString(36)}`
+// The id is made once, when the sheet opens, so saving again after an unknown
+// outcome reuses it and can never insert a second table.
+function makeTableId() {
+  return `tbl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function isDuplicateIdError(error) {
+  return error?.code === '23505' && /pkey/i.test(String(error?.message || ''))
+}
+
+function uniqueById(tables) {
+  const seen = new Set()
+  return tables.filter(table => {
+    if (seen.has(table.id)) return false
+    seen.add(table.id)
+    return true
+  })
 }
 
 function normalizeTable(table, zones = []) {
@@ -312,145 +387,96 @@ function normalizeTable(table, zones = []) {
   }
 }
 
-function Modal({ title, description, onClose, children, maxWidth = 'sm:max-w-lg' }) {
-  return (
-    <div className="fixed inset-0 z-dialog flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative bg-white w-full ${maxWidth} rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92dvh] overflow-hidden`}>
-        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-gray-100">
-          <div>
-            <h3 className="font-black text-gray-900">{title}</h3>
-            {description && <p className="mt-0.5 text-xs text-gray-500">{description}</p>}
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-            <X size={17} className="text-gray-400" />
-          </button>
-        </div>
-        <div className="max-h-[calc(92dvh-76px)] overflow-y-auto p-5">{children}</div>
-      </div>
-    </div>
-  )
+/** A stored notice is a label key plus arguments, so it follows the language. */
+function noticeText(labels, notice) {
+  const value = labels[notice.key]
+  return typeof value === 'function' ? value(...(notice.args || [])) : value
 }
 
-function Toggle({ value, onChange, disabled = false }) {
+function Field({ label, error, children, as: Wrapper = 'label' }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onChange(!value)}
-      className={`relative h-6 w-11 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${value ? 'bg-[#ff5a00]' : 'bg-gray-300'}`}
-    >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${value ? 'left-[22px]' : 'left-0.5'}`} />
-    </button>
-  )
-}
-
-function Field({ label, error, children }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-bold text-gray-500">{label}</span>
+    <Wrapper className="block">
+      <span className="ws-caption mb-1.5 block font-medium">{label}</span>
       {children}
-      {error && <span className="mt-1 block text-xs font-bold text-red-600">{error}</span>}
-    </label>
+      {error && <span role="alert" className="mt-1 block text-xs font-medium text-[#c4262c]">{error}</span>}
+    </Wrapper>
   )
 }
 
-function StatusPill({ table, labels }) {
-  if (table.is_active === false) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-[11px] font-black text-gray-500">
-        <PowerOff size={11} /> {labels.disabled}
-      </span>
-    )
-  }
-  if (table.status === 'reserved') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-black text-purple-700">
-        <CalendarClock size={11} /> {labels.reserved}
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
-      <Power size={11} /> {labels.active}
-    </span>
-  )
+function TableStatus({ table, labels, lang }) {
+  if (table.is_active === false) return <StatusBadge status="disabled" lang={lang} />
+  if (table.status === 'reserved') return <span className="ws-status ws-tone-caution">{labels.reserved}</span>
+  return <StatusBadge status="active" lang={lang} />
 }
 
-function SummaryCard({ icon: Icon, label, value, tone }) {
-  const tones = {
-    orange: 'bg-orange-50 text-[#ff5a00]',
-    green: 'bg-emerald-50 text-emerald-600',
-    gray: 'bg-gray-100 text-gray-600',
-    blue: 'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600',
-  }
+function SummaryCard({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-      <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${tones[tone] || tones.gray}`}>
-        <Icon size={17} />
+    <div className="ws-panel flex items-center gap-3 !p-4">
+      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#efece9] text-[#68655f]">
+        <Icon size={17} aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-2xl font-semibold leading-none tabular-nums text-[#22201d]">{value}</p>
+        <p className="ws-caption mt-1">{label}</p>
       </div>
-      <p className="text-2xl font-black leading-none text-[#1F2937]">{value}</p>
-      <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
     </div>
   )
 }
 
-function ReservationStrip({ reservations, labels, canEdit, onSeat, onCancel, onCall }) {
+function ReservationStrip({ reservations, labels, canEdit, busyId, onSeat, onCancel }) {
   return (
-    <div className="mb-5 rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-            <CalendarClock size={17} />
-          </span>
-          <div>
-            <p className="text-sm font-black text-[#1F2937]">{labels.todaysReservations}</p>
-            <p className="text-xs font-semibold text-gray-400">
-              {reservations.length > 0 ? `${reservations.length}` : labels.noReservationsToday}
-            </p>
-          </div>
+    <section className="ws-panel">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#efece9] text-[#68655f]">
+          <CalendarClock size={17} aria-hidden="true" />
+        </span>
+        <div>
+          <h2 className="text-sm font-semibold text-[#22201d]">{labels.todaysReservations}</h2>
+          <p className="ws-caption tabular-nums">
+            {reservations.length > 0 ? labels.reservationCount(reservations.length) : labels.noReservationsToday}
+          </p>
         </div>
       </div>
       {reservations.length > 0 && (
-        <div className="flex gap-3 overflow-x-auto pb-1">
+        <div className="mt-3 grid gap-3 grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
           {reservations.map(({ table, reservation }) => (
-            <div key={table.id} className="min-w-[270px] rounded-2xl border border-purple-100 bg-purple-50/50 p-3">
+            <div key={table.id} className="min-w-0 rounded-[10px] bg-[#efece9] p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-[#1F2937]">{table.name}</p>
-                  <p className="truncate text-xs font-bold text-purple-700">{reservation.name || '-'}</p>
+                  <p className="truncate text-sm font-semibold text-[#22201d]">{table.name}</p>
+                  <p className="ws-caption truncate">{reservation.name || '—'}</p>
                 </div>
-                <span className="rounded-full bg-white px-2 py-1 text-xs font-black text-purple-700">
-                  {formatTime(reservation.startsAt)}
-                </span>
+                <span className="ws-badge tabular-nums">{formatTime(reservation.startsAt)}</span>
               </div>
-              <div className={`mt-3 grid gap-1.5 ${canEdit ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 {canEdit && (
-                  <>
-                    <button onClick={() => onSeat(table)} className="inline-flex h-8 items-center justify-center gap-1 rounded-lg bg-purple-600 text-[11px] font-black text-white">
-                      <CheckCircle2 size={12} />
-                      {labels.seat}
-                    </button>
-                    <button onClick={() => onCancel(table)} className="h-8 rounded-lg border border-purple-100 bg-white text-[11px] font-black text-purple-700">
-                      {labels.cancelReservation}
-                    </button>
-                  </>
+                  <button type="button" onClick={() => onSeat(table)} disabled={busyId === table.id} className="ws-btn ws-btn-primary ws-btn-sm">
+                    {busyId === table.id ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <CheckCircle2 size={14} aria-hidden="true" />}
+                    {labels.seat}
+                  </button>
                 )}
-                <button
-                  onClick={() => onCall(reservation.phone)}
-                  disabled={!reservation.phone}
-                  className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-purple-100 bg-white text-[11px] font-black text-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <Phone size={12} />
-                  {labels.call}
-                </button>
+                {reservation.phone ? (
+                  <a href={`tel:${reservation.phone}`} className="ws-btn ws-btn-outline ws-btn-sm">
+                    <Phone size={14} aria-hidden="true" />
+                    {labels.call}
+                  </a>
+                ) : (
+                  <button type="button" disabled title={labels.noPhone} className="ws-btn ws-btn-outline ws-btn-sm">
+                    <Phone size={14} aria-hidden="true" />
+                    {labels.call}
+                  </button>
+                )}
+                {canEdit && (
+                  <button type="button" onClick={() => onCancel(table)} disabled={busyId === table.id} className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ml-auto">
+                    {labels.cancelReservation}
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -470,16 +496,27 @@ function SortableTableRow({ tableId, disabled, className, children }) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`${className} ${isDragging ? 'bg-blue-50 shadow-xl ring-2 ring-blue-300' : ''}`}
+      className={`${className} ${isDragging ? 'bg-[#fff1e8] shadow-xl ring-2 ring-[#ff5a00]/40' : ''}`}
     >
       {children({ attributes, listeners, isDragging })}
     </div>
   )
 }
 
+const ROW_GRID = 'md:grid-cols-[96px_minmax(0,1.3fr)_minmax(0,1fr)_64px_minmax(0,1fr)_56px_200px]'
+
+// What each confirmation says and which label reports its failure; the texts are
+// read from the label object at render so they follow the language.
+const CONFIRMS = {
+  disable: { title: 'disableTitle', message: 'disableMessage', action: 'disableTable', failed: 'couldNotDisable', done: 'disabledNotice', danger: false },
+  delete: { title: 'deleteTitle', message: 'deleteMessage', action: 'deleteTable', failed: 'couldNotDelete', done: 'deletedNotice', danger: true },
+  cancelReservation: { title: 'cancelReservationTitle', message: 'cancelReservationMessage', action: 'cancelReservation', failed: 'couldNotCancelReservation', done: 'reservationCancelled', danger: true },
+}
+
 export default function AdminTables() {
   const { state, dispatch } = useApp()
   const { profile } = useAuth()
+  const { loaded, loadError } = useAppDataStatus()
   const navigate = useNavigate()
   const lang = state.lang || 'en'
   const l = L[lang] || L.en
@@ -488,37 +525,55 @@ export default function AdminTables() {
   const [form, setForm] = useState(() => normalizeTable({}))
   const [zoneName, setZoneName] = useState('')
   const [zoneError, setZoneError] = useState('')
+  const [zoneBusy, setZoneBusy] = useState(false)
   const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [notice, setNotice] = useState(null)
   const [confirm, setConfirm] = useState(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
+  const [confirmError, setConfirmError] = useState('')
+  const [reservationBusyId, setReservationBusyId] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
   const [bulkZoneId, setBulkZoneId] = useState('')
   const [bulkCapacity, setBulkCapacity] = useState('')
+  const [bulkBusy, setBulkBusy] = useState(false)
   const [historicalTableIds, setHistoricalTableIds] = useState(null)
+  const [historyFailed, setHistoryFailed] = useState(false)
+  const [historyAttempt, setHistoryAttempt] = useState(0)
+  const nameInputRef = useRef(null)
+  // True after a failed "add table" write whose outcome is unknown: the row may exist.
+  const newTableAttemptedRef = useRef(false)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
   )
 
+  // Language is not a dependency: the failure is kept as a flag and worded at render.
   useEffect(() => {
     let cancelled = false
+    setHistoryFailed(false)
     loadTableOrderHistoryIds()
       .then(ids => {
         if (!cancelled) setHistoricalTableIds(new Set(ids))
       })
       .catch(error => {
         if (cancelled) return
+        console.error('[tables] order history check failed:', error)
         setHistoricalTableIds(null)
-        setNotice({ tone: 'error', message: error?.message || l.historyCheckFailed })
+        setHistoryFailed(true)
       })
     return () => { cancelled = true }
-  }, [l.historyCheckFailed])
+  }, [historyAttempt])
+
+  // A failed optimistic add can leave a local copy behind; never render one table twice.
+  const tables = useMemo(() => uniqueById(state.tables), [state.tables])
 
   const tableZones = useMemo(() => {
     const stored = state.tableZones || []
     const names = new Map()
     stored.forEach(zone => names.set(zone.name.toLowerCase(), zone))
-    state.tables.forEach(table => {
+    tables.forEach(table => {
       const name = table.zone_name || 'Main Hall'
       if (!names.has(name.toLowerCase())) {
         names.set(name.toLowerCase(), {
@@ -542,15 +597,15 @@ export default function AdminTables() {
     return [...names.values()]
       .filter(zone => zone.is_active !== false)
       .sort((a, b) => (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.name.localeCompare(b.name))
-  }, [state.tableZones, state.tables])
+  }, [state.tableZones, tables])
 
   const sortedTables = useMemo(() =>
-    [...state.tables].sort((a, b) =>
+    [...tables].sort((a, b) =>
       (Number(a.sort_order) || 9999) - (Number(b.sort_order) || 9999) ||
       String(a.zone_name || '').localeCompare(String(b.zone_name || '')) ||
       String(a.name || '').localeCompare(String(b.name || ''))
     ),
-    [state.tables]
+    [tables]
   )
 
   const orderStats = useMemo(() => {
@@ -564,21 +619,22 @@ export default function AdminTables() {
     return { active, history }
   }, [historicalTableIds, state.orders])
 
-  const activeCount = state.tables.filter(table => table.is_active !== false).length
-  const disabledCount = state.tables.length - activeCount
-  const reservedCount = state.tables.filter(table => table.is_active !== false && table.status === 'reserved').length
-  const todaysReservations = useMemo(() => getTodaysReservations(state.tables, new Date()), [state.tables])
+  const activeCount = tables.filter(table => table.is_active !== false).length
+  const disabledCount = tables.length - activeCount
+  const reservedCount = tables.filter(table => table.is_active !== false && table.status === 'reserved').length
+  const todaysReservations = useMemo(() => getTodaysReservations(tables, new Date()), [tables])
   const selectedTables = useMemo(() =>
     sortedTables.filter(table => selectedIds.includes(table.id)),
     [selectedIds, sortedTables]
   )
+  const allSelected = sortedTables.length > 0 && selectedIds.length === sortedTables.length
 
   function openNew() {
     if (!canManageTables) return
-    const nextSort = state.tables.reduce((max, table) => Math.max(max, Number(table.sort_order) || 0), 0) + 1
+    const nextSort = tables.reduce((max, table) => Math.max(max, Number(table.sort_order) || 0), 0) + 1
     const firstZone = tableZones[0] || { id: 'main-hall', name: 'Main Hall' }
     setForm(normalizeTable({
-      id: '',
+      id: makeTableId(),
       name: '',
       zone_id: firstZone.id,
       zone_name: firstZone.name,
@@ -592,7 +648,9 @@ export default function AdminTables() {
       reserved_until: '',
       reservation_notes: '',
     }, tableZones))
+    newTableAttemptedRef.current = false
     setErrors({})
+    setSaveError('')
     setModal('new')
   }
 
@@ -600,29 +658,37 @@ export default function AdminTables() {
     if (!canManageTables) return
     setForm(normalizeTable(table, tableZones))
     setErrors({})
+    setSaveError('')
     setModal('edit')
   }
 
+  function closeModal() {
+    if (saving) return
+    setModal(null)
+    setSaveError('')
+  }
+
+  // Returns label keys; they are worded at render.
   function validate(nextForm) {
     const nextErrors = {}
     const name = nextForm.name.trim()
-    if (!name) nextErrors.name = l.requiredTableName
-    const duplicate = state.tables.some(table =>
+    if (!name) nextErrors.name = 'requiredTableName'
+    const duplicate = tables.some(table =>
       table.id !== nextForm.id && table.name.trim().toLowerCase() === name.toLowerCase()
     )
-    if (duplicate) nextErrors.name = l.uniqueTableName
+    if (duplicate) nextErrors.name = 'uniqueTableName'
     if (!Number.isFinite(Number(nextForm.capacity)) || Number(nextForm.capacity) <= 0) {
-      nextErrors.capacity = l.positiveCapacity
+      nextErrors.capacity = 'positiveCapacity'
     }
     if (!Number.isFinite(Number(nextForm.sort_order))) {
-      nextErrors.sort_order = l.numericSortOrder
+      nextErrors.sort_order = 'numericSortOrder'
     }
-    if (!nextForm.zone_name.trim()) nextErrors.zone = l.requiredZone
+    if (!nextForm.zone_name.trim()) nextErrors.zone = 'requiredZone'
     if (nextForm.status === 'reserved') {
-      if (!nextForm.reserved_for_name.trim()) nextErrors.reserved_for_name = l.requiredGuestName
-      if (!nextForm.reserved_at) nextErrors.reserved_at = l.requiredReservationTime
+      if (!nextForm.reserved_for_name.trim()) nextErrors.reserved_for_name = 'requiredGuestName'
+      if (!nextForm.reserved_at) nextErrors.reserved_at = 'requiredReservationTime'
       if (nextForm.reserved_until && nextForm.reserved_at && new Date(nextForm.reserved_until) <= new Date(nextForm.reserved_at)) {
-        nextErrors.reserved_until = l.invalidReservationEnd
+        nextErrors.reserved_until = 'invalidReservationEnd'
       }
     }
     return nextErrors
@@ -637,12 +703,14 @@ export default function AdminTables() {
     }))
   }
 
-  async function save() {
-    if (!canManageTables) return
+  async function save(event) {
+    event?.preventDefault()
+    if (!canManageTables || saving) return
+    const isNew = modal === 'new'
     const selectedZone = tableZones.find(z => z.id === form.zone_id || z.name === form.zone_name)
     const payload = {
       ...form,
-      id: form.id || makeTableId(form.name),
+      id: form.id || makeTableId(),
       name: form.name.trim(),
       zone_id: selectedZone?.id || slugify(form.zone_name),
       zone_name: selectedZone?.name || form.zone_name.trim(),
@@ -660,25 +728,33 @@ export default function AdminTables() {
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
-    const result = await dispatch({ type: modal === 'new' ? 'ADD_TABLE' : 'UPDATE_TABLE', payload })
-    if (result?.error) {
-      setNotice({ tone: 'error', message: result.error.message || l.couldNotSave })
+    setSaving(true)
+    setSaveError('')
+    const result = await dispatch({ type: isNew ? 'ADD_TABLE' : 'UPDATE_TABLE', payload })
+    setSaving(false)
+    // The same id was already inserted by an earlier attempt whose answer was lost: it is saved.
+    const alreadySaved = isNew && newTableAttemptedRef.current && isDuplicateIdError(result?.error)
+    if (result?.error && !alreadySaved) {
+      console.error('[tables] save failed:', result.error)
+      if (isNew) newTableAttemptedRef.current = true
+      setSaveError('couldNotSave')
       return
     }
     setModal(null)
-    setNotice({ tone: 'success', message: modal === 'new' ? l.tableAdded : l.tableUpdated })
+    setNotice({ tone: 'success', key: isNew ? 'tableAdded' : 'tableUpdated' })
   }
 
-  async function addZone() {
-    if (!canManageTables) return
+  async function addZone(event) {
+    event?.preventDefault()
+    if (!canManageTables || zoneBusy) return
     const name = zoneName.trim()
     setZoneError('')
     if (!name) {
-      setZoneError(l.requiredZoneName)
+      setZoneError('requiredZoneName')
       return
     }
     if (tableZones.some(zone => zone.name.toLowerCase() === name.toLowerCase())) {
-      setZoneError(l.uniqueZoneName)
+      setZoneError('uniqueZoneName')
       return
     }
     const payload = {
@@ -687,85 +763,93 @@ export default function AdminTables() {
       sort_order: tableZones.reduce((max, zone) => Math.max(max, Number(zone.sort_order) || 0), 0) + 1,
       is_active: true,
     }
+    setZoneBusy(true)
     const result = await dispatch({ type: 'ADD_TABLE_ZONE', payload })
+    setZoneBusy(false)
     if (result?.error) {
-      setZoneError(result.error.message || l.couldNotAddZone)
+      console.error('[tables] add zone failed:', result.error)
+      setZoneError('couldNotAddZone')
       return
     }
     setZoneName('')
-    setNotice({ tone: 'success', message: l.zoneAdded })
+    setNotice({ tone: 'success', key: 'zoneAdded' })
+  }
+
+  function openConfirm(kind, table) {
+    setConfirmError('')
+    setConfirm({ kind, table })
+  }
+
+  function closeConfirm() {
+    if (confirmBusy) return
+    setConfirm(null)
+    setConfirmError('')
   }
 
   function requestDisable(table) {
     if (!canManageTables) return
     const check = canDisableTable(table, state.orders)
     if (!check.ok && check.reason === 'active_orders') {
-      setNotice({ tone: 'error', message: l.closeActiveBeforeDisable })
+      setNotice({ tone: 'error', key: 'closeActiveBeforeDisable' })
       return
     }
-    setConfirm({
-      title: l.disableTitle(table.name),
-      message: l.disableMessage,
-      actionLabel: l.disableTable,
-      tone: 'orange',
-      onConfirm: async () => {
-        const result = await dispatch({
-          type: 'UPDATE_TABLE',
-          payload: {
-            ...table,
-            is_active: false,
-            status: 'available',
-            reserved_for_name: '',
-            reserved_for_phone: '',
-            reserved_at: null,
-            reserved_until: null,
-            reservation_notes: '',
-          },
-        })
-        if (result?.error) {
-          setNotice({ tone: 'error', message: result.error.message || l.couldNotDisable })
-        } else {
-          setNotice({ tone: 'success', message: l.disabledNotice(table.name) })
-        }
-        setConfirm(null)
-      },
-    })
+    openConfirm('disable', table)
   }
 
   function requestDelete(table) {
     if (!canManageTables) return
     if (!historicalTableIds) {
-      setNotice({ tone: 'error', message: l.historyCheckFailed })
+      setNotice({ tone: 'error', key: 'historyCheckFailed' })
       return
     }
     const check = canDeleteTable(table, state.orders)
     if (!check.ok && check.reason === 'active_orders') {
-      setNotice({ tone: 'error', message: l.activeOrdersDeleteBlock })
+      setNotice({ tone: 'error', key: 'activeOrdersDeleteBlock' })
       return
     }
     if (!check.ok && check.reason === 'order_history') {
-      setNotice({ tone: 'error', message: l.historyDeleteBlock })
+      setNotice({ tone: 'error', key: 'historyDeleteBlock' })
       return
     }
     if (orderStats.history.has(table.id)) {
-      setNotice({ tone: 'error', message: l.historyDeleteBlock })
+      setNotice({ tone: 'error', key: 'historyDeleteBlock' })
       return
     }
-    setConfirm({
-      title: l.deleteTitle(table.name),
-      message: l.deleteMessage,
-      actionLabel: l.deleteTable,
-      tone: 'red',
-      onConfirm: async () => {
-        const result = await dispatch({ type: 'DELETE_TABLE', payload: table.id })
-        if (result?.error) {
-          setNotice({ tone: 'error', message: result.error.message || l.couldNotDelete })
-        } else {
-          setNotice({ tone: 'success', message: l.deletedNotice(table.name) })
-        }
-        setConfirm(null)
+    openConfirm('delete', table)
+  }
+
+  function confirmAction({ kind, table }) {
+    if (kind === 'delete') return { type: 'DELETE_TABLE', payload: table.id }
+    if (kind === 'cancelReservation') return { type: 'UPDATE_TABLE', payload: clearReservationPatch(table) }
+    return {
+      type: 'UPDATE_TABLE',
+      payload: {
+        ...table,
+        is_active: false,
+        status: 'available',
+        reserved_for_name: '',
+        reserved_for_phone: '',
+        reserved_at: null,
+        reserved_until: null,
+        reservation_notes: '',
       },
-    })
+    }
+  }
+
+  async function runConfirm() {
+    if (!canManageTables || !confirm || confirmBusy) return
+    const spec = CONFIRMS[confirm.kind]
+    setConfirmBusy(true)
+    setConfirmError('')
+    const result = await dispatch(confirmAction(confirm))
+    setConfirmBusy(false)
+    if (result?.error) {
+      console.error(`[tables] ${confirm.kind} failed:`, result.error)
+      setConfirmError(spec.failed)
+      return
+    }
+    setNotice({ tone: 'success', key: spec.done, args: [confirm.table.name] })
+    setConfirm(null)
   }
 
   function toggleSelected(tableId) {
@@ -778,7 +862,7 @@ export default function AdminTables() {
 
   function toggleAllSelected() {
     if (!canManageTables) return
-    if (selectedIds.length === sortedTables.length) {
+    if (allSelected) {
       setSelectedIds([])
     } else {
       setSelectedIds(sortedTables.map(table => table.id))
@@ -786,13 +870,20 @@ export default function AdminTables() {
   }
 
   async function applyBulkUpdates({ renumber = false } = {}) {
-    if (!canManageTables) return
+    if (!canManageTables || bulkBusy) return
     if (selectedTables.length === 0) return
     const selectedZone = tableZones.find(zone => zone.id === bulkZoneId)
     const nextCapacity = bulkCapacity === '' ? null : Math.max(1, Math.round(Number(bulkCapacity) || 1))
+    if (!selectedZone && !nextCapacity && !renumber) {
+      setNotice({ tone: 'error', key: 'bulkNothingChosen' })
+      return
+    }
+    setBulkBusy(true)
+    let updated = 0
+    let failed = 0
     for (let index = 0; index < selectedTables.length; index += 1) {
       const table = selectedTables[index]
-      await dispatch({
+      const result = await dispatch({
         type: 'UPDATE_TABLE',
         payload: {
           ...table,
@@ -801,8 +892,17 @@ export default function AdminTables() {
           ...(renumber ? { sort_order: index + 1 } : {}),
         },
       })
+      if (result?.error) {
+        console.error('[tables] bulk update failed:', table.id, result.error)
+        failed += 1
+      } else {
+        updated += 1
+      }
     }
-    setNotice({ tone: 'success', message: l.bulkUpdated })
+    setBulkBusy(false)
+    setNotice(failed > 0
+      ? { tone: 'error', key: 'bulkResult', args: [updated, failed] }
+      : { tone: 'success', key: 'bulkUpdated' })
   }
 
   async function handleTableDragEnd({ active, over }) {
@@ -816,298 +916,372 @@ export default function AdminTables() {
     }))
     const result = await dispatch({ type: 'REORDER_TABLES', payload: { updates } })
     if (result?.error) {
-      setNotice({ tone: 'error', message: result.error.message || l.reorderFailed })
+      console.error('[tables] reorder failed:', result.error)
+      setNotice({ tone: 'error', key: 'reorderFailed' })
     }
   }
 
-  function seatReservation(table) {
-    if (!canManageTables) return
-    dispatch({ type: 'UPDATE_TABLE', payload: clearReservationPatch(table) })
+  // The guest is seated only once the reservation is really cleared.
+  async function seatReservation(table) {
+    if (!canManageTables || reservationBusyId) return
+    setReservationBusyId(table.id)
+    const result = await dispatch({ type: 'UPDATE_TABLE', payload: clearReservationPatch(table) })
+    setReservationBusyId('')
+    if (result?.error) {
+      console.error('[tables] seat reservation failed:', result.error)
+      setNotice({ tone: 'error', key: 'couldNotSeat', args: [table.name] })
+      return
+    }
     navigate(`/waiter/order/${table.id}`)
   }
 
   function cancelReservation(table) {
     if (!canManageTables) return
-    dispatch({ type: 'UPDATE_TABLE', payload: clearReservationPatch(table) })
+    openConfirm('cancelReservation', table)
   }
 
-  function callReservation(phone) {
-    if (!phone) return
-    window.location.href = `tel:${phone}`
-  }
+  const confirmSpec = confirm ? CONFIRMS[confirm.kind] : null
+  const reservationLocked = modal === 'edit' && orderStats.active.has(form.id)
 
   return (
     <AppShell title={l.title}>
-      <div className="mx-auto max-w-[1180px] px-5 py-6">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-black text-[#1F2937]">{l.title}</h1>
-            <p className="mt-0.5 text-sm text-[#6B7280]">{l.description}</p>
+      <div className="min-h-full bg-[#f6f5f3]">
+        <div className="ws-page mx-auto max-w-[1180px]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="ws-muted min-w-0 flex-1 basis-64">{l.description}</p>
+            {canManageTables && loaded && !loadError && (
+              <button type="button" onClick={openNew} className="ws-btn ws-btn-primary">
+                <Plus size={16} aria-hidden="true" />
+                {l.addTable}
+              </button>
+            )}
           </div>
-          {canManageTables && (
-            <button
-              onClick={openNew}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ff5a00] px-4 text-sm font-black text-white shadow-lg shadow-orange-100 transition-colors hover:bg-[#cc4800]"
-            >
-              <Plus size={16} />
-              {l.addTable}
-            </button>
-          )}
-        </div>
 
-        {notice && (
-          <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${
-            notice.tone === 'error'
-              ? 'border-red-100 bg-red-50 text-red-700'
-              : 'border-emerald-100 bg-emerald-50 text-emerald-700'
-          }`}>
-            {notice.message}
-          </div>
-        )}
-
-        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <SummaryCard icon={Table2} label={l.tables} value={state.tables.length} tone="orange" />
-          <SummaryCard icon={Power} label={l.active} value={activeCount} tone="green" />
-          <SummaryCard icon={CalendarClock} label={l.reserved} value={reservedCount} tone="purple" />
-          <SummaryCard icon={PowerOff} label={l.disabled} value={disabledCount} tone="gray" />
-        </div>
-
-        <ReservationStrip
-          reservations={todaysReservations}
-          labels={l}
-          canEdit={canManageTables}
-          onSeat={seatReservation}
-          onCancel={cancelReservation}
-          onCall={callReservation}
-        />
-
-        <div className="mb-5 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-black text-[#1F2937]">{l.zones}</p>
-              <p className="text-xs text-gray-500">{l.zonesDescription}</p>
-            </div>
-          </div>
-          <div className="mb-3 flex flex-wrap gap-2">
-            {tableZones.map(zone => (
-              <span key={zone.id} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${getTableZoneVisual(zone, tableZones).badge}`}>
-                <span className={`h-2 w-2 rounded-full ${getTableZoneVisual(zone, tableZones).dot}`} aria-hidden="true" />
-                {zone.name}
-              </span>
-            ))}
-          </div>
-          {canManageTables && (
+          {!loaded ? (
+            <OperationalLoading title={l.title} layout="table" className="!p-0" />
+          ) : loadError ? (
+            <OperationalError lang={lang} onAction={() => window.location.reload()} />
+          ) : (
             <>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  value={zoneName}
-                  onChange={e => setZoneName(e.target.value)}
-                  placeholder={l.addZonePlaceholder}
-                  className="h-10 flex-1 rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
-                />
-                <button
-                  onClick={addZone}
-                  className="h-10 rounded-xl border border-[#E5E7EB] bg-gray-50 px-4 text-sm font-black text-[#1F2937] transition-colors hover:bg-gray-100"
-                >
-                  {l.addZone}
-                </button>
-              </div>
-              {zoneError && <p className="mt-2 text-xs font-bold text-red-600">{zoneError}</p>}
-            </>
-          )}
-        </div>
+              {notice && (
+                <div role={notice.tone === 'error' ? 'alert' : 'status'} className={`ws-notice ${notice.tone === 'error' ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
+                  {noticeText(l, notice)}
+                </div>
+              )}
+              {historyFailed && (
+                <div role="alert" className="ws-notice ws-tone-caution flex flex-wrap items-center justify-between gap-3">
+                  <span className="min-w-0 flex-1 basis-56">{l.historyCheckFailed}</span>
+                  <button type="button" onClick={() => setHistoryAttempt(count => count + 1)} className="ws-btn ws-btn-outline ws-btn-sm">
+                    <RefreshCw size={14} aria-hidden="true" />
+                    {l.retry}
+                  </button>
+                </div>
+              )}
 
-        {canManageTables && selectedIds.length > 0 && (
-          <div className="mb-5 rounded-2xl border border-blue-100 bg-blue-50/60 p-4 shadow-sm">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-black text-[#1F2937]">{l.bulkActions}</p>
-                <p className="text-xs font-semibold text-blue-700">{l.selected(selectedIds.length)}</p>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <SummaryCard icon={Table2} label={l.tables} value={tables.length} />
+                <SummaryCard icon={Power} label={l.active} value={activeCount} />
+                <SummaryCard icon={CalendarClock} label={l.reserved} value={reservedCount} />
+                <SummaryCard icon={PowerOff} label={l.disabled} value={disabledCount} />
               </div>
-              <button onClick={() => setSelectedIds([])} className="rounded-xl border border-blue-100 bg-white px-3 py-2 text-xs font-black text-blue-700">
-                {l.clearSelection}
-              </button>
-            </div>
-            <div className="grid gap-2 md:grid-cols-[1fr_160px_auto_auto]">
-              <select
-                value={bulkZoneId}
-                onChange={e => setBulkZoneId(e.target.value)}
-                className="h-10 rounded-xl border border-blue-100 bg-white px-3 text-sm font-bold text-[#1F2937] outline-none"
-              >
-                <option value="">{l.bulkZone}</option>
-                {tableZones.map(zone => <option key={zone.id} value={zone.id}>{zone.name}</option>)}
-              </select>
-              <input
-                type="number"
-                min="1"
-                value={bulkCapacity}
-                onChange={e => setBulkCapacity(e.target.value)}
-                placeholder={l.bulkCapacity}
-                className="h-10 rounded-xl border border-blue-100 bg-white px-3 text-sm font-bold text-[#1F2937] outline-none"
+
+              <ReservationStrip
+                reservations={todaysReservations}
+                labels={l}
+                canEdit={canManageTables}
+                busyId={reservationBusyId}
+                onSeat={seatReservation}
+                onCancel={cancelReservation}
               />
-              <button onClick={() => applyBulkUpdates()} className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">
-                {l.applyBulk}
-              </button>
-              <button onClick={() => applyBulkUpdates({ renumber: true })} className="h-10 rounded-xl border border-blue-100 bg-white px-4 text-sm font-black text-blue-700">
-                {l.renumberSelected}
-              </button>
-            </div>
-          </div>
-        )}
 
-        <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-sm">
-          <div className="hidden grid-cols-[64px_1.3fr_1fr_0.7fr_1fr_0.7fr_150px] gap-3 border-b border-[#F3F4F6] bg-gray-50 px-4 py-3 text-[11px] font-black uppercase tracking-wider text-gray-400 md:grid">
-            <button onClick={toggleAllSelected} className="text-left">{l.select}</button>
-            <span>{l.tableName}</span>
-            <span>{l.zoneSection}</span>
-            <span>{l.capacity}</span>
-            <span>{l.status}</span>
-            <span>{l.sortOrder}</span>
-            <span className="text-right">{l.actions}</span>
-          </div>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
-            <SortableContext items={sortedTables.map(table => table.id)} strategy={verticalListSortingStrategy}>
-              <div className="divide-y divide-[#F3F4F6]">
-            {sortedTables.map(table => {
-              const zoneVisual = getTableZoneVisual(table, tableZones)
-              const activeOrders = orderStats.active.has(table.id)
-              const hasHistory = orderStats.history.has(table.id)
-              const canHardDelete = historicalTableIds !== null && !activeOrders && !hasHistory
-              const deleteTitle = historicalTableIds === null
-                ? l.historyCheckFailed
-                : activeOrders
-                ? l.activeOrdersDeleteBlock
-                : hasHistory
-                  ? l.historyDeleteBlock
-                  : l.delete
-              const selected = selectedIds.includes(table.id)
-              return (
-                <SortableTableRow
-                  key={table.id}
-                  tableId={table.id}
-                  disabled={!canManageTables}
-                  className={`grid gap-3 px-4 py-4 md:grid-cols-[64px_1.3fr_1fr_0.7fr_1fr_0.7fr_150px] md:items-center ${table.is_active === false ? 'bg-gray-50/70' : selected ? 'bg-blue-50/40' : 'bg-white'}`}
-                >
-                  {({ attributes, listeners }) => <>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      {...attributes}
-                      {...listeners}
-                      disabled={!canManageTables}
-                      className="touch-none cursor-grab rounded-lg p-1 text-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-600 active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-30"
-                      title={l.dragTable}
-                      aria-label={`${l.dragTable}: ${table.name}`}
-                    >
-                      <GripVertical size={17} />
-                    </button>
+              <section className="ws-panel">
+                <h2 className="text-sm font-semibold text-[#22201d]">{l.zones}</h2>
+                <p className="ws-caption">{l.zonesDescription}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {tableZones.map(zone => (
+                    <span key={zone.id} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${getTableZoneVisual(zone, tableZones).badge}`}>
+                      <span className={`h-2 w-2 rounded-full ${getTableZoneVisual(zone, tableZones).dot}`} aria-hidden="true" />
+                      {zone.name}
+                    </span>
+                  ))}
+                </div>
+                {canManageTables && (
+                  <form onSubmit={addZone} className="mt-3 flex flex-wrap gap-2">
                     <input
-                      type="checkbox"
-                      checked={selected}
-                      disabled={!canManageTables}
-                      onChange={() => toggleSelected(table.id)}
-                      className="h-4 w-4 rounded border-gray-300 text-[#ff5a00]"
-                      aria-label={`${l.select} ${table.name}`}
+                      value={zoneName}
+                      onChange={e => setZoneName(e.target.value)}
+                      placeholder={l.addZonePlaceholder}
+                      aria-label={l.zoneName}
+                      aria-invalid={zoneError ? true : undefined}
+                      className="ws-input min-w-0 flex-1 basis-56"
                     />
+                    <button type="submit" disabled={zoneBusy} className="ws-btn ws-btn-outline">
+                      {zoneBusy && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                      {l.addZone}
+                    </button>
+                    {zoneError && <p role="alert" className="w-full text-xs font-medium text-[#c4262c]">{l[zoneError]}</p>}
+                  </form>
+                )}
+              </section>
+
+              {canManageTables && selectedIds.length > 0 && (
+                <section className="ws-panel" aria-busy={bulkBusy || undefined}>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-sm font-semibold text-[#22201d]">{l.bulkActions}</h2>
+                      <p className="ws-caption tabular-nums">{l.selected(selectedIds.length)}</p>
+                    </div>
+                    <button type="button" onClick={() => setSelectedIds([])} disabled={bulkBusy} className="ws-btn ws-btn-ghost ws-btn-sm">
+                      {l.clearSelection}
+                    </button>
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-[#1F2937]">{table.name}</p>
-                    <p className="mt-0.5 text-xs text-gray-400 md:hidden">{table.zone_name || 'Main Hall'} · sort {Number(table.sort_order) || 0}</p>
-                    {activeOrders && <p className="mt-1 text-xs font-bold text-orange-600">{l.hasActiveOrders}</p>}
-                    {!activeOrders && hasHistory && <p className="mt-1 text-xs font-semibold text-gray-400">{l.hasOrderHistory}</p>}
-                    {table.status === 'reserved' && table.reserved_for_name && (
-                      <p className="mt-1 text-xs font-bold text-purple-600">{table.reserved_for_name}</p>
-                    )}
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={bulkZoneId}
+                      onChange={e => setBulkZoneId(e.target.value)}
+                      disabled={bulkBusy}
+                      aria-label={l.bulkZone}
+                      className="ws-input min-w-0 flex-1 basis-48"
+                    >
+                      <option value="">{l.bulkZone}</option>
+                      {tableZones.map(zone => <option key={zone.id} value={zone.id}>{zone.name}</option>)}
+                    </select>
+                    <input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      value={bulkCapacity}
+                      onChange={e => setBulkCapacity(e.target.value)}
+                      disabled={bulkBusy}
+                      placeholder={l.bulkCapacity}
+                      aria-label={l.bulkCapacity}
+                      className="ws-input min-w-0 flex-1 basis-40 tabular-nums"
+                    />
+                    <button type="button" onClick={() => applyBulkUpdates()} disabled={bulkBusy} className="ws-btn ws-btn-primary">
+                      {bulkBusy && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                      {l.applyBulk}
+                    </button>
+                    <button type="button" onClick={() => applyBulkUpdates({ renumber: true })} disabled={bulkBusy} className="ws-btn ws-btn-outline">
+                      {l.renumberSelected}
+                    </button>
                   </div>
-                  <div className={`flex w-fit items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-bold ${zoneVisual.badge}`}>
-                    <MapPin size={12} />
-                    {table.zone_name || 'Main Hall'}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-600">
-                    <Users size={14} className="text-gray-300" />
-                    {Number(table.capacity) || 4}
-                  </div>
-                  <div>
-                    <StatusPill table={table} labels={l} />
-                    {table.status === 'reserved' && table.reserved_at && (
-                      <p className="mt-1 text-xs font-semibold text-gray-400">{formatDateTime(table.reserved_at)}</p>
-                    )}
-                  </div>
-                  <div className="hidden items-center gap-1.5 text-sm font-semibold text-gray-600 md:flex">
-                    <Hash size={14} className="text-gray-300" />
-                    {Number(table.sort_order) || 0}
-                  </div>
-                  <div className="flex items-center justify-end gap-1">
-                    {canManageTables ? (
+                </section>
+              )}
+
+              {sortedTables.length === 0 ? (
+                <section className="ws-panel">
+                  <div className="ws-empty">
+                    <Table2 aria-hidden="true" />
+                    <h3>{l.noTables}</h3>
+                    {canManageTables && (
                       <>
-                        <button
-                          onClick={() => openEdit(table)}
-                          className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-orange-50 hover:text-[#ff5a00]"
-                          title={l.edit}
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button
-                          onClick={() => openEdit({ ...table, status: 'reserved' })}
-                          disabled={activeOrders || table.is_active === false}
-                          className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-purple-50 hover:text-purple-600 disabled:cursor-not-allowed disabled:opacity-40"
-                          title={l.reserve}
-                        >
-                          <CalendarClock size={15} />
-                        </button>
-                        <button
-                          onClick={() => requestDisable(table)}
-                          disabled={table.is_active === false}
-                          className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-                          title={l.disable}
-                        >
-                          <PowerOff size={15} />
-                        </button>
-                        <button
-                          onClick={() => requestDelete(table)}
-                          disabled={!canHardDelete}
-                          className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-gray-400"
-                          title={deleteTitle}
-                          aria-label={deleteTitle}
-                        >
-                          <Trash2 size={15} />
+                        <p>{l.noTablesHint}</p>
+                        <button type="button" onClick={openNew} className="ws-btn ws-btn-primary">
+                          <Plus size={16} aria-hidden="true" />
+                          {l.addTable}
                         </button>
                       </>
-                    ) : (
-                      <span className="text-xs font-bold text-gray-300">—</span>
                     )}
                   </div>
-                  </>}
-                </SortableTableRow>
-              )
-            })}
-              </div>
-            </SortableContext>
-          </DndContext>
+                </section>
+              ) : (
+                <section className="ws-panel ws-panel-flush">
+                  <div className={`ws-table-head hidden items-center gap-3 px-4 py-2 md:grid ${ROW_GRID}`}>
+                    <label className="flex h-10 w-10 items-center justify-center justify-self-end">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        disabled={!canManageTables}
+                        onChange={toggleAllSelected}
+                        className="h-4 w-4 rounded border-gray-300 accent-[#cc4800]"
+                        aria-label={l.selectAll}
+                      />
+                    </label>
+                    <span>{l.tableName}</span>
+                    <span>{l.zoneSection}</span>
+                    <span>{l.capacity}</span>
+                    <span>{l.status}</span>
+                    <span>{l.sortOrder}</span>
+                    <span className="text-right">{l.actions}</span>
+                  </div>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTableDragEnd}>
+                    <SortableContext items={sortedTables.map(table => table.id)} strategy={verticalListSortingStrategy}>
+                      <div>
+                        {sortedTables.map(table => {
+                          const zoneVisual = getTableZoneVisual(table, tableZones)
+                          const activeOrders = orderStats.active.has(table.id)
+                          const hasHistory = orderStats.history.has(table.id)
+                          const canHardDelete = historicalTableIds !== null && !activeOrders && !hasHistory
+                          const deleteTitle = historicalTableIds === null
+                            ? l.historyCheckFailed
+                            : activeOrders
+                              ? l.activeOrdersDeleteBlock
+                              : hasHistory
+                                ? l.historyDeleteBlock
+                                : l.delete
+                          const selected = selectedIds.includes(table.id)
+                          const zoneLabel = table.zone_name || l.defaultZone
+                          return (
+                            <SortableTableRow
+                              key={table.id}
+                              tableId={table.id}
+                              disabled={!canManageTables}
+                              className={`ws-row grid gap-3 px-4 py-3 md:items-center ${ROW_GRID} ${table.is_active === false ? 'bg-[#f6f5f3]' : selected ? 'bg-[#fff1e8]' : 'bg-white'}`}
+                            >
+                              {({ attributes, listeners }) => <>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    {...attributes}
+                                    {...listeners}
+                                    disabled={!canManageTables}
+                                    className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon touch-none cursor-grab active:cursor-grabbing"
+                                    title={l.dragTable}
+                                    aria-label={`${l.dragTable}: ${table.name}`}
+                                  >
+                                    <GripVertical size={17} aria-hidden="true" />
+                                  </button>
+                                  <label className="flex h-10 w-10 items-center justify-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={selected}
+                                      disabled={!canManageTables}
+                                      onChange={() => toggleSelected(table.id)}
+                                      className="h-4 w-4 rounded border-gray-300 accent-[#cc4800]"
+                                      aria-label={`${l.select} ${table.name}`}
+                                    />
+                                  </label>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-[#22201d]">{table.name}</p>
+                                  <p className="ws-caption md:hidden">{zoneLabel} · {l.sortOrder} {Number(table.sort_order) || 0}</p>
+                                  {activeOrders && <p className="mt-1 text-xs font-medium text-[#bf4300]">{l.hasActiveOrders}</p>}
+                                  {!activeOrders && hasHistory && <p className="ws-caption mt-1">{l.hasOrderHistory}</p>}
+                                  {table.status === 'reserved' && table.reserved_for_name && (
+                                    <p className="ws-caption mt-1 truncate">{table.reserved_for_name}</p>
+                                  )}
+                                </div>
+                                <div className={`flex w-fit max-w-full items-center gap-1.5 rounded-full border px-2 py-1 text-xs font-medium ${zoneVisual.badge}`}>
+                                  <MapPin size={12} aria-hidden="true" className="flex-shrink-0" />
+                                  <span className="truncate">{zoneLabel}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-sm tabular-nums text-[#22201d]">
+                                  <Users size={14} className="text-[#68655f]" aria-hidden="true" />
+                                  <span className="sr-only">{l.capacity}: </span>
+                                  {Number(table.capacity) || 4}
+                                </div>
+                                <div>
+                                  <TableStatus table={table} labels={l} lang={lang} />
+                                  {table.status === 'reserved' && table.reserved_at && (
+                                    <p className="ws-caption mt-1 tabular-nums">{formatDateTime(table.reserved_at)}</p>
+                                  )}
+                                </div>
+                                <div className="hidden items-center gap-1.5 text-sm tabular-nums text-[#22201d] md:flex">
+                                  <Hash size={14} className="text-[#68655f]" aria-hidden="true" />
+                                  {Number(table.sort_order) || 0}
+                                </div>
+                                <div className="flex items-center justify-end gap-1">
+                                  {canManageTables ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => openEdit(table)}
+                                        className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"
+                                        title={l.edit}
+                                        aria-label={`${l.edit}: ${table.name}`}
+                                      >
+                                        <Edit2 size={15} aria-hidden="true" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openEdit({ ...table, status: 'reserved' })}
+                                        disabled={activeOrders || table.is_active === false}
+                                        className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"
+                                        title={l.reserve}
+                                        aria-label={`${l.reserve}: ${table.name}`}
+                                      >
+                                        <CalendarClock size={15} aria-hidden="true" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => requestDisable(table)}
+                                        disabled={table.is_active === false}
+                                        className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"
+                                        title={l.disable}
+                                        aria-label={`${l.disable}: ${table.name}`}
+                                      >
+                                        <PowerOff size={15} aria-hidden="true" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => requestDelete(table)}
+                                        disabled={!canHardDelete}
+                                        className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm ws-btn-icon ml-2"
+                                        title={deleteTitle}
+                                        aria-label={`${deleteTitle}: ${table.name}`}
+                                      >
+                                        <Trash2 size={15} aria-hidden="true" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="ws-caption" aria-hidden="true">—</span>
+                                  )}
+                                </div>
+                              </>}
+                            </SortableTableRow>
+                          )
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </section>
+              )}
+            </>
+          )}
         </div>
       </div>
 
       {modal && (
-        <Modal
+        <WorkspaceDialog
+          as="form"
+          panelProps={{ onSubmit: save, noValidate: true }}
+          variant="sheet"
+          size="lg"
           title={modal === 'new' ? l.addTableTitle : l.editTableTitle}
           description={l.modalDescription}
-          onClose={() => setModal(null)}
+          onClose={closeModal}
+          closeLabel={l.close}
+          busy={saving}
+          initialFocusRef={nameInputRef}
+          notice={saveError ? <p role="alert" className="ws-notice ws-tone-negative">{l[saveError]}</p> : null}
+          footer={(
+            <>
+              <button type="button" onClick={closeModal} disabled={saving} className="ws-btn ws-btn-outline">{l.cancel}</button>
+              <button type="submit" disabled={saving} className="ws-btn ws-btn-primary">
+                {saving && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                {saving ? l.saving : l.save}
+              </button>
+            </>
+          )}
         >
-          <div className="space-y-4">
-            <Field label={l.tableName} error={errors.name}>
+          <fieldset disabled={saving} className="grid gap-4">
+            <Field label={l.tableName} error={l[errors.name]}>
               <input
+                ref={nameInputRef}
                 value={form.name}
                 onChange={e => setForm(current => ({ ...current, name: e.target.value }))}
                 placeholder={l.tableNamePlaceholder}
-                className="h-11 w-full rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
+                aria-invalid={errors.name ? true : undefined}
+                className="ws-input"
               />
             </Field>
 
-            <Field label={l.zoneSection} error={errors.zone}>
+            <Field label={l.zoneSection} error={l[errors.zone]}>
               <select
                 value={form.zone_id}
                 onChange={e => updateZone(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
+                aria-invalid={errors.zone ? true : undefined}
+                className="ws-input"
               >
                 {tableZones.map(zone => (
                   <option key={zone.id} value={zone.id}>{zone.name}</option>
@@ -1116,81 +1290,98 @@ export default function AdminTables() {
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label={l.capacity} error={errors.capacity}>
+              <Field label={l.capacity} error={l[errors.capacity]}>
                 <input
                   type="number"
                   min="1"
+                  inputMode="numeric"
                   value={form.capacity}
                   onChange={e => setForm(current => ({ ...current, capacity: e.target.value }))}
                   placeholder="4"
-                  className="h-11 w-full rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
+                  aria-invalid={errors.capacity ? true : undefined}
+                  className="ws-input tabular-nums"
                 />
               </Field>
-              <Field label={l.sortOrder} error={errors.sort_order}>
+              <Field label={l.sortOrder} error={l[errors.sort_order]}>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={form.sort_order}
                   onChange={e => setForm(current => ({ ...current, sort_order: e.target.value }))}
                   placeholder="1"
-                  className="h-11 w-full rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
+                  aria-invalid={errors.sort_order ? true : undefined}
+                  className="ws-input tabular-nums"
                 />
               </Field>
             </div>
 
-            <div className="rounded-2xl border border-[#E5E7EB] bg-gray-50 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-black text-[#1F2937]">{l.reserved}</p>
-                  <p className="text-xs text-gray-500">{l.reservationDescription}</p>
+            <div className="border-t border-[#e4e1de] pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p id="table-reserved-label" className="text-sm font-semibold text-[#22201d]">{l.reserved}</p>
+                  <p id="table-reserved-hint" className="ws-caption">{reservationLocked ? l.lockedByActiveOrders : l.reservationDescription}</p>
                 </div>
-                <Toggle
-                  value={form.status === 'reserved'}
-                  onChange={value => setForm(current => ({
-                    ...current,
-                    status: value ? 'reserved' : 'available',
-                    reserved_for_name: value ? current.reserved_for_name : '',
-                    reserved_for_phone: value ? current.reserved_for_phone : '',
-                    reserved_at: value ? current.reserved_at : '',
-                    reserved_until: value ? current.reserved_until : '',
-                    reservation_notes: value ? current.reservation_notes : '',
-                  }))}
-                  disabled={modal === 'edit' && orderStats.active.has(form.id)}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={form.status === 'reserved'}
+                  aria-labelledby="table-reserved-label"
+                  aria-describedby="table-reserved-hint"
+                  disabled={reservationLocked}
+                  onClick={() => setForm(current => {
+                    const value = current.status !== 'reserved'
+                    return {
+                      ...current,
+                      status: value ? 'reserved' : 'available',
+                      reserved_for_name: value ? current.reserved_for_name : '',
+                      reserved_for_phone: value ? current.reserved_for_phone : '',
+                      reserved_at: value ? current.reserved_at : '',
+                      reserved_until: value ? current.reserved_until : '',
+                      reservation_notes: value ? current.reservation_notes : '',
+                    }
+                  })}
+                  className="ws-switch flex-shrink-0"
                 />
               </div>
               {form.status === 'reserved' && (
-                <div className="grid gap-3">
-                  <Field label={l.guestName} error={errors.reserved_for_name}>
-                    <input
-                      value={form.reserved_for_name}
-                      onChange={e => setForm(current => ({ ...current, reserved_for_name: e.target.value }))}
-                      placeholder={l.customerNamePlaceholder}
-                      className="h-11 w-full rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
-                    />
-                  </Field>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="mt-3 grid gap-3">
+                  <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(12rem,1fr))]">
+                    <Field label={l.guestName} error={l[errors.reserved_for_name]}>
+                      <input
+                        value={form.reserved_for_name}
+                        onChange={e => setForm(current => ({ ...current, reserved_for_name: e.target.value }))}
+                        placeholder={l.customerNamePlaceholder}
+                        autoComplete="off"
+                        aria-invalid={errors.reserved_for_name ? true : undefined}
+                        className="ws-input"
+                      />
+                    </Field>
                     <Field label={l.phone}>
                       <input
+                        type="tel"
+                        inputMode="tel"
                         value={form.reserved_for_phone}
                         onChange={e => setForm(current => ({ ...current, reserved_for_phone: e.target.value }))}
                         placeholder="+998..."
-                        className="h-11 w-full rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
-                      />
-                    </Field>
-                    <Field label={l.reservationTime} error={errors.reserved_at}>
-                      <DateTimePicker
-                        lang={lang} label={l.reservationTime}
-                        value={form.reserved_at}
-                        onChange={value => setForm(current => ({ ...current, reserved_at: value }))}
-                        className="h-11 w-full rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
+                        autoComplete="off"
+                        className="ws-input"
                       />
                     </Field>
                   </div>
-                  <Field label={l.reservedUntil} error={errors.reserved_until}>
+                  <Field as="div" label={l.reservationTime} error={l[errors.reserved_at]}>
+                    <DateTimePicker
+                      lang={lang} label={l.reservationTime}
+                      value={form.reserved_at}
+                      onChange={value => setForm(current => ({ ...current, reserved_at: value }))}
+                      className="ws-input text-left"
+                    />
+                  </Field>
+                  <Field as="div" label={l.reservedUntil} error={l[errors.reserved_until]}>
                     <DateTimePicker
                       lang={lang} label={l.reservedUntil}
                       value={form.reserved_until}
                       onChange={value => setForm(current => ({ ...current, reserved_until: value }))}
-                      className="h-11 w-full rounded-xl border border-[#E5E7EB] px-3 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
+                      className="ws-input text-left"
                     />
                   </Field>
                   <Field label={l.notes}>
@@ -1199,62 +1390,60 @@ export default function AdminTables() {
                       onChange={e => setForm(current => ({ ...current, reservation_notes: e.target.value }))}
                       placeholder={l.notesPlaceholder}
                       rows={3}
-                      className="w-full resize-none rounded-xl border border-[#E5E7EB] px-3 py-2 text-sm outline-none transition-all focus:border-[#ff5a00] focus:ring-2 focus:ring-[#ff5a00]/15"
+                      className="ws-input"
                     />
                   </Field>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-between rounded-2xl border border-[#E5E7EB] bg-gray-50 px-4 py-3">
-              <div>
-                <p className="text-sm font-black text-[#1F2937]">{l.active}</p>
-                <p className="text-xs text-gray-500">{l.activeDescription}</p>
+            <div className="flex items-center justify-between gap-3 border-t border-[#e4e1de] pt-4">
+              <div className="min-w-0">
+                <p id="table-active-label" className="text-sm font-semibold text-[#22201d]">{l.active}</p>
+                <p id="table-active-hint" className="ws-caption">{reservationLocked ? l.lockedByActiveOrders : l.activeDescription}</p>
               </div>
-              <Toggle
-                value={form.is_active !== false}
-                onChange={value => setForm(current => ({ ...current, is_active: value }))}
-                disabled={modal === 'edit' && orderStats.active.has(form.id)}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.is_active !== false}
+                aria-labelledby="table-active-label"
+                aria-describedby="table-active-hint"
+                disabled={reservationLocked}
+                onClick={() => setForm(current => ({ ...current, is_active: current.is_active === false }))}
+                className="ws-switch flex-shrink-0"
               />
             </div>
-
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => setModal(null)}
-                className="h-11 flex-1 rounded-xl border-2 border-gray-200 text-sm font-black text-gray-600 transition-colors hover:bg-gray-50"
-              >
-                {l.cancel}
-              </button>
-              <button
-                onClick={save}
-                className="h-11 flex-1 rounded-xl bg-[#ff5a00] text-sm font-black text-white shadow-md shadow-orange-100 transition-colors hover:bg-[#cc4800]"
-              >
-                {l.save}
-              </button>
-            </div>
-          </div>
-        </Modal>
+          </fieldset>
+        </WorkspaceDialog>
       )}
 
       {confirm && (
-        <Modal title={confirm.title} description={confirm.message} onClose={() => setConfirm(null)} maxWidth="sm:max-w-md">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setConfirm(null)}
-              className="h-11 flex-1 rounded-xl border-2 border-gray-200 text-sm font-black text-gray-600 transition-colors hover:bg-gray-50"
-            >
-              {l.cancel}
-            </button>
-            <button
-              onClick={confirm.onConfirm}
-              className={`h-11 flex-1 rounded-xl text-sm font-black text-white transition-colors ${
-                confirm.tone === 'red' ? 'bg-red-600 hover:bg-red-700' : 'bg-[#ff5a00] hover:bg-[#cc4800]'
-              }`}
-            >
-              {confirm.actionLabel}
-            </button>
-          </div>
-        </Modal>
+        <WorkspaceDialog
+          variant="alert"
+          size="md"
+          title={l[confirmSpec.title](confirm.table.name)}
+          description={l[confirmSpec.message]}
+          onClose={closeConfirm}
+          closeLabel={l.close}
+          busy={confirmBusy}
+          notice={confirmError ? <p role="alert" className="ws-notice ws-tone-negative">{l[confirmError]}</p> : null}
+          footer={(
+            <>
+              <button type="button" onClick={closeConfirm} disabled={confirmBusy} className="ws-btn ws-btn-outline">
+                {confirm.kind === 'cancelReservation' ? l.keepReservation : l.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={runConfirm}
+                disabled={confirmBusy}
+                className={`ws-btn ${confirmSpec.danger ? 'ws-btn-danger-solid' : 'ws-btn-primary'}`}
+              >
+                {confirmBusy && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                {l[confirmSpec.action]}
+              </button>
+            </>
+          )}
+        />
       )}
     </AppShell>
   )

@@ -40,6 +40,7 @@ test('auth account deletion preserves the complete immutable accounting audit sn
 
 test('failed account deletion shows an accessible error on the affected row', () => {
   const page = read('src/pages/AdminUsers.jsx')
-  assert.match(page, /setNotice\(\{ tone: 'error', message: error.message \|\| l.deleteError, userId: user.id \}\)/)
-  assert.match(page, /notice\?\.tone === 'error' && notice.userId === user.id && \([\s\S]*?<p role="alert"[\s\S]*?\{notice.message\}/)
+  // The error is stored as a label key (translated at render) and stays tied to the affected member.
+  assert.match(page, /setNotice\(\{ tone: 'error', key: 'deleteError', userId: user.id \}\)/)
+  assert.match(page, /notice\?\.tone === 'error' && notice.userId === user.id && \([\s\S]*?<p role="alert"[\s\S]*?\{noticeText\(l, notice\)\}/)
 })

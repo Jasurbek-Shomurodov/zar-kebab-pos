@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { ChevronRight, Loader2, Power, QrCode, X } from 'lucide-react'
+import { ChevronRight, Loader2, Power, QrCode } from 'lucide-react'
+import WorkspaceDialog from './WorkspaceDialog'
 import TimePicker24 from './TimePicker24'
 import { supabase } from '../lib/supabase'
 import { formatAttendanceQrWindow, normalizeWorkStartTime } from '../lib/attendance'
@@ -14,7 +15,7 @@ const L = {
     sub: 'Tanlangan akkauntlar menyuda «Kelish QR kodi» bo‘limini faqat belgilangan vaqtda ko‘radi (Toshkent vaqti). Boshlanish va tugash bir xil bo‘lsa — kun bo‘yi.',
     account: 'Akkaunt', role: 'Rol', email: 'Email', hours: 'Vaqt', notShown: 'Ko‘rsatilmaydi', cancel: 'Bekor qilish',
     from: 'Dan', to: 'Gacha', hour: 'Soat', minute: 'Daqiqa', done: 'Tayyor',
-    save: 'Saqlash', turnOff: 'O‘chirish', confirm: 'Tasdiqlash', allDayHint: 'Boshlanish va tugash bir xil bo‘lsa — kun bo‘yi. Tugash boshlanishdan oldin bo‘lsa — yarim tundan o‘tadi.', turnOffHint: 'Bu akkaunt menyuda QR kodni ko‘rmaydi.',
+    save: 'Saqlash', saving: 'Saqlanmoqda…', close: 'Yopish', turnOff: 'O‘chirish', confirm: 'QR kodni o‘chirish', saveFailed: 'Saqlab bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.', allDayHint: 'Boshlanish va tugash bir xil bo‘lsa — kun bo‘yi. Tugash boshlanishdan oldin bo‘lsa — yarim tundan o‘tadi.', turnOffHint: 'Bu akkaunt menyuda QR kodni ko‘rmaydi.',
     loadFailed: 'Ro‘yxatni yuklab bo‘lmadi.', retry: 'Qayta urinish',
     unavailable: 'Avval 247-migratsiyani qo‘llang.',
   },
@@ -23,7 +24,7 @@ const L = {
     sub: 'Выбранные аккаунты видят пункт «QR для отметки» в меню только в заданное время (по Ташкенту). Одинаковое начало и конец — весь день.',
     account: 'Аккаунт', role: 'Роль', email: 'Email', hours: 'Время', notShown: 'Не показывается', cancel: 'Отмена',
     from: 'С', to: 'До', hour: 'Час', minute: 'Минута', done: 'Готово',
-    save: 'Сохранить', turnOff: 'Отключить', confirm: 'Подтвердить', allDayHint: 'Одинаковое начало и конец — весь день. Если конец раньше начала, время переходит через полночь.', turnOffHint: 'Этот аккаунт перестанет видеть QR в меню.',
+    save: 'Сохранить', saving: 'Сохранение…', close: 'Закрыть', turnOff: 'Отключить', confirm: 'Отключить QR', saveFailed: 'Не удалось сохранить. Проверьте интернет и попробуйте ещё раз.', allDayHint: 'Одинаковое начало и конец — весь день. Если конец раньше начала, время переходит через полночь.', turnOffHint: 'Этот аккаунт перестанет видеть QR в меню.',
     loadFailed: 'Не удалось загрузить список.', retry: 'Повторить',
     unavailable: 'Сначала примените миграцию 247.',
   },
@@ -32,8 +33,8 @@ const L = {
     sub: 'Selected accounts see “Check-in QR” in the menu only during their hours (Tashkent time). The same start and end means all day.',
     account: 'Account', role: 'Role', email: 'Email', hours: 'Hours', notShown: 'Not shown', cancel: 'Cancel',
     from: 'From', to: 'To', hour: 'Hour', minute: 'Minute', done: 'Done',
-    save: 'Save', turnOff: 'Turn off', confirm: 'Confirm', allDayHint: 'The same start and end means all day. An end before the start runs past midnight.', turnOffHint: 'This account will no longer see the QR in the menu.',
-    loadFailed: 'Could not load the list.', retry: 'Retry',
+    save: 'Save', saving: 'Saving…', close: 'Close', turnOff: 'Turn off', confirm: 'Turn off the QR', saveFailed: 'Could not save. Check the connection and try again.', allDayHint: 'The same start and end means all day. An end before the start runs past midnight.', turnOffHint: 'This account will no longer see the QR in the menu.',
+    loadFailed: 'Could not load the list.', retry: 'Try again',
     unavailable: 'Apply migration 247 first.',
   },
 }
@@ -77,6 +78,7 @@ export default function AttendanceQrAccessSettings({ lang, canManage }) {
     setLoadError('')
     const { data, error } = await supabase.rpc('get_attendance_qr_access_settings')
     if (error) {
+      console.error('[checkin-qr] access list failed:', error)
       setLoadError(['PGRST202', '42883'].includes(error.code) ? 'unavailable' : 'failed')
       setRows([])
       return
@@ -105,7 +107,9 @@ export default function AttendanceQrAccessSettings({ lang, canManage }) {
     const { error } = await call()
     setBusy('')
     if (error) {
-      setDialogError(error.message)
+      // Worded from the label object at render; the backend text stays in the console.
+      console.error('[checkin-qr] access change failed:', error)
+      setDialogError('saveFailed')
       return
     }
     invalidateAttendanceQrAccess()
@@ -134,11 +138,11 @@ export default function AttendanceQrAccessSettings({ lang, canManage }) {
   return (
     <section className="ws-panel ws-panel-flush">
       <div className="border-b border-[#e4e1de] px-5 py-4">
-        <h2 className="ws-heading flex items-center gap-2"><QrCode size={16} />{l.title}</h2>
+        <h2 className="ws-heading flex items-center gap-2"><QrCode size={16} aria-hidden="true" />{l.title}</h2>
         <p className="ws-caption mt-1">{l.sub}</p>
       </div>
       {rows === null ? (
-        <div aria-busy="true">
+        <div role="status" aria-busy="true">
           {Array.from({ length: 6 }, (_, index) => (
             <div key={index} className="flex items-center gap-6 border-b border-[#e4e1de]/70 px-4 py-3.5 last:border-0 sm:px-5">
               <Shimmer className={`h-3.5 ${index % 2 ? 'w-28' : 'w-36'}`} />
@@ -186,8 +190,8 @@ export default function AttendanceQrAccessSettings({ lang, canManage }) {
                     <span className="flex items-center justify-between gap-3">
                       {row.selected
                         ? <span className="ws-status ws-tone-positive tabular-nums">{formatAttendanceQrWindow(row.start_time, row.end_time, lang)}</span>
-                        : <span className="text-[#9b978f]">{l.notShown}</span>}
-                      {canManage && <ChevronRight size={16} aria-hidden="true" className="flex-shrink-0 text-[#9b978f]" />}
+                        : <span className="text-[#68655f]">{l.notShown}</span>}
+                      {canManage && <ChevronRight size={16} aria-hidden="true" className="flex-shrink-0 text-[#68655f]" />}
                     </span>
                   </td>
                 </tr>
@@ -198,49 +202,46 @@ export default function AttendanceQrAccessSettings({ lang, canManage }) {
       )}
 
       {editing && (
-        <div className="fixed inset-0 z-dialog flex items-center justify-center p-4 sm:p-6">
-          <button type="button" aria-label={l.cancel} onClick={closeDialog}
-            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
-          <div role="dialog" aria-modal="true" aria-labelledby="checkin-qr-access-title"
-            onKeyDown={event => { if (event.key === 'Escape') closeDialog() }}
-            className="ws-dialog relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto p-6">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 id="checkin-qr-access-title" className="ws-display truncate !text-[22px]">{accountName(editing.row)}</h2>
-                <p className="ws-caption mt-1 truncate">{[roleLabel(editing.row, lang), editing.row.email].filter(Boolean).join(' · ')}</p>
-              </div>
-              <button type="button" onClick={closeDialog} disabled={Boolean(busy)} aria-label={l.cancel} autoFocus
-                className="ws-btn ws-btn-ghost ws-btn-sm ws-btn-icon"><X size={16} /></button>
+        <WorkspaceDialog
+          title={accountName(editing.row)}
+          description={[roleLabel(editing.row, lang), editing.row.email].filter(Boolean).join(' · ')}
+          onClose={closeDialog}
+          closeLabel={l.close}
+          size="md"
+          busy={Boolean(busy)}
+          notice={(confirmOff || dialogError) ? (
+            <div className="grid gap-2">
+              {confirmOff && <p role="alert" className="ws-notice ws-tone-caution">{l.turnOffHint}</p>}
+              {dialogError && <p role="alert" className="ws-notice ws-tone-negative">{l[dialogError]}</p>}
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <TimePicker24 value={editing.start} label={l.from} hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
-                className="ws-input" disabled={Boolean(busy)} onChange={value => setEditing(current => ({ ...current, start: value }))} />
-              <TimePicker24 value={editing.end} label={l.to} hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
-                className="ws-input" disabled={Boolean(busy)} onChange={value => setEditing(current => ({ ...current, end: value }))} />
-            </div>
-            <p className="ws-caption mt-2">
-              {formatAttendanceQrWindow(editing.start, editing.end, lang)} · {l.allDayHint}
-            </p>
-
-            {confirmOff && <p role="alert" className="ws-notice ws-tone-caution mt-4 text-[13px]">{l.turnOffHint}</p>}
-            {dialogError && <p role="alert" className="ws-notice ws-tone-negative mt-4">{dialogError}</p>}
-
-            <div className="mt-5 flex flex-wrap items-center gap-2">
+          ) : null}
+          footer={(
+            <>
               {saved && (
                 <button type="button" onClick={turnOff} disabled={Boolean(busy)}
-                  className={`ws-btn ${confirmOff ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'}`}>
-                  {busy === 'off' ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+                  className={`ws-btn mr-auto ${confirmOff ? 'ws-btn-danger-solid' : 'ws-btn-ghost ws-btn-danger'}`}>
+                  {busy === 'off' ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Power size={16} aria-hidden="true" />}
                   {confirmOff ? l.confirm : l.turnOff}
                 </button>
               )}
-              <button type="button" onClick={closeDialog} disabled={Boolean(busy)} className="ws-btn ws-btn-outline ml-auto">{l.cancel}</button>
-              <button type="button" onClick={save} disabled={Boolean(busy) || unchanged} className="ws-btn ws-btn-primary disabled:opacity-50">
-                {busy === 'save' ? <Loader2 size={16} className="animate-spin" /> : null}{l.save}
+              <button type="button" onClick={closeDialog} disabled={Boolean(busy)} className="ws-btn ws-btn-outline">{l.cancel}</button>
+              <button type="button" onClick={save} disabled={Boolean(busy) || unchanged} className="ws-btn ws-btn-primary">
+                {busy === 'save' && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                {busy === 'save' ? l.saving : l.save}
               </button>
-            </div>
+            </>
+          )}
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <TimePicker24 value={editing.start} label={l.from} hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
+              className="ws-input" disabled={Boolean(busy)} onChange={value => setEditing(current => ({ ...current, start: value }))} />
+            <TimePicker24 value={editing.end} label={l.to} hourLabel={l.hour} minuteLabel={l.minute} doneLabel={l.done}
+              className="ws-input" disabled={Boolean(busy)} onChange={value => setEditing(current => ({ ...current, end: value }))} />
           </div>
-        </div>
+          <p className="ws-caption mt-2">
+            <span className="tabular-nums">{formatAttendanceQrWindow(editing.start, editing.end, lang)}</span> · {l.allDayHint}
+          </p>
+        </WorkspaceDialog>
       )}
     </section>
   )

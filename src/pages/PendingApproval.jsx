@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Clock, LogOut, RefreshCw, UtensilsCrossed } from 'lucide-react'
+import { Clock, Loader2, LogOut, RefreshCw, UtensilsCrossed } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useApp } from '../store/AppContext'
 import { t } from '../lib/i18n'
@@ -49,31 +49,24 @@ export default function PendingApproval() {
         <div className="w-full max-w-sm">
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="w-10 h-10 bg-[#ff5a00] rounded-xl flex items-center justify-center">
-              <UtensilsCrossed size={20} className="text-white" />
+              <UtensilsCrossed size={20} className="text-white" aria-hidden="true" />
             </div>
-            <span className="text-xl font-black text-gray-900 tracking-tight">Zar Kebab</span>
+            <span className="text-xl font-semibold text-gray-900 tracking-tight">Zar Kebab</span>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
             <div className="w-16 h-16 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <RefreshCw size={28} className="text-amber-500" />
+              <RefreshCw size={28} className="text-amber-500" aria-hidden="true" />
             </div>
-            <h1 className="text-xl font-black text-gray-900 mb-2">{t(lang, 'profileLoadFailed')}</h1>
-            <p className="text-sm text-gray-500 leading-relaxed mb-6">{t(lang, 'profileLoadFailedMessage')}</p>
+            <h1 className="text-xl font-semibold text-gray-900 mb-2">{t(lang, 'profileLoadFailed')}</h1>
+            <p className="text-sm text-[#68655f] leading-relaxed mb-6">{t(lang, 'profileLoadFailedMessage')}</p>
             <div className="flex flex-col gap-3">
-              <button
-                onClick={handleCheck}
-                disabled={checking}
-                className="w-full flex items-center justify-center gap-2 border-2 border-[#ff5a00] text-[#ff5a00] rounded-xl py-3 font-bold text-sm hover:bg-orange-50 transition-colors disabled:opacity-60"
-              >
-                <RefreshCw size={15} className={checking ? 'animate-spin' : ''} />
+              <button type="button" onClick={handleCheck} disabled={checking} className="ws-btn ws-btn-primary w-full">
+                {checking ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}
                 {t(lang, 'checkStatus')}
               </button>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 text-gray-400 text-sm font-medium hover:text-gray-600 transition-colors"
-              >
-                <LogOut size={14} />
+              <button type="button" onClick={handleLogout} className="ws-btn ws-btn-ghost w-full">
+                <LogOut size={14} aria-hidden="true" />
                 {t(lang, 'logout')}
               </button>
             </div>
@@ -91,45 +84,38 @@ export default function PendingApproval() {
           <div className="w-10 h-10 bg-[#ff5a00] rounded-xl flex items-center justify-center">
             <UtensilsCrossed size={20} className="text-white" />
           </div>
-          <span className="text-xl font-black text-gray-900 tracking-tight">Zar Kebab</span>
+          <span className="text-xl font-semibold text-gray-900 tracking-tight">Zar Kebab</span>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
           {/* Icon */}
           <div className="w-16 h-16 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <Clock size={28} className="text-amber-500" />
+            <Clock size={28} className="text-amber-500" aria-hidden="true" />
           </div>
 
-          <h1 className="text-xl font-black text-gray-900 mb-2">{t(lang, 'awaitingApproval')}</h1>
-          <p className="text-sm text-gray-500 leading-relaxed mb-2">
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t(lang, 'awaitingApproval')}</h1>
+          <p className="text-sm text-[#68655f] leading-relaxed mb-2">
             {t(lang, 'awaitingApprovalCreated')}
           </p>
-          <p className="text-sm text-gray-500 leading-relaxed mb-6">
+          <p className="text-sm text-[#68655f] leading-relaxed mb-6">
             {t(lang, 'awaitingApprovalMessage')}
           </p>
 
           {profile && (
             <div className="bg-gray-50 rounded-xl px-4 py-3 mb-6 text-left border border-gray-100">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1">{t(lang, 'signedInAs')}</p>
+              <p className="mb-1 text-xs font-medium text-[#68655f]">{t(lang, 'signedInAs')}</p>
               <p className="text-sm font-semibold text-gray-900">{profile.full_name || '—'}</p>
-              <p className="text-xs text-gray-400">{profile.email}</p>
+              <p className="text-xs text-[#68655f] [overflow-wrap:anywhere]">{profile.email}</p>
             </div>
           )}
 
           <div className="flex flex-col gap-3">
-            <button
-              onClick={handleCheck}
-              disabled={checking}
-              className="w-full flex items-center justify-center gap-2 border-2 border-[#ff5a00] text-[#ff5a00] rounded-xl py-3 font-bold text-sm hover:bg-orange-50 transition-colors disabled:opacity-60"
-            >
-              <RefreshCw size={15} className={checking ? 'animate-spin' : ''} />
+            <button type="button" onClick={handleCheck} disabled={checking} className="ws-btn ws-btn-primary w-full">
+              {checking ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}
               {t(lang, 'checkStatus')}
             </button>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 text-gray-400 text-sm font-medium hover:text-gray-600 transition-colors"
-            >
-              <LogOut size={14} />
+            <button type="button" onClick={handleLogout} className="ws-btn ws-btn-ghost w-full">
+              <LogOut size={14} aria-hidden="true" />
               {t(lang, 'logout')}
             </button>
           </div>

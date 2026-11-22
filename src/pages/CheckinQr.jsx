@@ -10,6 +10,8 @@ import { formatAttendanceQrWindow } from '../lib/attendance'
 import { useAttendanceQrAccess } from '../lib/attendanceQrAccess'
 import { useRotatingCheckinQr, useScreenWakeLock } from '../lib/useRotatingCheckinQr'
 
+const QR_FRAME_STYLE = { backgroundColor: '#ffffff', colorScheme: 'light' }
+
 // Drawer page for accounts selected in Settings (migration 247). The database
 // refuses codes outside the account's window, whatever this device's clock says.
 const L = {
@@ -62,13 +64,13 @@ export default function CheckinQr() {
   // Loading shimmers in the QR's own shape; messages are for settled states.
   let message = null
   if (loading) message = null
-  else if (!access) message = { icon: <QrCode size={36} />, text: l.notSelected }
-  else if (status === 'not-started') message = { icon: <CalendarClock size={36} />, text: l.notStarted }
+  else if (!access) message = { icon: <QrCode size={36} aria-hidden="true" />, text: l.notSelected }
+  else if (status === 'not-started') message = { icon: <CalendarClock size={36} aria-hidden="true" />, text: l.notStarted }
   else if (!openNow || status === 'disabled') {
-    message = { icon: <Clock3 size={36} />, text: l.closed, detail: formatAttendanceQrWindow(access.start_time, access.end_time, state.lang) }
-  } else if (status === 'no-bot') message = { icon: <QrCode size={36} />, text: l.noBot }
-  else if (status === 'unavailable') message = { icon: <QrCode size={36} />, text: l.unavailable }
-  else if (status === 'offline') message = { icon: <WifiOff size={36} />, text: l.offline }
+    message = { icon: <Clock3 size={36} aria-hidden="true" />, text: l.closed, detail: formatAttendanceQrWindow(access.start_time, access.end_time, state.lang) }
+  } else if (status === 'no-bot') message = { icon: <QrCode size={36} aria-hidden="true" />, text: l.noBot }
+  else if (status === 'unavailable') message = { icon: <QrCode size={36} aria-hidden="true" />, text: l.unavailable }
+  else if (status === 'offline') message = { icon: <WifiOff size={36} aria-hidden="true" />, text: l.offline }
 
   return (
     <AppShell title={l.title}>
@@ -77,12 +79,15 @@ export default function CheckinQr() {
           <div role="status" className="flex max-w-md flex-col items-center gap-3 text-[#68655f]">
             {message.icon}
             <p className="text-lg font-semibold text-[#22201d]">{message.text}</p>
-            {message.detail && <p className="text-3xl font-bold tabular-nums text-[#22201d]">{message.detail}</p>}
+            {message.detail && <p className="whitespace-nowrap text-3xl font-semibold tabular-nums text-[#22201d]">{message.detail}</p>}
           </div>
         ) : (
           <>
-            <h1 aria-busy={!dataUrl} className="text-[clamp(22px,min(4vw,5dvh),40px)] font-black leading-tight text-[#141414]">{l.scan}</h1>
-            <div className="rounded-3xl bg-white p-3 shadow-xl ring-1 ring-black/5">
+            {/* The top bar already carries the page title, so this is a second-level heading. */}
+            <h2 aria-busy={!dataUrl} className="text-[clamp(22px,min(4vw,5dvh),40px)] font-semibold leading-tight text-[#22201d]">{l.scan}</h2>
+            {/* A QR code needs black modules on a white field with a quiet zone around them. The white is an
+                inline style on purpose: the dark theme remaps colour classes such as bg-white, never inline styles. */}
+            <div className="rounded-3xl p-4 shadow-xl ring-1 ring-black/5" style={QR_FRAME_STYLE}>
               {dataUrl
                 ? <img src={dataUrl} alt={l.title} className="block size-[min(80vw,calc(100dvh-260px))] min-h-[220px] min-w-[220px]" />
                 : <Shimmer className="size-[min(80vw,calc(100dvh-260px))] min-h-[220px] min-w-[220px] rounded-2xl" />}

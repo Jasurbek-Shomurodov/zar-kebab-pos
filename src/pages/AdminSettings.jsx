@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Store, Percent, Globe, Printer, Bell, Shield, Table2, ChefHat,
+  Store, Percent, Globe, Printer, Shield, Table2, ChefHat, Loader2,
   Check, ChevronRight, Activity, AlertTriangle, RefreshCw, Home, Zap, UtensilsCrossed, BadgeDollarSign, Moon, Sun, History,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
@@ -22,21 +22,21 @@ const SETTINGS_NAV_LABELS = {
     groups: { restaurant: 'Restoran', workspace: 'Ish joyi' },
     tabs: { general: 'Umumiy', checkinQr: 'Kelish QR kodi' },
     sections: { restaurant: 'Restoran ma’lumotlari', billing: 'Xizmat haqi', costs: 'Xarajatlar va maqsadlar', preferences: 'Sozlamalar va ko‘rinish', printing: 'Chop etish', tables: 'Stollar', health: 'Tizim holati' },
-    cards: { restaurant: 'Asosiy', billing: 'Xizmat haqi', costs: 'Oylik va kunlik ko‘rsatkichlar', language: 'Til', appearance: 'Ko‘rinish', notifications: 'Bildirishnomalar', printing: 'Cheklar', tables: 'Zal' },
+    cards: { restaurant: 'Asosiy', billing: 'Xizmat haqi', costs: 'Oylik va kunlik ko‘rsatkichlar', language: 'Til', appearance: 'Ko‘rinish', printing: 'Cheklar', tables: 'Zal' },
     theme: 'Mavzu', themeSub: 'Faqat shu qurilma uchun', themes: { light: 'Yorug‘', dark: 'Qorong‘i' },
   },
   ru: {
     groups: { restaurant: 'Ресторан', workspace: 'Рабочее место' },
     tabs: { general: 'Общие', checkinQr: 'QR для отметки' },
     sections: { restaurant: 'Данные ресторана', billing: 'Сервисный сбор', costs: 'Расходы и цели', preferences: 'Настройки и вид', printing: 'Печать', tables: 'Столы', health: 'Состояние системы' },
-    cards: { restaurant: 'Основное', billing: 'Сервисный сбор', costs: 'Месячные и дневные показатели', language: 'Язык', appearance: 'Оформление', notifications: 'Уведомления', printing: 'Чеки', tables: 'Зал' },
+    cards: { restaurant: 'Основное', billing: 'Сервисный сбор', costs: 'Месячные и дневные показатели', language: 'Язык', appearance: 'Оформление', printing: 'Чеки', tables: 'Зал' },
     theme: 'Тема', themeSub: 'Только для этого устройства', themes: { light: 'Светлая', dark: 'Тёмная' },
   },
   en: {
     groups: { restaurant: 'Restaurant', workspace: 'Workspace' },
     tabs: { general: 'General', checkinQr: 'Check-in QR' },
-    sections: { restaurant: 'Restaurant details', billing: 'Service charge', costs: 'Costs & targets', preferences: 'Preferences', printing: 'Printing', tables: 'Tables', health: 'System health' },
-    cards: { restaurant: 'General', billing: 'Service charge', costs: 'Monthly and daily figures', language: 'Language', appearance: 'Appearance', notifications: 'Notifications', printing: 'Receipts', tables: 'Floor' },
+    sections: { restaurant: 'Restaurant details', billing: 'Service charge', costs: 'Costs and targets', preferences: 'Preferences', printing: 'Printing', tables: 'Tables', health: 'System health' },
+    cards: { restaurant: 'General', billing: 'Service charge', costs: 'Monthly and daily figures', language: 'Language', appearance: 'Appearance', printing: 'Receipts', tables: 'Floor' },
     theme: 'Theme', themeSub: 'Applies to this device only', themes: { light: 'Light', dark: 'Dark' },
   },
 }
@@ -52,13 +52,13 @@ function Section({ title, children }) {
   )
 }
 
-function SettingRow({ icon: Icon, label, sub, children, compact = false }) {
+function SettingRow({ icon: Icon, label, sub, children, compact = false, status = null }) {
   // On phones a wide control drops below its label at full width; toggles stay beside it.
   return (
     <div className="ws-row flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4 sm:px-5">
       <div className={`flex min-w-0 flex-1 items-center gap-3 ${compact ? '' : 'basis-full sm:basis-0'}`}>
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
-          <Icon size={16} />
+          <Icon size={16} aria-hidden="true" />
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-[#22201d]">{label}</p>
@@ -66,22 +66,36 @@ function SettingRow({ icon: Icon, label, sub, children, compact = false }) {
         </div>
       </div>
       <div className={compact ? 'flex-shrink-0' : 'w-full sm:w-auto sm:flex-shrink-0'}>{children}</div>
+      {status && <div className="flex basis-full justify-end">{status}</div>}
     </div>
   )
 }
 
-function Toggle({ value, onChange, disabled = false }) {
+/** The saved or failed state of one instant-save control, shown in its own row. */
+function FieldStatus({ state, labels }) {
+  if (state === 'saving') {
+    return <span role="status" className="ws-caption inline-flex items-center gap-1.5"><Loader2 size={13} className="animate-spin" aria-hidden="true" />{labels.saving}</span>
+  }
+  if (state === 'saved') {
+    return <span role="status" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#1d7a52]"><Check size={13} aria-hidden="true" />{labels.fieldSaved}</span>
+  }
+  if (state === 'failed') {
+    return <span role="alert" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#c4262c]"><AlertTriangle size={13} aria-hidden="true" />{labels.fieldFailed}</span>
+  }
+  return null
+}
+
+function Toggle({ value, onChange, label, disabled = false }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={!!value}
+      aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!value)}
-      className={`relative h-6 w-11 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5a00] disabled:cursor-not-allowed disabled:opacity-60 ${value ? 'bg-[#ff5a00]' : 'bg-[#dcd9d6]'}`}
-    >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/20%)] transition-all ${value ? 'left-[22px]' : 'left-0.5'}`} />
-    </button>
+      className="ws-switch"
+    />
   )
 }
 
@@ -125,119 +139,172 @@ export default function AdminSettings() {
   const [touristMenuEnabled, setTouristMenuEnabled] = useState(settings.touristMenuEnabled !== false)
   const [publicTouristPrices, setPublicTouristPrices] = useState(settings.publicTouristPrices === true)
   const [receiptMarketing, setReceiptMarketing] = useState(settings.receiptMarketing || 'compactFooter')
-  const [notifications,  setNotifications]  = useState(true)
   const [saved,          setSaved]          = useState(false)
   const [saving,         setSaving]         = useState(false)
-  const [error,          setError]          = useState('')
+  const [saveFailed,     setSaveFailed]     = useState(false)
+  const [savingTyped,    setSavingTyped]    = useState(false)
+  // One entry per instant-save control: 'saving' | 'saved' | 'failed'.
+  const [fieldStates,    setFieldStates]    = useState({})
   const [health,         setHealth]         = useState(null)
   const [healthLoading,  setHealthLoading]  = useState(false)
-  const [healthError,    setHealthError]    = useState('')
+  const [healthFailed,   setHealthFailed]   = useState(false)
 
-  useEffect(() => {
-    setRestaurantName(settings.restaurantName)
-    setServiceRate(settings.serviceRate)
-    setTouristServiceRate(settings.touristServiceRate)
-    setMonthlyRentUzs(String(settings.monthlyRentUzs || ''))
-    setMonthlyUtilitiesUzs(String(settings.monthlyUtilitiesUzs || ''))
-    setAverageDailyEmployeeMealUzs(String(settings.averageDailyEmployeeMealUzs || ''))
-    setAutoPrint(settings.autoPrint)
-    setAutoPrintKitchenCheck(!!settings.autoPrintKitchenCheck)
-    setTouristMenuEnabled(settings.touristMenuEnabled !== false)
-    setPublicTouristPrices(settings.publicTouristPrices === true)
-    setReceiptMarketing(settings.receiptMarketing || 'compactFooter')
-  }, [settings.restaurantName, settings.serviceRate, settings.touristServiceRate, settings.monthlyRentUzs, settings.monthlyUtilitiesUzs, settings.averageDailyEmployeeMealUzs, settings.autoPrint, settings.autoPrintKitchenCheck, settings.touristMenuEnabled, settings.publicTouristPrices, settings.receiptMarketing])
+  // Each draft follows only its own saved value, so saving one control never
+  // discards what is being typed in another.
+  useEffect(() => { setRestaurantName(settings.restaurantName) }, [settings.restaurantName])
+  useEffect(() => { setServiceRate(settings.serviceRate) }, [settings.serviceRate])
+  useEffect(() => { setTouristServiceRate(settings.touristServiceRate) }, [settings.touristServiceRate])
+  useEffect(() => { setMonthlyRentUzs(String(settings.monthlyRentUzs || '')) }, [settings.monthlyRentUzs])
+  useEffect(() => { setMonthlyUtilitiesUzs(String(settings.monthlyUtilitiesUzs || '')) }, [settings.monthlyUtilitiesUzs])
+  useEffect(() => { setAverageDailyEmployeeMealUzs(String(settings.averageDailyEmployeeMealUzs || '')) }, [settings.averageDailyEmployeeMealUzs])
+  useEffect(() => { setAutoPrint(settings.autoPrint) }, [settings.autoPrint])
+  useEffect(() => { setAutoPrintKitchenCheck(!!settings.autoPrintKitchenCheck) }, [settings.autoPrintKitchenCheck])
+  useEffect(() => { setTouristMenuEnabled(settings.touristMenuEnabled !== false) }, [settings.touristMenuEnabled])
+  useEffect(() => { setPublicTouristPrices(settings.publicTouristPrices === true) }, [settings.publicTouristPrices])
+  useEffect(() => { setReceiptMarketing(settings.receiptMarketing || 'compactFooter') }, [settings.receiptMarketing])
 
+  // What is saved right now. The data layer rewrites the whole settings row, so every
+  // write carries all of it; a control changes only its own field on top of this.
+  function savedSettings() {
+    return {
+      restaurantName: settings.restaurantName,
+      serviceRate: settings.serviceRate,
+      touristServiceRate: settings.touristServiceRate,
+      monthlyRentUzs: Number(settings.monthlyRentUzs || 0),
+      monthlyUtilitiesUzs: Number(settings.monthlyUtilitiesUzs || 0),
+      averageDailyEmployeeMealUzs: Number(settings.averageDailyEmployeeMealUzs || 0),
+      autoPrint: !!settings.autoPrint,
+      autoPrintKitchenCheck: !!settings.autoPrintKitchenCheck,
+      touristMenuEnabled: settings.touristMenuEnabled !== false,
+      publicTouristPrices: settings.publicTouristPrices === true,
+      receiptMarketing: settings.receiptMarketing || 'compactFooter',
+    }
+  }
 
-  async function saveSettings(overrides = {}) {
-    if (!canManageSettings) return { error: new Error('Settings write access is required') }
+  async function writeSettings(previous, changes) {
     setSaving(true)
-    setError('')
-    const nextSettings = {
-      restaurantName,
-      serviceRate,
-      touristServiceRate,
-      monthlyRentUzs: Number(normalizeMoneyInput(monthlyRentUzs) || 0),
-      monthlyUtilitiesUzs: Number(normalizeMoneyInput(monthlyUtilitiesUzs) || 0),
-      averageDailyEmployeeMealUzs: Number(normalizeMoneyInput(averageDailyEmployeeMealUzs) || 0),
-      autoPrint,
-      autoPrintKitchenCheck,
-      touristMenuEnabled,
-      publicTouristPrices,
-      receiptMarketing,
-      ...overrides,
-    }
-    const result = await dispatch({
-      type: 'SET_SETTINGS',
-      payload: nextSettings,
-    })
-    setSaving(false)
+    const result = await dispatch({ type: 'SET_SETTINGS', payload: { ...previous, ...changes } })
     if (result?.error) {
-      setError(result.error.message || 'Failed to save settings')
-      return result
+      console.error('[settings] save failed:', result.error)
+      // The store applied the change before the write; put the saved values back.
+      await dispatch({ type: 'SET_SETTINGS', payload: previous })
     }
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setSaving(false)
     return result
   }
 
-  // Save stays disabled until a saved setting differs (the sound toggle is device-local and never saved).
+  // Instant-save controls (switches, presets, the receipt list): only the changed
+  // field is sent on top of the saved settings, never the unsaved typed fields.
+  async function saveSettings(overrides = {}) {
+    if (!canManageSettings) return { error: new Error('Settings write access is required') }
+    const keys = Object.keys(overrides)
+    const mark = value => setFieldStates(current => ({ ...current, ...Object.fromEntries(keys.map(key => [key, value])) }))
+    mark('saving')
+    const result = await writeSettings(savedSettings(), overrides)
+    mark(result?.error ? 'failed' : 'saved')
+    if (!result?.error) {
+      setTimeout(() => setFieldStates(current => {
+        const next = { ...current }
+        keys.forEach(key => { if (next[key] === 'saved') delete next[key] })
+        return next
+      }), 2000)
+    }
+    return result
+  }
+
+  // The Save button covers the typed fields only: the name and the three amounts.
   const moneyChanged = (value, saved) => Number(normalizeMoneyInput(value) || 0) !== Number(saved || 0)
   const hasChanges = restaurantName !== settings.restaurantName
-    || serviceRate !== settings.serviceRate
-    || touristServiceRate !== settings.touristServiceRate
     || moneyChanged(monthlyRentUzs, settings.monthlyRentUzs)
     || moneyChanged(monthlyUtilitiesUzs, settings.monthlyUtilitiesUzs)
     || moneyChanged(averageDailyEmployeeMealUzs, settings.averageDailyEmployeeMealUzs)
-    || autoPrint !== settings.autoPrint
-    || autoPrintKitchenCheck !== !!settings.autoPrintKitchenCheck
-    || touristMenuEnabled !== (settings.touristMenuEnabled !== false)
-    || publicTouristPrices !== (settings.publicTouristPrices === true)
-    || receiptMarketing !== (settings.receiptMarketing || 'compactFooter')
 
   async function handleSave() {
-    await saveSettings()
+    if (!canManageSettings || saving) return
+    setSaveFailed(false)
+    const previous = savedSettings()
+    // Kept across the rollback so a failed save does not lose what was typed.
+    const typed = { restaurantName, monthlyRentUzs, monthlyUtilitiesUzs, averageDailyEmployeeMealUzs }
+    setSavingTyped(true)
+    const result = await writeSettings(previous, {
+      restaurantName,
+      monthlyRentUzs: Number(normalizeMoneyInput(monthlyRentUzs) || 0),
+      monthlyUtilitiesUzs: Number(normalizeMoneyInput(monthlyUtilitiesUzs) || 0),
+      averageDailyEmployeeMealUzs: Number(normalizeMoneyInput(averageDailyEmployeeMealUzs) || 0),
+    })
+    setSavingTyped(false)
+    if (result?.error) {
+      setRestaurantName(typed.restaurantName)
+      setMonthlyRentUzs(typed.monthlyRentUzs)
+      setMonthlyUtilitiesUzs(typed.monthlyUtilitiesUzs)
+      setAverageDailyEmployeeMealUzs(typed.averageDailyEmployeeMealUzs)
+      setSaveFailed(true)
+      return
+    }
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
   }
 
   async function handleAutoPrintChange(nextValue) {
     if (!canManageSettings || saving) return
     setAutoPrint(nextValue)
     const result = await saveSettings({ autoPrint: nextValue })
-    if (result?.error) setAutoPrint(!!settings.autoPrint)
+    if (result?.error) setAutoPrint(!nextValue)
+  }
+
+  async function handleAutoPrintKitchenCheckChange(nextValue) {
+    if (!canManageSettings || saving) return
+    setAutoPrintKitchenCheck(nextValue)
+    const result = await saveSettings({ autoPrintKitchenCheck: nextValue })
+    if (result?.error) setAutoPrintKitchenCheck(!nextValue)
+  }
+
+  async function handleReceiptMarketingChange(nextValue) {
+    if (!canManageSettings || saving) return
+    const previousValue = receiptMarketing
+    setReceiptMarketing(nextValue)
+    const result = await saveSettings({ receiptMarketing: nextValue })
+    if (result?.error) setReceiptMarketing(previousValue)
   }
 
   async function handleTouristMenuChange(nextValue) {
     if (!canManageSettings || saving) return
     setTouristMenuEnabled(nextValue)
     const result = await saveSettings({ touristMenuEnabled: nextValue })
-    if (result?.error) setTouristMenuEnabled(settings.touristMenuEnabled !== false)
+    if (result?.error) setTouristMenuEnabled(!nextValue)
   }
 
   async function handlePublicTouristPricesChange(nextValue) {
     if (!canManageSettings || saving) return
     setPublicTouristPrices(nextValue)
     const result = await saveSettings({ publicTouristPrices: nextValue })
-    if (result?.error) setPublicTouristPrices(settings.publicTouristPrices === true)
+    if (result?.error) setPublicTouristPrices(!nextValue)
   }
 
   async function handleServiceRateChange(nextRate) {
-    if (!canManageSettings) return
+    if (!canManageSettings || saving) return
+    const previousRate = serviceRate
     setServiceRate(nextRate)
-    await saveSettings({ serviceRate: nextRate })
+    const result = await saveSettings({ serviceRate: nextRate })
+    if (result?.error) setServiceRate(previousRate)
   }
 
   async function handleTouristServiceRateChange(nextRate) {
-    if (!canManageSettings) return
+    if (!canManageSettings || saving) return
+    const previousRate = touristServiceRate
     setTouristServiceRate(nextRate)
-    await saveSettings({ touristServiceRate: nextRate })
+    const result = await saveSettings({ touristServiceRate: nextRate })
+    if (result?.error) setTouristServiceRate(previousRate)
   }
 
   async function checkHealth() {
     setHealthLoading(true)
-    setHealthError('')
+    setHealthFailed(false)
     try {
       setHealth(await runDbHealthChecks())
     } catch (err) {
-      setHealthError(err.message || 'Could not check system health')
+      console.error('[settings] health check failed:', err)
+      setHealthFailed(true)
     } finally {
       setHealthLoading(false)
     }
@@ -286,8 +353,6 @@ export default function AdminSettings() {
         instagramOnly: 'Faqat Instagram',
         full: 'To\'liq footer',
       },
-      notifications:   'Bildirishnomalar',
-      notifSub:        'Yangi buyurtmalar uchun ovozli signal',
       systemHealth:    'Tizim holati',
       systemHealthSub: 'Baza jadvallari, ustunlari va RPC tekshiruvi',
       runHealth:       'Tekshirish',
@@ -320,9 +385,13 @@ export default function AdminSettings() {
       },
       open:             'Ochish',
       save:            'Saqlash',
-      saving:          'Saqlanmoqda...',
-      saved:           'Saqlandi!',
-      saveError:       'Sozlamalarni saqlab bo‘lmadi',
+      saving:          'Saqlanmoqda…',
+      saved:           'Saqlandi',
+      saveError:       'Sozlamalarni saqlab bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.',
+      saveHint:        'Nom va summalar shu tugma bilan saqlanadi. Tugmachalar va tanlovlar darhol saqlanadi.',
+      fieldSaved:      'Saqlandi',
+      fieldFailed:     'Saqlanmadi. Qayta urinib ko‘ring.',
+      healthFailed:    'Tizim holatini tekshirib bo‘lmadi. Qayta urinib ko‘ring.',
     },
     ru: {
       title:           'Настройки',
@@ -366,8 +435,6 @@ export default function AdminSettings() {
         instagramOnly: 'Только Instagram',
         full: 'Полный footer',
       },
-      notifications:   'Уведомления',
-      notifSub:        'Звук при новых заказах',
       systemHealth:    'Состояние системы',
       systemHealthSub: 'Проверка таблиц, колонок и RPC в базе',
       runHealth:       'Проверить',
@@ -400,30 +467,34 @@ export default function AdminSettings() {
       },
       open:             'Открыть',
       save:            'Сохранить',
-      saving:          'Сохранение...',
-      saved:           'Сохранено!',
-      saveError:       'Не удалось сохранить настройки',
+      saving:          'Сохранение…',
+      saved:           'Сохранено',
+      saveError:       'Не удалось сохранить настройки. Проверьте интернет и попробуйте ещё раз.',
+      saveHint:        'Название и суммы сохраняются этой кнопкой. Переключатели и выбор сохраняются сразу.',
+      fieldSaved:      'Сохранено',
+      fieldFailed:     'Не сохранено. Попробуйте ещё раз.',
+      healthFailed:    'Не удалось проверить состояние системы. Попробуйте ещё раз.',
     },
     en: {
       title:           'Settings',
       sub:             'Restaurant configuration',
-      restaurant:      'Restaurant Details',
-      restaurantName:  'Restaurant Name',
+      restaurant:      'Restaurant details',
+      restaurantName:  'Restaurant name',
       restaurantNameSub: 'Shown on receipts and reports',
       billing:         'Billing',
-      serviceCharge:   'Regular Service Charge',
+      serviceCharge:   'Regular service charge',
       serviceChargeSub: 'Added to Regular dine-in orders',
       touristMenu: 'Tourist menu',
       touristMenuSub: 'When off, tables open straight to Regular prices and the premium menu shows the regular menu',
       publicTouristPrices: 'Tourist prices on zarkebab.uz',
       publicTouristPricesSub: 'When on, the public menu shows Tourist prices. With the Tourist menu off it always shows Regular prices',
-      touristServiceCharge: 'Tourist Service Charge',
+      touristServiceCharge: 'Tourist service charge',
       touristServiceChargeSub: 'Added to Tourist dine-in orders',
       monthlyRent:     'Monthly rent',
       monthlyRentSub:  'Shown in accounting estimate as UZS',
       monthlyUtilities: 'Monthly utilities bill',
       monthlyUtilitiesSub: 'Included in the monthly accounting estimate',
-      averageDailyEmployeeMeal: 'Avg employees meal',
+      averageDailyEmployeeMeal: 'Average employee meal',
       averageDailyEmployeeMealSub: 'Average daily cost for each employee who is present',
       averageDailyBreakEvenIncome: 'Average daily break-even income',
       averageDailyBreakEvenIncomeSub: 'Calculated every morning from yesterday’s costs; the red dotted line on the Dashboard chart',
@@ -446,8 +517,6 @@ export default function AdminSettings() {
         instagramOnly: 'Instagram only',
         full: 'Full footer',
       },
-      notifications:   'Notifications',
-      notifSub:        'Sound alert for new orders',
       systemHealth:    'System health',
       systemHealthSub: 'Checks database tables, columns, and RPCs',
       runHealth:       'Check',
@@ -461,7 +530,7 @@ export default function AdminSettings() {
       healthMigrationIssues: count => `${count} issue${count === 1 ? '' : 's'}`,
       healthUnknownError: 'Unknown error',
       healthNames: {
-        migration_definitions: 'Migrations: functions & triggers',
+        migration_definitions: 'Migrations: functions and triggers',
         migration_receipts: 'Migrations: applied receipts',
         restaurant_tables: 'Restaurant tables',
         table_zones: 'Table zones',
@@ -479,10 +548,14 @@ export default function AdminSettings() {
         submit_order_to_kitchen: 'Order submit RPC',
       },
       open:             'Open',
-      save:            'Save Changes',
-      saving:          'Saving...',
-      saved:           'Saved!',
-      saveError:       'Could not save settings',
+      save:            'Save changes',
+      saving:          'Saving…',
+      saved:           'Saved',
+      saveError:       'Could not save the settings. Check the connection and try again.',
+      saveHint:        'The name and the amounts are saved with this button. Switches and choices save at once.',
+      fieldSaved:      'Saved',
+      fieldFailed:     'Not saved. Try again.',
+      healthFailed:    'Could not check system health. Try again.',
     },
   }
   const l = L[lang] || L.en
@@ -527,7 +600,9 @@ export default function AdminSettings() {
                   value={restaurantName}
                   onChange={e => setRestaurantName(e.target.value)}
                   disabled={!canManageSettings}
-                  className="ws-input !w-full sm:!w-[220px] sm:text-right disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                  aria-label={l.restaurantName}
+                  autoComplete="organization"
+                  className="ws-input !w-full sm:!w-[220px] sm:text-right"
                 />
               </SettingRow>
               </Section>
@@ -535,7 +610,7 @@ export default function AdminSettings() {
 
             {(
               <Section title={nav.sections.billing}>
-              <SettingRow icon={Percent} label={l.serviceCharge} sub={l.serviceChargeSub}>
+              <SettingRow icon={Percent} label={l.serviceCharge} sub={l.serviceChargeSub} status={<FieldStatus state={fieldStates.serviceRate} labels={l} />}>
                 <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={l.serviceCharge}>
                   {[0, 10, 15, 20].map(v => (
                     <button
@@ -543,7 +618,7 @@ export default function AdminSettings() {
                       type="button"
                       aria-pressed={serviceRate === v}
                       onClick={() => handleServiceRateChange(v)}
-                      disabled={!canManageSettings}
+                      disabled={!canManageSettings || saving}
                       className="!px-3 tabular-nums disabled:cursor-not-allowed"
                     >
                       {v}%
@@ -551,13 +626,13 @@ export default function AdminSettings() {
                   ))}
                 </div>
               </SettingRow>
-              <SettingRow icon={Globe} label={l.touristMenu} sub={l.touristMenuSub} compact>
-                <Toggle value={touristMenuEnabled} onChange={handleTouristMenuChange} disabled={!canManageSettings || saving} />
+              <SettingRow icon={Globe} label={l.touristMenu} sub={l.touristMenuSub} compact status={<FieldStatus state={fieldStates.touristMenuEnabled} labels={l} />}>
+                <Toggle label={l.touristMenu} value={touristMenuEnabled} onChange={handleTouristMenuChange} disabled={!canManageSettings || saving} />
               </SettingRow>
-              <SettingRow icon={Globe} label={l.publicTouristPrices} sub={l.publicTouristPricesSub} compact>
-                <Toggle value={touristMenuEnabled && publicTouristPrices} onChange={handlePublicTouristPricesChange} disabled={!canManageSettings || saving || !touristMenuEnabled} />
+              <SettingRow icon={Globe} label={l.publicTouristPrices} sub={l.publicTouristPricesSub} compact status={<FieldStatus state={fieldStates.publicTouristPrices} labels={l} />}>
+                <Toggle label={l.publicTouristPrices} value={touristMenuEnabled && publicTouristPrices} onChange={handlePublicTouristPricesChange} disabled={!canManageSettings || saving || !touristMenuEnabled} />
               </SettingRow>
-              <SettingRow icon={Percent} label={l.touristServiceCharge} sub={l.touristServiceChargeSub}>
+              <SettingRow icon={Percent} label={l.touristServiceCharge} sub={l.touristServiceChargeSub} status={<FieldStatus state={fieldStates.touristServiceRate} labels={l} />}>
                 <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={l.touristServiceCharge}>
                   {[0, 10, 15, 20].map(v => (
                     <button
@@ -565,7 +640,7 @@ export default function AdminSettings() {
                       type="button"
                       aria-pressed={touristServiceRate === v}
                       onClick={() => handleTouristServiceRateChange(v)}
-                      disabled={!canManageSettings}
+                      disabled={!canManageSettings || saving}
                       className="!px-3 tabular-nums disabled:cursor-not-allowed"
                     >
                       {v}%
@@ -586,10 +661,12 @@ export default function AdminSettings() {
                     value={formatMoneyInput(monthlyRentUzs)}
                     onChange={event => setMonthlyRentUzs(normalizeMoneyInput(event.target.value))}
                     disabled={!canManageSettings}
-                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                    aria-label={l.monthlyRent}
+                    autoComplete="off"
+                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums"
                     placeholder="0"
                   />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                  <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
                 </div>
               </SettingRow>
               <SettingRow icon={Zap} label={l.monthlyUtilities} sub={l.monthlyUtilitiesSub}>
@@ -600,10 +677,12 @@ export default function AdminSettings() {
                     value={formatMoneyInput(monthlyUtilitiesUzs)}
                     onChange={event => setMonthlyUtilitiesUzs(normalizeMoneyInput(event.target.value))}
                     disabled={!canManageSettings}
-                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                    aria-label={l.monthlyUtilities}
+                    autoComplete="off"
+                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums"
                     placeholder="0"
                   />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                  <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
                 </div>
               </SettingRow>
               <SettingRow icon={UtensilsCrossed} label={l.averageDailyEmployeeMeal} sub={l.averageDailyEmployeeMealSub}>
@@ -614,19 +693,21 @@ export default function AdminSettings() {
                     value={formatMoneyInput(averageDailyEmployeeMealUzs)}
                     onChange={event => setAverageDailyEmployeeMealUzs(normalizeMoneyInput(event.target.value))}
                     disabled={!canManageSettings}
-                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                    aria-label={l.averageDailyEmployeeMeal}
+                    autoComplete="off"
+                    className="ws-input !w-full sm:!w-[220px] !pr-12 text-right font-medium tabular-nums"
                     placeholder="0"
                   />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
+                  <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[#68655f]">UZS</span>
                 </div>
               </SettingRow>
               <SettingRow icon={BadgeDollarSign} label={l.averageDailyBreakEvenIncome} sub={l.averageDailyBreakEvenIncomeSub}>
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <button type="button" onClick={() => setTargetHistoryOpen(true)} className="ws-btn ws-btn-outline flex-shrink-0">
-                    <History size={15} />
+                    <History size={15} aria-hidden="true" />
                     {l.targetHistory}
                   </button>
-                  <p className="text-right text-base font-semibold tabular-nums text-[#22201d] sm:min-w-[180px]">{formatCurrency(settings.averageDailyBreakEvenIncomeUzs)}</p>
+                  <p className="whitespace-nowrap text-right text-base font-semibold tabular-nums text-[#22201d] sm:min-w-[180px]">{formatCurrency(settings.averageDailyBreakEvenIncomeUzs)}</p>
                 </div>
                 {targetHistoryOpen && <BreakEvenTargetHistoryDialog lang={lang} onClose={() => setTargetHistoryOpen(false)} />}
               </SettingRow>
@@ -638,64 +719,54 @@ export default function AdminSettings() {
 
             <h2 className="ws-heading mt-4">{nav.groups.workspace}</h2>
 
-            {(
-              <>
-                <Section title={nav.cards.language}>
-                <SettingRow icon={Globe} label={l.language} sub={l.languageSub}>
-                  <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={l.language}>
-                    {['uz', 'ru', 'en'].map(lg => (
-                      <button
-                        key={lg}
-                        type="button"
-                        aria-pressed={lang === lg}
-                        onClick={() => dispatch({ type: 'SET_LANG', payload: lg })}
-                        className="!px-3 uppercase"
-                      >
-                        {lg}
-                      </button>
-                    ))}
-                  </div>
-                </SettingRow>
-                </Section>
-                <Section title={nav.cards.appearance}>
-                  <SettingRow icon={theme === 'dark' ? Moon : Sun} label={nav.theme} sub={nav.themeSub}>
-                    <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={nav.theme}>
-                      {['light', 'dark'].map(mode => (
-                        <button
-                          key={mode}
-                          type="button"
-                          aria-pressed={theme === mode}
-                          onClick={() => setTheme(mode)}
-                          className="!px-3"
-                        >
-                          {nav.themes[mode]}
-                        </button>
-                      ))}
-                    </div>
-                  </SettingRow>
-                </Section>
-                <Section title={nav.cards.notifications}>
-                <SettingRow icon={Bell} label={l.notifications} sub={l.notifSub} compact>
-                  <Toggle value={notifications} onChange={setNotifications} disabled={!canManageSettings} />
-                </SettingRow>
-                </Section>
-              </>
-            )}
+            <Section title={nav.sections.preferences}>
+              <SettingRow icon={Globe} label={l.language} sub={l.languageSub}>
+                <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={l.language}>
+                  {['uz', 'ru', 'en'].map(lg => (
+                    <button
+                      key={lg}
+                      type="button"
+                      aria-pressed={lang === lg}
+                      onClick={() => dispatch({ type: 'SET_LANG', payload: lg })}
+                      className="!px-3 uppercase"
+                    >
+                      {lg}
+                    </button>
+                  ))}
+                </div>
+              </SettingRow>
+              <SettingRow icon={theme === 'dark' ? Moon : Sun} label={nav.theme} sub={nav.themeSub}>
+                <div className="ws-segmented flex w-full sm:inline-flex sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none" role="group" aria-label={nav.theme}>
+                  {['light', 'dark'].map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-pressed={theme === mode}
+                      onClick={() => setTheme(mode)}
+                      className="!px-3"
+                    >
+                      {nav.themes[mode]}
+                    </button>
+                  ))}
+                </div>
+              </SettingRow>
+            </Section>
 
             {(
               <Section title={nav.sections.printing}>
-              <SettingRow icon={Printer} label={l.autoPrint} sub={l.autoPrintSub} compact>
-                <Toggle value={autoPrint} onChange={handleAutoPrintChange} disabled={!canManageSettings || saving} />
+              <SettingRow icon={Printer} label={l.autoPrint} sub={l.autoPrintSub} compact status={<FieldStatus state={fieldStates.autoPrint} labels={l} />}>
+                <Toggle label={l.autoPrint} value={autoPrint} onChange={handleAutoPrintChange} disabled={!canManageSettings || saving} />
               </SettingRow>
-              <SettingRow icon={ChefHat} label={l.autoPrintKitchenCheck} sub={l.autoPrintKitchenCheckSub} compact>
-                <Toggle value={autoPrintKitchenCheck} onChange={setAutoPrintKitchenCheck} disabled={!canManageSettings} />
+              <SettingRow icon={ChefHat} label={l.autoPrintKitchenCheck} sub={l.autoPrintKitchenCheckSub} compact status={<FieldStatus state={fieldStates.autoPrintKitchenCheck} labels={l} />}>
+                <Toggle label={l.autoPrintKitchenCheck} value={autoPrintKitchenCheck} onChange={handleAutoPrintKitchenCheckChange} disabled={!canManageSettings || saving} />
               </SettingRow>
-              <SettingRow icon={Printer} label={l.receiptMarketing} sub={l.receiptMarketingSub}>
+              <SettingRow icon={Printer} label={l.receiptMarketing} sub={l.receiptMarketingSub} status={<FieldStatus state={fieldStates.receiptMarketing} labels={l} />}>
                 <select
                   value={receiptMarketing}
-                  onChange={event => setReceiptMarketing(event.target.value)}
-                  disabled={!canManageSettings}
-                  className="ws-input !w-full sm:!w-[220px] disabled:cursor-not-allowed disabled:bg-[#efece9] disabled:text-[#68655f]"
+                  onChange={event => handleReceiptMarketingChange(event.target.value)}
+                  disabled={!canManageSettings || saving}
+                  aria-label={l.receiptMarketing}
+                  className="ws-input !w-full sm:!w-[220px]"
                 >
                   {['none', 'compactFooter', 'loyaltyOnly', 'instagramOnly', 'full'].map(mode => (
                     <option key={mode} value={mode}>{l.receiptMarketingModes[mode]}</option>
@@ -709,11 +780,13 @@ export default function AdminSettings() {
               <Section title={nav.sections.tables}>
               <SettingRow icon={Table2} label={l.tableManagement} sub={l.tableManagementSub} compact>
                 <button
+                  type="button"
                   onClick={() => navigate('/admin/tables')}
+                  aria-label={`${l.open}: ${l.tableManagement}`}
                   className="ws-btn ws-btn-outline ws-btn-sm"
                 >
                   {l.open}
-                  <ChevronRight size={14} />
+                  <ChevronRight size={14} aria-hidden="true" />
                 </button>
               </SettingRow>
               </Section>
@@ -721,55 +794,53 @@ export default function AdminSettings() {
 
             {(
               <Section title={l.systemHealth}>
-              <div className="px-5 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex min-w-0 items-center gap-3">
+              <div className="px-4 py-4 sm:px-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#efece9] text-[#68655f]">
-                      <Activity size={16} />
+                      <Activity size={16} aria-hidden="true" />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#22201d]">{l.systemHealth}</p>
-                      <p className="ws-caption mt-0.5">{l.systemHealthSub}</p>
-                    </div>
+                    <p className="ws-caption min-w-0">{l.systemHealthSub}</p>
                   </div>
                   <button
+                    type="button"
                     onClick={checkHealth}
                     disabled={healthLoading}
                     className="ws-btn ws-btn-outline ws-btn-sm"
                   >
-                    <RefreshCw size={14} className={healthLoading ? 'animate-spin' : ''} />
+                    {healthLoading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={14} aria-hidden="true" />}
                     {l.runHealth}
                   </button>
                 </div>
 
-                {healthError && (
-                  <p className="ws-notice ws-tone-negative mt-3">
-                    {healthError}
+                {healthFailed && (
+                  <p role="alert" className="ws-notice ws-tone-negative mt-3">
+                    {l.healthFailed}
                   </p>
                 )}
 
                 {health && (
-                  <div className="mt-4 rounded-xl border border-[#e4e1de] bg-[#f6f5f3] p-3">
-                    <div className={`ws-badge mb-3 !text-[13px] ${health.ok ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
-                      {health.ok ? <Check size={13} /> : <AlertTriangle size={13} />}
+                  <div className="mt-4">
+                    <div className={`ws-badge !text-[13px] ${health.ok ? 'ws-tone-positive' : 'ws-tone-negative'}`}>
+                      {health.ok ? <Check size={13} aria-hidden="true" /> : <AlertTriangle size={13} aria-hidden="true" />}
                       {health.ok ? l.healthy : l.unhealthy}
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
+                    <ul className="mt-2 grid gap-x-6 sm:grid-cols-2">
                       {[...health.checks].sort((a, b) => a.ok - b.ok).map(check => (
-                        <div key={`${check.type}-${check.name}`} className={`rounded-lg border border-[#e4e1de] bg-white px-3 py-2 text-[13px] ${check.items?.length ? 'sm:col-span-2' : ''}`}>
+                        <li key={`${check.type}-${check.name}`} className={`min-w-0 border-t border-[#e4e1de] py-2 text-[13px] ${check.items?.length ? 'sm:col-span-2' : ''}`}>
                           <p className="font-semibold text-[#22201d]">{healthCheckName(check, l)}</p>
                           <p className={check.ok ? 'text-[#1d7a52]' : 'text-[#c4262c]'}>{healthMessage(check, l)}</p>
                           {!check.ok && check.items?.length > 0 && (
-                            <ul className="mt-1 space-y-0.5 font-mono text-[11px] text-[#c4262c]">
-                              {check.items.map(item => <li key={item} className="break-all">{item}</li>)}
+                            <ul className="mt-1 space-y-0.5 font-mono text-xs text-[#c4262c]">
+                              {check.items.map(item => <li key={item} className="[overflow-wrap:anywhere]">{item}</li>)}
                             </ul>
                           )}
                           {!check.ok && healthHint(check) && (
-                            <p className="mt-1 font-mono text-[11px] text-[#68655f]">{healthHint(check)}</p>
+                            <p className="mt-1 font-mono text-xs text-[#68655f] [overflow-wrap:anywhere]">{healthHint(check)}</p>
                           )}
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
                 )}
               </div>
@@ -778,18 +849,20 @@ export default function AdminSettings() {
 
             {(
               <>
-            {/* Save button */}
+            {/* Save button: the typed fields only */}
+            {canManageSettings && <p className="ws-caption">{l.saveHint}</p>}
             <button
+              type="button"
               onClick={handleSave}
               disabled={saving || !canManageSettings || (!hasChanges && !saved)}
-              className={`ws-btn ws-btn-primary !h-11 w-full ${saved ? '!bg-[#1d7a52]' : ''}`}
+              className={`ws-btn ws-btn-primary w-full ${saved ? '!bg-[#1d7a52]' : ''}`}
             >
-              {saved ? <Check size={16} /> : <Shield size={16} />}
-              {saved ? l.saved : saving ? l.saving : l.save}
+              {saved ? <Check size={16} aria-hidden="true" /> : savingTyped ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Shield size={16} aria-hidden="true" />}
+              {saved ? l.saved : savingTyped ? l.saving : l.save}
             </button>
-            {error && (
-              <p className="ws-notice ws-tone-negative">
-                {l.saveError}: {error}
+            {saveFailed && (
+              <p role="alert" className="ws-notice ws-tone-negative">
+                {l.saveError}
               </p>
             )}
               </>

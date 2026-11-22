@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useApp } from '../store/AppContext'
 import { deleteProfile, getAllProfiles, updateProfile } from '../lib/supabase'
 import AppShell from '../components/AppShell'
+import WorkspaceDialog from '../components/WorkspaceDialog'
+import { OperationalError } from '../components/OperationalState'
 import PageShimmer from '../components/PageShimmer'
 import StatusBadge from '../components/StatusBadge'
 import { groupTeamProfiles } from '../lib/teamProfiles'
@@ -16,7 +18,7 @@ import {
   featureAccessForProfile,
   updateFeatureAccessSelection,
 } from '../lib/permissions'
-import { Search, RefreshCw, UserCircle2, Loader2, Eye, Trash2, X, Check, ShieldCheck, ChevronRight } from 'lucide-react'
+import { Search, RefreshCw, UserCircle2, Loader2, Eye, Trash2, Check, ShieldCheck, ChevronRight } from 'lucide-react'
 
 const STATUSES = ['pending', 'active', 'disabled']
 const ROLES = APP_ROLES
@@ -34,6 +36,21 @@ const ROLE_LABELS = {
   guest:       { uz: 'Mehmon',    ru: 'Гость',      en: 'Guest' },
 }
 
+// Russian needs three forms: 1 заявка, 2 заявки, 5 заявок.
+function ruPlural(n, one, few, many) {
+  const mod10 = Math.abs(n) % 10
+  const mod100 = Math.abs(n) % 100
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
+  return many
+}
+
+/** A stored notice is a label key plus arguments, so it follows the language. */
+function noticeText(labels, notice) {
+  const value = labels[notice.key]
+  return typeof value === 'function' ? value(...(notice.args || [])) : value
+}
+
 const L = {
   uz: {
     title:       'Jamoa',
@@ -46,7 +63,7 @@ const L = {
     accountStatus: 'Hisob holati',
     actions:     'Amallar',
     delete:      'O‘chirish',
-    confirmDelete: 'Tasdiqlash',
+    confirmDelete: 'Hisobni o‘chirish',
     cancel:      'Bekor qilish',
     deleteHint:  'Hisob butunlay o‘chiriladi. Eski buyurtmalardagi ismlar saqlanadi; qayta ro‘yxatdan o‘tsa, yangi so‘rov sifatida chiqadi.',
     deleteError: 'Foydalanuvchini o‘chirib bo‘lmadi',
@@ -79,6 +96,13 @@ const L = {
     roleAndStatus: 'Rol va holat',
     close:       'Yopish',
     openMember:  'A’zoni ochish',
+    saving:      'Saqlanmoqda',
+    changeError: 'O‘zgarishni saqlab bo‘lmadi. Qayta urinib ko‘ring.',
+    loadFailed:  'Jamoani yuklab bo‘lmadi',
+    readOnly:    'Faqat ko‘rish huquqi: hisob holati va kirish huquqlarini o‘zgartirib bo‘lmaydi.',
+    noUsersHint: 'Xodim tizimga ro‘yxatdan o‘tgach, shu yerda paydo bo‘ladi.',
+    noUsersFilteredHint: 'Qidiruv yoki holat filtriga mos hisob yo‘q.',
+    clearFilters: 'Filtrlarni tozalash',
   },
   ru: {
     title:       'Команда',
@@ -91,7 +115,7 @@ const L = {
     accountStatus: 'Статус аккаунта',
     actions:     'Действия',
     delete:      'Удалить',
-    confirmDelete: 'Подтвердить',
+    confirmDelete: 'Удалить аккаунт',
     cancel:      'Отмена',
     deleteHint:  'Аккаунт будет удалён полностью. Имена в старых заказах сохранятся; повторная регистрация создаст новую заявку.',
     deleteError: 'Не удалось удалить пользователя',
@@ -108,13 +132,13 @@ const L = {
     noUsers:     'Пользователи не найдены',
     pendingRequests: 'Ожидающие заявки',
     pendingHelp: 'Новые аккаунты отображаются здесь до подтверждения.',
-    pendingCount: n => `${n} заявок`,
+    pendingCount: n => `${n} ${ruPlural(n, 'заявка', 'заявки', 'заявок')}`,
     removeAll: 'Удалить все',
     confirmRemoveAll: n => `Удалить все ожидающие аккаунты (${n})?`,
     removedPending: n => `Удалено ожидающих аккаунтов: ${n}`,
     removePendingPartial: (removed, failed) => `Удалено: ${removed}; не удалось удалить: ${failed}`,
     you:         '(вы)',
-    members:     n => `${n} участников`,
+    members:     n => `${n} ${ruPlural(n, 'участник', 'участника', 'участников')}`,
     editName:    'Изменить имя',
     saveName:    'Сохранить имя',
     nameRequired: 'Имя не может быть пустым',
@@ -124,19 +148,26 @@ const L = {
     roleAndStatus: 'Роль и статус',
     close:       'Закрыть',
     openMember:  'Открыть участника',
+    saving:      'Сохранение',
+    changeError: 'Не удалось сохранить изменение. Попробуйте ещё раз.',
+    loadFailed:  'Не удалось загрузить команду',
+    readOnly:    'Только просмотр: изменить статус аккаунта и доступы нельзя.',
+    noUsersHint: 'Сотрудник появится здесь после регистрации в системе.',
+    noUsersFilteredHint: 'Нет аккаунтов, подходящих под поиск или фильтр статуса.',
+    clearFilters: 'Сбросить фильтры',
   },
   en: {
-    title:       'Team Members',
+    title:       'Team members',
     search:      'Search by name or email...',
     allStatuses: 'All statuses',
     refresh:     'Refresh',
     nameEmail:   'Name / Email',
     role:        'Role',
     status:      'Status',
-    accountStatus: 'Account Status',
+    accountStatus: 'Account status',
     actions:     'Actions',
     delete:      'Delete',
-    confirmDelete: 'Confirm',
+    confirmDelete: 'Delete account',
     cancel:      'Cancel',
     deleteHint:  'This permanently removes the account. Old order names stay preserved; registering again creates a new request.',
     deleteError: 'Could not delete user',
@@ -169,6 +200,13 @@ const L = {
     roleAndStatus: 'Role and status',
     close:       'Close',
     openMember:  'Open member',
+    saving:      'Saving',
+    changeError: 'Could not save the change. Try again.',
+    loadFailed:  'Could not load the team',
+    readOnly:    'View-only access: you cannot change account statuses or feature access.',
+    noUsersHint: 'A staff member appears here after registering in the app.',
+    noUsersFilteredHint: 'No account matches the search or the status filter.',
+    clearFilters: 'Clear filters',
   },
 }
 
@@ -194,21 +232,23 @@ export default function AdminUsers() {
   const [editingNameId, setEditingNameId] = useState(null)
   const [nameDraft, setNameDraft] = useState('')
 
+  const [loadFailed, setLoadFailed]     = useState(false)
+
   async function loadUsers() {
     setLoading(true)
-    const { data } = await getAllProfiles()
-    setUsers(data || [])
+    setLoadFailed(false)
+    const { data, error } = await getAllProfiles()
+    if (error) {
+      // A failed load is an error with a retry, never an empty team.
+      console.error('[team] load failed:', error)
+      setLoadFailed(true)
+    } else {
+      setUsers(data || [])
+    }
     setLoading(false)
   }
 
   useEffect(() => { loadUsers() }, [])
-
-  useEffect(() => {
-    if (!openUserId) return undefined
-    const onKeyDown = event => { if (event.key === 'Escape') closeMember() }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [openUserId])
 
   function openMember(user) {
     if (removingAllPending || !user?.id) return
@@ -250,7 +290,8 @@ export default function AdminUsers() {
     setNotice(null)
     const { error } = await updateProfile(userId, updates)
     if (error) {
-      setNotice({ tone: 'error', message: error.message || l.accessError })
+      console.error('[team] profile update failed:', error)
+      setNotice({ tone: 'error', key: 'changeError' })
       setSaving(null)
       return
     }
@@ -267,13 +308,14 @@ export default function AdminUsers() {
     setNotice(null)
     const { error } = await updateProfile(user.id, { feature_access: nextAccess })
     if (error) {
-      setNotice({ tone: 'error', message: error.message || l.accessError })
+      console.error('[team] feature access update failed:', error)
+      setNotice({ tone: 'error', key: 'accessError' })
       setSaving(null)
       return
     }
     setUsers(list => list.map(row => row.id === user.id ? { ...row, feature_access: nextAccess } : row))
     setSaving(null)
-    setNotice({ tone: 'success', message: l.accessSaved })
+    setNotice({ tone: 'success', key: 'accessSaved' })
   }
 
   function startNameEdit(user) {
@@ -292,7 +334,7 @@ export default function AdminUsers() {
     if (myRole !== 'owner' || removingAllPending || !user?.id) return
     const fullName = nameDraft.trim().replace(/\s+/g, ' ')
     if (!fullName) {
-      setNotice({ tone: 'error', message: l.nameRequired })
+      setNotice({ tone: 'error', key: 'nameRequired' })
       return
     }
     if (fullName === String(user.full_name || '').trim()) return
@@ -301,14 +343,15 @@ export default function AdminUsers() {
     setNotice(null)
     const { error } = await updateProfile(user.id, { full_name: fullName })
     if (error) {
-      setNotice({ tone: 'error', message: error.message || l.nameError })
+      console.error('[team] name update failed:', error)
+      setNotice({ tone: 'error', key: 'nameError' })
       setSaving(null)
       return
     }
     setUsers(list => list.map(row => row.id === user.id ? { ...row, full_name: fullName } : row))
     setSaving(null)
     setNameDraft(fullName)
-    setNotice({ tone: 'success', message: l.nameSaved })
+    setNotice({ tone: 'success', key: 'nameSaved' })
     refreshPOSData().catch(error => console.warn('[team] waiter name refresh failed:', error))
   }
 
@@ -318,7 +361,8 @@ export default function AdminUsers() {
     setNotice(null)
     const { error } = await deleteProfile(user.id)
     if (error) {
-      setNotice({ tone: 'error', message: error.message || l.deleteError, userId: user.id })
+      console.error('[team] account deletion failed:', error)
+      setNotice({ tone: 'error', key: 'deleteError', userId: user.id })
       setDeleting(null)
       return
     }
@@ -326,7 +370,7 @@ export default function AdminUsers() {
     setConfirmDeleteId(null)
     closeMember()
     setDeleting(null)
-    setNotice({ tone: 'success', message: l.deleted })
+    setNotice({ tone: 'success', key: 'deleted' })
   }
 
   async function handleRemoveAllPending() {
@@ -347,7 +391,7 @@ export default function AdminUsers() {
 
     for (const target of targets) {
       const { error } = await deleteProfile(target.id, { expectedStatus: 'pending' })
-      if (error) failed += 1
+      if (error) { console.error('[team] pending account deletion failed:', error); failed += 1 }
       else removedIds.push(target.id)
     }
 
@@ -361,9 +405,8 @@ export default function AdminUsers() {
     setConfirmRemoveAllPending(false)
     setNotice({
       tone: failed > 0 ? 'error' : 'success',
-      message: failed > 0
-        ? l.removePendingPartial(removedIds.length, failed)
-        : l.removedPending(removedIds.length),
+      key: failed > 0 ? 'removePendingPartial' : 'removedPending',
+      args: failed > 0 ? [removedIds.length, failed] : [removedIds.length],
     })
   }
 
@@ -383,8 +426,8 @@ export default function AdminUsers() {
           return (
             <label
               key={feature.key}
-              className={`flex cursor-pointer items-start gap-2.5 rounded-xl border bg-white p-3 transition-colors ${
-                enabled ? 'border-orange-200 ring-1 ring-orange-100' : 'border-gray-100 hover:border-gray-200'
+              className={`flex min-h-11 cursor-pointer items-start gap-2.5 rounded-[10px] border bg-white p-3 transition-colors ${
+                enabled ? 'border-[#ff5a00]/50 bg-[#fff1e8]' : 'border-[#e4e1de] hover:border-[#dcd9d6]'
               }`}
             >
               <input
@@ -392,13 +435,13 @@ export default function AdminUsers() {
                 checked={enabled}
                 disabled={disabled}
                 onChange={event => handleFeatureAccessChange(user, feature.key, event.target.checked)}
-                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-[#ff5a00] focus:ring-[#ff5a00]"
+                className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 accent-[#cc4800]"
               />
               <span className="min-w-0">
-                <span className="block text-xs font-black text-gray-900">
+                <span className="block text-sm font-medium text-[#22201d]">
                   {feature.labels[lang] || feature.labels.en}
                 </span>
-                <span className="block text-[11px] font-medium leading-snug text-gray-400">
+                <span className="block text-xs leading-snug text-[#68655f]">
                   {feature.description[lang] || feature.description.en}
                 </span>
               </span>
@@ -430,177 +473,152 @@ export default function AdminUsers() {
     })
     const nameChanged = nameDraft.trim().replace(/\s+/g, ' ') !== String(user.full_name || '').trim()
 
-    return (
-      <div className="fixed inset-0 z-dialog flex items-end justify-center sm:items-center sm:p-6">
-        <button type="button" aria-label={l.close} onClick={closeMember}
-          className="absolute inset-0 h-full w-full cursor-default bg-slate-950/55 backdrop-blur-sm" />
-        <div role="dialog" aria-modal="true" aria-labelledby="team-member-title"
-          className="ws-dialog relative flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-b-none sm:max-h-[calc(100dvh-3rem)] sm:rounded-b-2xl">
-          <div className="flex items-start gap-3 border-b border-gray-100 px-5 pb-4 pt-5 sm:px-6">
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#1a1a1a]">
-              <span className="text-sm font-black text-white">
-                {(user.full_name || user.email || '?')[0].toUpperCase()}
-              </span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 id="team-member-title" className="truncate text-lg font-black text-gray-900">
-                {user.full_name || '—'} {isMe && <span className="text-xs font-bold text-[#ff5a00]">{l.you}</span>}
-              </h2>
-              <p className="truncate text-xs text-gray-400">{user.email}</p>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <StatusBadge status={user.status} />
-                <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{roleLabelFor(user.role)}</span>
-              </div>
-            </div>
-            {isSaving && <Loader2 size={16} className="mt-2 animate-spin text-[#ff5a00]" />}
-            <button type="button" onClick={closeMember} aria-label={l.close}
-              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100">
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-            {notice?.tone === 'error' && notice.userId === user.id && (
-              <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
-                {notice.message}
-              </p>
-            )}
-            {notice && !notice.userId && (
-              <p role={notice.tone === 'error' ? 'alert' : 'status'} className={`rounded-xl p-3 text-sm font-semibold ${
-                notice.tone === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
-              }`}>
-                {notice.message}
-              </p>
-            )}
-
-            {myRole === 'owner' && isEditingName && (
-              <section>
-                <label htmlFor="team-member-name" className="mb-1.5 block text-xs font-black text-gray-700">{l.name}</label>
-                <div className="flex gap-2">
-                  <input
-                    id="team-member-name"
-                    type="text"
-                    value={nameDraft}
-                    onChange={event => setNameDraft(event.target.value)}
-                    onKeyDown={event => { if (event.key === 'Enter') saveName(user) }}
-                    autoComplete="off"
-                    maxLength={120}
-                    disabled={busy}
-                    className="h-11 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-base font-semibold text-gray-900 focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:opacity-60 sm:text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => saveName(user)}
-                    disabled={busy || !nameDraft.trim() || !nameChanged}
-                    className="inline-flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl bg-[#ff5a00] px-4 text-sm font-black text-white transition-opacity disabled:opacity-40"
-                  >
-                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                    {l.saveName}
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {canEditRoleStatus && (
-              <section>
-                <p className="mb-1.5 text-xs font-black text-gray-700">{l.roleAndStatus}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={ROLES.includes(user.role) ? user.role : 'guest'}
-                    disabled={busy}
-                    onChange={e => handleChange(user.id, 'role', e.target.value)}
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label={l.role}
-                  >
-                    {roleOptions.map(role => (
-                      <option key={role} value={role}>{roleLabelFor(role)}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={user.status || 'pending'}
-                    disabled={busy}
-                    onChange={e => handleChange(user.id, 'status', e.target.value)}
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold focus:border-[#ff5a00] focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label={l.accountStatus}
-                  >
-                    {statusOptions.map(s => (
-                      <option key={s} value={s}>{statusLabelFor(s)}</option>
-                    ))}
-                  </select>
-                </div>
-              </section>
-            )}
-
-            {canEditAccess && !isMe && (
-              <section>
-                <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-gray-600">
-                  <ShieldCheck size={14} className="text-[#ff5a00]" />
-                  {l.access}
-                  <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">{featureAccess.length}</span>
-                </p>
-                <div className="mb-2 mt-3">
-                  <p className="text-xs font-black text-gray-700">{l.pageAccess}</p>
-                  <p className="text-[11px] font-medium text-gray-400">{l.pageAccessHelp}</p>
-                </div>
-                {renderFeatureToggles(user, pageFeatures, featureAccess, busy)}
-                {actionFeatures.length > 0 && (
-                  <div className="mt-4 border-t border-gray-100 pt-4">
-                    <div className="mb-2">
-                      <p className="text-xs font-black text-gray-700">{l.extraActions}</p>
-                      <p className="text-[11px] font-medium text-gray-400">{l.extraActionsHelp}</p>
-                    </div>
-                    {renderFeatureToggles(user, actionFeatures, featureAccess, busy)}
-                  </div>
-                )}
-              </section>
-            )}
-          </div>
-
-          {canDelete && (
-            <div className="border-t border-gray-100 px-5 py-4 sm:px-6">
-              {isConfirmingDelete ? (
-                <div className="space-y-3">
-                  <p className="text-xs font-medium leading-snug text-red-500">{l.deleteHint}</p>
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteId(null)}
-                      disabled={busy}
-                      className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-black text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      {l.cancel}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(user)}
-                      disabled={busy}
-                      className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-red-600 px-4 text-sm font-black text-white transition-colors hover:bg-red-700 disabled:opacity-50"
-                    >
-                      {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                      {l.confirmDelete}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDeleteId(user.id)
-                    setNotice(null)
-                  }}
-                  disabled={busy}
-                  className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-4 text-sm font-black text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
-                >
-                  <Trash2 size={16} />
-                  {l.delete}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+    const memberNotice = notice && (notice.userId ? notice.userId === user.id : true) ? notice : null
+    const dialogNotice = (memberNotice || isConfirmingDelete) ? (
+      <div className="grid gap-2">
+        {notice?.tone === 'error' && notice.userId === user.id && (
+          <p role="alert" className="ws-notice ws-tone-negative">{noticeText(l, notice)}</p>
+        )}
+        {memberNotice && !memberNotice.userId && (
+          <p role={memberNotice.tone === 'error' ? 'alert' : 'status'} className={`ws-notice ${memberNotice.tone === 'error' ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
+            {noticeText(l, memberNotice)}
+          </p>
+        )}
+        {isConfirmingDelete && <p className="text-sm text-[#c4262c]">{l.deleteHint}</p>}
       </div>
+    ) : null
+    const dialogFooter = canDelete ? (
+      isConfirmingDelete ? (
+        <>
+          <button type="button" onClick={() => setConfirmDeleteId(null)} disabled={busy} className="ws-btn ws-btn-outline">
+            {l.cancel}
+          </button>
+          <button type="button" onClick={() => handleDelete(user)} disabled={busy} className="ws-btn ws-btn-danger-solid">
+            {isDeleting ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Trash2 size={16} aria-hidden="true" />}
+            {l.confirmDelete}
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setConfirmDeleteId(user.id)
+            setNotice(null)
+          }}
+          disabled={busy}
+          className="ws-btn ws-btn-ghost ws-btn-danger mr-auto"
+        >
+          <Trash2 size={16} aria-hidden="true" />
+          {l.delete}
+        </button>
+      )
+    ) : null
+
+    return (
+      <WorkspaceDialog
+        variant="sheet"
+        size="xl"
+        title={<>{user.full_name || '—'} {isMe && <span className="text-xs font-medium text-[#bf4300]">{l.you}</span>}</>}
+        description={user.email}
+        onClose={closeMember}
+        closeLabel={l.close}
+        busy={isDeleting}
+        notice={dialogNotice}
+        footer={dialogFooter}
+        bodyClassName="space-y-5"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={user.status} />
+          <span className="ws-caption">{roleLabelFor(user.role)}</span>
+          {isSaving && <Loader2 size={16} className="animate-spin text-[#bf4300]" aria-label={l.saving} />}
+        </div>
+
+        {myRole === 'owner' && isEditingName && (
+          <section>
+            <label htmlFor="team-member-name" className="ws-caption mb-1.5 block font-medium">{l.name}</label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="team-member-name"
+                type="text"
+                value={nameDraft}
+                onChange={event => setNameDraft(event.target.value)}
+                onKeyDown={event => { if (event.key === 'Enter') saveName(user) }}
+                autoComplete="off"
+                maxLength={120}
+                disabled={busy}
+                className="ws-input min-w-0 flex-1 basis-48"
+              />
+              <button
+                type="button"
+                onClick={() => saveName(user)}
+                disabled={busy || !nameDraft.trim() || !nameChanged}
+                className="ws-btn ws-btn-primary flex-shrink-0"
+              >
+                {isSaving ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
+                {l.saveName}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {canEditRoleStatus && (
+          <section>
+            <p className="ws-caption mb-1.5 font-medium">{l.roleAndStatus}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={ROLES.includes(user.role) ? user.role : 'guest'}
+                disabled={busy}
+                onChange={e => handleChange(user.id, 'role', e.target.value)}
+                className="ws-input"
+                aria-label={l.role}
+              >
+                {roleOptions.map(role => (
+                  <option key={role} value={role}>{roleLabelFor(role)}</option>
+                ))}
+              </select>
+              <select
+                value={user.status || 'pending'}
+                disabled={busy}
+                onChange={e => handleChange(user.id, 'status', e.target.value)}
+                className="ws-input"
+                aria-label={l.accountStatus}
+              >
+                {statusOptions.map(s => (
+                  <option key={s} value={s}>{statusLabelFor(s)}</option>
+                ))}
+              </select>
+            </div>
+          </section>
+        )}
+
+        {canEditAccess && !isMe && (
+          <section>
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-[#22201d]">
+              <ShieldCheck size={14} className="text-[#ff5a00]" aria-hidden="true" />
+              {l.access}
+              <span className="ws-count tabular-nums">{featureAccess.length}</span>
+            </p>
+            <div className="mb-2 mt-3">
+              <p className="text-sm font-medium text-[#22201d]">{l.pageAccess}</p>
+              <p className="ws-caption">{l.pageAccessHelp}</p>
+            </div>
+            {renderFeatureToggles(user, pageFeatures, featureAccess, busy)}
+            {actionFeatures.length > 0 && (
+              <div className="mt-4 border-t border-[#e4e1de] pt-4">
+                <div className="mb-2">
+                  <p className="text-sm font-medium text-[#22201d]">{l.extraActions}</p>
+                  <p className="ws-caption">{l.extraActionsHelp}</p>
+                </div>
+                {renderFeatureToggles(user, actionFeatures, featureAccess, busy)}
+              </div>
+            )}
+          </section>
+        )}
+      </WorkspaceDialog>
     )
   }
+
+  const filtersActive = search.trim() !== '' || statusFilter !== 'all'
 
   return (
     <AppShell title={l.title}>
@@ -608,83 +626,84 @@ export default function AdminUsers() {
 
         {/* Read-only notice for non-editors */}
         {!['owner', 'admin'].includes(myRole) && (
-          <div className="flex items-center gap-2.5 mb-4 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl text-sm text-blue-700">
-            <Eye size={15} className="flex-shrink-0" />
-            <span className="font-medium">
-              {lang === 'uz' ? 'Faqat ko\'rish huquqi — hisob holati va kirish huquqlarini o\'zgartirib bo\'lmaydi.'
-               : lang === 'ru' ? 'Только просмотр — изменение статуса аккаунта и доступов недоступно.'
-              : 'View-only access — you cannot change account statuses or feature access.'}
-            </span>
+          <div className="ws-notice ws-tone-info mb-4 flex items-center gap-2.5">
+            <Eye size={15} className="flex-shrink-0" aria-hidden="true" />
+            <span>{l.readOnly}</span>
           </div>
         )}
 
         {notice && !openUserId && (
-          <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
-            notice.tone === 'error'
-              ? 'border-red-100 bg-red-50 text-red-700'
-              : 'border-green-100 bg-green-50 text-green-700'
-          }`}>
-            {notice.message}
+          <div role={notice.tone === 'error' ? 'alert' : 'status'} className={`ws-notice mb-4 ${notice.tone === 'error' ? 'ws-tone-negative' : 'ws-tone-positive'}`}>
+            {noticeText(l, notice)}
           </div>
         )}
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-2 mb-5">
-          <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        <div className="mb-4 flex flex-wrap gap-2">
+          <div className="relative min-w-0 flex-1 basis-56">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#68655f]" aria-hidden="true" />
             <input
-              type="text"
+              type="search"
               placeholder={l.search}
+              aria-label={l.search}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 focus:border-[#ff5a00] transition-all"
+              className="ws-input !pl-9"
             />
           </div>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#ff5a00]/20 focus:border-[#ff5a00]"
+            aria-label={l.status}
+            className="ws-input !w-auto min-w-0 flex-1 basis-40 sm:flex-none"
           >
             <option value="all">{l.allStatuses}</option>
             {STATUSES.map(s => (
               <option key={s} value={s}>{(STATUS_LABELS[s]?.[lang] || STATUS_LABELS[s]?.en) ?? s}</option>
             ))}
           </select>
-          <button
-            onClick={loadUsers}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <button type="button" onClick={loadUsers} disabled={loading} className="ws-btn ws-btn-outline">
+            {loading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}
             {l.refresh}
           </button>
         </div>
 
         {/* Count */}
-        {statusFilter !== 'pending' && (
-          <p className="text-xs text-gray-400 mb-4">{l.members(members.length)}</p>
+        {!loading && !loadFailed && statusFilter !== 'pending' && (
+          <p className="ws-caption mb-3 tabular-nums">{l.members(members.length)}</p>
         )}
 
         {/* Table */}
         {loading ? (
           <PageShimmer layout="table" className="!p-0" />
+        ) : loadFailed ? (
+          <OperationalError lang={lang} title={l.loadFailed} onAction={loadUsers} />
         ) : displayedUsers.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            <UserCircle2 size={44} className="mx-auto mb-3 opacity-20" />
-            <p>{l.noUsers}</p>
+          <div className="ws-empty">
+            <UserCircle2 aria-hidden="true" />
+            <h3>{l.noUsers}</h3>
+            {filtersActive ? (
+              <>
+                <p>{l.noUsersFilteredHint}</p>
+                <button type="button" onClick={() => { setSearch(''); setStatusFilter('all') }} className="ws-btn ws-btn-outline">{l.clearFilters}</button>
+              </>
+            ) : (
+              <p>{l.noUsersHint}</p>
+            )}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="ws-panel ws-panel-flush">
             {/* Table header */}
-            <div className="hidden md:grid md:grid-cols-[40px_minmax(0,1fr)_120px_96px_20px] gap-4 px-5 py-3 bg-gray-50 border-b border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">#</p>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{l.nameEmail}</p>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{l.status}</p>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{canEditAccess ? l.access : ''}</p>
+            <div className="ws-table-head hidden gap-4 px-5 py-2.5 md:grid md:grid-cols-[40px_minmax(0,1fr)_120px_96px_20px]">
+              <p>#</p>
+              <p>{l.nameEmail}</p>
+              <p>{l.status}</p>
+              <p>{canEditAccess ? l.access : ''}</p>
               <span />
             </div>
 
             {/* Rows */}
-            <div className="divide-y divide-gray-50">
+            <div>
               {displayedUsers.map((user, index) => {
                 const startsPendingSection = pendingRequests.length > 0 && index === members.length
                 const isMe       = user.id === myProfile?.id
@@ -695,14 +714,14 @@ export default function AdminUsers() {
                 return (
                   <React.Fragment key={user.id}>
                     {startsPendingSection && (
-                      <div className={`border-[#faf9f7] bg-orange-50/60 px-4 py-4 sm:px-5 ${members.length > 0 ? 'border-t-8' : ''}`}>
-                        <div className="flex flex-wrap items-end justify-between gap-2">
-                          <div>
-                            <h2 className="text-sm font-black text-gray-900">{l.pendingRequests}</h2>
-                            <p className="mt-0.5 text-xs font-medium text-gray-500">{l.pendingHelp}</p>
+                      <div className={`border-[#f6f5f3] bg-[#efece9] px-4 py-4 sm:px-5 ${members.length > 0 ? 'border-t-8' : ''}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1 basis-56">
+                            <h2 className="text-sm font-semibold text-[#22201d]">{l.pendingRequests}</h2>
+                            <p className="ws-caption">{l.pendingHelp}</p>
                           </div>
                           <div className="flex flex-wrap items-center justify-end gap-2">
-                            <span className="rounded-full border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                            <span className="ws-status ws-tone-caution tabular-nums">
                               {l.pendingCount(pendingRequests.length)}
                             </span>
                             {canEditAccess && !confirmRemoveAllPending && (
@@ -713,34 +732,33 @@ export default function AdminUsers() {
                                   setNotice(null)
                                 }}
                                 disabled={removingAllPending || allPendingRequests.length === 0}
-                                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-[11px] font-black text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="ws-btn ws-btn-ghost ws-btn-danger ws-btn-sm"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={14} aria-hidden="true" />
                                 {l.removeAll}
                               </button>
                             )}
                             {canEditAccess && confirmRemoveAllPending && (
-                              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                <span className="text-[11px] font-bold text-red-600">
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                <span className="text-sm font-medium text-[#c4262c]">
                                   {l.confirmRemoveAll(allPendingRequests.length)}
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={handleRemoveAllPending}
+                                  onClick={() => setConfirmRemoveAllPending(false)}
                                   disabled={removingAllPending}
-                                  className="inline-flex items-center gap-1 rounded-xl bg-red-600 px-2.5 py-1.5 text-[11px] font-black text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className="ws-btn ws-btn-outline ws-btn-sm"
                                 >
-                                  {removingAllPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                                  {l.confirmDelete}
+                                  {l.cancel}
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setConfirmRemoveAllPending(false)}
+                                  onClick={handleRemoveAllPending}
                                   disabled={removingAllPending}
-                                  title={l.cancel}
-                                  className="inline-flex items-center rounded-xl border border-gray-200 bg-white p-1.5 text-gray-500 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="ws-btn ws-btn-danger-solid ws-btn-sm"
                                 >
-                                  <X size={13} />
+                                  {removingAllPending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />}
+                                  {l.removeAll}
                                 </button>
                               </div>
                             )}
@@ -755,27 +773,27 @@ export default function AdminUsers() {
                     aria-haspopup="dialog"
                     aria-expanded={isOpen}
                     aria-label={`${l.openMember}: ${user.full_name || user.email}`}
-                    className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors sm:px-5 md:grid md:grid-cols-[40px_minmax(0,1fr)_120px_96px_20px] md:gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ff5a00]/40 disabled:cursor-not-allowed ${
-                      isSaving || isOpen ? 'bg-orange-50/50' : 'hover:bg-gray-50 active:bg-gray-100'
+                    className={`ws-row flex w-full items-center gap-3 px-4 py-3.5 text-left sm:px-5 md:grid md:grid-cols-[40px_minmax(0,1fr)_120px_96px_20px] md:gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ff5a00]/40 disabled:cursor-not-allowed ${
+                      isSaving || isOpen ? 'bg-[#fff1e8]' : ''
                     }`}
                   >
-                    <span className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-black text-gray-500">
+                    <span className="hidden h-8 w-8 items-center justify-center rounded-lg bg-[#efece9] text-xs font-medium tabular-nums text-[#68655f] md:flex">
                       {index + 1}
                     </span>
                     {/* Name / Email */}
                     <span className="flex min-w-0 flex-1 items-center gap-3">
-                      <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#1a1a1a]">
-                        <span className="text-white text-xs font-black">
+                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#22201d]" aria-hidden="true">
+                        <span className="text-xs font-semibold text-white">
                           {(user.full_name || user.email || '?')[0].toUpperCase()}
                         </span>
                       </span>
                       <span className="min-w-0">
                         <span className="flex items-baseline gap-1.5">
-                          <span className="truncate text-sm font-bold text-gray-900">{user.full_name || '—'}</span>
-                          {isMe && <span className="flex-shrink-0 text-[10px] font-bold text-[#ff5a00]">{l.you}</span>}
+                          <span className="truncate text-sm font-semibold text-[#22201d]">{user.full_name || '—'}</span>
+                          {isMe && <span className="flex-shrink-0 text-xs font-medium text-[#bf4300]">{l.you}</span>}
                         </span>
-                        <span className="block truncate text-xs text-gray-400">{user.email}</span>
-                        <span className="mt-0.5 block text-[11px] font-bold uppercase tracking-wide text-gray-400">{roleLabelFor(user.role)}</span>
+                        <span className="block truncate text-xs text-[#68655f]">{user.email}</span>
+                        <span className="mt-0.5 block text-xs text-[#68655f]">{roleLabelFor(user.role)}</span>
                       </span>
                     </span>
 
@@ -784,18 +802,18 @@ export default function AdminUsers() {
                       <StatusBadge status={user.status} />
                     </span>
 
-                    <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-bold text-gray-500">
+                    <span className="hidden items-center gap-1.5 text-xs font-medium tabular-nums text-[#68655f] md:inline-flex">
                       {canEditAccess && !isMe && (
                         <>
-                          <ShieldCheck size={14} className="text-gray-400" />
+                          <ShieldCheck size={14} aria-hidden="true" />
                           {accessCount}
                         </>
                       )}
                     </span>
 
                     {isSaving
-                      ? <Loader2 size={16} className="flex-shrink-0 animate-spin text-[#ff5a00]" />
-                      : <ChevronRight size={18} className="flex-shrink-0 text-gray-300" />}
+                      ? <Loader2 size={16} className="flex-shrink-0 animate-spin text-[#bf4300]" aria-hidden="true" />
+                      : <ChevronRight size={18} className="flex-shrink-0 text-[#68655f]" aria-hidden="true" />}
                   </button>
                   </React.Fragment>
                 )

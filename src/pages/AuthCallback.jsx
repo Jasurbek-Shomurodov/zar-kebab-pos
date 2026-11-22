@@ -1,21 +1,43 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Loader2 } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
+import { Shimmer } from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
 import { t } from '../lib/i18n'
 
 const OAUTH_RETURN_TO_KEY = 'zk_oauth_return_to'
 
+// What went wrong, in words for the person signing in; the provider's own text goes to the console.
+const L = {
+  uz: {
+    cancelled: 'Kirish bekor qilindi yoki ruxsat berilmadi. Qayta urinib ko‘ring.',
+    timeout: 'Kirish juda uzoq davom etdi. Internetni tekshirib, qayta urinib ko‘ring.',
+    failed: 'Kirishni yakunlab bo‘lmadi. Qayta urinib ko‘ring.',
+  },
+  ru: {
+    cancelled: 'Вход отменён или доступ не разрешён. Попробуйте ещё раз.',
+    timeout: 'Вход занял слишком много времени. Проверьте интернет и попробуйте ещё раз.',
+    failed: 'Не удалось завершить вход. Попробуйте ещё раз.',
+  },
+  en: {
+    cancelled: 'Sign-in was cancelled or access was not granted. Try again.',
+    timeout: 'Sign-in took too long. Check the connection and try again.',
+    failed: 'Sign-in could not be completed. Try again.',
+  },
+}
+
 export default function AuthCallback() {
   const navigate = useNavigate()
   const { state } = useApp()
   const lang = state.lang || 'ru'
-  const [errorMsg, setErrorMsg] = useState('')
-  const [debugLog, setDebugLog] = useState([])
+  const l = L[lang] || L.en
+  // A code from L, worded at render.
+  const [errorCode, setErrorCode] = useState('')
 
+  // Diagnostics stay in the console; nothing technical is shown on screen.
   function log(msg) {
-    setDebugLog(prev => [...prev, msg])
+    console.debug('[auth-callback]', msg)
   }
 
   useEffect(() => {
@@ -36,7 +58,7 @@ export default function AuthCallback() {
     if (oauthError) {
       const msg = oauthErrDesc || oauthError
       log(`OAuth error: ${msg}`)
-      setErrorMsg(msg)
+      setErrorCode('cancelled')
       setTimeout(() => navigate('/login', { replace: true }), 5000)
       return
     }
@@ -52,7 +74,7 @@ export default function AuthCallback() {
       const msg = error?.message || String(error || 'Sign in could not be completed')
       log(`Auth callback error: ${msg}`)
       clearTimeout(giveUp)
-      setErrorMsg(msg)
+      setErrorCode(/timed out/i.test(msg) ? 'timeout' : 'failed')
       setTimeout(() => navigate('/login', { replace: true }), 5000)
     }
 
@@ -147,33 +169,27 @@ export default function AuthCallback() {
     }
   }, [navigate])
 
-  if (errorMsg) {
+  if (errorCode) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#faf9f7] p-4">
-        <div className="bg-white rounded-2xl border border-red-100 shadow-xl p-8 text-center max-w-sm w-full">
-          <div className="text-3xl mb-3">⚠️</div>
-          <h2 className="font-black text-[#141414] mb-2">{t(lang, 'signInFailed')}</h2>
-          <p className="text-sm text-red-500 mb-2">{errorMsg}</p>
-          <p className="text-xs text-gray-400">{t(lang, 'redirectingToLogin')}</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#faf9f7] p-4">
+        <div role="alert" className="w-full max-w-sm rounded-2xl border border-[#e4e1de] bg-white p-8 text-center shadow-xl">
+          <AlertTriangle size={32} className="mx-auto mb-3 text-[#c4262c]" aria-hidden="true" />
+          <h1 className="mb-2 text-lg font-semibold text-[#22201d]">{t(lang, 'signInFailed')}</h1>
+          <p className="mb-2 text-sm text-[#c4262c]">{l[errorCode]}</p>
+          <p className="text-[13px] text-[#68655f]">{t(lang, 'redirectingToLogin')}</p>
         </div>
       </div>
     )
   }
 
+  // Shaped like the workspace that opens next: a top bar and a few rows.
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#faf9f7]">
-      <div className="text-center max-w-sm w-full px-4">
-        <Loader2 size={32} className="animate-spin text-[#ff5a00] mx-auto mb-3" />
-        <p className="text-sm text-gray-500 mb-4">{t(lang, 'signingIn')}</p>
-
-        {/* Debug log — visible on screen so you can report what's happening */}
-        {debugLog.length > 0 && (
-          <div className="text-left bg-gray-900 rounded-xl p-3 text-xs font-mono text-green-400 space-y-0.5 mt-4">
-            {debugLog.map((line, i) => (
-              <div key={i}>{line}</div>
-            ))}
-          </div>
-        )}
+    <div role="status" aria-busy="true" className="flex min-h-screen items-center justify-center bg-[#faf9f7] p-4">
+      <div className="w-full max-w-sm space-y-3">
+        <p className="text-center text-sm text-[#68655f]">{t(lang, 'signingIn')}</p>
+        <Shimmer className="h-11 w-full rounded-[10px]" />
+        <Shimmer className="h-16 w-full rounded-xl" />
+        <Shimmer className="h-16 w-full rounded-xl" />
       </div>
     </div>
   )

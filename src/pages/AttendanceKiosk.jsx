@@ -58,7 +58,7 @@ export default function AttendanceKiosk() {
   return (
     <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-[#faf9f7] px-4 py-5 text-center text-[#141414]">
       <div>
-        <p className="text-sm font-extrabold uppercase tracking-[0.25em] text-[#ff5a00]">Zar Kebab</p>
+        <p className="text-sm font-extrabold uppercase tracking-[0.25em] text-[#bf4300]">Zar Kebab</p>
         <p className="mt-2 text-lg font-semibold tabular-nums text-[#55524c]">
           {formatLongDate(new Date(now), 'ru')} · {formatTime(new Date(now))}
         </p>
@@ -71,7 +71,8 @@ export default function AttendanceKiosk() {
             <h1 className="text-[clamp(24px,min(4.5vw,5dvh),44px)] font-black leading-tight">Пришли на работу? Отсканируйте</h1>
             <p className="mt-1 text-[clamp(17px,min(3vw,3.5dvh),28px)] font-bold text-[#55524c]">Ishga keldingizmi? Skanerlang</p>
           </div>
-          <div className="rounded-3xl bg-white p-3 shadow-xl ring-1 ring-black/5">
+          {/* White as an inline style: the dark theme remaps bg-white, and a QR must stay black on white with a quiet zone. */}
+          <div className="rounded-3xl p-4 shadow-xl ring-1 ring-black/5" style={{ backgroundColor: '#ffffff', colorScheme: 'light' }}>
             {showQr
               ? <img src={dataUrl} alt="QR" className="block size-[min(70vw,calc(100dvh-320px))] min-h-[220px] min-w-[220px]" />
               : <Shimmer className="size-[min(70vw,calc(100dvh-320px))] min-h-[220px] min-w-[220px] rounded-2xl" />}

@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ChevronDown, ReceiptText, RefreshCw, ShieldCheck, UserRound } from 'lucide-react'
+import { AlertTriangle, ChevronDown, Loader2, ReceiptText, RefreshCw, SearchX, ShieldCheck, UserRound } from 'lucide-react'
 import AppShell from '../components/AppShell'
+import { OperationalError } from '../components/OperationalState'
+import { Shimmer } from '../components/PageShimmer'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../store/AppContext'
 import { formatCurrency } from '../lib/formatCurrency'
 import { ORDER_TYPE_LABELS, inferOrderType, isOffPremiseOrderType, orderTypeLabel } from '../lib/orderTypes'
 import { formatDateTime, parseInstantDate } from '../lib/dateFormat'
+
+// The page reads the newest changes only; the list says so (see `limitNote`).
+const AUDIT_LIMIT = 100
 
 function fmtDate(value, lang = 'ru') {
   return formatDateTime(value, '—')
@@ -122,6 +127,12 @@ export default function AdminAudit() {
       sub: 'To‘lovlar va pul maydonlari o‘zgarishlari',
       refresh: 'Yangilash',
       empty: 'Audit yozuvlari yo‘q',
+      emptyHint: 'To‘lov yoki buyurtma summasi o‘zgarganda yozuv shu yerda paydo bo‘ladi.',
+      noMatches: 'Filtrlarga mos yozuv yo‘q',
+      noMatchesHint: 'Qidiruv faqat oxirgi 100 ta o‘zgarish ichida ishlaydi.',
+      clearFilters: 'Filtrlarni tozalash',
+      limitNote: count => `Oxirgi ${count} ta o‘zgarish ko‘rsatiladi. Eskilari bu ro‘yxatda yo‘q.`,
+      loading: 'Audit yuklanmoqda',
       error: 'Auditni yuklab bo‘lmadi',
       order: 'Buyurtma',
       action: 'Amal',
@@ -149,6 +160,12 @@ export default function AdminAudit() {
       sub: 'Изменения оплат и денежных полей',
       refresh: 'Обновить',
       empty: 'Записей аудита пока нет',
+      emptyHint: 'Запись появится здесь, когда изменится оплата или сумма заказа.',
+      noMatches: 'Нет записей по этим фильтрам',
+      noMatchesHint: 'Поиск идёт только среди последних 100 изменений.',
+      clearFilters: 'Сбросить фильтры',
+      limitNote: count => `Показаны последние ${count} изменений. Более старых в этом списке нет.`,
+      loading: 'Загрузка аудита',
       error: 'Не удалось загрузить аудит',
       order: 'Заказ',
       action: 'Действие',
@@ -176,6 +193,12 @@ export default function AdminAudit() {
       sub: 'Payment and money-field changes',
       refresh: 'Refresh',
       empty: 'No audit records yet',
+      emptyHint: 'A record appears here when a payment or an order amount changes.',
+      noMatches: 'Nothing matches the filters',
+      noMatchesHint: 'The search covers only the latest 100 changes.',
+      clearFilters: 'Clear filters',
+      limitNote: count => `Showing the latest ${count} changes. Older ones are not in this list.`,
+      loading: 'Loading the audit',
       error: 'Could not load audit',
       order: 'Order',
       action: 'Action',
@@ -193,7 +216,7 @@ export default function AdminAudit() {
       before: 'Before',
       after: 'After',
       filters: 'Filters',
-      searchPlaceholder: 'Order, user, or action...',
+      searchPlaceholder: 'Order, user or action…',
       allActions: 'All actions',
       allStatuses: 'All statuses',
       migrationMissing: 'The audit table has not been created in the database yet. Run migrations/010_order_payment_audit_and_guards.sql in the Supabase SQL Editor.',
@@ -207,10 +230,14 @@ export default function AdminAudit() {
       .from('order_payment_audit')
       .select('*')
       .order('changed_at', { ascending: false })
-      .limit(100)
+      .limit(AUDIT_LIMIT)
 
     if (error) {
-      setError(error.message)
+      // Kept as a code and worded at render; the raw backend text stays in the console.
+      console.error('[audit] load failed:', error)
+      const tableMissing = /order_payment_audit|schema cache|does not exist|not find the table/i.test(error.message || '')
+        || error.code === '42P01' || error.code === 'PGRST205'
+      setError(tableMissing ? 'migrationMissing' : 'failed')
       setRows([])
     } else {
       const auditRows = data || []
@@ -282,27 +309,51 @@ export default function AdminAudit() {
 
   const content = useMemo(() => {
     if (loading) {
-      return Array.from({ length: 5 }).map((_, idx) => (
-        <div key={idx} className="ws-row h-[72px] animate-pulse bg-[#f6f5f3]/60" />
-      ))
+      return (
+        <div role="status" aria-label={l.loading}>
+          {Array.from({ length: 5 }, (_, index) => (
+            <div key={index} className="ws-row flex items-center gap-3 px-5 py-4">
+              <Shimmer className="h-9 w-9 flex-shrink-0 rounded-lg" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Shimmer className="h-3 w-16" />
+                <Shimmer className={`h-4 ${index % 2 ? 'w-2/5' : 'w-1/3'}`} />
+                <Shimmer className="h-3 w-1/2" />
+              </div>
+              <Shimmer className="hidden h-6 w-28 rounded-full sm:block" />
+              <Shimmer className="hidden h-3 w-24 sm:block" />
+            </div>
+          ))}
+        </div>
+      )
     }
 
-    if (error) {
-      const tableMissing = /order_payment_audit|schema cache|does not exist|not find the table/i.test(error || '')
+    if (error === 'migrationMissing') {
       return (
         <div className="p-4">
           <div className="ws-notice ws-tone-negative" role="alert">
             <div className="flex items-center gap-2 font-semibold">
-              <AlertTriangle size={16} />
+              <AlertTriangle size={16} aria-hidden="true" />
               {l.error}
             </div>
-            <p className="mt-1.5 font-normal">{tableMissing ? l.migrationMissing : error}</p>
-            {tableMissing && (
-              <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 font-mono text-xs font-normal text-[#22201d]">
-                migrations/010_order_payment_audit_and_guards.sql
-              </p>
-            )}
+            <p className="mt-1.5 font-normal">{l.migrationMissing}</p>
+            <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 font-mono text-xs font-normal text-[#22201d] [overflow-wrap:anywhere]">
+              migrations/010_order_payment_audit_and_guards.sql
+            </p>
           </div>
+        </div>
+      )
+    }
+
+    if (error) {
+      return <OperationalError lang={lang} title={l.error} onAction={loadAudit} />
+    }
+
+    if (rows.length === 0) {
+      return (
+        <div className="ws-empty">
+          <ShieldCheck aria-hidden="true" />
+          <h3>{l.empty}</h3>
+          <p>{l.emptyHint}</p>
         </div>
       )
     }
@@ -310,8 +361,16 @@ export default function AdminAudit() {
     if (groupedRows.length === 0) {
       return (
         <div className="ws-empty">
-          <ShieldCheck />
-          <h3>{l.empty}</h3>
+          <SearchX aria-hidden="true" />
+          <h3>{l.noMatches}</h3>
+          <p>{l.noMatchesHint}</p>
+          <button
+            type="button"
+            onClick={() => { setSearch(''); setActionFilter('all'); setStatusFilter('all') }}
+            className="ws-btn ws-btn-outline"
+          >
+            {l.clearFilters}
+          </button>
         </div>
       )
     }
@@ -323,7 +382,7 @@ export default function AdminAudit() {
           <summary className="flex cursor-pointer list-none flex-col gap-3 px-5 py-4 outline-none marker:hidden focus-visible:bg-[#f6f5f3] sm:flex-row sm:items-center sm:justify-between [&::-webkit-details-marker]:hidden">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#ff5a00]/10 text-[#ff5a00]">
-                <ReceiptText size={16} />
+                <ReceiptText size={16} aria-hidden="true" />
               </div>
               <div className="min-w-0">
                 <p className="ws-caption font-medium">{l.order}</p>
@@ -340,7 +399,7 @@ export default function AdminAudit() {
                 <span className="tabular-nums">{group.rows.length}</span> {l.changes}
               </span>
               <span className="ws-caption tabular-nums">{fmtDate(latest.changed_at, lang)}</span>
-              <ChevronDown size={16} className="text-[#68655f] transition-transform group-open:rotate-180" />
+              <ChevronDown size={16} aria-hidden="true" className="text-[#68655f] transition-transform group-open:rotate-180" />
             </div>
           </summary>
 
@@ -349,7 +408,7 @@ export default function AdminAudit() {
               <div key={row.id} className="grid gap-4 border-b border-[#e4e1de] px-5 py-4 text-sm last:border-b-0 md:grid-cols-[180px_1fr]">
                 <div className="space-y-3">
                   <div>
-                    <p className="ws-caption font-medium">{l.latest}</p>
+                    <p className="ws-caption font-medium">{l.time}</p>
                     <p className="mt-0.5 font-medium tabular-nums text-[#22201d]">{fmtDate(row.changed_at, lang)}</p>
                   </div>
                   <div>
@@ -358,14 +417,14 @@ export default function AdminAudit() {
                   </div>
                   <div>
                     <p className="ws-caption flex items-center gap-1 font-medium">
-                      <UserRound size={12} />
+                      <UserRound size={12} aria-hidden="true" />
                       {l.actor}
                     </p>
                     <p className="mt-0.5 break-words font-medium text-[#22201d]">{actorLabel(row)}</p>
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <div className="grid content-start gap-x-4 gap-y-3 grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">
                   <AuditValue label={l.total} oldValue={formatCurrency(row.old_total || 0)} newValue={formatCurrency(row.new_total || 0)} beforeLabel={l.before} afterLabel={l.after} />
                   <AuditValue label={l.service} oldValue={formatCurrency(row.old_service_fee || 0)} newValue={formatCurrency(row.new_service_fee || 0)} beforeLabel={l.before} afterLabel={l.after} />
                   <AuditValue label={l.discount} oldValue={formatCurrency(row.old_discount_amount || 0)} newValue={formatCurrency(row.new_discount_amount || 0)} beforeLabel={l.before} afterLabel={l.after} />
@@ -378,14 +437,14 @@ export default function AdminAudit() {
         </details>
       )
     })
-  }, [error, groupedRows, l, lang, loading])
+  }, [error, groupedRows, l, lang, loading, rows.length])
 
   return (
     <AppShell
       title={l.title}
       headerActions={(
-        <button type="button" onClick={loadAudit} disabled={loading} aria-label={l.refresh} className="ws-btn ws-btn-outline !h-[38px]">
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /><span className="hidden sm:inline">{l.refresh}</span>
+        <button type="button" onClick={loadAudit} disabled={loading} aria-label={l.refresh} className="ws-btn ws-btn-outline">
+          {loading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}<span className="hidden sm:inline">{l.refresh}</span>
         </button>
       )}
     >
@@ -425,6 +484,9 @@ export default function AdminAudit() {
             </div>
           </section>
           <section className="ws-panel ws-panel-flush" aria-busy={loading}>{content}</section>
+          {!loading && !error && rows.length >= AUDIT_LIMIT && (
+            <p className="ws-caption text-center">{l.limitNote(AUDIT_LIMIT)}</p>
+          )}
         </div>
       </div>
     </AppShell>
@@ -440,12 +502,13 @@ function actionTone(action) {
   return ''
 }
 
+// Before and after are the point of the audit: they wrap, they are never cut.
 function AuditValue({ label, oldValue, newValue, beforeLabel = '', afterLabel = '' }) {
   return (
     <div className="min-w-0">
       <p className="ws-caption font-medium">{label}</p>
-      <p className="mt-0.5 truncate tabular-nums text-[#68655f]">{beforeLabel ? `${beforeLabel}: ` : ''}{oldValue}</p>
-      <p className="truncate font-semibold tabular-nums text-[#22201d]">{afterLabel ? `${afterLabel}: ` : ''}{newValue}</p>
+      <p className="mt-0.5 tabular-nums text-[#68655f]">{beforeLabel ? `${beforeLabel}: ` : ''}<span className="inline-block">{oldValue}</span></p>
+      <p className="font-semibold tabular-nums text-[#22201d]">{afterLabel ? `${afterLabel}: ` : ''}<span className="inline-block">{newValue}</span></p>
     </div>
   )
 }

@@ -106,7 +106,7 @@ const L = {
     contextTokens: tokens => `Использовано ${tokens} токенов контекста`,
   },
   en: {
-    title: 'AI Assistant',
+    title: 'AI assistant',
     emptyTitle: 'Ask about Zar Kebab',
     emptyDescription: 'Sales, expenses, salaries, bazaar and dishes. I can also prepare Excel files.',
     suggestions: [
@@ -202,7 +202,8 @@ export default function AdminAssistant() {
   const endRef = useRef(null)
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    endRef.current?.scrollIntoView({ block: 'end', behavior: reduceMotion ? 'auto' : 'smooth' })
   }, [chat.messages])
 
   // Multi-line question box: fit the text, capped so long drafts scroll.
@@ -258,12 +259,6 @@ export default function AdminAssistant() {
   return (
     <AppShell
       title={l.title}
-      titleAccessory={model || quota ? (
-        <span className="inline-flex flex-wrap items-center gap-2">
-          {model && <span className="ws-badge" title={model.provider}>{l.model} <RollingLabel text={model.model} /></span>}
-          {quota && <span className={`ws-badge ${quotaTone}`} title={quotaDetail}>{l.quota.questionsLeft(quota.questionsLeft)}</span>}
-        </span>
-      ) : null}
       headerActions={chat.messages.length > 0 ? (
         <button type="button" className="ws-btn ws-btn-outline ws-btn-sm" onClick={chat.newChat}>
           <MessageSquarePlus size={16} aria-hidden="true" />
@@ -272,6 +267,13 @@ export default function AdminAssistant() {
       ) : null}
     >
       <div className="ws-page mx-auto min-h-full max-w-4xl">
+        {/* In the page, not the top bar: two badges do not fit beside the title on a 320px phone. */}
+        {(model || quota) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {model && <span className="ws-badge max-w-full !whitespace-normal" title={model.provider}>{l.model} <RollingLabel text={model.model} /></span>}
+            {quota && <span className={`ws-badge max-w-full !whitespace-normal ${quotaTone}`} title={quotaDetail}>{l.quota.questionsLeft(quota.questionsLeft)}</span>}
+          </div>
+        )}
         <div className="flex-1 space-y-4" aria-live="polite">
           {chat.messages.length === 0 ? (
             <section className="ws-panel flex flex-col items-center gap-3 py-10 text-center">
@@ -357,7 +359,7 @@ export default function AdminAssistant() {
             )}
           </div>
           {footerDetail && <p className="text-center text-xs text-[#68655f]">{footerDetail}</p>}
-          <p className="text-center text-xs text-[#8a867f]">{l.disclaimer}</p>
+          <p className="text-center text-xs text-[#68655f]">{l.disclaimer}</p>
         </form>
       </div>
     </AppShell>
