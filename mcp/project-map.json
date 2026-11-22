@@ -229,7 +229,7 @@
       "name": "architecture-auth-realtime",
       "keywords": ["startup", "login", "oauth", "profile", "route", "role", "permission", "realtime", "hydration"],
       "files": ["src/lib/restProxy.js", "src/lib/resumeRecovery.js", "src/App.jsx", "src/contexts/AuthContext.jsx", "src/store/AppContext.jsx", "src/store/appHooks.js", "src/lib/permissions.js", "src/lib/profileLoading.js", "src/lib/db.js"],
-      "tests": ["tests/restProxy.test.js", "tests/resumeRecovery.test.js", "tests/ingredientsFeature.test.js", "tests/permissions.test.js", "tests/profileLoading.test.js", "tests/dbRealtime.test.js", "tests/sourceGuards.architecture.test.js"]
+      "tests": ["tests/restProxy.test.js", "tests/vercelSpaRoutes.test.js", "tests/resumeRecovery.test.js", "tests/ingredientsFeature.test.js", "tests/permissions.test.js", "tests/profileLoading.test.js", "tests/dbRealtime.test.js", "tests/sourceGuards.architecture.test.js"]
     },
     {
       "name": "waiter-kitchen",
