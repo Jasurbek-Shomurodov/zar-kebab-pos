@@ -93,6 +93,8 @@ test('home prerender lists dishes with links and keeps the halal, dish and conta
 test('sitemap and HTML escaping', () => {
   assert.equal(escapeHtml(`a&b<"'>`), 'a&amp;b&lt;&quot;&#39;&gt;')
   const xml = sitemapXml([{ loc: 'https://www.zarkebab.uz/', priority: '1.0' }], '2026-11-22')
+  // Browsers render the sitemap through the stylesheet instead of "no style information".
+  assert.match(xml, /^<\?xml [^\n]*\?>\n<\?xml-stylesheet type="text\/xsl" href="\/sitemap\.xsl"\?>\n<urlset/)
   assert.match(xml, /<loc>https:\/\/www\.zarkebab\.uz\/<\/loc>\n    <lastmod>2026-11-22<\/lastmod>/)
 })
 
