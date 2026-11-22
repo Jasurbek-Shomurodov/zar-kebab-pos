@@ -189,3 +189,37 @@ test('cashier confirmation remains disabled while the authoritative bill refresh
     isRefreshingBill: true,
   }), false)
 })
+
+test('a weight-sold line cannot leave the fresh quote a fraction away from the shown total', () => {
+  // 42 000 x 0.7 kg is 29399.999999999996 in binary floating point. The bill shows 29 400,
+  // so an unrounded fresh quote would report "bill changed" on every Confirm tap.
+  const orders = [{
+    id: 'order-weight',
+    table_id: null,
+    order_type: 'take_away',
+    status: 'needs_bill',
+    payment_status: 'unpaid',
+    price_mode: 'regular',
+    service_rate_pct: 0,
+    items: [{
+      id: 'item-weight',
+      menu_item_id: 'kebab-kg',
+      quantity: 0.7,
+      unit_price: 42_000,
+      status: 'new',
+      item_type: 'menu',
+      is_counter_item: false,
+    }],
+  }]
+  const menuItems = [{ id: 'kebab-kg', show_in_cashier_quick_items: false }]
+  const shown = applyLoyaltyToCashierPaymentQuote(
+    getOrderGroupPaymentQuote({ orders, menuItems, settings: {}, ignoreStoredLoyalty: true }),
+    0
+  )
+  const fresh = getFreshCashierPaymentQuote({ orders, menuItems, settings: {}, orderId: 'order-weight' })
+
+  assert.equal(shown.total, 29_400)
+  assert.equal(fresh.total, shown.total)
+  assert.equal(fresh.grossAmount, shown.grossAmount)
+  assert.ok(Number.isInteger(fresh.total))
+})

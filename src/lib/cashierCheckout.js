@@ -129,16 +129,21 @@ export function getFreshCashierPaymentQuote({
     ignoreStoredLoyalty: true,
   })
 
+  // Round exactly as applyLoyaltyToCashierPaymentQuote does for the total on screen. A weight
+  // line such as 42 000 x 0.7 kg is 29399.999999999996 in floating point; comparing that with
+  // the shown 29 400 reported "bill changed" on every Confirm tap and the bill could not be paid.
+  const grossAmount = Math.max(0, Math.round(Number(quote.grossAmount) || 0))
   const loyalty = Math.min(
-    quote.grossAmount,
+    grossAmount,
     Math.max(0, Math.round(Number(loyaltyUsedAmount) || 0))
   )
 
   return {
     ...quote,
+    grossAmount,
     orderIds: targets.map(order => order.id),
     loyaltyUsedAmount: loyalty,
-    total: Math.max(0, quote.grossAmount - loyalty),
+    total: Math.max(0, grossAmount - loyalty),
   }
 }
 
