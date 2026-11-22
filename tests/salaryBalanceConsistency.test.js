@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { getActiveKpiAccounts } from '../src/lib/dailyKpi.js'
-import { loadSalaryRows } from '../src/lib/salaryData.js'
+import { loadSalaryRows, getSalaryLedgerLoadError } from '../src/lib/salaryData.js'
 import { compareSalaryAbsencesNewestFirst } from '../src/lib/salaryTransactions.js'
 import { buildSalaryHistoryEntries } from '../src/lib/salaryHistory.js'
 import {
@@ -71,7 +71,7 @@ async function loadPage(page, tables) {
   let employees = []
   let error = ''
   const dependencies = {
-    supabase: mockDb(tables), employeeId, today, loadSalaryRows, buildSalaryHistoryEntries,
+    supabase: mockDb(tables), employeeId, today, loadSalaryRows, getSalaryLedgerLoadError, buildSalaryHistoryEntries,
     setEmployees: value => { employees = value },
     setSalaryProfiles: value => { employees = value },
     setEmployee: value => { employees = [value] },

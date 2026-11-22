@@ -27,7 +27,7 @@ import { supabase } from '../lib/supabase'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatLongDate, formatMonthYear, formatTime } from '../lib/dateFormat'
 import { formatKpiRatePercent, formatKpiStartTime } from '../lib/dailyKpi'
-import { loadSalaryRows } from '../lib/salaryData'
+import { getSalaryLedgerLoadError, isMissingSalaryMigration, loadSalaryRows } from '../lib/salaryData'
 import {
   expensePaymentMethodLabel,
   getSalaryAccruedAmount,
@@ -58,16 +58,6 @@ const HISTORY_TABLE_BY_TYPE = {
 const HISTORY_TYPES = ['all', 'payment', 'bonus', 'fine', 'absence']
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
-function isMissingSalaryMigration(error) {
-  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return text.includes('employee_salary') && (
-    text.includes('does not exist') ||
-    text.includes('could not find the') ||
-    text.includes('column') ||
-    text.includes('schema cache') ||
-    text.includes('42p01')
-  )
-}
 
 function employeeName(employee, fallback) {
   return employee?.employee_name || fallback
@@ -314,7 +304,7 @@ export default function EmployeeSalaryHistory() {
           .select('id, business_date, checked_in_at, minutes_late, arrival_status')
           .eq('salary_profile_id', employeeId)),
       ])
-      const loadError = employeeRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error
+      const loadError = getSalaryLedgerLoadError([employeeRes, rateRes, paymentRes, bonusRes, absenceRes], fineRes)
       if (loadError) throw loadError
       if (!employeeRes.data || employeeRes.data.deleted_at) {
         setEmployee(null)
@@ -328,7 +318,7 @@ export default function EmployeeSalaryHistory() {
         rates: rateRes.data || [],
         payments: paymentRes.data || [],
         bonuses: bonusRes.data || [],
-        fines: fineRes.error ? [] : fineRes.data || [],
+        fines: fineRes.data || [],
         absences: absenceRes.data || [],
       })
       // Check-ins are optional before migration 243; the calendar then falls back to absences only.
@@ -336,7 +326,7 @@ export default function EmployeeSalaryHistory() {
       setEntries(buildSalaryHistoryEntries({
         payments: paymentRes.data || [],
         bonuses: bonusRes.data || [],
-        fines: fineRes.error ? [] : fineRes.data || [],
+        fines: fineRes.data || [],
         absences: absenceRes.data || [],
         kpiResults: kpiResultRes.error ? [] : kpiResultRes.data || [],
       }))

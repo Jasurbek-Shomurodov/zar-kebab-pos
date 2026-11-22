@@ -15,7 +15,7 @@ import { formatLongDate, formatTime } from '../lib/dateFormat'
 import { useAuth } from '../contexts/AuthContext'
 import { canEditFeature, normalizeRole } from '../lib/permissions'
 import { compareSalaryAbsencesNewestFirst } from '../lib/salaryTransactions'
-import { loadSalaryRows } from '../lib/salaryData'
+import { getSalaryLedgerLoadError, isMissingSalaryMigration, loadSalaryRows } from '../lib/salaryData'
 import {
   formatKpiRatePercent,
   formatKpiSalesBasis,
@@ -54,16 +54,6 @@ import { RollingValue } from '../components/RollingNumber'
 import { formatMoneyInput, normalizeMoneyInput } from '../lib/moneyInput'
 import { buildAttendanceKioskQrDataUrl, buildAttendanceKioskUrl, formatArrivalSummary, isAttendanceStarted, normalizeWorkStartTime } from '../lib/attendance'
 
-function isMissingSalaryMigration(error) {
-  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return text.includes('employee_salary') && (
-    text.includes('does not exist') ||
-    text.includes('could not find the') ||
-    text.includes('column') ||
-    text.includes('schema cache') ||
-    text.includes('42p01')
-  )
-}
 
 function composeEmployees(rows = [], rates = [], payments = [], bonuses = [], fines = [], absences = [], profiles = []) {
   const profileMap = Object.fromEntries(profiles.map(profile => [profile.id, profile]))
@@ -545,7 +535,7 @@ export default function Employees() {
     setKpiAccounts(teamRes.error ? [] : getActiveKpiAccounts(teamRes.data || []))
     setTelegramLinks(telegramLinkRes.error ? null : new Map((telegramLinkRes.data || []).map(link => [link.salary_profile_id, link])))
 
-    const salaryError = profileRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error
+    const salaryError = getSalaryLedgerLoadError([profileRes, rateRes, paymentRes, bonusRes, absenceRes], fineRes)
     if (salaryError) {
       setError(isMissingSalaryMigration(salaryError) ? l.migration : salaryError.message)
       setEmployees([])
@@ -556,7 +546,7 @@ export default function Employees() {
         rateRes.data || [],
         paymentRes.data || [],
         bonusRes.data || [],
-        fineRes.error ? [] : fineRes.data || [],
+        fineRes.data || [],
         absenceRes.data || [],
         teamRes.data || [],
       ).filter(employee => !employee.deleted_at))

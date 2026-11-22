@@ -47,6 +47,7 @@ import {
   summarizeEstimateMonthActuals,
 } from '../lib/monthlyEstimate'
 import { supabase } from '../lib/supabase'
+import { getSalaryLedgerLoadError, isMissingSalaryMigration } from '../lib/salaryData'
 import { useApp } from '../store/AppContext'
 import { collectPagedRows } from '../lib/orderHistory'
 import { normalizeAccountingPaidOrderSummary } from '../lib/accounting'
@@ -64,17 +65,6 @@ function isMissingExpensesMigration(error) {
   )
 }
 
-function isMissingSalaryMigration(error) {
-  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return text.includes('employee_salary') && (
-    text.includes('does not exist') ||
-    text.includes('could not find the') ||
-    text.includes('column') ||
-    text.includes('schema cache') ||
-    text.includes('42p01') ||
-    text.includes('42703')
-  )
-}
 
 function composeSalaryProfiles(rows = [], rates = [], payments = [], bonuses = [], fines = [], absences = [], profiles = []) {
   const profileMap = Object.fromEntries(profiles.map(profile => [profile.id, profile]))
@@ -435,7 +425,10 @@ export default function MonthlyEstimate() {
     } else {
       setEmployeeMealSnapshots(employeeMealResult.data || [])
     }
-    const salaryError = salaryProfileResult.error || salaryRateResult.error || salaryPaymentResult.error || salaryBonusResult.error || salaryAbsenceResult.error
+    const salaryError = getSalaryLedgerLoadError(
+      [salaryProfileResult, salaryRateResult, salaryPaymentResult, salaryBonusResult, salaryAbsenceResult],
+      salaryFineResult
+    )
     if (salaryError) {
       setSalaryProfiles([])
       if (!expenseResult.error) {
@@ -450,7 +443,7 @@ export default function MonthlyEstimate() {
         salaryRateResult.data || [],
         salaryPaymentResult.data || [],
         salaryBonusResult.data || [],
-        salaryFineResult.error ? [] : salaryFineResult.data || [],
+        salaryFineResult.data || [],
         salaryAbsenceResult.data || [],
         teamResult.data || [],
       ))

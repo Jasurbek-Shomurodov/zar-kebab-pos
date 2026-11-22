@@ -55,17 +55,6 @@ function countNoteWords(value) {
 }
 const TELEGRAM_DELIVERY_PAGE_SIZE = 5
 
-function isMissingSalaryMigration(error) {
-  const text = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return text.includes('employee_salary') && (
-    text.includes('does not exist') ||
-    text.includes('could not find the') ||
-    text.includes('column') ||
-    text.includes('amount') ||
-    text.includes('schema cache') ||
-    text.includes('42p01')
-  )
-}
 
 function composeSalaryProfiles(rows = [], rates = [], payments = [], bonuses = [], fines = [], absences = [], profiles = []) {
   const profileMap = Object.fromEntries(profiles.map(profile => [profile.id, profile]))
@@ -745,14 +734,14 @@ export default function Salaries() {
         supabase.from('employee_salary_telegram_links').select('salary_profile_id, telegram_user_id, linked_at, notifications_enabled'),
         refreshTelegram ? loadTelegramDeliveryData() : Promise.resolve(),
       ])
-      if (profileRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error) {
-        const err = profileRes.error || rateRes.error || paymentRes.error || bonusRes.error || absenceRes.error
+      const err = getSalaryLedgerLoadError([profileRes, rateRes, paymentRes, bonusRes, absenceRes], fineRes)
+      if (err) {
         setError(isMissingSalaryMigration(err) ? l.migration : err.message)
         setSalaryProfiles([])
       } else {
         if (fineRes.error) setError(isMissingSalaryMigration(fineRes.error) ? l.migration : fineRes.error.message)
         const teamRows = teamRes.data || []
-        setSalaryProfiles(composeSalaryProfiles(profileRes.data || [], rateRes.data || [], paymentRes.data || [], bonusRes.data || [], fineRes.error ? [] : fineRes.data || [], absenceRes.data || [], teamRows)
+        setSalaryProfiles(composeSalaryProfiles(profileRes.data || [], rateRes.data || [], paymentRes.data || [], bonusRes.data || [], fineRes.data || [], absenceRes.data || [], teamRows)
           .filter(salaryProfile => !salaryProfile.deleted_at))
         setTelegramLinks(telegramLinkRes.error ? [] : telegramLinkRes.data || [])
       }
