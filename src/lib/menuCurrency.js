@@ -1,3 +1,5 @@
+import { formatCurrency } from './formatCurrency.js'
+
 export const MENU_CURRENCIES = ['UZS', 'USD', 'EUR']
 export const DEFAULT_MENU_CURRENCY = 'UZS'
 export const MENU_CURRENCY_CACHE_KEY = 'zk_menu_currency_rates_v1'
@@ -7,9 +9,7 @@ const RATE_TTL_MS = MENU_CURRENCY_RATE_TTL_DAYS * 24 * 60 * 60 * 1000
 const PRIMARY_RATES_URL = 'https://open.er-api.com/v6/latest/UZS'
 const FALLBACK_RATES_URL = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/uzs.json'
 
-function formatUzs(amount) {
-  return new Intl.NumberFormat('uz-UZ').format(amount) + ' UZS'
-}
+const formatUzs = formatCurrency
 
 export function normalizeMenuCurrency(currency) {
   const normalized = String(currency || '').toUpperCase()

@@ -1,3 +1,5 @@
+import { formatPercent } from './formatCurrency.js'
+
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 // PostgreSQL returns HH:MM:SS; the setting is deliberately minute precision.
@@ -38,9 +40,7 @@ export function parseKpiPercentToBps(value) {
 export function formatKpiRatePercent(rateBps, lang = 'en') {
   const normalizedRate = Number(rateBps)
   if (!Number.isFinite(normalizedRate)) return '0%'
-  const locale = lang === 'ru' ? 'ru-RU' : lang === 'uz' ? 'uz-UZ' : 'en-US'
-  const percent = normalizedRate / 100
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(percent)}%`
+  return formatPercent(normalizedRate / 100, lang, 2)
 }
 
 export function formatKpiRateInput(rateBps) {

@@ -8,8 +8,8 @@ import { Shimmer } from '../components/PageShimmer'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
-import { loadSalaryRows } from '../lib/salaryData'
-import { formatCurrency } from '../lib/formatCurrency'
+import { getSalaryLedgerLoadError, isMissingSalaryMigration, loadSalaryRows } from '../lib/salaryData'
+import { formatCurrency, formatGroupedNumber } from '../lib/formatCurrency'
 import { formatDateTime, formatLongDate } from '../lib/dateFormat'
 import {
   formatKpiRatePercent,
@@ -101,7 +101,7 @@ function salaryRateUnitLabel(key, lang) {
 function formatAmountInput(value) {
   const digits = String(value || '').replace(/\D+/g, '')
   if (!digits) return ''
-  return new Intl.NumberFormat('uz-UZ').format(Number(digits))
+  return formatGroupedNumber(digits)
 }
 
 function parseAmountInput(value) {

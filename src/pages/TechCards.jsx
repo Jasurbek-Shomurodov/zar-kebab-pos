@@ -27,7 +27,7 @@ import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useAppDataStatus } from '../store/appHooks'
 import { canEditMenu } from '../lib/permissions'
-import { formatCurrency, formatCurrencyWithPercentage } from '../lib/formatCurrency'
+import { formatCurrency, formatCurrencyWithPercentage, formatGroupedNumber } from '../lib/formatCurrency'
 import { getCategoryName, getItemName } from '../lib/i18n'
 import { isActiveMenuItem } from '../lib/menuItems'
 import { getSaleProfitSummary } from '../lib/profit'
@@ -136,9 +136,9 @@ function labels(lang) {
 }
 
 function formatDecimal(value, lang, maximumFractionDigits = 3) {
-  return new Intl.NumberFormat(lang === 'ru' ? 'ru-RU' : lang === 'en' ? 'en-US' : 'uz-UZ', {
-    maximumFractionDigits,
-  }).format(Number(value) || 0)
+  const number = Number(value) || 0
+  if (lang === 'en') return new Intl.NumberFormat('en-US', { maximumFractionDigits }).format(number)
+  return formatGroupedNumber(number, maximumFractionDigits)
 }
 
 function formatOutputAmount(value, unit, lang) {

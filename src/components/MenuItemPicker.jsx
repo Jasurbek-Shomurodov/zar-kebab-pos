@@ -1,3 +1,4 @@
+import { formatGroupedNumber } from '../lib/formatCurrency'
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Search, UtensilsCrossed } from 'lucide-react'
@@ -265,7 +266,7 @@ export default function MenuItemPicker({
                                       className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-black transition-colors ${isSelected && !hasSelectedOption ? 'border-[#ff5a00] bg-[#ff5a00] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:text-[#ff5a00]'}`}
                                     >
                                       <span>{l.base}</span>
-                                      <span className={isSelected && !hasSelectedOption ? 'text-white/80' : 'text-gray-400'}>{new Intl.NumberFormat('uz-UZ').format(Number(item.price) || 0)}</span>
+                                      <span className={isSelected && !hasSelectedOption ? 'text-white/80' : 'text-gray-400'}>{formatGroupedNumber(Number(item.price) || 0)}</span>
                                     </button>
                                   )}
                                   {group.options.map(option => {
@@ -278,7 +279,7 @@ export default function MenuItemPicker({
                                         className={`inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-black transition-colors ${optionSelected ? 'border-[#ff5a00] bg-[#ff5a00] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-orange-300 hover:text-[#ff5a00]'}`}
                                       >
                                         <span>{option.label}</span>
-                                        <span className={optionSelected ? 'text-white/80' : 'text-gray-400'}>{new Intl.NumberFormat('uz-UZ').format(option.price)}</span>
+                                        <span className={optionSelected ? 'text-white/80' : 'text-gray-400'}>{formatGroupedNumber(option.price)}</span>
                                       </button>
                                     )
                                   })}

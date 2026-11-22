@@ -15,7 +15,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { t, getItemName, getCategoryName } from '../lib/i18n'
-import { formatCurrency } from '../lib/formatCurrency'
+import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import { formatLongDateTime } from '../lib/dateFormat'
 import { DEFAULT_MENU_PREP_MINUTES, menuPrepTimeLabel, normalizeMenuPrepMinutes } from '../lib/menuPrepTime'
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
@@ -245,8 +245,7 @@ function MoneyField({ label, value, onChange, placeholder, className = '', label
 
 function formatProfitPct(value, lang) {
   if (value == null) return '—'
-  const locale = lang === 'ru' ? 'ru-RU' : lang === 'en' ? 'en-US' : 'uz-UZ'
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value)}%`
+  return formatPercent(value, lang)
 }
 
 function ItemMarginBadge({ item, lang }) {

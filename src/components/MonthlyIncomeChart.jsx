@@ -4,7 +4,7 @@ import { lastDayOfMonth } from '../lib/breakEvenTarget'
 import BreakEvenLine from './BreakEvenLine'
 import { useElementWidth } from './SankeyChart'
 import { restaurantTodayStr } from '../lib/analytics'
-import { formatCurrency } from '../lib/formatCurrency'
+import { formatCompactCurrency, formatCurrency } from '../lib/formatCurrency'
 import { formatMonthYear } from '../lib/dateFormat'
 
 const labels = {
@@ -14,12 +14,7 @@ const labels = {
 }
 
 function formatCompactIncome(amount, lang = 'uz') {
-  const locale = lang === 'en' ? 'en-US' : lang === 'ru' ? 'ru-RU' : 'uz-UZ'
-  return new Intl.NumberFormat(locale, {
-    notation: 'compact',
-    compactDisplay: 'short',
-    maximumFractionDigits: 1,
-  }).format(Math.max(0, Math.round(Number(amount) || 0)))
+  return formatCompactCurrency(Math.max(0, Math.round(Number(amount) || 0)), lang)
 }
 
 function ChartShimmer() {

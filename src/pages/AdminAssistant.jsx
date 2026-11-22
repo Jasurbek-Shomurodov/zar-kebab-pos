@@ -1,3 +1,4 @@
+import { formatGroupedNumber } from '../lib/formatCurrency'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Download, FileSpreadsheet, MessageSquarePlus, SendHorizontal, Sparkles, Square } from 'lucide-react'
 import { AssistantMarkdown, useAssistantChat } from 'hoggish-assistant/react'
@@ -11,7 +12,7 @@ const API = '/api/assistant'
 const MAX_MESSAGE_CHARS = 4000
 // The question box grows with its text up to this height, then scrolls.
 const INPUT_MAX_HEIGHT_PX = 240
-const formatCount = value => new Intl.NumberFormat('uz-UZ').format(value)
+const formatCount = value => formatGroupedNumber(value)
 
 const L = {
   uz: {

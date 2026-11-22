@@ -1,3 +1,4 @@
+import { formatGroupedNumber } from './formatCurrency.js'
 import { jsPDF } from 'jspdf'
 import fontUrl from 'notosans-fontface/fonts/NotoSans-Regular.ttf?url'
 import { calculateTechCardSummary, techCardUnitLabel } from './techCards'
@@ -41,7 +42,9 @@ export async function createTechCardPdf(entries, items, options, l, lang) {
   doc.addFileToVFS('NotoSans.ttf', btoa(binary))
   doc.addFont('NotoSans.ttf', 'NotoSans', 'normal')
   doc.setFont('NotoSans')
-  const number = value => new Intl.NumberFormat(lang, { maximumFractionDigits: 3 }).format(Number(value))
+  const number = value => lang === 'en'
+    ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 3 }).format(Number(value))
+    : formatGroupedNumber(value)
   const money = value => `${number(value)} UZS`
   const margin = 8
   const right = doc.internal.pageSize.getWidth() - margin
