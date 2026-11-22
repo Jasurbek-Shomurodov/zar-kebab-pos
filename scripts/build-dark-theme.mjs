@@ -273,6 +273,7 @@ export function buildDarkThemeCss() {
     --ws-caution: #dfb883;
     --ws-shadow-card: 0 1px 2px rgb(0 0 0 / 30%);
   }
+  html[data-theme="dark"] { background-color: ${DARK.shell}; }
   html[data-theme="dark"] body { background-color: ${DARK.shell}; color: ${DARK.text}; }
 
 ${base.join('\n')}

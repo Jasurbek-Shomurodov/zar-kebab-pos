@@ -77,6 +77,10 @@ Rules:
   `scripts/build-dark-theme.mjs` (it scans `src/`). Colours passed as inline
   `style` or SVG attributes are invisible to it: use a class
   (`className="stroke-current text-[#e4e1de]"`) or a `var(--ws-*)`.
+  `index.html` paints a dark first frame (`boot-dark`) and `src/lib/theme.js`
+  keeps `theme-color` in step, because mobile Safari tints its bars from the
+  first paint; the shell colour is repeated there and guarded by
+  `tests/darkTheme.test.js`.
 - **Lux kit.** `--lux-gold` is `#8A5A22` in light and `#D9A866` in dark, so
   small gold labels pass; `--lux-muted` (`#6F6358` / `#B9A994`) for helper text.
 

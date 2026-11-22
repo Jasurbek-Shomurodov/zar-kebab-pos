@@ -25,6 +25,18 @@
     <!-- The staff host never shows the crawler copy in #root while the app loads. -->
     <script>if (location.hostname === 'admin.zarkebab.uz') document.documentElement.classList.add('app-host')</script>
     <style>.app-host #seo-content { display: none }</style>
+    <!-- Dark first frame on dark-theme devices: Safari tints its bars from the first paint, before
+         React can switch the theme on. src/lib/theme.js takes over at the first commit. -->
+    <script>
+      try {
+        var savedTheme = localStorage.getItem('zar-theme')
+        if (location.pathname !== '/telegram' && (savedTheme === 'dark' || (savedTheme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches))) {
+          document.documentElement.classList.add('boot-dark')
+          document.querySelector('meta[name="theme-color"]').content = '#101412'
+        }
+      } catch (e) { /* stays light until the app decides */ }
+    </script>
+    <style>.boot-dark { color-scheme: dark } .boot-dark, .boot-dark body { background-color: #101412 }</style>
 
     <meta property="og:type" content="restaurant" />
     <meta property="og:site_name" content="Zar Kebab" />

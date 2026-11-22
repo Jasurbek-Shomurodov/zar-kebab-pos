@@ -35,11 +35,29 @@ systemDark?.addEventListener?.('change', () => {
   listeners.forEach(listener => listener())
 })
 
+// Browser bar colour per theme (<meta name="theme-color">); dark is the shell
+// colour of the dark palette, which index.html also paints before React starts.
+const BAR_COLOR = { light: '#ff5a00', dark: '#101412' }
+
 function apply() {
   if (typeof document === 'undefined') return
   const root = document.documentElement
-  if (scopes > 0 && current === 'dark') root.setAttribute('data-theme', 'dark')
+  const dark = scopes > 0 && current === 'dark'
+  if (dark) root.setAttribute('data-theme', 'dark')
   else root.removeAttribute('data-theme')
+  const bar = document.querySelector('meta[name="theme-color"]')
+  if (bar) bar.setAttribute('content', dark ? BAR_COLOR.dark : BAR_COLOR.light)
+}
+
+/**
+ * Ends the dark first frame index.html paints for dark-theme devices. Called once
+ * the first screen has committed: a themed screen already has the dark palette by
+ * then, and a light-only one (printed checks) goes back to light.
+ */
+export function releaseBootTheme() {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.remove('boot-dark')
+  apply()
 }
 
 export function setTheme(next) {

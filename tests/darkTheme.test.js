@@ -61,9 +61,26 @@ test('every staff top bar carries the light/dark toggle at the top right', () =>
   assert.match(source('src/pages/PublicVacancies.jsx'), /<ThemeToggle lang=\{lang\}/)
 })
 
+test('dark-theme devices get a dark first frame and a dark browser bar', () => {
+  const html = source('index.html')
+  const theme = source('src/lib/theme.js')
+  const shell = buildDarkThemeCss().match(/--ws-background: (#[0-9a-f]{6});/)[1]
+  // Safari tints its bars from the first paint, so index.html must be dark before React starts.
+  assert.match(html, /localStorage\.getItem\('zar-theme'\)/)
+  assert.match(html, /location\.pathname !== '\/telegram'/)
+  assert.ok(html.includes(`.boot-dark, .boot-dark body { background-color: ${shell} }`))
+  assert.ok(html.includes(`.content = '${shell}'`))
+  assert.ok(theme.includes(`dark: '${shell}'`))
+  assert.match(theme, /bar\.setAttribute\('content', dark \? BAR_COLOR\.dark : BAR_COLOR\.light\)/)
+  assert.match(source('src/main.jsx'), /React\.useEffect\(releaseBootTheme, \[\]\)/)
+  // The root element carries the page colour as well as the body.
+  assert.ok(buildDarkThemeCss().includes(`html[data-theme="dark"] { background-color: ${shell}; }`))
+  assert.match(source('src/index.css'), /^html \{ background-color: #fdf8f4; \}/m)
+})
+
 test('theme follows the system until chosen and only applies while a themed screen is mounted', () => {
   const theme = source('src/lib/theme.js')
-  assert.match(theme, /if \(scopes > 0 && current === 'dark'\) root\.setAttribute\('data-theme', 'dark'\)/)
+  assert.match(theme, /const dark = scopes > 0 && current === 'dark'\n\s*if \(dark\) root\.setAttribute\('data-theme', 'dark'\)/)
   assert.match(theme, /useLayoutEffect/)
   assert.match(theme, /readSavedTheme\(\) \|\| \(systemDark\?\.matches \? 'dark' : 'light'\)/)
 })
