@@ -1,6 +1,19 @@
 import { formatDateTime } from './dateFormat.js'
 import { getDailyCloseout } from './closeout.js'
-import { dayHeading, listIsoDates } from './dishSalesExport.js'
+import { listIsoDates } from './dishSalesExport.js'
+import {
+  COLORS,
+  FORMATS,
+  addSheet,
+  createWorkbook,
+  downloadWorkbook,
+  isWeekend,
+  isoToSheetDate,
+  weekdayName,
+  writeBanner,
+  writeKpis,
+  writeTable,
+} from './sheetKit.js'
 
 // Excel export of the Reports Overview: the same totals the page shows,
 // a day-by-day receipts sheet and, for expense viewers, the expense entries.
@@ -39,6 +52,8 @@ const LABELS = {
   leftNote:       { uz: 'Davr harakati, boshlang‘ich qoldiqsiz', ru: 'Движение за период, без начального остатка', en: 'Movement for the period, excluding opening balances' },
   ordersSuffix:   { uz: 'buyurtma', ru: 'заказов', en: 'orders' },
   date:           { uz: 'Sana', ru: 'Дата', en: 'Date' },
+  weekday:        { uz: 'Hafta kuni', ru: 'День недели', en: 'Weekday' },
+  share:          { uz: 'Ulush', ru: 'Доля', en: 'Share' },
   type:           { uz: 'Turi', ru: 'Тип', en: 'Type' },
   details:        { uz: 'Tafsilot', ru: 'Детали', en: 'Details' },
   method:         { uz: 'To‘lov usuli', ru: 'Способ оплаты', en: 'Payment method' },
@@ -48,15 +63,6 @@ const LABELS = {
   noExpenses:     { uz: 'Bu davrda xarajatlar yo‘q', ru: 'За этот период расходов нет', en: 'No expenses were recorded for this period' },
 }
 
-const BRAND = 'FFFF5A00'
-const SOFT = 'FFFFF1E8'
-const TOTAL_FILL = 'FFEFECE9'
-const MUTED = 'FF68655F'
-const LINE = 'FFE4E1DE'
-const POSITIVE = 'FF1D7A52'
-const NEGATIVE = 'FFC4262C'
-const MONEY = '#,##0 "UZS";[Red]-#,##0 "UZS"'
-const NUMBER = '#,##0'
 
 function label(key, lang) {
   return LABELS[key][lang] || LABELS[key].en
@@ -98,98 +104,72 @@ export function buildDailyReceiptRows(orders, dateFrom, dateTo, scope = {}) {
   }
 }
 
-function fill(cell, argb) {
-  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }
-}
-
-function writeTitle(sheet, { lang, title, periodLabel, filterLabel, lastColumn }) {
-  sheet.mergeCells(1, 1, 1, lastColumn)
-  const heading = sheet.getCell(1, 1)
-  heading.value = `Zar Kebab — ${title}`
-  heading.font = { bold: true, size: 16, color: { argb: 'FFFFFFFF' } }
-  heading.alignment = { vertical: 'middle', indent: 1 }
-  fill(heading, BRAND)
-  sheet.getRow(1).height = 32
-
-  const meta = [
+function bannerMeta({ lang, periodLabel, filterLabel }) {
+  return [
     [label('period', lang), periodLabel],
-    filterLabel ? [label('filters', lang), filterLabel] : null,
+    [label('filters', lang), filterLabel],
     [label('generated', lang), formatDateTime(new Date().toISOString())],
-  ].filter(Boolean)
-  meta.forEach(([name, value], index) => {
-    const row = sheet.getRow(2 + index)
-    row.getCell(1).value = name
-    row.getCell(1).font = { color: { argb: MUTED } }
-    row.getCell(2).value = value
-    row.getCell(2).font = { bold: true }
-  })
-  return 2 + meta.length + 1
+  ]
 }
 
-function styleTableHeader(row, lastColumn, { centerFrom = 2 } = {}) {
-  row.height = 22
-  for (let column = 1; column <= lastColumn; column += 1) {
-    const cell = row.getCell(column)
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
-    cell.alignment = { vertical: 'middle', wrapText: true, horizontal: column >= centerFrom ? 'right' : 'left' }
-    fill(cell, BRAND)
-  }
-}
-
-function styleTotalRow(row, lastColumn) {
-  row.height = 22
-  for (let column = 1; column <= lastColumn; column += 1) {
-    const cell = row.getCell(column)
-    cell.font = { bold: true, size: 12 }
-    cell.border = { top: { style: 'medium' } }
-    cell.alignment = { vertical: 'middle', horizontal: cell.alignment?.horizontal }
-    fill(cell, TOTAL_FILL)
-  }
-}
-
-function lineBelow(row, lastColumn) {
-  for (let column = 1; column <= lastColumn; column += 1) {
-    row.getCell(column).border = { bottom: { style: 'thin', color: { argb: LINE } } }
-  }
-}
-
-// Sheet 1 mirrors the Overview tab: Sales, Money received, Expenses and result.
+// Sheet 1 mirrors the Overview tab: headline cards, then Sales, Money received,
+// Expenses and result. Shares are of the section's own total.
 function writeOverviewSheet(workbook, data) {
-  const { lang } = data
-  const lastColumn = 3
-  const sheet = workbook.addWorksheet(label('overview', lang), {
-    pageSetup: { orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
-    views: [{ showGridLines: false }],
-  })
-  sheet.columns = [{ width: 34 }, { width: 22 }, { width: 52 }]
-  // writeTitle leaves a spacer row; each section adds its own spacer above it.
-  let rowNumber = writeTitle(sheet, { ...data, title: label('title', lang), lastColumn }) - 1
+  const { lang, closeout } = data
+  const lastColumn = 4
+  const sheet = addSheet(workbook, label('overview', lang), { landscape: false, gridLines: false })
+  sheet.columns = [{ width: 32 }, { width: 24 }, { width: 24 }, { width: 46 }]
+  let rowNumber = writeBanner(sheet, { title: label('title', lang), meta: bannerMeta(data), lastColumn })
+
+  rowNumber = writeKpis(sheet, {
+    row: rowNumber,
+    lastColumn,
+    items: [
+      { label: label('income', lang), value: data.revenue, format: FORMATS.moneyUzs },
+      { label: label('orders', lang), value: data.orders },
+      { label: label('avgOrder', lang), value: data.averageOrder, format: FORMATS.moneyUzs },
+      data.expenses
+        ? { label: label('netIncome', lang), value: data.expenses.net, format: FORMATS.moneyUzs, color: data.expenses.net >= 0 ? COLORS.positive : COLORS.negative }
+        : { label: label('cancelled', lang), value: closeout.cancelledCount },
+    ],
+  }) - 1
 
   function section(titleKey) {
     rowNumber += 1
     sheet.mergeCells(rowNumber, 1, rowNumber, lastColumn)
     const cell = sheet.getCell(rowNumber, 1)
     cell.value = label(titleKey, lang).toUpperCase()
-    cell.font = { bold: true, size: 11, color: { argb: BRAND } }
-    cell.border = { bottom: { style: 'medium', color: { argb: BRAND } } }
-    sheet.getRow(rowNumber).height = 22
+    cell.font = { bold: true, size: 11, color: { argb: COLORS.brand } }
+    cell.alignment = { vertical: 'middle' }
+    cell.border = { bottom: { style: 'medium', color: { argb: COLORS.brand } } }
+    sheet.getRow(rowNumber).height = 24
     rowNumber += 1
   }
 
-  function line(nameKey, value, { money = true, note = '', strong = false, color = '' } = {}) {
+  function line(nameKey, value, { money = true, note = '', strong = false, color = '', of = 0 } = {}) {
     const row = sheet.getRow(rowNumber)
     row.getCell(1).value = label(nameKey, lang)
+    row.getCell(1).alignment = { vertical: 'middle', indent: 1 }
     row.getCell(2).value = value
-    row.getCell(2).numFmt = typeof value === 'number' ? (money ? MONEY : NUMBER) : '@'
-    row.getCell(2).alignment = { horizontal: 'right' }
+    row.getCell(2).numFmt = typeof value === 'number' ? (money ? FORMATS.moneyUzs : FORMATS.int) : '@'
+    row.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' }
     row.getCell(2).font = { bold: true, size: strong ? 13 : 11, color: color ? { argb: color } : undefined }
     if (strong) row.getCell(1).font = { bold: true, size: 12 }
-    if (note) {
-      row.getCell(3).value = note
-      row.getCell(3).font = { italic: true, color: { argb: MUTED } }
+    if (of > 0 && typeof value === 'number') {
+      row.getCell(3).value = value / of
+      row.getCell(3).numFmt = FORMATS.percent
+      row.getCell(3).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }
+      row.getCell(3).font = { color: { argb: COLORS.muted } }
     }
-    row.height = strong ? 22 : 18
-    lineBelow(row, lastColumn)
+    if (note) {
+      row.getCell(4).value = note
+      row.getCell(4).font = { italic: true, color: { argb: COLORS.muted } }
+      row.getCell(4).alignment = { vertical: 'middle', wrapText: true }
+    }
+    row.height = strong ? 24 : 20
+    for (let column = 1; column <= lastColumn; column += 1) {
+      row.getCell(column).border = { bottom: { style: 'thin', color: { argb: COLORS.line } } }
+    }
     rowNumber += 1
   }
 
@@ -198,15 +178,16 @@ function writeOverviewSheet(workbook, data) {
   line('orders', data.orders, { money: false })
   line('avgOrder', data.averageOrder)
   data.priceModes.forEach(mode => {
-    line(mode.mode === 'tourist' ? 'tourist' : 'regular', mode.revenue, { note: `${mode.orders} ${label('ordersSuffix', lang)}` })
+    line(mode.mode === 'tourist' ? 'tourist' : 'regular', mode.revenue, { of: data.revenue, note: `${mode.orders} ${label('ordersSuffix', lang)}` })
   })
 
-  const closeout = data.closeout
+  const methods = ['cash', 'card', 'terminal', 'salary']
+  const received = methods.reduce((total, method) => total + (Number(closeout.totals[method]) || 0), 0)
   section('received')
-  line('cash', closeout.totals.cash)
-  line('card', closeout.totals.card)
-  line('terminal', closeout.totals.terminal)
-  if (closeout.totals.salary > 0) line('salary', closeout.totals.salary)
+  line('cash', closeout.totals.cash, { of: received })
+  line('card', closeout.totals.card, { of: received })
+  line('terminal', closeout.totals.terminal, { of: received })
+  if (closeout.totals.salary > 0) line('salary', closeout.totals.salary, { of: received })
   line('loyaltyIncome', closeout.loyaltyIncome)
   line('cashback', closeout.cashbackIssued)
   line('cancelled', closeout.cancelledCount, { money: false })
@@ -215,9 +196,9 @@ function writeOverviewSheet(workbook, data) {
   if (data.expenses) {
     const { expenses } = data
     section('result')
-    line('expenses', expenses.total, { color: NEGATIVE })
+    line('expenses', expenses.total, { color: COLORS.negative })
     line('employeeMeals', expenses.employeeMeals, { note: label('mealsNote', lang) })
-    line('netIncome', expenses.net, { strong: true, color: expenses.net >= 0 ? POSITIVE : NEGATIVE })
+    line('netIncome', expenses.net, { strong: true, color: expenses.net >= 0 ? COLORS.positive : COLORS.negative })
     section('leftByMethod')
     line('cash', expenses.leftByMethod.cash)
     line('card', expenses.leftByMethod.card)
@@ -225,95 +206,73 @@ function writeOverviewSheet(workbook, data) {
   }
 }
 
-// Sheet 2: one row per calendar day, including days with no sales.
+// Sheet 2: one row per calendar day, including days with no sales. Dates are
+// real Excel dates, so the sheet sorts and filters by day.
 function writeByDaySheet(workbook, data) {
   const { lang, daily } = data
   const showSalary = daily.totals.salary > 0
-  const keys = ['orders', 'revenue', 'cash', 'card', 'terminal', ...(showSalary ? ['salary'] : []), 'cancelled']
-  const lastColumn = keys.length + 1
-  const sheet = workbook.addWorksheet(label('byDay', lang))
-  sheet.columns = [{ width: 34 }, ...keys.map(key => ({ width: key === 'orders' || key === 'cancelled' ? 13 : 18 }))]
-  const headerRow = writeTitle(sheet, { ...data, title: label('byDay', lang), lastColumn })
-  sheet.views = [{ state: 'frozen', ySplit: headerRow, xSplit: 1 }]
-
   const headings = { orders: 'orders', revenue: 'incomeUzs', cash: 'cash', card: 'card', terminal: 'terminal', salary: 'salary', cancelled: 'cancelled' }
-  const header = sheet.getRow(headerRow)
-  header.values = [label('date', lang), ...keys.map(key => label(headings[key], lang))]
-  styleTableHeader(header, lastColumn)
-
-  daily.days.forEach((day, index) => {
-    const row = sheet.addRow([dayHeading(day.date, lang), ...keys.map(key => day[key] || null)])
-    keys.forEach((key, offset) => {
-      const cell = row.getCell(offset + 2)
-      cell.numFmt = NUMBER
-      cell.alignment = { horizontal: 'right' }
-    })
-    if (day.orders === 0) row.font = { color: { argb: MUTED } }
-    if (index % 2 === 1) for (let column = 1; column <= lastColumn; column += 1) fill(row.getCell(column), 'FFFAF9F7')
+  const keys = ['orders', 'revenue', 'cash', 'card', 'terminal', ...(showSalary ? ['salary'] : []), 'cancelled']
+  const sheet = addSheet(workbook, label('byDay', lang))
+  sheet.columns = [{ width: 13 }, { width: 16 }, ...keys.map(key => ({ width: key === 'orders' ? 13 : key === 'cancelled' ? 17 : 19 }))]
+  const startRow = writeBanner(sheet, { title: label('byDay', lang), meta: bannerMeta(data), lastColumn: keys.length + 2 })
+  writeTable(sheet, {
+    startRow,
+    freezeColumns: 2,
+    totalLabel: label('total', lang),
+    rows: daily.days,
+    columns: [
+      { header: label('date', lang), type: 'date', value: day => isoToSheetDate(day.date) || day.date },
+      { header: label('weekday', lang), type: 'text', value: day => weekdayName(day.date, lang) },
+      ...keys.map(key => ({
+        header: label(headings[key], lang),
+        type: key === 'orders' || key === 'cancelled' ? 'int' : 'money',
+        total: 'sum',
+        value: day => day[key] || null,
+      })),
+    ],
+    rowStyle(row, day) {
+      if (day.orders === 0) row.eachCell(cell => { cell.font = { color: { argb: COLORS.faint } } })
+      else if (isWeekend(day.date)) row.getCell(2).font = { bold: true, color: { argb: COLORS.brandDark } }
+    },
   })
-
-  const total = sheet.addRow([label('total', lang), ...keys.map(key => daily.totals[key])])
-  keys.forEach((_, offset) => {
-    total.getCell(offset + 2).numFmt = NUMBER
-    total.getCell(offset + 2).alignment = { horizontal: 'right' }
-  })
-  styleTotalRow(total, lastColumn)
-  sheet.autoFilter = { from: { row: headerRow, column: 1 }, to: { row: headerRow, column: lastColumn } }
 }
 
 // Sheet 3: the expense entries behind the Expenses total.
 function writeExpensesSheet(workbook, data) {
   const { lang, expenses } = data
-  const lastColumn = 5
-  const sheet = workbook.addWorksheet(label('expensesSheet', lang))
-  sheet.columns = [{ width: 30 }, { width: 28 }, { width: 46 }, { width: 18 }, { width: 18 }]
-  const headerRow = writeTitle(sheet, { ...data, title: label('expensesSheet', lang), lastColumn })
-  sheet.views = [{ state: 'frozen', ySplit: headerRow }]
-  const header = sheet.getRow(headerRow)
-  header.values = ['date', 'type', 'details', 'method', 'amount'].map(key => label(key, lang))
-  styleTableHeader(header, lastColumn, { centerFrom: 5 })
-
-  if (expenses.rows.length === 0) {
-    const empty = sheet.addRow([label('noExpenses', lang)])
-    empty.font = { italic: true, color: { argb: MUTED } }
-  }
-  expenses.rows.forEach(entry => {
-    const row = sheet.addRow([entry.date, entry.type, entry.details, entry.method, entry.amount])
-    row.getCell(3).alignment = { wrapText: true, vertical: 'top' }
-    row.getCell(5).numFmt = NUMBER
-    row.getCell(5).font = { color: { argb: NEGATIVE } }
-    lineBelow(row, lastColumn)
+  const sheet = addSheet(workbook, label('expensesSheet', lang))
+  sheet.columns = [{ width: 20 }, { width: 28 }, { width: 50 }, { width: 20 }, { width: 20 }]
+  const startRow = writeBanner(sheet, { title: label('expensesSheet', lang), meta: bannerMeta(data), lastColumn: 5 })
+  const listed = expenses.rows.reduce((total, entry) => total + (Number(entry.amount) || 0), 0)
+  const allDated = expenses.rows.every(entry => isoToSheetDate(entry.isoDate))
+  const { totalRow } = writeTable(sheet, {
+    startRow,
+    totalLabel: label('total', lang),
+    empty: label('noExpenses', lang),
+    rows: expenses.rows,
+    columns: [
+      allDated
+        ? { header: label('date', lang), type: 'date', value: entry => isoToSheetDate(entry.isoDate) }
+        : { header: label('date', lang), type: 'text', value: entry => entry.date },
+      { header: label('type', lang), type: 'text', value: entry => entry.type },
+      { header: label('details', lang), type: 'text', wrap: true, value: entry => entry.details },
+      { header: label('method', lang), type: 'text', muted: true, value: entry => entry.method },
+      // The total follows the filter only when the entries add up to the page total.
+      { header: label('amount', lang), type: 'money', color: COLORS.negative, total: listed === expenses.total ? 'sum' : expenses.total, value: entry => entry.amount },
+    ],
   })
-
-  const total = sheet.addRow([label('total', lang), '', '', '', expenses.total])
-  total.getCell(5).numFmt = NUMBER
-  total.getCell(5).alignment = { horizontal: 'right' }
-  styleTotalRow(total, lastColumn)
-  total.getCell(5).font = { bold: true, size: 12, color: { argb: NEGATIVE } }
-  if (expenses.rows.length) sheet.autoFilter = { from: { row: headerRow, column: 1 }, to: { row: headerRow, column: lastColumn } }
+  totalRow.getCell(5).font = { bold: true, size: 12, color: { argb: COLORS.negative } }
 }
 
 export function createPeriodReportWorkbook(ExcelJS, data) {
-  const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'Zar Kebab POS'
-  workbook.created = new Date()
+  const workbook = createWorkbook(ExcelJS)
   writeOverviewSheet(workbook, data)
   writeByDaySheet(workbook, data)
   if (data.expenses) writeExpensesSheet(workbook, data)
   return workbook
 }
 
-export async function downloadPeriodReportWorkbook({ filename, ...data }) {
-  if (typeof document === 'undefined') return
-  const module = await import('exceljs')
-  const ExcelJS = module.default || module
-  const workbook = createPeriodReportWorkbook(ExcelJS, data)
-  const buffer = await workbook.xlsx.writeBuffer()
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+export function downloadPeriodReportWorkbook({ filename, ...data }) {
+  return downloadWorkbook(filename, ExcelJS => createPeriodReportWorkbook(ExcelJS, data))
 }

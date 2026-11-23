@@ -29,11 +29,11 @@ import { Shimmer } from '../components/PageShimmer'
 import { useAppDataStatus } from '../store/appHooks'
 import {
   TrendingUp, ShoppingBag, DollarSign, Package,
-  Download, X, Printer, Eye, ChevronLeft, ChevronRight,
+  X, Printer, Eye, ChevronLeft, ChevronRight,
   Search, SlidersHorizontal, CreditCard,
   Monitor, Banknote, UtensilsCrossed,
   BarChart2, Clock, Tag, Users, ListOrdered, HelpCircle, Trash2, Truck, Pencil, Globe2, UserRound,
-  FileSpreadsheet, Wallet, Scale, Receipt, Gift, RotateCcw, XCircle,
+  FileSpreadsheet, Check, Wallet, Scale, Receipt, Gift, RotateCcw, XCircle,
 } from 'lucide-react'
 import { buildDailyReceiptRows, downloadPeriodReportWorkbook, periodReportFilename } from '../lib/periodReportExport'
 import { ALL_DISHES_KEY, getDishSalesAnalysis } from '../lib/dishSales'
@@ -295,6 +295,41 @@ function PageBtn({ children, onClick, disabled, active }) {
   )
 }
 
+// One button for every Excel download: a spinner while the file is built, a
+// brief tick once the browser has it, so a slow export never looks ignored.
+function ExcelButton({ state, onClick, label, title, disabled = false, small = false, compactOnMobile = false, className = '' }) {
+  const size = small ? 14 : 16
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || state === 'busy'}
+      aria-busy={state === 'busy'}
+      aria-label={title}
+      title={title}
+      className={`ws-btn ws-btn-outline ${small ? 'ws-btn-sm' : ''} ${className}`}
+    >
+      {state === 'busy'
+        ? <span className={`${small ? 'h-3.5 w-3.5' : 'h-4 w-4'} animate-spin rounded-full border-2 border-current border-t-transparent`} />
+        : state === 'done'
+          ? <Check size={size} className="text-[#1d7a52]" />
+          : <FileSpreadsheet size={size} className="text-[#1d7a52]" />}
+      <span className={compactOnMobile ? 'hidden sm:inline' : ''}>{label}</span>
+    </button>
+  )
+}
+
+// 'done' falls back to 'idle' after a moment.
+function useExportState() {
+  const [state, setState] = useState('idle')
+  useEffect(() => {
+    if (state !== 'done') return undefined
+    const timer = setTimeout(() => setState('idle'), 2500)
+    return () => clearTimeout(timer)
+  }, [state])
+  return [state, setState]
+}
+
 function SummaryRow({ label, value, bold, valueClass, icon: Icon, roll }) {
   return (
     <div className="flex justify-between items-center gap-3">
@@ -526,7 +561,7 @@ function BestSellingTab({ products, menuItemMap, categories, lang }) {
 
 function DishSalesTab({ reportArgs, loadExportOrders, menuItems, categories, lang, dateFrom, dateTo, filterLabel }) {
   const [selectedDishKey, setSelectedDishKey] = useState(ALL_DISHES_KEY)
-  const [exportState, setExportState] = useState('idle')
+  const [exportState, setExportState] = useExportState()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
   const [activeSectionKey, setActiveSectionKey] = useState('')
@@ -694,7 +729,7 @@ function DishSalesTab({ reportArgs, loadExportOrders, menuItems, categories, lan
         periodLabel,
         filterLabel,
       })
-      setExportState('idle')
+      setExportState('done')
     } catch (error) {
       console.error('Dish sales export failed', error)
       setExportState('error')
@@ -734,19 +769,13 @@ function DishSalesTab({ reportArgs, loadExportOrders, menuItems, categories, lan
             )}
           </div>
           <div ref={pickerRef} className="relative flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-            <button
-              type="button"
+            <ExcelButton
+              state={exportState}
               onClick={exportSoldDishes}
-              disabled={exportState === 'busy'}
+              label={s.exportExcel[lang] || s.exportExcel.en}
               title={s.exportTitle[lang] || s.exportTitle.en}
-              aria-label={s.exportTitle[lang] || s.exportTitle.en}
-              className="ws-btn ws-btn-outline flex-shrink-0 sm:order-2"
-            >
-              {exportState === 'busy'
-                ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                : <Download size={14} />}
-              {s.exportExcel[lang] || s.exportExcel.en}
-            </button>
+              className="flex-shrink-0 sm:order-2"
+            />
             <button
               type="button"
               onClick={() => setPickerOpen(open => !open)}
@@ -2036,7 +2065,7 @@ export default function Reports() {
   const canOpenReceipt = canViewPage(profile || { role: state.user?.role }, 'cashier') || canViewPage(profile || { role: state.user?.role }, 'tables')
 
   const [activeTab,     setActiveTab]     = useState('overview')
-  const [exportState,   setExportState]   = useState('idle')
+  const [exportState,   setExportState]   = useExportState()
   const [dateFrom, setDateFrom] = useState(todayStr())
   const [dateTo,   setDateTo]   = useState(todayStr())
   const [activeRangeKey, setActiveRangeKey] = useState('today')
@@ -2279,6 +2308,7 @@ export default function Reports() {
       const { reportOrders } = await loadExportOrders()
       const expenseRows = expenseBreakdownRows.map(expense => ({
         date: formatLongDate(expense.expense_date, lang, expense.expense_date),
+        isoDate: expense.expense_date,
         type: expense.is_salary_payment
           ? l.salaryPayment
           : expense.is_salary_bonus
@@ -2314,7 +2344,7 @@ export default function Reports() {
           rows: expenseRows,
         } : null,
       })
-      setExportState('idle')
+      setExportState('done')
     } catch (error) {
       console.error('Period report export failed', error)
       setExportState('error')
@@ -2482,19 +2512,15 @@ export default function Reports() {
       title={l.title}
       titleAccessory={<div className="zk-filters-in-header">{renderFilters(true)}</div>}
       headerActions={(
-        <button
-          type="button"
+        <ExcelButton
+          state={exportState}
           onClick={exportCloseout}
           disabled={reportsLoading || Boolean(reportsError)}
-          aria-label={l.exportReportTitle}
+          label={l.exportExcel}
           title={l.exportReportTitle}
-          className="ws-btn ws-btn-outline !h-[38px] [@media(pointer:coarse)]:!h-11"
-        >
-          {exportState === 'busy'
-            ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            : <FileSpreadsheet size={16} className="text-[#1d7a52]" />}
-          <span className="hidden sm:inline">{l.exportExcel}</span>
-        </button>
+          compactOnMobile
+          className="!h-[38px] [@media(pointer:coarse)]:!h-11"
+        />
       )}
     >
       {/* AppShell's <main> is the only scroller: a nested one stops scrolling and clips dropdowns on iOS Safari. */}
@@ -2595,12 +2621,7 @@ export default function Reports() {
                           : `${formatLongDate(closeout.dateFrom, lang, closeout.dateFrom)} — ${formatLongDate(closeout.dateTo, lang, closeout.dateTo)}`}
                       </p>
                     </div>
-                    <button type="button" onClick={exportCloseout} disabled={exportState === 'busy'} className="ws-btn ws-btn-outline ws-btn-sm">
-                      {exportState === 'busy'
-                        ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        : <FileSpreadsheet size={14} className="text-[#1d7a52]" />}
-                      {l.exportExcel}
-                    </button>
+                    <ExcelButton state={exportState} onClick={exportCloseout} label={l.exportExcel} title={l.exportReportTitle} small />
                   </div>
                   <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                     <SummaryRow roll icon={Banknote} label={l.cash} value={formatCurrency(closeout.totals.cash)} />

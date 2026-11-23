@@ -9,6 +9,7 @@ import {
   dishSalesExportFilename,
   listIsoDates,
 } from '../src/lib/dishSalesExport.js'
+import { bannerMetaText } from '../src/lib/sheetKit.js'
 
 const menuItems = [
   { id: 'plov', name_en: 'Plov', category_id: 'mains', is_active: true },
@@ -56,25 +57,52 @@ test('sold dishes export goes date by date, keeping days without sales', () => {
   assert.equal(rows.totals.revenue, 158000)
 })
 
-test('sold dishes workbook has day bands, a dish by day grid and a period summary', async () => {
+test('sold dishes workbook opens on the period total, then categories, day bands and a dish by day grid', async () => {
   const workbook = await createDishSalesWorkbook(ExcelJS, { rows: exportRows(), lang: 'ru', periodLabel: '16 — 18 октября 2026' })
   const loaded = new ExcelJS.Workbook()
   await loaded.xlsx.load(await workbook.xlsx.writeBuffer())
-  const [byDay, matrix, summary] = loaded.worksheets
+  const [summary, byCategory, byDay, matrix] = loaded.worksheets
 
-  assert.deepEqual(loaded.worksheets.map(sheet => sheet.name), ['По дням', 'Блюдо × день', 'Итого за период'])
-  assert.equal(byDay.getCell('A2').value, 'Период: 16 — 18 октября 2026')
-  assert.equal(byDay.getRow(6).getCell(1).value, '16 октября 2026, пятница')
-  assert.equal(byDay.getRow(6).getCell(6).value, 108000)
-  assert.equal(byDay.getRow(7).getCell(2).value, 'Plov')
-  assert.equal(byDay.getRow(10).getCell(1).value, '17 октября 2026, суббота')
-  assert.equal(byDay.getRow(11).getCell(2).value, 'Нет продаж')
+  assert.deepEqual(loaded.worksheets.map(sheet => sheet.name), ['Итого за период', 'По категориям', 'По дням', 'Блюдо × день'])
+  loaded.worksheets.forEach(sheet => {
+    assert.match(sheet.getCell('A1').value, /^Zar Kebab — /)
+    assert.match(bannerMetaText(sheet), /^Период: 16 — 18 октября 2026 {3}· {3}Создан: /)
+    assert.equal(sheet.pageSetup.printTitlesRow, '4:4')
+  })
 
-  assert.deepEqual(matrix.getRow(5).values.slice(4), ['16.10', '17.10', '18.10', 'Итого'])
-  assert.deepEqual([2, 3, 4, 5, 6, 7].map(column => matrix.getRow(6).getCell(column).value), ['Plov', '—', 2, null, 1, 3])
+  // Period total: best seller first, totals that follow the filter.
+  assert.equal(summary.getRow(5).getCell(2).value, 'Plov')
+  assert.equal(summary.getRow(7).getCell(4).value.formula, 'SUBTOTAL(109,D5:D6)')
+  assert.equal(summary.getRow(7).getCell(6).value.result, 158000)
+  assert.equal(summary.getRow(7).getCell(5).value, 2)
+  assert.equal(summary.autoFilter, 'A4:I6')
 
-  assert.equal(summary.getRow(6).getCell(2).value, 'Plov')
-  assert.equal(summary.getRow(8).getCell(6).value, 158000)
+  assert.equal(byCategory.getRow(5).getCell(2).value, '—')
+  assert.equal(byCategory.getRow(6).getCell(5).value.result, 158000)
+
+  assert.equal(byDay.getRow(5).getCell(1).value, '16 октября 2026, пятница')
+  assert.equal(byDay.getRow(5).getCell(6).value, 108000)
+  assert.equal(byDay.getRow(6).getCell(2).value, 'Plov')
+  assert.equal(byDay.getRow(6).outlineLevel, 1)
+  assert.equal(byDay.getRow(8).getCell(1).value, '17 октября 2026, суббота — нет продаж')
+  assert.equal(byDay.getRow(9).getCell(1).value, '18 октября 2026, воскресенье')
+
+  assert.deepEqual(matrix.getRow(4).values.slice(4), ['16.10\nПт', '17.10\nСб', '18.10\nВс', 'Итого'])
+  assert.deepEqual([2, 3, 4, 5, 6, 7].map(column => matrix.getRow(5).getCell(column).value), ['Plov', '—', 2, null, 1, 3])
+  assert.equal(matrix.getRow(7).getCell(7).value.result, 4)
+})
+
+test('sold dishes roll up by category, biggest seller first', () => {
+  const rows = buildDishSalesExportRows(getDishSalesAnalysis({ orders, menuItems }), {
+    dishName: dish => dish.name_en || dish.name,
+    categoryName: dish => dish.category_id || '—',
+    dateFrom: '2026-10-16',
+    dateTo: '2026-10-18',
+  })
+  assert.deepEqual(rows.categories, [
+    { name: 'mains', dishes: 1, quantity: 3, revenue: 150000 },
+    { name: 'drinks', dishes: 1, quantity: 1, revenue: 8000 },
+  ])
 })
 
 test('dates and filenames follow the selected range', () => {

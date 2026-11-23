@@ -117,7 +117,9 @@ test('reports closeout localizes labels and date while filter controls stay alig
   assert.match(exportCloseout, /closeout\.dateFrom/)
   assert.match(exportCloseout, /closeout\.dateTo/)
   assert.match(reports, /<div className="flex flex-wrap items-stretch gap-2">\s*<DateRangePicker/)
-  assert.match(reports, /headerActions=\{\([\s\S]*?onClick=\{exportCloseout\}[\s\S]*?disabled=\{reportsLoading \|\| Boolean\(reportsError\)\}[\s\S]*?className="ws-btn ws-btn-outline !h-\[38px\] \[@media\(pointer:coarse\)\]:!h-11"/)
+  // The header export is the shared ExcelButton: same outline button, same control height.
+  assert.match(reports, /headerActions=\{\([\s\S]*?<ExcelButton[\s\S]*?onClick=\{exportCloseout\}[\s\S]*?disabled=\{reportsLoading \|\| Boolean\(reportsError\)\}[\s\S]*?className="!h-\[38px\] \[@media\(pointer:coarse\)\]:!h-11"/)
+  assert.match(reports, /function ExcelButton\([\s\S]*?disabled=\{disabled \|\| state === 'busy'\}[\s\S]*?className=\{`ws-btn ws-btn-outline /)
   // Date picker and both selects share one control height: 44px in the page; 38px in the top bar,
   // growing to 44px on touch like the compact date picker.
   assert.match(reports, /const control = compact \? '!h-\[38px\] \[@media\(pointer:coarse\)\]:!h-11' : '!h-11'/)

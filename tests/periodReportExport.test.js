@@ -67,9 +67,35 @@ test('report workbook adds the expense sheet and result for expense viewers', ()
   }))
   assert.deepEqual(workbook.worksheets.map(sheet => sheet.name), ['Overview', 'By day', 'Expenses'])
   const sheet = workbook.getWorksheet('Expenses')
-  const amounts = []
-  sheet.eachRow(row => amounts.push(row.getCell(5).value))
-  assert.equal(amounts.at(-1), 30000)
+  // Banner, meta line, spacer, header, one entry, total.
+  assert.equal(sheet.getRow(5).getCell(1).value, '17 October 2026')
+  assert.deepEqual(sheet.getRow(6).getCell(5).value, { formula: 'SUBTOTAL(109,E5:E5)', result: 30000 })
+})
+
+test('report days are real dates and the totals follow the filter', () => {
+  const workbook = createPeriodReportWorkbook(ExcelJS, workbookData({ lang: 'en' }))
+  const sheet = workbook.getWorksheet('By day')
+  assert.deepEqual(sheet.getRow(4).values.slice(1, 5), ['Date', 'Weekday', 'Orders', 'Income (UZS)'])
+  assert.deepEqual(sheet.getRow(5).getCell(1).value, new Date(Date.UTC(2026, 9, 16)))
+  assert.equal(sheet.getRow(5).getCell(1).numFmt, 'dd.mm.yyyy')
+  assert.equal(sheet.getRow(5).getCell(2).value, 'Friday')
+  assert.deepEqual(sheet.getRow(8).getCell(5).value, { formula: 'SUBTOTAL(109,E5:E7)', result: 60000 })
+  // The filter stops above the total row, so sorting leaves it in place.
+  assert.deepEqual(sheet.autoFilter, { from: { row: 4, column: 1 }, to: { row: 7, column: 8 } })
+})
+
+test('expense dates become sortable dates when the entries carry them, and a mismatched total stays as shown', () => {
+  const workbook = createPeriodReportWorkbook(ExcelJS, workbookData({
+    lang: 'en',
+    expenses: {
+      total: 35000, employeeMeals: 5000, net: 65000,
+      leftByMethod: { cash: 30000, card: 0, terminal: 40000 },
+      rows: [{ date: '17 October 2026', isoDate: '2026-10-17', type: 'Rent', details: 'Landlord', method: 'Cash', amount: 30000 }],
+    },
+  }))
+  const sheet = workbook.getWorksheet('Expenses')
+  assert.deepEqual(sheet.getRow(5).getCell(1).value, new Date(Date.UTC(2026, 9, 17)))
+  assert.equal(sheet.getRow(6).getCell(5).value, 35000)
 })
 
 test('report filename names the period', () => {

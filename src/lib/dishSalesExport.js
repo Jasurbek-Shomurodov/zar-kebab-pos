@@ -1,14 +1,37 @@
 import { formatDateTime, formatLongDate } from './dateFormat.js'
+import {
+  COLORS,
+  FORMATS,
+  addSheet,
+  createWorkbook,
+  downloadWorkbook,
+  fillCell,
+  fillRow,
+  isWeekend,
+  styleHeaderRow,
+  styleTotalRow,
+  subtotal,
+  weekdayName,
+  writeBanner,
+  writeTable,
+} from './sheetKit.js'
 
 // Excel export of directly sold dishes for the selected report period.
 // Rows come from getDishSalesAnalysis (saved order prices only); set contents
 // are not added, matching the All dishes view.
+//
+// Sheets, in reading order: the period total per dish, the same by category,
+// each day with its dishes (collapsible), and a dish × day heat map.
 
 const LABELS = {
   title:      { uz: 'Sotilgan taomlar', ru: 'Проданные блюда', en: 'Sold dishes' },
   byDay:      { uz: 'Kunlar bo‘yicha', ru: 'По дням', en: 'By day' },
   matrix:     { uz: 'Taom × kun', ru: 'Блюдо × день', en: 'Dish × day' },
   summary:    { uz: 'Davr bo‘yicha jami', ru: 'Итого за период', en: 'Period total' },
+  byCategory: { uz: 'Kategoriyalar', ru: 'По категориям', en: 'By category' },
+  generated:  { uz: 'Yaratilgan', ru: 'Создан', en: 'Generated' },
+  dishes:     { uz: 'Taomlar', ru: 'Блюд', en: 'Dishes' },
+  day:        { uz: 'Kun', ru: 'День', en: 'Day' },
   period:     { uz: 'Davr', ru: 'Период', en: 'Period' },
   filters:    { uz: 'Filtrlar', ru: 'Фильтры', en: 'Filters' },
   number:     { uz: '№', ru: '№', en: '#' },
@@ -24,17 +47,7 @@ const LABELS = {
   noSales:    { uz: 'Sotuv yo‘q', ru: 'Нет продаж', en: 'No sales' },
 }
 
-const WEEKDAYS = {
-  en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-  ru: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
-  uz: ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'],
-}
-
 const DAY_MS = 86_400_000
-const BRAND = 'FFFF5A00'
-const DAY_FILL = 'FFFFF1E8'
-const TOTAL_FILL = 'FFEFECE9'
-const MONEY = '#,##0'
 
 function label(key, lang) {
   return LABELS[key][lang] || LABELS[key].en
@@ -60,7 +73,7 @@ export function listIsoDates(dateFrom, dateTo) {
 export function dayHeading(iso, lang = 'en') {
   const day = isoDayNumber(iso)
   if (day === null) return iso || ''
-  const weekday = (WEEKDAYS[lang] || WEEKDAYS.en)[(day + 4) % 7] // 1970-01-01 was a Thursday.
+  const weekday = weekdayName(iso, lang)
   const date = formatLongDate(iso, lang, iso)
   return lang === 'en' ? `${weekday}, ${date}` : `${date}, ${weekday}`
 }
@@ -142,8 +155,20 @@ export function buildDishSalesExportRows(analysis, { dishName, categoryName, dat
       }
     })
 
+  const categoryMap = new Map()
+  dishes.forEach(dish => {
+    if (!categoryMap.has(dish.category)) categoryMap.set(dish.category, { name: dish.category, dishes: 0, quantity: 0, revenue: 0 })
+    const category = categoryMap.get(dish.category)
+    category.dishes += 1
+    category.quantity += dish.quantity
+    category.revenue += dish.revenue
+  })
+  const categories = Array.from(categoryMap.values())
+    .sort((a, b) => b.revenue - a.revenue || b.quantity - a.quantity || a.name.localeCompare(b.name))
+
   return {
     dishes,
+    categories,
     days,
     totals: {
       quantity: dishes.reduce((sum, row) => sum + row.quantity, 0),
@@ -153,107 +178,161 @@ export function buildDishSalesExportRows(analysis, { dishName, categoryName, dat
   }
 }
 
-function fillRow(row, argb, fromColumn, toColumn) {
-  for (let column = fromColumn; column <= toColumn; column += 1) {
-    row.getCell(column).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }
-  }
+function bannerMeta({ lang, periodLabel, filterLabel }) {
+  return [
+    [label('period', lang), periodLabel],
+    [label('filters', lang), filterLabel],
+    [label('generated', lang), formatDateTime(new Date().toISOString())],
+  ]
 }
 
-function styleHeader(row, columnCount) {
-  row.font = { bold: true, color: { argb: 'FFFFFFFF' } }
-  row.height = 22
-  fillRow(row, BRAND, 1, columnCount)
-  for (let column = 1; column <= columnCount; column += 1) {
-    row.getCell(column).alignment = { vertical: 'middle', wrapText: true }
-  }
+function share(part, whole) {
+  return whole > 0 ? part / whole : 0
 }
 
-function styleTotal(sheet, row, columnCount) {
-  sheet.mergeCells(row.number, 1, row.number, 3)
-  row.font = { bold: true, size: 12 }
-  row.height = 22
-  fillRow(row, TOTAL_FILL, 1, columnCount)
-  for (let column = 1; column <= columnCount; column += 1) {
-    row.getCell(column).border = { top: { style: 'medium' } }
-    row.getCell(column).alignment = { vertical: 'middle' }
-  }
-}
-
-function writeTitle(sheet, { title, lang, periodLabel, filterLabel }) {
-  sheet.getCell('A1').value = `Zar Kebab — ${title}`
-  sheet.getCell('A1').font = { bold: true, size: 14 }
-  sheet.getCell('A2').value = `${label('period', lang)}: ${periodLabel}`
-  if (filterLabel) sheet.getCell('A3').value = `${label('filters', lang)}: ${filterLabel}`
-}
-
-// Sheet 1: each date as a band with that day's totals, its dishes below.
-function writeByDaySheet(workbook, { rows, lang, periodLabel, filterLabel }) {
-  const columns = 7
-  const sheet = workbook.addWorksheet(label('byDay', lang), {
-    views: [{ state: 'frozen', ySplit: 5 }],
-    properties: { outlineLevelRow: 1 },
+// Sheet 1: one row per dish for the whole period, best sellers first.
+function writeSummarySheet(workbook, options) {
+  const { rows, lang } = options
+  const sheet = addSheet(workbook, label('summary', lang))
+  sheet.columns = [
+    { width: 6 }, { width: 38 }, { width: 24 }, { width: 11 }, { width: 11 },
+    { width: 21 }, { width: 20 }, { width: 10 }, { width: 18 },
+  ]
+  const startRow = writeBanner(sheet, { title: label('title', lang), meta: bannerMeta(options), lastColumn: 9 })
+  writeTable(sheet, {
+    startRow,
+    freezeColumns: 2,
+    totalLabel: label('total', lang),
+    empty: label('noSales', lang),
+    rows: rows.dishes,
+    columns: [
+      { header: label('number', lang), type: 'index', value: (_, index) => index + 1 },
+      { header: label('dish', lang), type: 'text', value: dish => dish.name },
+      { header: label('category', lang), type: 'text', muted: true, value: dish => dish.category },
+      { header: label('qty', lang), type: 'int', total: 'sum', value: dish => dish.quantity },
+      // Orders overlap between dishes, so the period figure is not a column sum.
+      { header: label('orders', lang), type: 'int', total: rows.totals.orders, value: dish => dish.orders },
+      { header: label('revenue', lang), type: 'money', total: 'sum', value: dish => dish.revenue },
+      { header: label('avgPrice', lang), type: 'money', value: dish => dish.averagePrice },
+      { header: label('share', lang), type: 'percent', total: 'sum', value: dish => share(dish.revenue, rows.totals.revenue) },
+      { header: label('lastSale', lang), type: 'text', muted: true, value: dish => formatDateTime(dish.lastSoldAt) },
+    ],
   })
-  sheet.columns = [{ width: 6 }, { width: 36 }, { width: 24 }, { width: 11 }, { width: 11 }, { width: 20 }, { width: 19 }]
-  writeTitle(sheet, { title: label('title', lang), lang, periodLabel, filterLabel })
-  sheet.getRow(5).values = ['number', 'dish', 'category', 'qty', 'orders', 'revenue', 'avgPrice'].map(key => label(key, lang))
-  styleHeader(sheet.getRow(5), columns)
+}
+
+// Sheet 2: the same sales rolled up by menu category.
+function writeCategorySheet(workbook, options) {
+  const { rows, lang } = options
+  const sheet = addSheet(workbook, label('byCategory', lang), { landscape: false })
+  sheet.columns = [{ width: 6 }, { width: 34 }, { width: 11 }, { width: 12 }, { width: 22 }, { width: 11 }]
+  const startRow = writeBanner(sheet, { title: label('byCategory', lang), meta: bannerMeta(options), lastColumn: 6 })
+  writeTable(sheet, {
+    startRow,
+    totalLabel: label('total', lang),
+    empty: label('noSales', lang),
+    rows: rows.categories,
+    columns: [
+      { header: label('number', lang), type: 'index', value: (_, index) => index + 1 },
+      { header: label('category', lang), type: 'text', value: category => category.name },
+      { header: label('dishes', lang), type: 'int', total: 'sum', value: category => category.dishes },
+      { header: label('qty', lang), type: 'int', total: 'sum', value: category => category.quantity },
+      { header: label('revenue', lang), type: 'money', total: 'sum', value: category => category.revenue },
+      { header: label('share', lang), type: 'percent', total: 'sum', value: category => share(category.revenue, rows.totals.revenue) },
+    ],
+  })
+}
+
+// Sheet 3: each date as a band with that day's totals, its dishes folded below.
+function writeByDaySheet(workbook, options) {
+  const { rows, lang } = options
+  const columns = [
+    { header: label('number', lang), type: 'index' },
+    { header: label('dish', lang), type: 'text' },
+    { header: label('category', lang), type: 'text' },
+    { header: label('qty', lang), type: 'int' },
+    { header: label('orders', lang), type: 'int' },
+    { header: label('revenue', lang), type: 'money' },
+    { header: label('avgPrice', lang), type: 'money' },
+  ]
+  const lastColumn = columns.length
+  const sheet = addSheet(workbook, label('byDay', lang), { landscape: false })
+  // The +/- button sits on the day band, above the dishes it folds.
+  sheet.properties.outlineLevelRow = 1
+  sheet.properties.outlineProperties = { summaryBelow: false, summaryRight: false }
+  sheet.columns = [{ width: 6 }, { width: 38 }, { width: 24 }, { width: 11 }, { width: 11 }, { width: 21 }, { width: 20 }]
+  const headerRow = writeBanner(sheet, { title: label('byDay', lang), meta: bannerMeta(options), lastColumn })
+  sheet.getRow(headerRow).values = columns.map(column => column.header)
+  styleHeaderRow(sheet.getRow(headerRow), columns)
+  sheet.views = [{ state: 'frozen', ySplit: headerRow }]
+  sheet.pageSetup.printTitlesRow = `${headerRow}:${headerRow}`
 
   rows.days.forEach(day => {
-    const band = sheet.addRow([dayHeading(day.date, lang), '', '', day.totals.quantity, day.totals.orders, day.totals.revenue, ''])
-    sheet.mergeCells(band.number, 1, band.number, 3)
-    band.font = { bold: true, size: 12 }
-    band.height = 24
-    band.getCell(6).numFmt = MONEY
-    fillRow(band, DAY_FILL, 1, columns)
-    for (let column = 1; column <= columns; column += 1) {
-      band.getCell(column).alignment = { vertical: 'middle' }
-      band.getCell(column).border = { top: { style: 'thin', color: { argb: BRAND } } }
+    const hasSales = day.dishes.length > 0
+    const band = sheet.addRow(hasSales
+      ? [dayHeading(day.date, lang), '', '', day.totals.quantity, day.totals.orders, day.totals.revenue, '']
+      : [`${dayHeading(day.date, lang)} — ${label('noSales', lang).toLowerCase()}`])
+    sheet.mergeCells(band.number, 1, band.number, hasSales ? 3 : lastColumn)
+    band.height = hasSales ? 24 : 20
+    band.font = hasSales
+      ? { bold: true, size: 12, color: isWeekend(day.date) ? { argb: COLORS.brandDark } : undefined }
+      : { italic: true, color: { argb: COLORS.faint } }
+    if (hasSales) fillRow(band, COLORS.soft, 1, lastColumn)
+    for (let column = 1; column <= lastColumn; column += 1) {
+      const cell = band.getCell(column)
+      cell.alignment = { vertical: 'middle', horizontal: column > 3 ? 'right' : 'left', indent: column === 1 ? 1 : 0 }
+      cell.border = { top: { style: 'thin', color: { argb: hasSales ? COLORS.brand : COLORS.line } } }
+      if (column > 3) cell.numFmt = FORMATS.int
     }
 
-    if (day.dishes.length === 0) {
-      const empty = sheet.addRow(['', label('noSales', lang)])
-      empty.font = { italic: true, color: { argb: 'FF8A867F' } }
-      empty.outlineLevel = 1
-    }
     day.dishes.forEach((dish, index) => {
       const row = sheet.addRow([index + 1, dish.name, dish.category, dish.quantity, dish.orders, dish.revenue, dish.averagePrice])
       row.outlineLevel = 1
       row.getCell(1).alignment = { horizontal: 'center' }
-      row.getCell(3).font = { color: { argb: 'FF68655F' } }
-      row.getCell(6).numFmt = MONEY
-      row.getCell(7).numFmt = MONEY
+      row.getCell(1).font = { color: { argb: COLORS.faint } }
+      row.getCell(3).font = { color: { argb: COLORS.muted } }
+      for (let column = 4; column <= lastColumn; column += 1) row.getCell(column).numFmt = FORMATS.int
+      for (let column = 1; column <= lastColumn; column += 1) {
+        row.getCell(column).border = { bottom: { style: 'hair', color: { argb: COLORS.line } } }
+      }
     })
-    sheet.addRow([]).outlineLevel = 1
   })
 
   const total = sheet.addRow([label('total', lang), '', '', rows.totals.quantity, rows.totals.orders, rows.totals.revenue, ''])
-  total.getCell(6).numFmt = MONEY
-  styleTotal(sheet, total, columns)
+  sheet.mergeCells(total.number, 1, total.number, 3)
+  for (let column = 4; column <= lastColumn; column += 1) {
+    total.getCell(column).numFmt = FORMATS.int
+    total.getCell(column).alignment = { horizontal: 'right' }
+  }
+  styleTotalRow(total, lastColumn)
 }
 
-// Sheet 2: dishes down, dates across, quantities in the grid.
-function writeMatrixSheet(workbook, { rows, lang, periodLabel, filterLabel }) {
+// Sheet 4: dishes down, dates across, quantities in the grid as a heat map.
+function writeMatrixSheet(workbook, options) {
+  const { rows, lang } = options
   const dates = rows.days.map(day => day.date)
   const fixed = 3
   const totalColumn = fixed + dates.length + 1
-  const sheet = workbook.addWorksheet(label('matrix', lang), { views: [{ state: 'frozen', xSplit: fixed, ySplit: 5 }] })
+  const sheet = addSheet(workbook, label('matrix', lang))
   sheet.columns = [
-    { width: 6 }, { width: 36 }, { width: 22 },
+    { width: 6 }, { width: 38 }, { width: 24 },
     ...dates.map(() => ({ width: 7 })),
-    { width: 10 },
+    { width: 11 },
   ]
-  writeTitle(sheet, { title: label('matrix', lang), lang, periodLabel, filterLabel })
-  const header = sheet.getRow(5)
-  header.values = [
-    label('number', lang), label('dish', lang), label('category', lang),
-    ...dates.map(date => `${date.slice(8, 10)}.${date.slice(5, 7)}`),
-    label('total', lang),
+  const headerRow = writeBanner(sheet, { title: label('matrix', lang), meta: bannerMeta(options), lastColumn: totalColumn })
+  const columns = [
+    { header: label('number', lang), type: 'index' },
+    { header: label('dish', lang), type: 'text' },
+    { header: label('category', lang), type: 'text' },
+    // Day and month on top, the weekday under it; weekends get a darker cap.
+    ...dates.map(date => ({ header: `${date.slice(8, 10)}.${date.slice(5, 7)}\n${weekdayName(date, lang, { short: true })}`, type: 'date', weekend: isWeekend(date) })),
+    { header: label('total', lang), type: 'int' },
   ]
-  styleHeader(header, totalColumn)
-  for (let column = fixed + 1; column <= totalColumn; column += 1) {
-    header.getCell(column).alignment = { horizontal: 'center', vertical: 'middle' }
-  }
+  const header = sheet.getRow(headerRow)
+  header.values = columns.map(column => column.header)
+  styleHeaderRow(header, columns, { height: 34 })
 
+  const firstRow = headerRow + 1
+  const lastRow = headerRow + rows.dishes.length
   const quantityByDay = new Map(rows.days.map(day => [day.date, new Map(day.dishes.map(dish => [dish.key, dish.quantity]))]))
   rows.dishes.forEach((dish, index) => {
     const row = sheet.addRow([
@@ -262,66 +341,57 @@ function writeMatrixSheet(workbook, { rows, lang, periodLabel, filterLabel }) {
       dish.quantity,
     ])
     row.getCell(1).alignment = { horizontal: 'center' }
+    row.getCell(1).font = { color: { argb: COLORS.faint } }
+    row.getCell(3).font = { color: { argb: COLORS.muted } }
+    for (let column = fixed + 1; column < totalColumn; column += 1) row.getCell(column).alignment = { horizontal: 'center' }
     row.getCell(totalColumn).font = { bold: true }
-    row.getCell(totalColumn).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DAY_FILL } }
+    row.getCell(totalColumn).numFmt = FORMATS.int
+    fillCell(row.getCell(totalColumn), COLORS.soft)
+    for (let column = 1; column <= totalColumn; column += 1) {
+      row.getCell(column).border = { bottom: { style: 'hair', color: { argb: COLORS.line } } }
+    }
   })
-  const total = sheet.addRow([label('total', lang), '', '', ...rows.days.map(day => day.totals.quantity || null), rows.totals.quantity])
-  styleTotal(sheet, total, totalColumn)
-  sheet.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5, column: totalColumn } }
-}
 
-// Sheet 3: one row per dish for the whole period.
-function writeSummarySheet(workbook, { rows, lang, periodLabel, filterLabel }) {
-  const columns = 9
-  const sheet = workbook.addWorksheet(label('summary', lang), { views: [{ state: 'frozen', ySplit: 5 }] })
-  sheet.columns = [
-    { width: 6 }, { width: 36 }, { width: 22 }, { width: 10 }, { width: 11 },
-    { width: 20 }, { width: 19 }, { width: 9 }, { width: 18 },
-  ]
-  writeTitle(sheet, { title: label('summary', lang), lang, periodLabel, filterLabel })
-  sheet.getRow(5).values = ['number', 'dish', 'category', 'qty', 'orders', 'revenue', 'avgPrice', 'share', 'lastSale'].map(key => label(key, lang))
-  styleHeader(sheet.getRow(5), columns)
+  const total = sheet.addRow([
+    label('total', lang), '', '',
+    ...rows.days.map((day, index) => (rows.dishes.length ? subtotal(sheet, fixed + 1 + index, firstRow, lastRow, day.totals.quantity) : 0)),
+    rows.dishes.length ? subtotal(sheet, totalColumn, firstRow, lastRow, rows.totals.quantity) : 0,
+  ])
+  sheet.mergeCells(total.number, 1, total.number, 3)
+  for (let column = fixed + 1; column <= totalColumn; column += 1) {
+    total.getCell(column).numFmt = FORMATS.int
+    total.getCell(column).alignment = { horizontal: column === totalColumn ? 'right' : 'center' }
+  }
+  styleTotalRow(total, totalColumn)
+  for (let column = fixed + 1; column < totalColumn; column += 1) total.getCell(column).font = { bold: true, size: 10 }
 
-  rows.dishes.forEach((dish, index) => {
-    const row = sheet.addRow([
-      index + 1, dish.name, dish.category, dish.quantity, dish.orders, dish.revenue, dish.averagePrice,
-      rows.totals.revenue > 0 ? dish.revenue / rows.totals.revenue : 0,
-      formatDateTime(dish.lastSoldAt),
-    ])
-    row.getCell(1).alignment = { horizontal: 'center' }
-    row.getCell(6).numFmt = MONEY
-    row.getCell(7).numFmt = MONEY
-    row.getCell(8).numFmt = '0.0%'
-  })
-  const total = sheet.addRow([label('total', lang), '', '', rows.totals.quantity, rows.totals.orders, rows.totals.revenue, '', rows.dishes.length ? 1 : 0, ''])
-  total.getCell(6).numFmt = MONEY
-  total.getCell(8).numFmt = '0.0%'
-  styleTotal(sheet, total, columns)
-  sheet.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5, column: columns } }
+  if (rows.dishes.length && dates.length) {
+    sheet.addConditionalFormatting({
+      ref: `${sheet.getColumn(fixed + 1).letter}${firstRow}:${sheet.getColumn(totalColumn - 1).letter}${lastRow}`,
+      rules: [{
+        type: 'colorScale',
+        priority: 1,
+        cfvo: [{ type: 'min' }, { type: 'max' }],
+        color: [{ argb: COLORS.white }, { argb: COLORS.heat }],
+      }],
+    })
+    sheet.autoFilter = { from: { row: headerRow, column: 1 }, to: { row: lastRow, column: totalColumn } }
+  }
+  sheet.views = [{ state: 'frozen', xSplit: fixed, ySplit: headerRow }]
+  sheet.pageSetup.printTitlesRow = `${headerRow}:${headerRow}`
+  sheet.pageSetup.printTitlesColumn = 'A:C'
 }
 
 export async function createDishSalesWorkbook(ExcelJS, { rows, lang = 'en', periodLabel = '', filterLabel = '' }) {
-  const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'Zar Kebab POS'
-  workbook.created = new Date()
+  const workbook = createWorkbook(ExcelJS)
   const options = { rows, lang, periodLabel, filterLabel }
+  writeSummarySheet(workbook, options)
+  writeCategorySheet(workbook, options)
   writeByDaySheet(workbook, options)
   writeMatrixSheet(workbook, options)
-  writeSummarySheet(workbook, options)
   return workbook
 }
 
-export async function downloadDishSalesWorkbook({ filename, ...options }) {
-  if (typeof document === 'undefined') return
-  const module = await import('exceljs')
-  const ExcelJS = module.default || module
-  const workbook = await createDishSalesWorkbook(ExcelJS, options)
-  const buffer = await workbook.xlsx.writeBuffer()
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+export function downloadDishSalesWorkbook({ filename, ...options }) {
+  return downloadWorkbook(filename, ExcelJS => createDishSalesWorkbook(ExcelJS, options))
 }

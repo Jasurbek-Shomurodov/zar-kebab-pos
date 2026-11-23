@@ -49,11 +49,11 @@
 
 - Ingredients movement (`186`): `get_ingredient_movement(date,date)`: purchases, paid-order recipe usage, amounts, bought−used per ingredient/unit, ≤366 Tashkent dates. `279`: sheet (`ingredientPurchaseSheet.js`). Missing/incomplete snapshots are counted; migration `188` excludes unmatched and unmanaged ingredients from rows. Excludes opening stock, waste, adjustments; not an on-hand balance. Compatible g/kg, ml/l, pcs/piece normalize; packages stay separate. Raw snapshots remain service-only. `275`: one lookup per name.
 
-- Migrations `187`–`188` add categories and restrict movement to explicitly added (`is_catalog_managed`) ingredients, including archived ones with history. Filters and sorting run locally without refetching.
+- `187`–`188` add categories and restrict movement to explicitly added (`is_catalog_managed`) ingredients, including archived with history. Filters and sorting run locally, no refetch.
 
 - Ten-day income (`190`–`191`): latest 20 periods (1–10, 11–20, 21–end) through a selected month. Scans at most eight indexed months, excludes today/future periods, caches, hides empty months, starts choices at the earliest order month, and uses stable month colors. Zero periods in active months remain. Tests: `tests/weeklyIncome.test.js`.
 
-- Reports: overview, item, dish and order-list data: SQL readers (`281`–`283`, `src/lib/reportsRpc.js`), Closeout included. Only Excel loads the full range.
+- Reports overview, item, dish and order-list data: SQL readers (`281`–`283`, `src/lib/reportsRpc.js`), Closeout included. Only Excel (`src/lib/sheetKit.js`) loads the full range.
 
 - Dish Analysis: All dishes ranks 30 direct sellers. Selection shows description, sources, hours/log; hides global rankings. Add frozen `tech_card_component_snapshot` quantities × parent quantity; deduplicate orders. No inferred recipes/legacy contents or added set revenue. Tests: `tests/dishSales.test.js`, Excel `dishSalesExport.test.js`.
 
