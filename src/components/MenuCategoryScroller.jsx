@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutGrid, UtensilsCrossed } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LayoutGrid, UtensilsCrossed } from 'lucide-react'
 import { getCategoryName } from '../lib/i18n'
 import { getMenuCategoryScrollTarget } from '../lib/menuCategoryScroll'
 import ImageLoadShimmer from './ImageLoadShimmer'
@@ -181,6 +181,78 @@ function LuxCategoryPill({ category, active, title, onClick }) {
   )
 }
 
+// Animated by hand: native smooth scrollBy is ignored on the fixed lux bar in Chrome.
+function animateRowScroll(row, target) {
+  const from = row.scrollLeft
+  const to = Math.max(0, Math.min(row.scrollWidth - row.clientWidth, target))
+  window.cancelAnimationFrame(row.__chipScrollFrame)
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    row.scrollLeft = to
+    return
+  }
+  const start = performance.now()
+  const step = now => {
+    const progress = Math.min(1, (now - start) / 280)
+    const eased = 1 - (1 - progress) ** 3
+    row.scrollLeft = from + (to - from) * eased
+    if (progress < 1) row.__chipScrollFrame = window.requestAnimationFrame(step)
+  }
+  row.__chipScrollFrame = window.requestAnimationFrame(step)
+}
+
+const ROW_ARROW_LABELS = {
+  uz: { previous: 'Oldingi kategoriyalar', next: 'Keyingi kategoriyalar' },
+  ru: { previous: 'Предыдущие категории', next: 'Следующие категории' },
+  en: { previous: 'Previous categories', next: 'Next categories' },
+}
+
+/**
+ * Paging arrows for a chip row. A mouse cannot swipe a horizontal row, so on desktop each side
+ * that has more chips gets a button; CSS keeps them off touch screens (.lux-row-arrow).
+ */
+function RowArrows({ rowRef, lang, watch }) {
+  const [edges, setEdges] = useState({ previous: false, next: false })
+  const labels = ROW_ARROW_LABELS[lang] || ROW_ARROW_LABELS.en
+
+  useEffect(() => {
+    const row = rowRef.current
+    if (!row) return undefined
+    function measure() {
+      const previous = row.scrollLeft > 8
+      const next = row.scrollLeft + row.clientWidth < row.scrollWidth - 8
+      setEdges(current => current.previous === previous && current.next === next ? current : { previous, next })
+    }
+    measure()
+    row.addEventListener('scroll', measure, { passive: true })
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    observer?.observe(row)
+    return () => {
+      row.removeEventListener('scroll', measure)
+      observer?.disconnect()
+    }
+  }, [rowRef, watch])
+
+  function page(direction) {
+    const row = rowRef.current
+    if (row) animateRowScroll(row, row.scrollLeft + direction * row.clientWidth * 0.6)
+  }
+
+  return (
+    <>
+      {edges.previous && (
+        <button type="button" onClick={() => page(-1)} aria-label={labels.previous} className="lux-row-arrow absolute top-1/2 z-10 h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full" style={{ left: 'max(4px, calc(50vw - 664px))' }}>
+          <ChevronLeft size={18} aria-hidden="true" />
+        </button>
+      )}
+      {edges.next && (
+        <button type="button" onClick={() => page(1)} aria-label={labels.next} className="lux-row-arrow absolute top-1/2 z-10 h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full" style={{ right: 'max(4px, calc(50vw - 664px))' }}>
+          <ChevronRight size={18} aria-hidden="true" />
+        </button>
+      )}
+    </>
+  )
+}
+
 // Category jumps glide only when the guest has not asked for reduced motion.
 function scrollBehavior() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
@@ -222,6 +294,7 @@ export default function MenuCategoryScroller({
   collapsedPosition = 'sticky',
   scrollOffset = 84,
   variant = 'default',
+  scrollArrows = false,
 }) {
   const workspace = variant === 'workspace'
   const lux = variant === 'lux'
@@ -264,9 +337,7 @@ export default function MenuCategoryScroller({
   }, [collapsed, collapsedPosition, lux])
 
   // Keep the active category visible: centre its chip horizontally (never scrolls the page).
-  // Animated by hand: native smooth scrollBy is ignored on the fixed lux bar in Chrome.
   useEffect(() => {
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     for (const row of [rowRef.current, collapsedRowRef.current]) {
       if (!row) continue
       const chip = [...row.querySelectorAll('button[aria-pressed="true"]')].find(button => button.offsetParent)
@@ -274,22 +345,7 @@ export default function MenuCategoryScroller({
       const rowRect = row.getBoundingClientRect()
       const chipRect = chip.getBoundingClientRect()
       const delta = chipRect.left - rowRect.left - (rowRect.width - chipRect.width) / 2
-      if (Math.abs(delta) <= 4) continue
-      const from = row.scrollLeft
-      const to = Math.max(0, Math.min(row.scrollWidth - row.clientWidth, from + delta))
-      window.cancelAnimationFrame(row.__chipScrollFrame)
-      if (reduceMotion) {
-        row.scrollLeft = to
-        continue
-      }
-      const start = performance.now()
-      const step = now => {
-        const progress = Math.min(1, (now - start) / 280)
-        const eased = 1 - (1 - progress) ** 3
-        row.scrollLeft = from + (to - from) * eased
-        if (progress < 1) row.__chipScrollFrame = window.requestAnimationFrame(step)
-      }
-      row.__chipScrollFrame = window.requestAnimationFrame(step)
+      if (Math.abs(delta) > 4) animateRowScroll(row, row.scrollLeft + delta)
     }
   }, [activeCategoryId, collapsed])
 
@@ -491,6 +547,7 @@ export default function MenuCategoryScroller({
             )
           })}
         </div>
+        {scrollArrows && <RowArrows rowRef={rowRef} lang={lang} watch={cards.length} />}
       </div>
 
       <div
@@ -521,6 +578,7 @@ export default function MenuCategoryScroller({
             )
           })}
         </div>
+        {scrollArrows && <RowArrows rowRef={collapsedRowRef} lang={lang} watch={`${cards.length}:${collapsed}`} />}
       </div>
     </>
   )

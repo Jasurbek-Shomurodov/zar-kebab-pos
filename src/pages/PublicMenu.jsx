@@ -29,6 +29,7 @@ import {
   PublicDishCard,
   PublicDishDetailPage,
 } from '../components/MenuProductCards'
+import { PublicActionBar, PublicVisitSection } from '../components/PublicVisit'
 import heroImage from '../assets/brand/zarkebab-hero-kebab.webp'
 
 // Stable catalog identity: the Catering category is now Corporate Sets.
@@ -61,6 +62,7 @@ const PUBLIC_SITE_COPY = {
     frozenMeals: 'Yarim tayyor mahsulotlar',
     frozenMealsIntro: 'Muzlatilgan yarim tayyor taomlarimiz — uyda bir necha daqiqada pishiring.',
     promotions: 'Aksiyalar',
+    catering: 'Keytering',
     vacancies: 'Ish o‘rinlari',
     contacts: 'Aloqa',
     company: 'Restoran',
@@ -76,6 +78,7 @@ const PUBLIC_SITE_COPY = {
     frozenMeals: 'Полуфабрикаты',
     frozenMealsIntro: 'Наши замороженные полуфабрикаты — приготовьте дома за несколько минут.',
     promotions: 'Акции',
+    catering: 'Кейтеринг',
     vacancies: 'Вакансии',
     contacts: 'Контакты',
     company: 'Ресторан',
@@ -91,6 +94,7 @@ const PUBLIC_SITE_COPY = {
     frozenMeals: 'Frozen meals',
     frozenMealsIntro: 'Our frozen half-prepared meals — ready to cook at home in minutes.',
     promotions: 'Promotions',
+    catering: 'Catering',
     vacancies: 'Vacancies',
     contacts: 'Contacts',
     company: 'Restaurant',
@@ -267,7 +271,7 @@ function PublicContactButtons({ className = '', onOpenMap }) {
   )
 }
 
-function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenFrozenMeals, onOpenVacancies, onOpenMap }) {
+function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenFrozenMeals, onOpenCatering, onOpenVacancies, onOpenMap }) {
   const year = new Date().getFullYear()
   return (
     <footer id="public-menu-contacts" className="lux-page-2 lux-line scroll-mt-28 border-t px-4 py-9 sm:px-6 sm:py-12">
@@ -284,6 +288,7 @@ function PublicMenuFooter({ copy, lang, onOpenMenu, onOpenCorporateSets, onOpenF
               <a href="/corporate-sets" onClick={onOpenCorporateSets} className="inline-flex min-h-11 items-center hover:underline">{copy.corporateSets}</a>
               <a href="/frozen-meals" onClick={onOpenFrozenMeals} className="inline-flex min-h-11 items-center hover:underline">{copy.frozenMeals}</a>
               <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="inline-flex min-h-11 items-center hover:underline">{copy.promotions}</a>
+              <a href="/catering" onClick={onOpenCatering} className="inline-flex min-h-11 items-center hover:underline">{copy.catering}</a>
               <a href="/vacancies" onClick={onOpenVacancies} className="inline-flex min-h-11 items-center hover:underline">{copy.vacancies}</a>
             </nav>
           </div>
@@ -995,6 +1000,11 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
     navigateWithTransition('/vacancies')
   }
 
+  function openCatering(event) {
+    event.preventDefault()
+    navigateWithTransition('/catering')
+  }
+
   if (searchMode) {
     return (
       <MobileSearchPage
@@ -1056,32 +1066,26 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
               </div>
             </div>
 
-            <div className="hidden grid-cols-[1fr_auto_1fr] items-center gap-3 lg:grid">
-              <div className="min-w-0 justify-self-start">
-                <button
-                  type="button"
-                  onClick={openSearch}
-                  aria-label={lang === 'uz' ? 'Qidirish' : lang === 'ru' ? 'Поиск' : 'Search'}
-                  className="lux-chip hidden h-10 w-10 items-center justify-center rounded-full"
-                >
-                  <Search size={17} />
-                </button>
-                {!premium && (
-                  <nav className="hidden items-center gap-5 lg:flex" aria-label={siteCopy.company}>
-                    <a href="/menu" onClick={openMenuHome} className="lux-title inline-flex min-h-11 items-center text-sm font-semibold hover:underline">{siteCopy.menu}</a>
-                    <a href="/corporate-sets" onClick={openCorporateSets} aria-current={corporateSets ? 'page' : undefined} className={`inline-flex min-h-11 items-center text-sm font-semibold hover:underline ${corporateSets ? 'lux-gold' : 'lux-title'}`}>{siteCopy.corporateSets}</a>
-                    <a href="/frozen-meals" onClick={openFrozenMeals} aria-current={frozenMeals ? 'page' : undefined} className={`inline-flex min-h-11 items-center text-sm font-semibold hover:underline ${frozenMeals ? 'lux-gold' : 'lux-title'}`}>{siteCopy.frozenMeals}</a>
-                    <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="lux-title inline-flex min-h-11 items-center text-sm font-semibold hover:underline">{siteCopy.promotions}</a>
-                    <a href="/vacancies" onClick={openVacancies} className="lux-title inline-flex min-h-11 items-center text-sm font-semibold hover:underline">{siteCopy.vacancies}</a>
-                    <a href="#public-menu-contacts" onClick={event => navigateToPublicSection(event, 'public-menu-contacts')} className="lux-title inline-flex min-h-11 items-center text-sm font-semibold hover:underline">{siteCopy.contacts}</a>
-                  </nav>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2.5 justify-self-center sm:gap-3">
-                <img src={getBrandLogo(lang)} alt="Zar Kebab" className="h-10 w-auto object-contain sm:h-12" />
+            {/* Desktop: wordmark left, one-line navigation in the middle, controls right. Links never
+                wrap; the three that do not fit beside the controls at 1024px join from 1280px and
+                are always in the footer. */}
+            <div className="hidden grid-cols-[auto_1fr_auto] items-center gap-6 lg:grid xl:gap-8">
+              <a href="/menu" onClick={openMenuHome} aria-label="Zar Kebab" className="flex min-h-11 items-center gap-2.5 justify-self-start">
+                <img src={getBrandLogo(lang)} alt="" className="h-12 w-auto object-contain" />
                 <span className="lux-gold whitespace-nowrap text-xs font-black uppercase tracking-[0.15em]">Zar Kebab</span>
-              </div>
+              </a>
+
+              {premium ? <span /> : (
+                <nav className="flex min-w-0 items-center gap-5 justify-self-start xl:gap-6" aria-label={siteCopy.company}>
+                  <a href="/menu" onClick={openMenuHome} aria-current={sectionPage ? undefined : 'page'} className="lux-nav-link">{siteCopy.menu}</a>
+                  <a href="/corporate-sets" onClick={openCorporateSets} aria-current={corporateSets ? 'page' : undefined} className="lux-nav-link">{siteCopy.corporateSets}</a>
+                  <a href="/frozen-meals" onClick={openFrozenMeals} aria-current={frozenMeals ? 'page' : undefined} className="lux-nav-link">{siteCopy.frozenMeals}</a>
+                  <a href="/menu#public-menu-deals" onClick={event => navigateToPublicSection(event, 'public-menu-deals')} className="lux-nav-link">{siteCopy.promotions}</a>
+                  <a href="/catering" onClick={openCatering} className="lux-nav-link max-xl:hidden">{siteCopy.catering}</a>
+                  <a href="/vacancies" onClick={openVacancies} className="lux-nav-link max-xl:hidden">{siteCopy.vacancies}</a>
+                  <a href="#public-menu-contacts" onClick={event => navigateToPublicSection(event, 'public-menu-contacts')} className="lux-nav-link max-xl:hidden">{siteCopy.contacts}</a>
+                </nav>
+              )}
 
               <div className="flex items-center gap-2 justify-self-end">
                 <button
@@ -1136,6 +1140,7 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
             rowClassName="lux-fade-edges !pb-1.5 pt-1.5 px-3 sm:px-[max(24px,calc(50vw-616px))]"
             collapsedContentClassName="lux-fade-edges py-1.5 !px-3 sm:!px-[max(24px,calc(50vw-616px))]"
             variant="lux"
+            scrollArrows
             collapsedPosition="fixed"
             collapsedSurfaceClass="lux-header lux-bar"
             collapsedClassName="z-drawer !border-0 !px-0 !py-1 !translate-y-0 !transition-none"
@@ -1220,7 +1225,11 @@ export default function PublicMenu({ premium = false, searchMode = false, corpor
             </div>
         )}
       </main>
-      {!premium && <PublicMenuFooter copy={siteCopy} lang={lang} onOpenMenu={openMenuHome} onOpenCorporateSets={openCorporateSets} onOpenFrozenMeals={openFrozenMeals} onOpenVacancies={openVacancies} onOpenMap={openMapChooser} />}
+      {showHero && <PublicVisitSection lang={lang} contacts={PUBLIC_CONTACTS} hours={siteCopy.hours} onOpenMap={openMapChooser} onOpenCatering={openCatering} />}
+      {!premium && <PublicMenuFooter copy={siteCopy} lang={lang} onOpenMenu={openMenuHome} onOpenCorporateSets={openCorporateSets} onOpenFrozenMeals={openFrozenMeals} onOpenCatering={openCatering} onOpenVacancies={openVacancies} onOpenMap={openMapChooser} />}
+      {/* Room for the phone action bar, so it never covers the last footer line. */}
+      {!premium && <div aria-hidden="true" className="lux-page-2 h-16 lg:hidden" />}
+      {!premium && <PublicActionBar lang={lang} contacts={PUBLIC_CONTACTS} visible={!headerOverHero && !showDetailOverlay} onOpenMap={openMapChooser} />}
       {showDetailOverlay && (
         <div className="fixed inset-0 z-overlay">
           <PublicDishDetailPage

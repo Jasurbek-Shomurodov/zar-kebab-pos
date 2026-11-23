@@ -134,8 +134,10 @@ test('PublicMenu enables tappable fixed collapsed categories', () => {
   assert.match(source, /collapsedClassName="z-drawer/)
   assert.match(source, /scrollOffset=\{64\}/)
   assert.match(source, /px-3 pb-5 pt-3 sm:px-6 sm:pt-5/)
-  assert.match(source, /hidden grid-cols-\[1fr_auto_1fr\] items-center gap-3 lg:grid/)
-  assert.match(source, /flex items-center gap-2\.5 justify-self-center sm:gap-3/)
+  // Desktop bar: wordmark, one-line navigation, controls. The navigation never wraps (.lux-nav-link).
+  assert.match(source, /hidden grid-cols-\[auto_1fr_auto\] items-center gap-6 lg:grid/)
+  assert.match(source, /flex min-h-11 items-center gap-2\.5 justify-self-start/)
+  assert.match(readSource('src/index.css'), /\.lux-nav-link \{[^}]*white-space: nowrap;/)
   assert.match(source, /relative flex h-11 items-center justify-between lg:hidden/)
   // The phone wordmark stays visible from 360px up and is never smaller than 12px.
   assert.match(source, /text-xs font-black uppercase[^"\n]*min-\[360px\]:inline[^>]*>Zar Kebab<\/span>/)

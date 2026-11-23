@@ -183,6 +183,58 @@ html[data-theme="dark"] .lux-header { box-shadow: 0 8px 26px rgb(0 0 0 / 30%); }
 }
 .lux-header-photo .lux-gold { color: #E7C98F; }
 
+/* Desktop site navigation: one line, a gold rule under the hovered or current link. */
+.lux-nav-link {
+  position: relative;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--lux-title);
+  transition: color 150ms ease;
+}
+.lux-nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 150ms ease;
+}
+.lux-nav-link[aria-current="page"] { color: var(--lux-gold); }
+.lux-nav-link[aria-current="page"]::after { transform: scaleX(1); }
+@media (hover: hover) {
+  .lux-nav-link:hover { color: var(--lux-gold); }
+  .lux-nav-link:hover::after { transform: scaleX(1); }
+}
+.lux-header-photo .lux-nav-link { color: #FFF8EE; }
+.lux-header-photo .lux-nav-link[aria-current="page"] { color: #E7C98F; }
+@media (hover: hover) {
+  .lux-header-photo .lux-nav-link:hover { color: #E7C98F; }
+}
+
+/* Arrows that page a chip row for mouse users; touch screens swipe instead. */
+.lux-row-arrow {
+  display: none;
+  background: var(--lux-page);
+  border: 1px solid var(--lux-glass-border);
+  color: var(--lux-chip-text);
+  box-shadow: 0 4px 14px rgb(60 40 20 / 14%);
+  transition: transform 150ms ease, color 150ms ease;
+}
+.lux-row-arrow:hover { color: var(--lux-gold); }
+.lux-row-arrow:active { transform: translateY(-50%) scale(0.96); }
+@media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
+  .lux-row-arrow { display: flex; }
+}
+
 /* Horizontal rows (category chips) fade out softly at both edges. */
 .lux-fade-edges {
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);

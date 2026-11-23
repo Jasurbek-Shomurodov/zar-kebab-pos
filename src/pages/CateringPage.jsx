@@ -1,47 +1,157 @@
 import React, { useEffect } from 'react'
+import { flushSync } from 'react-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowRight, Building2, CheckCircle2, Clock, Instagram, MapPin, Phone,
-  ShieldCheck, Sparkles, Truck, UsersRound, UtensilsCrossed, WalletCards,
+  ArrowLeft, ArrowRight, CheckCircle2, Instagram, MapPin, Phone, Send,
+  Sparkles, Truck, UtensilsCrossed, WalletCards,
 } from 'lucide-react'
+import LanguageSwitcher from '../components/LanguageSwitcher'
+import ThemeToggle from '../components/ThemeToggle'
 import { getBrandLogo } from '../lib/brandLogo'
+import { useApp } from '../store/AppContext'
+import heroImage from '../assets/brand/zarkebab-hero-kebab.webp'
 
 const PHONE_DISPLAY = '+998 91-509-55-45'
 const PHONE_HREF = 'tel:+998915095545'
+const TELEGRAM_HREF = 'https://t.me/zarkebab'
 const INSTAGRAM_HREF = 'https://www.instagram.com/zarkebab'
 
-const heroImages = [
-  'https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/m7-1781341629601-i5pq0dsp.webp',
-  'https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/zk_lamb_ribs-1781341646381-bcgj9w6h.webp',
-  'https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1779076979129-1781341534806-oxuhchja.webp',
-]
+const BENEFIT_ICONS = [UtensilsCrossed, Sparkles, Truck, WalletCards]
 
-const benefits = [
-  ['Сытные порции', 'Горячие блюда, шашлыки, супы, салаты и напитки для полноценного обеда.', UtensilsCrossed],
-  ['Индивидуальное меню', 'Подберём меню под бюджет, количество сотрудников и формат питания.', Sparkles],
-  ['Удобная доставка', 'Доставляем по Ташкенту в удобное для вас время.', Truck],
-  ['Гибкая оплата', 'Наличные, перевод, терминал или договорённость для постоянных клиентов.', WalletCards],
-]
-
-const services = [
-  ['Корпоративное питание', 'Ежедневные обеды для сотрудников офиса или компании.'],
-  ['Питание для строительных и рабочих объектов', 'Комплексное питание 1-3 раза в день для больших команд.'],
-  ['Обеды в офис', 'Горячие блюда, сеты и напитки с доставкой.'],
-  ['Кейтеринг для мероприятий', 'Шашлыки, закуски, салаты, напитки и сеты для встреч, праздников и банкетов.'],
-]
-
-const packages = [
-  ['Офисный обед', ['суп', 'горячее', 'салат', 'хлеб', 'напиток']],
-  ['Шашлык сет для команды', ['шашлыки', 'лепёшки', 'салаты', 'напитки']],
-  ['Питание на объект', ['завтрак', 'обед', 'ужин по графику']],
-  ['Мероприятие', ['сеты', 'закуски', 'напитки', 'сервировка по договорённости']],
-]
-
-const steps = [
-  'Оставьте заявку',
-  'Мы уточним количество человек, бюджет и формат',
-  'Подготовим меню и предложение',
-  'Доставим заказ вовремя',
-]
+const COPY = {
+  ru: {
+    seoTitle: 'Кейтеринг и корпоративное питание в Ташкенте | Zar Kebab',
+    seoDescription: 'Zar Kebab предлагает корпоративное питание, обеды в офис, шашлык-сеты и кейтеринг для мероприятий в Ташкенте. Индивидуальное меню под ваш бюджет.',
+    seoKeywords: 'кейтеринг Ташкент, корпоративное питание Ташкент, обеды в офис Ташкент, доставка обедов, Zar Kebab, шашлык кейтеринг',
+    back: 'Вернуться в меню',
+    eyebrow: 'Кейтеринг Zar Kebab',
+    title: 'Кейтеринг и корпоративное питание от Zar Kebab',
+    intro: 'Горячие обеды, шашлыки, сеты и комплексное питание для офисов, команд, строительных объектов и мероприятий в Ташкенте.',
+    getOffer: 'Получить предложение',
+    call: 'Позвонить',
+    telegram: 'Написать в Telegram',
+    guestsLabel: 'Для команд',
+    guests: 'от 10 до 300+ гостей',
+    tags: ['Доставка по Ташкенту', 'Меню под ваш бюджет', 'Горячие блюда каждый день'],
+    benefitsTitle: 'Почему выбирают Zar Kebab',
+    benefits: [
+      ['Сытные порции', 'Горячие блюда, шашлыки, супы, салаты и напитки для полноценного обеда.'],
+      ['Индивидуальное меню', 'Подберём меню под бюджет, количество сотрудников и формат питания.'],
+      ['Удобная доставка', 'Доставляем по Ташкенту в удобное для вас время.'],
+      ['Гибкая оплата', 'Наличные, перевод, терминал или договорённость для постоянных клиентов.'],
+    ],
+    servicesTitle: 'Наши услуги',
+    services: [
+      ['Корпоративное питание', 'Ежедневные обеды для сотрудников офиса или компании.'],
+      ['Питание для строительных и рабочих объектов', 'Комплексное питание 1–3 раза в день для больших команд.'],
+      ['Обеды в офис', 'Горячие блюда, сеты и напитки с доставкой.'],
+      ['Кейтеринг для мероприятий', 'Шашлыки, закуски, салаты, напитки и сеты для встреч, праздников и банкетов.'],
+    ],
+    packagesTitle: 'Примеры форматов питания',
+    packagesText: 'Финальное меню и стоимость рассчитываются индивидуально: от количества человек, графика и выбранных блюд.',
+    packages: [
+      ['Офисный обед', ['суп', 'горячее', 'салат', 'хлеб', 'напиток']],
+      ['Шашлык-сет для команды', ['шашлыки', 'лепёшки', 'салаты', 'напитки']],
+      ['Питание на объект', ['завтрак', 'обед', 'ужин по графику']],
+      ['Мероприятие', ['сеты', 'закуски', 'напитки', 'сервировка по договорённости']],
+    ],
+    priceNote: 'Цена рассчитывается индивидуально',
+    setsLink: 'Корпоративные сеты с ценами',
+    stepsTitle: 'Как оформить заказ',
+    steps: ['Оставьте заявку', 'Мы уточним количество человек, бюджет и формат', 'Подготовим меню и предложение', 'Доставим заказ вовремя'],
+    contactTitle: 'Нужно питание для команды или мероприятия?',
+    contactText: 'Напишите нам, сколько человек нужно накормить и какой формат вам подходит. Мы подготовим предложение под ваш бюджет.',
+    address: 'Ташкент, Матбуотчилар, 17',
+  },
+  uz: {
+    seoTitle: 'Toshkentda keytering va korporativ ovqatlanish | Zar Kebab',
+    seoDescription: 'Zar Kebab Toshkentda korporativ ovqatlanish, ofisga tushlik, shashlik setlari va tadbirlar uchun keytering taklif qiladi. Byudjetingizga mos menyu.',
+    seoKeywords: 'keytering Toshkent, korporativ ovqatlanish Toshkent, ofisga tushlik, Zar Kebab, shashlik keytering',
+    back: 'Menyuga qaytish',
+    eyebrow: 'Zar Kebab keytering',
+    title: 'Zar Kebab keytering va korporativ ovqatlanish',
+    intro: 'Toshkentdagi ofislar, jamoalar, qurilish obyektlari va tadbirlar uchun issiq tushliklar, shashliklar, setlar va kompleks ovqatlanish.',
+    getOffer: 'Taklif olish',
+    call: 'Qo‘ng‘iroq qilish',
+    telegram: 'Telegramda yozish',
+    guestsLabel: 'Jamoalar uchun',
+    guests: '10 dan 300+ mehmongacha',
+    tags: ['Toshkent bo‘ylab yetkazish', 'Byudjetingizga mos menyu', 'Har kuni issiq taomlar'],
+    benefitsTitle: 'Nega Zar Kebab tanlanadi',
+    benefits: [
+      ['To‘yimli porsiyalar', 'To‘liq tushlik uchun issiq taomlar, shashliklar, sho‘rvalar, salatlar va ichimliklar.'],
+      ['Individual menyu', 'Menyuni byudjet, xodimlar soni va ovqatlanish formatiga moslab tuzamiz.'],
+      ['Qulay yetkazib berish', 'Toshkent bo‘ylab sizga qulay vaqtda yetkazamiz.'],
+      ['Moslashuvchan to‘lov', 'Naqd, o‘tkazma, terminal yoki doimiy mijozlar uchun kelishuv asosida.'],
+    ],
+    servicesTitle: 'Xizmatlarimiz',
+    services: [
+      ['Korporativ ovqatlanish', 'Ofis yoki kompaniya xodimlari uchun har kungi tushliklar.'],
+      ['Qurilish va ish obyektlari uchun ovqatlanish', 'Katta jamoalar uchun kuniga 1–3 mahal kompleks ovqatlanish.'],
+      ['Ofisga tushlik', 'Issiq taomlar, setlar va ichimliklar yetkazib berish bilan.'],
+      ['Tadbirlar uchun keytering', 'Uchrashuv, bayram va banketlar uchun shashliklar, gazaklar, salatlar, ichimliklar va setlar.'],
+    ],
+    packagesTitle: 'Ovqatlanish formatlari namunalari',
+    packagesText: 'Yakuniy menyu va narx individual hisoblanadi: odamlar soni, jadval va tanlangan taomlarga qarab.',
+    packages: [
+      ['Ofis tushligi', ['sho‘rva', 'issiq taom', 'salat', 'non', 'ichimlik']],
+      ['Jamoa uchun shashlik seti', ['shashliklar', 'nonlar', 'salatlar', 'ichimliklar']],
+      ['Obyektga ovqatlanish', ['nonushta', 'tushlik', 'jadval bo‘yicha kechki ovqat']],
+      ['Tadbir', ['setlar', 'gazaklar', 'ichimliklar', 'kelishuv asosida servis']],
+    ],
+    priceNote: 'Narx individual hisoblanadi',
+    setsLink: 'Narxlari bilan korporativ setlar',
+    stepsTitle: 'Buyurtma qanday beriladi',
+    steps: ['Ariza qoldiring', 'Odamlar soni, byudjet va formatni aniqlaymiz', 'Menyu va taklif tayyorlaymiz', 'Buyurtmani o‘z vaqtida yetkazamiz'],
+    contactTitle: 'Jamoa yoki tadbir uchun ovqat kerakmi?',
+    contactText: 'Necha kishini ovqatlantirish kerakligini va qaysi format mos kelishini yozing. Byudjetingizga mos taklif tayyorlaymiz.',
+    address: 'Toshkent, Matbuotchilar, 17',
+  },
+  en: {
+    seoTitle: 'Catering and corporate meals in Tashkent | Zar Kebab',
+    seoDescription: 'Zar Kebab offers corporate meals, office lunches, shashlik sets and event catering in Tashkent. A menu built around your budget.',
+    seoKeywords: 'catering Tashkent, corporate meals Tashkent, office lunch Tashkent, Zar Kebab, shashlik catering',
+    back: 'Back to menu',
+    eyebrow: 'Zar Kebab catering',
+    title: 'Catering and corporate meals from Zar Kebab',
+    intro: 'Hot lunches, shashlik, sets and full meal plans for offices, teams, construction sites and events in Tashkent.',
+    getOffer: 'Get an offer',
+    call: 'Call us',
+    telegram: 'Message on Telegram',
+    guestsLabel: 'For teams',
+    guests: 'from 10 to 300+ guests',
+    tags: ['Delivery across Tashkent', 'A menu for your budget', 'Hot dishes every day'],
+    benefitsTitle: 'Why teams choose Zar Kebab',
+    benefits: [
+      ['Generous portions', 'Hot dishes, shashlik, soups, salads and drinks for a complete lunch.'],
+      ['A menu made for you', 'We build the menu around your budget, headcount and meal format.'],
+      ['Convenient delivery', 'We deliver across Tashkent at the time that suits you.'],
+      ['Flexible payment', 'Cash, bank transfer, card terminal or an agreement for regular clients.'],
+    ],
+    servicesTitle: 'Our services',
+    services: [
+      ['Corporate meals', 'Daily lunches for an office or company team.'],
+      ['Meals for construction and work sites', 'Full meals one to three times a day for large crews.'],
+      ['Office lunches', 'Hot dishes, sets and drinks, delivered.'],
+      ['Event catering', 'Shashlik, starters, salads, drinks and sets for meetings, celebrations and banquets.'],
+    ],
+    packagesTitle: 'Example meal formats',
+    packagesText: 'The final menu and price are worked out for each order: headcount, schedule and the dishes you choose.',
+    packages: [
+      ['Office lunch', ['soup', 'main dish', 'salad', 'bread', 'drink']],
+      ['Shashlik set for a team', ['shashlik', 'flatbread', 'salads', 'drinks']],
+      ['Meals on site', ['breakfast', 'lunch', 'dinner on schedule']],
+      ['Event', ['sets', 'starters', 'drinks', 'table service by agreement']],
+    ],
+    priceNote: 'Priced for each order',
+    setsLink: 'Corporate sets with prices',
+    stepsTitle: 'How to order',
+    steps: ['Send a request', 'We confirm headcount, budget and format', 'We prepare a menu and an offer', 'We deliver on time'],
+    contactTitle: 'Need food for a team or an event?',
+    contactText: 'Tell us how many people to feed and which format suits you. We will prepare an offer for your budget.',
+    address: 'Matbuotchilar 17, Tashkent',
+  },
+}
 
 function upsertMeta(name, content) {
   let tag = document.querySelector(`meta[name="${name}"]`)
@@ -53,233 +163,180 @@ function upsertMeta(name, content) {
   tag.setAttribute('content', content)
 }
 
-function SectionTitle({ eyebrow, title, text, tone = 'dark' }) {
-  const light = tone === 'light'
+function SectionHeading({ children, text = '' }) {
   return (
-    <div className="mx-auto mb-8 max-w-2xl text-center">
-      {eyebrow && <p className={`mb-2 text-xs font-black uppercase tracking-[0.22em] ${light ? 'text-[#e3b65a]' : 'text-[#7a5a17]'}`}>{eyebrow}</p>}
-      <h2 className={`text-3xl font-black tracking-tight sm:text-4xl ${light ? 'text-white' : 'text-[#18392f]'}`}>{title}</h2>
-      {text && <p className={`mt-3 text-base leading-7 ${light ? 'text-[#f7e6c8]' : 'text-[#6d6256]'}`}>{text}</p>}
+    <div className="max-w-3xl">
+      <h2 className="zk-serif lux-title text-[34px] font-semibold leading-tight sm:text-[44px]">{children}</h2>
+      {text && <p className="lux-muted mt-2 text-sm font-light leading-relaxed sm:text-base">{text}</p>}
     </div>
   )
 }
 
-function ContactButton({ href, children, variant = 'primary' }) {
-  const classes = variant === 'primary'
-    ? 'bg-[#f3b33d] text-[#17372e] shadow-[0_18px_34px_rgba(179,119,31,0.22)] hover:bg-[#ffc75b]'
-    : 'border border-[#d7c2a4] bg-white/85 text-[#17372e] hover:border-[#f3b33d] hover:bg-[#fff8ec]'
+function ContactActions({ copy, className = '' }) {
   return (
-    <a href={href} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-sm font-black transition-all ${classes}`}>
-      {children}
-    </a>
-  )
-}
-
-function FoodVisual() {
-  return (
-    <div className="relative mx-auto grid max-w-[520px] grid-cols-5 gap-3">
-      <div className="col-span-5 overflow-hidden rounded-[30px] border border-white/40 bg-[#fff8ec] p-3 shadow-2xl sm:col-span-3">
-        <img src={heroImages[0]} alt="Zar Kebab catering" className="h-64 w-full rounded-[24px] object-cover" loading="eager" fetchPriority="high" />
-      </div>
-      <div className="col-span-5 grid gap-3 sm:col-span-2">
-        {heroImages.slice(1).map((src, index) => (
-          <div key={src} className="overflow-hidden rounded-[24px] border border-white/40 bg-white p-2 shadow-xl">
-            <img src={src} alt={`Zar Kebab menu ${index + 1}`} className="h-28 w-full rounded-[18px] object-cover" loading="eager" />
-          </div>
-        ))}
-      </div>
-      <div className="absolute -bottom-5 left-5 rounded-2xl border border-[#f4d9a4] bg-white px-4 py-3 shadow-xl">
-        <p className="text-xs font-black uppercase tracking-wide text-[#7a5a17]">для команд</p>
-        <p className="text-lg font-black text-[#17372e]">от 10 до 300+ гостей</p>
-      </div>
+    <div className={`flex flex-col gap-3 sm:flex-row sm:flex-wrap ${className}`}>
+      <a href={TELEGRAM_HREF} target="_blank" rel="noreferrer" className="lux-primary inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold"><Send size={17} aria-hidden="true" />{copy.telegram}</a>
+      <a href={PHONE_HREF} className="lux-cta inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold"><Phone size={17} aria-hidden="true" />{copy.call}</a>
     </div>
   )
 }
 
 export default function CateringPage() {
+  const navigate = useNavigate()
+  const { state } = useApp()
+  const lang = state.lang || 'ru'
+  const copy = COPY[lang] || COPY.en
+
   useEffect(() => {
     const previousTitle = document.title
-    document.title = 'Кейтеринг и корпоративное питание в Ташкенте | Zar Kebab'
-    upsertMeta('description', 'Zar Kebab предлагает корпоративное питание, обеды в офис, шашлык-сеты и кейтеринг для мероприятий в Ташкенте. Индивидуальное меню под ваш бюджет.')
-    upsertMeta('keywords', 'кейтеринг Ташкент, корпоративное питание Ташкент, обеды в офис Ташкент, доставка обедов, Zar Kebab, шашлык кейтеринг')
+    document.title = copy.seoTitle
+    upsertMeta('description', copy.seoDescription)
+    upsertMeta('keywords', copy.seoKeywords)
+    document.documentElement.lang = lang
     return () => { document.title = previousTitle }
-  }, [])
+  }, [copy.seoDescription, copy.seoKeywords, copy.seoTitle, lang])
+
+  function animatedNavigate(event, path) {
+    event.preventDefault()
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion || typeof document.startViewTransition !== 'function') {
+      navigate(path)
+      return
+    }
+    document.startViewTransition(() => {
+      flushSync(() => navigate(path))
+    })
+  }
 
   return (
-    <div className="min-h-screen bg-[#fbf4e8] text-[#2b2925]">
-      <header className="sticky top-0 z-40 border-b border-[#ead8bc] bg-[#fbf4e8]/92 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <a href="/menu" className="flex items-center gap-3">
-            <img src={getBrandLogo('ru')} alt="Zar Kebab" className="h-12 w-auto max-w-[150px] object-contain" />
-          </a>
-          <nav className="hidden items-center gap-6 text-sm font-bold text-[#4d463c] md:flex">
-            <a href="#services" className="inline-flex min-h-11 items-center hover:text-[#7a5a17]">Услуги</a>
-            <a href="#packages" className="inline-flex min-h-11 items-center hover:text-[#7a5a17]">Форматы</a>
-            <a href="#contacts" className="inline-flex min-h-11 items-center hover:text-[#7a5a17]">Контакты</a>
-          </nav>
-          <ContactButton href={PHONE_HREF} variant="secondary">
-            <Phone size={16} />
-            <span className="hidden sm:inline">{PHONE_DISPLAY}</span>
-            <span className="sm:hidden">Позвонить</span>
-          </ContactButton>
+    <div className="zk-lux public-page-enter min-h-screen">
+      <header className="lux-header sticky top-0 z-40 border-b">
+        <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:h-20 sm:px-6">
+          <Link to="/menu" onClick={event => animatedNavigate(event, '/menu')} aria-label={copy.back} className="lux-muted -ml-2 inline-flex min-h-11 min-w-11 items-center justify-center gap-2 justify-self-start rounded-full px-2 text-sm font-medium hover:underline sm:justify-start">
+            <ArrowLeft size={18} aria-hidden="true" className="flex-shrink-0" />
+            <span className="hidden sm:inline">{copy.back}</span>
+          </Link>
+          <Link to="/menu" onClick={event => animatedNavigate(event, '/menu')} aria-label="Zar Kebab" className="flex min-h-11 items-center gap-2.5 justify-self-center sm:gap-3">
+            <img src={getBrandLogo(lang)} alt="" className="h-11 w-auto object-contain sm:h-14" />
+            <span className="lux-gold hidden whitespace-nowrap text-xs font-black uppercase tracking-[0.15em] min-[360px]:inline">Zar Kebab</span>
+          </Link>
+          <div className="flex items-center gap-2 justify-self-end">
+            <ThemeToggle lang={lang} variant="lux" className="!h-11 !w-11" />
+            <LanguageSwitcher variant="lux" />
+          </div>
         </div>
       </header>
 
       <main>
-        <section className="relative overflow-hidden bg-[#17372e] text-white">
-          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 18% 22%, #f3b33d 0, transparent 28%), radial-gradient(circle at 78% 35%, #fff4d6 0, transparent 24%)' }} />
-          <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-16">
+        <section className="lux-page-2 lux-line border-b">
+          <div className="mx-auto grid max-w-[1280px] gap-8 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-center lg:gap-12">
             <div>
-              <p className="mb-4 inline-flex rounded-full border border-[#f3b33d]/35 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#ffd477]">
-                Zar Kebab Catering
-              </p>
-              <h1 className="max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-                Кейтеринг и корпоративное питание от Zar Kebab
-              </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-[#f7e6c8]">
-                Горячие обеды, шашлыки, сеты и комплексное питание для офисов, команд, строительных объектов и мероприятий в Ташкенте.
-              </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <ContactButton href="#contacts">Получить предложение<ArrowRight size={17} /></ContactButton>
-                <ContactButton href={PHONE_HREF} variant="secondary"><Phone size={17} />Позвонить</ContactButton>
-                <ContactButton href={INSTAGRAM_HREF} variant="secondary"><Instagram size={17} />Написать в Instagram</ContactButton>
+              <p className="lux-gold text-xs font-medium uppercase tracking-[0.3em]">{copy.eyebrow}</p>
+              <h1 className="zk-serif lux-title mt-3 text-[40px] font-semibold leading-[1.02] sm:text-[60px]">{copy.title}</h1>
+              <p className="lux-body mt-4 max-w-2xl text-base font-light leading-relaxed sm:text-lg">{copy.intro}</p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a href="#contacts" className="lux-primary inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold">{copy.getOffer}<ArrowRight size={17} aria-hidden="true" /></a>
+                <a href={PHONE_HREF} className="lux-cta inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-sm font-semibold"><Phone size={17} aria-hidden="true" />{copy.call}</a>
               </div>
-              <div className="mt-7 flex flex-wrap gap-2">
-                {['Доставка по Ташкенту', 'Меню под ваш бюджет', 'Для малых и больших команд', 'Горячие блюда каждый день'].map(label => (
-                  <span key={label} className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-black text-[#fff5df]">{label}</span>
+              <ul className="mt-6 flex flex-wrap gap-2 text-xs font-medium">
+                {copy.tags.map(tag => (
+                  <li key={tag} className="lux-chip lux-chip-static inline-flex items-center rounded-full px-3 py-2">{tag}</li>
                 ))}
+              </ul>
+            </div>
+            <div className="relative">
+              <div className="lux-glass rounded-[28px] p-2">
+                <img src={heroImage} alt="" fetchpriority="high" className="aspect-[4/3] w-full rounded-[22px] object-cover" />
+              </div>
+              <div className="lux-glass absolute -bottom-4 left-5 rounded-2xl px-4 py-3">
+                <p className="lux-gold text-xs font-medium uppercase tracking-[0.2em]">{copy.guestsLabel}</p>
+                <p className="zk-serif lux-title text-[22px] font-semibold leading-tight">{copy.guests}</p>
               </div>
             </div>
-            <FoodVisual />
           </div>
         </section>
 
-        <section className="px-4 py-12 sm:px-6">
-          <div className="mx-auto max-w-7xl">
-            <SectionTitle eyebrow="преимущества" title="Почему выбирают Zar Kebab" />
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {benefits.map(([title, text, Icon]) => (
-                <article key={title} className="rounded-3xl border border-[#ead8bc] bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#18392f] text-[#f3b33d]"><Icon size={22} /></div>
-                  <h3 className="text-lg font-black text-[#18392f]">{title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#6d6256]">{text}</p>
+        <section className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 sm:py-16">
+          <SectionHeading>{copy.benefitsTitle}</SectionHeading>
+          <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {copy.benefits.map(([title, text], index) => {
+              const Icon = BENEFIT_ICONS[index]
+              return (
+                <article key={title} className="lux-glass rounded-[28px] p-6">
+                  <span className="lux-soft lux-gold flex h-12 w-12 items-center justify-center rounded-full"><Icon size={21} aria-hidden="true" /></span>
+                  <h3 className="zk-serif lux-title mt-5 text-[24px] font-semibold leading-tight">{title}</h3>
+                  <p className="lux-body mt-2 text-sm font-light leading-relaxed">{text}</p>
                 </article>
-              ))}
-            </div>
+              )
+            })}
           </div>
         </section>
 
-        <section id="services" className="bg-[#fffaf1] px-4 py-12 sm:px-6">
-          <div className="mx-auto max-w-7xl">
-            <SectionTitle eyebrow="услуги" title="Наши услуги" />
-            <div className="grid gap-4 md:grid-cols-2">
-              {services.map(([title, text], index) => (
-                <article key={title} className="rounded-3xl border border-[#ead8bc] bg-white p-6 shadow-sm">
-                  <div className="mb-4 flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#f3b33d] text-base font-black text-[#18392f]">{index + 1}</span>
-                    <h3 className="text-xl font-black text-[#18392f]">{title}</h3>
+        <section id="services" className="lux-page-2 lux-line scroll-mt-24 border-y">
+          <div className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 sm:py-16">
+            <SectionHeading>{copy.servicesTitle}</SectionHeading>
+            <ol className="mt-5 grid gap-x-10 md:grid-cols-2">
+              {copy.services.map(([title, text], index) => (
+                <li key={title} className="lux-line flex gap-4 border-b py-5">
+                  <span className="zk-serif lux-gold w-8 flex-shrink-0 text-[28px] font-semibold leading-none tabular-nums">{index + 1}</span>
+                  <div>
+                    <h3 className="zk-serif lux-title text-[24px] font-semibold leading-tight">{title}</h3>
+                    <p className="lux-body mt-1.5 text-sm font-light leading-relaxed">{text}</p>
                   </div>
-                  <p className="text-sm leading-7 text-[#6d6256]">{text}</p>
-                </article>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </section>
 
-        <section id="packages" className="px-4 py-12 sm:px-6">
-          <div className="mx-auto max-w-7xl">
-            <SectionTitle eyebrow="форматы" title="Примеры форматов питания" text="Финальное меню и стоимость рассчитываются индивидуально: от количества человек, графика и выбранных блюд." />
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {packages.map(([title, items]) => (
-                <article key={title} className="flex min-h-[260px] flex-col rounded-3xl border border-[#ead8bc] bg-white p-6 shadow-sm">
-                  <h3 className="text-xl font-black text-[#18392f]">{title}</h3>
-                  <ul className="mt-4 space-y-2">
-                    {items.map(item => (
-                      <li key={item} className="flex gap-2 text-sm font-bold text-[#5f5549]">
-                        <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-[#b8892f]" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-auto rounded-2xl bg-[#fbf4e8] px-4 py-3 text-sm font-black text-[#8a6421]">Цена рассчитывается индивидуально</p>
-                </article>
+        <section id="packages" className="mx-auto max-w-[1280px] scroll-mt-24 px-4 py-12 sm:px-6 sm:py-16">
+          <SectionHeading text={copy.packagesText}>{copy.packagesTitle}</SectionHeading>
+          <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {copy.packages.map(([title, items]) => (
+              <article key={title} className="lux-glass flex flex-col rounded-[28px] p-6">
+                <h3 className="zk-serif lux-title text-[24px] font-semibold leading-tight">{title}</h3>
+                <ul className="mt-4 space-y-2.5">
+                  {items.map(item => (
+                    <li key={item} className="lux-body flex items-start gap-2.5 text-sm font-light leading-6">
+                      <CheckCircle2 size={17} aria-hidden="true" className="lux-gold mt-0.5 flex-shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="lux-muted mt-auto pt-5 text-xs">{copy.priceNote}</p>
+              </article>
+            ))}
+          </div>
+          <Link to="/corporate-sets" onClick={event => animatedNavigate(event, '/corporate-sets')} className="lux-gold mt-6 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold hover:underline">
+            {copy.setsLink}<ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </section>
+
+        <section className="lux-page-2 lux-line border-y">
+          <div className="mx-auto max-w-[1280px] px-4 py-12 sm:px-6 sm:py-16">
+            <SectionHeading>{copy.stepsTitle}</SectionHeading>
+            <ol className="mt-7 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {copy.steps.map((step, index) => (
+                <li key={step} className="border-t pt-4" style={{ borderColor: '#C9A86A' }}>
+                  <span className="zk-serif lux-gold text-[34px] font-semibold leading-none tabular-nums">{index + 1}</span>
+                  <p className="lux-title mt-2 text-base font-medium leading-snug">{step}</p>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </section>
 
-        <section className="bg-[#17372e] px-4 py-12 text-white sm:px-6">
-          <div className="mx-auto max-w-7xl">
-            <SectionTitle eyebrow="процесс" title="Как оформить заказ" tone="light" />
-            <div className="grid gap-4 md:grid-cols-4">
-              {steps.map((step, index) => (
-                <article key={step} className="rounded-3xl border border-white/12 bg-white/8 p-5">
-                  <span className="text-3xl font-black text-[#f3b33d]">{index + 1}</span>
-                  <p className="mt-4 text-base font-black leading-6 text-white">{step}</p>
-                </article>
-              ))}
+        <section id="contacts" className="scroll-mt-24 px-4 py-12 sm:px-6 sm:py-16">
+          <div className="lux-glass mx-auto grid max-w-[1280px] gap-8 rounded-[32px] px-6 py-8 sm:px-10 sm:py-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="max-w-2xl">
+              <h2 className="zk-serif lux-title text-[32px] font-semibold leading-tight sm:text-[40px]">{copy.contactTitle}</h2>
+              <p className="lux-muted mt-2 text-sm font-light leading-relaxed sm:text-base">{copy.contactText}</p>
+              <ContactActions copy={copy} className="mt-6" />
             </div>
-          </div>
-        </section>
-
-        <section className="px-4 py-12 sm:px-6">
-          <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div className="rounded-[34px] border border-[#ead8bc] bg-white p-7 shadow-sm">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.22em] text-[#7a5a17]">качество</p>
-              <h2 className="text-3xl font-black text-[#18392f]">Качество и свежесть каждый день</h2>
-              <p className="mt-4 text-base leading-8 text-[#6d6256]">
-                Мы готовим блюда из свежих продуктов, следим за чистотой кухни и подачей. Для корпоративных заказов можем заранее согласовать меню, порции и график доставки.
-              </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[[ShieldCheck, 'Свежие продукты'], [Clock, 'Горячая доставка'], [CheckCircle2, 'Контроль качества']].map(([Icon, title]) => (
-                <article key={title} className="rounded-3xl border border-[#ead8bc] bg-white p-5 text-center shadow-sm">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff0c9] text-[#9a6a17]"><Icon size={22} /></div>
-                  <h3 className="font-black text-[#18392f]">{title}</h3>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="px-4 pb-12 sm:px-6">
-          <div className="mx-auto max-w-7xl overflow-hidden rounded-[36px] bg-[#18392f] p-8 text-white shadow-2xl sm:p-10">
-            <div className="grid gap-7 lg:grid-cols-[1fr_auto] lg:items-center">
-              <div>
-                <h2 className="text-3xl font-black sm:text-4xl">Нужно питание для команды или мероприятия?</h2>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-[#f7e6c8]">Напишите нам — подготовим индивидуальное предложение под ваш бюджет и количество человек.</p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
-                <ContactButton href={PHONE_HREF}><Phone size={17} />Позвонить: {PHONE_DISPLAY}</ContactButton>
-                <ContactButton href={INSTAGRAM_HREF} variant="secondary"><Instagram size={17} />Instagram @zarkebab</ContactButton>
-                <ContactButton href="#contacts" variant="secondary"><ArrowRight size={17} />Получить предложение</ContactButton>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="contacts" className="bg-[#fffaf1] px-4 py-12 sm:px-6">
-          <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <div>
-              <SectionTitle eyebrow="контакты" title="Свяжитесь с нами" text="Расскажите, сколько человек нужно накормить и какой формат вам подходит. Мы подготовим предложение." />
-              <div className="grid gap-3">
-                <a href={PHONE_HREF} className="flex items-center gap-3 rounded-2xl border border-[#ead8bc] bg-white p-4 font-black text-[#18392f] shadow-sm"><Phone className="text-[#b8892f]" />{PHONE_DISPLAY}</a>
-                <a href={INSTAGRAM_HREF} className="flex items-center gap-3 rounded-2xl border border-[#ead8bc] bg-white p-4 font-black text-[#18392f] shadow-sm"><Instagram className="text-[#b8892f]" />@zarkebab</a>
-                <div className="flex items-center gap-3 rounded-2xl border border-[#ead8bc] bg-white p-4 font-black text-[#18392f] shadow-sm"><MapPin className="text-[#b8892f]" />Ташкент, Матбуотчилар, 17</div>
-              </div>
-            </div>
-            <div className="min-h-[320px] rounded-[34px] border border-[#ead8bc] bg-white p-6 shadow-sm">
-              <div className="flex h-full min-h-[270px] flex-col justify-between rounded-[28px] bg-[#17372e] p-6 text-white">
-                <div>
-                  <Building2 size={34} className="text-[#f3b33d]" />
-                  <h3 className="mt-4 text-2xl font-black">Zar Kebab</h3>
-                  <p className="mt-2 max-w-md text-sm leading-6 text-[#f7e6c8]">Кейтеринг, обеды в офис и горячие блюда для команд в Ташкенте.</p>
-                </div>
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-white/10 p-4"><UsersRound className="mb-2 text-[#f3b33d]" /><p className="font-black">Команды любого размера</p></div>
-                  <div className="rounded-2xl bg-white/10 p-4"><Truck className="mb-2 text-[#f3b33d]" /><p className="font-black">Доставка по графику</p></div>
-                </div>
-              </div>
+            <div className="lux-body flex flex-col text-sm">
+              <a href={PHONE_HREF} className="zk-serif lux-title inline-flex min-h-11 items-center text-[26px] font-semibold hover:underline">{PHONE_DISPLAY}</a>
+              <a href={INSTAGRAM_HREF} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 hover:underline"><Instagram size={16} aria-hidden="true" className="lux-gold" />@zarkebab</a>
+              <p className="flex min-h-11 items-center gap-2"><MapPin size={16} aria-hidden="true" className="lux-gold flex-shrink-0" />{copy.address}</p>
             </div>
           </div>
         </section>
