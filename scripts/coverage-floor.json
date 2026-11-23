@@ -72,6 +72,7 @@
     "src/components/PageShimmer.jsx",
     "src/components/PaidPaymentSplitEditor.jsx",
     "src/components/ProductContributionCard.jsx",
+    "src/components/PublicVisit.jsx",
     "src/components/ReceiptTopBar.jsx",
     "src/components/RollingNumber.jsx",
     "src/components/SalaryOrderPayment.jsx",
