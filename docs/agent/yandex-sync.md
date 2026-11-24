@@ -23,9 +23,7 @@ The cabinet source is **Вручную** (file upload). The YML feed source was 
 
 1. Download the live feed: `curl -s https://www.zarkebab.uz/yandex-menu.yml`. It already drops archived items, frozen categories, tourist prices and zero prices.
 2. Diff its `<name> | <price>` list against `deliverables/yandex-menu-regular.yml` and report added, removed and repriced dishes to the owner.
-3. Fix-ups the POS still needs, applied only in the upload file:
-   - Xортиця variants are both named `Xортиця (Xoritsa)`: rename the 95 000 offer to `Xортиця 500ml` and the 115 000 offer to `Xортиця 750ml`.
-   - Yandex warns on descriptions over 250 characters: trim at a word boundary and end with `…`.
+3. Yandex warns on descriptions over 250 characters: trim those in the upload file at a word boundary and end with `…`. Fix wrong names or labels in the POS admin (`admin.zarkebab.uz/admin/menu/product/<id>`), not in the file; variant offers are named `<dish> (<variant label>)`, e.g. `Xортиця (500 мл)`.
 4. Check the file with `xmllint --noout`, save it over `deliverables/yandex-menu-regular.yml`.
 5. In the price list page click **Загрузить XLS/YML**; the dialog's hidden `input[type=file]` (`UploadPriceListForm-HiddenInput`, accepts `.xml,.yml`) takes the file through `file_upload`. Processing takes about 15 s; success is the toast "Прайс-лист успешно загружен, список товаров обновлен". New rows show a yellow dot while on moderation.
 6. Keep Chrome uploads under ~10 MB per call (larger batches drop the connection).
