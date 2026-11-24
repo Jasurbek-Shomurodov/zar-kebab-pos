@@ -1,6 +1,6 @@
 # Zar Kebab POS Agent Guide
 
-Read this before changing code; then load only the feature guide relevant to the task.
+Read this before changing code; then load only the relevant feature guide.
 
 ## Project essentials
 
@@ -30,11 +30,11 @@ For repository navigation:
 - If the symbol or filename is known, use `rg` and read only the matching range.
 - For an unfamiliar feature, use `repo_nav` to find the feature map, declarations, and focused tests before opening source.
 - Never start by reading a whole large page, `src/lib/db.js`, or a full source-guard suite.
-- `README.md` is an operator runbook: read it only for Telegram setup or deploys.
+- `README.md` (operator runbook): only for Telegram setup or deploys.
 
 ## Read only the relevant guide
 
-Read the feature's guide fully; read more only when a task crosses boundaries.
+Read the guide fully; read more only when a task crosses boundaries.
 
 | Task area | Required guide |
 | --- | --- |
@@ -47,13 +47,14 @@ Read the feature's guide fully; read more only when a task crosses boundaries.
 | Employees, salaries, fines, absences, advances, KPI, employee meals | `docs/agent/payroll.md` |
 | Attendance check-in screen and rotating QR | `docs/agent/attendance.md` |
 | Telegram targets, messages, delivery, cron | `docs/agent/telegram.md` |
+| Yandex Maps menu, reviews | `docs/agent/yandex-sync.md` |
 | Dashboard, reports, historical snapshots, profit and date ranges | `docs/agent/reporting.md` |
 | AI assistant chat and datasets | `docs/agent/assistant.md` |
 | Migrations, DB compatibility, tests, source guards, deployment checks | `docs/agent/database-testing.md` |
 
 UI rules: `DESIGN.md`.
 
-`docs/agent/legacy-context.md` is the former guide; read it only for regressions absent from focused guides.
+`docs/agent/legacy-context.md` (former guide): only for regressions absent from focused guides.
 
 ## Universal invariants
 
@@ -80,6 +81,6 @@ UI rules: `DESIGN.md`.
 
 Run the smallest relevant tests while developing, then `npm test` and `npm run build`. CI (`.github/workflows/checks.yml`) adds the audit, docs check and coverage floor; see `docs/ci.md`.
 
-The Vite large-chunk warning is not a build failure. Protected pages need an authenticated profile for browser verification.
+The Vite large-chunk warning is not a build failure. Browser checks of protected pages need a signed-in profile.
 
 When a change alters a documented invariant, route, RPC contract, historical-data rule, or focused test path, update the corresponding `docs/agent/` guide and `mcp/project-map.json` in the same change.
