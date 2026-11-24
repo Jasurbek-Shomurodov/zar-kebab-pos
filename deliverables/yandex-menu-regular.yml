@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<yml_catalog date="2026-11-24T04:25:07+00:00">
+<yml_catalog date="2026-11-24T05:09:01+00:00">
   <shop>
     <name>Zar Kebab</name>
     <company>Zar Kebab</company>
@@ -1502,7 +1502,7 @@
         <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787757681085-1794641866044-ofeh3nnh.png</picture>
       </offer>
       <offer id="i1787471758083-option-1794331871854">
-        <name>Xортиця 500ml</name>
+        <name>Xортиця (500 мл)</name>
         <vendor>Zar Kebab</vendor>
         <categoryId>15</categoryId>
         <price>95000</price>
@@ -1510,7 +1510,7 @@
         <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787471758083-1794643368426-djqt5cg7.png</picture>
       </offer>
       <offer id="i1787471758083-option-1794368508317">
-        <name>Xортиця 750ml</name>
+        <name>Xортиця (750 мл)</name>
         <vendor>Zar Kebab</vendor>
         <categoryId>15</categoryId>
         <price>115000</price>
