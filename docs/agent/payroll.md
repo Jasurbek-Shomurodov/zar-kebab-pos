@@ -35,7 +35,7 @@
 - Salary writes: Accounting access + audits.
 - Today's absence can be undone only for an active employee with an exact row for the current Tashkent date.
 - Undo absence: confirm, then exact delete by absence id + profile id + date; zero rows is an error.
-- History deletion first retracts tracked employee/Salary/Team Telegram messages (failure keeps the source); deleted bonus/fine/absence/rate events drop delivery records so nothing retries.
+- History deletion first marks employee/Salary/Team Telegram messages removed (failure keeps the source); deleted bonus/fine/absence/rate events drop delivery records so nothing retries.
 - Deactivation/reactivation boundaries are inclusive; only dates between become absences. Archived `deleted_at` is exclusive after the last working date.
 - Employee create/activate/deactivate queue immutable Russian Investor events (`216`: created shows salary). Screens retry safely.
 - `248`: hiring needs linked Telegram first (gated RPC, deferred trigger). Test: `tests/employeeTelegramRegistration.test.js`.

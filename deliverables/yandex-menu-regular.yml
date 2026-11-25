@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<yml_catalog date="2026-11-24T05:09:01+00:00">
+<yml_catalog date="2026-11-25T07:15:07+00:00">
   <shop>
     <name>Zar Kebab</name>
     <company>Zar Kebab</company>
@@ -95,6 +95,15 @@
         <currencyId>UZS</currencyId>
         <description>Нежный и воздушный омлет из свежих яиц, подаётся горячим со свежей зеленью.</description>
         <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1785756897075-1791828240494-cmqeqev8.jpg</picture>
+      </offer>
+      <offer id="i1787034578692">
+        <name>Жареное яйцо</name>
+        <vendor>Zar Kebab</vendor>
+        <categoryId>1</categoryId>
+        <price>10000</price>
+        <currencyId>UZS</currencyId>
+        <description>Классическая яичница из 2 яиц с нежным белком и аппетитным желтком.</description>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787034578692-1787661996257-jxgc8a5h.png</picture>
       </offer>
       <offer id="i1782373232835">
         <name>Сет &quot;Чечевица&quot;</name>

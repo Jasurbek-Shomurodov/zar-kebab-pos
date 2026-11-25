@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { deleteTelegramMessage, sendTelegramMessage } from './telegram.js'
+import { deleteTelegramMessage, replyTelegramRemovedNotice, sendTelegramMessage, telegramOriginalMessageMissing } from './telegram.js'
+
+export const ORDER_REMOVED_TEXT = '❌ <b>Заказ удалён</b>'
 
 const TABLE = 'order_status_telegram_messages'
 
@@ -48,9 +50,10 @@ export async function retractDeletedOrderStatusMessages(supabase, orderIds) {
   for (const row of data || []) {
     let failure = null
     try {
-      await deleteTelegramMessage(row.chat_id, row.message_id)
+      // Keep the order message as history; reply to it with a removal notice.
+      await replyTelegramRemovedNotice(row.chat_id, row.message_id, ORDER_REMOVED_TEXT)
     } catch (error) {
-      if (!/message to delete not found/i.test(error.message || '')) failure = error
+      if (!telegramOriginalMessageMissing(error)) failure = error
     }
     const now = new Date().toISOString()
     const saved = await supabase.from(TABLE).update({

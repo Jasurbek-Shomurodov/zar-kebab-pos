@@ -124,7 +124,7 @@ test('cleanup retries Telegram errors and accepts already missing messages', asy
   assert.equal(failure.ok, false)
   assert.equal(db.row.deleted_at, null)
   assert.match(db.row.cleanup_error, /rights/)
-  const success = await retractDeletedEmployeeOrderKpiNotifications(db, undefined, async () => { throw new Error('Bad Request: message to delete not found') })
+  const success = await retractDeletedEmployeeOrderKpiNotifications(db, undefined, async () => { throw new Error('Bad Request: message to be replied not found') })
   assert.equal(success.ok, true)
   assert.ok(db.row.deleted_at)
   assert.equal(db.row.cleanup_error, '')
@@ -159,4 +159,24 @@ test('failed immediate cleanup preserves the sent receipt and retries only delet
   await retractDeletedEmployeeOrderKpiNotifications(db,undefined,async () => {})
   assert.ok(db.row.deleted_at)
   assert.equal(sends,1)
+})
+
+test('order deletion replies to the private receipt instead of deleting it', async () => {
+  const { ORDER_KPI_REMOVED_TEXT } = await import('../api/telegram/_lib/employeeOrderKpiNotifications.js')
+  const previous = global.fetch, token = process.env.TELEGRAM_BOT_TOKEN
+  process.env.TELEGRAM_BOT_TOKEN = 'test'
+  const calls = []
+  global.fetch = async (url, opts) => { calls.push({ method: url.split('/').at(-1), ...JSON.parse(opts.body) }); return { ok: true, json: async () => ({ ok: true, result: { message_id: 9 } }) } }
+  try {
+    const db = ledger({ status: 'sent', delete_requested: true, telegram_message_id: 123 })
+    assert.equal((await retractDeletedEmployeeOrderKpiNotifications(db)).ok, true)
+    assert.deepEqual(calls.map(c => c.method), ['sendMessage'])
+    assert.equal(calls[0].chat_id, 'private')
+    assert.equal(calls[0].reply_parameters.message_id, 123)
+    assert.equal(calls[0].text, ORDER_KPI_REMOVED_TEXT)
+  } finally {
+    global.fetch = previous
+    if (token === undefined) delete process.env.TELEGRAM_BOT_TOKEN
+    else process.env.TELEGRAM_BOT_TOKEN = token
+  }
 })

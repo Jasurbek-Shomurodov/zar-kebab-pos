@@ -149,6 +149,28 @@ export async function deleteTelegramMessage(chatId, messageId) {
   })
 }
 
+// POS deletions keep the original Telegram message as history and reply to it
+// with a removal notice, so the group still sees what was sent and that it was removed.
+export async function replyTelegramRemovedNotice(chatId, messageId, text = '❌ <b>Удалено</b>') {
+  const normalizedChatId = String(chatId || '').trim()
+  const normalizedMessageId = Number(messageId)
+  if (!normalizedChatId || !Number.isSafeInteger(normalizedMessageId) || normalizedMessageId <= 0) {
+    throw new Error('Telegram chat id and message id are required')
+  }
+  return callTelegramApi('sendMessage', {
+    chat_id: normalizedChatId,
+    text,
+    parse_mode: 'HTML',
+    reply_parameters: { message_id: normalizedMessageId, allow_sending_without_reply: false },
+  })
+}
+
+// The original message is already gone (deleted by hand in Telegram); nothing to mark.
+export function telegramOriginalMessageMissing(error) {
+  return /message to (?:delete|be replied|reply) not found|replied message not found|message_id_invalid/i
+    .test(String(error?.message || error || ''))
+}
+
 export async function editTelegramMessage(chatId, messageId, text) {
   if (!chatId || !Number.isSafeInteger(Number(messageId)) || Number(messageId) <= 0 || !text) {
     throw new Error('Telegram chat id, message id and text are required')

@@ -16,7 +16,7 @@ import {
 import { getDailySalaryNotificationSummary, getTashkentDate } from './_lib/salaryMessages.js'
 import { loadOrderSalaryBalances } from './_lib/orderSalaryBalances.js'
 import { loadSalaryProfiles } from './_lib/salaryProfileData.js'
-import { editTelegramMessage, deleteTelegramMessage, sendTelegramMessage, sendTelegramPhoto } from './_lib/telegram.js'
+import { replyTelegramRemovedNotice, sendTelegramMessage, sendTelegramPhoto, telegramOriginalMessageMissing } from './_lib/telegram.js'
 import { deliverTeamDailyKpi, retractTeamDailyKpiItem } from './_lib/teamDailyKpiDelivery.js'
 import {
   buildAbsenceUndoInvestorMessage,
@@ -1503,34 +1503,22 @@ async function notifyPayment(supabase, user, paymentId, salaryOrderOnly = false)
   }
 }
 
-function telegramMessageWasAlreadyDeleted(error) {
-  const message = String(error?.message || error || '').toLowerCase()
-  return message.includes('message to delete not found')
-    || message.includes('message_id_invalid')
+const SALARY_EVENT_REMOVED_TEXT = {
+  rate: '❌ <b>Изменение зарплаты отменено / Salary change cancelled</b>',
+  payment: '❌ <b>Выплата удалена / Payment removed</b>',
+  bonus: '❌ <b>Бонус удалён / Bonus removed</b>',
+  fine: '❌ <b>Штраф удалён / Fine removed</b>',
+  absence: '❌ <b>Отсутствие удалено / Absence removed</b>',
 }
 
+// Keep the sent message as history; reply to it with a removal notice instead of deleting it.
 async function retractTrackedTelegramMessage(target) {
   try {
-    await deleteTelegramMessage(target.chatId, target.messageId)
-    return { ...target, status: 'deleted' }
+    await replyTelegramRemovedNotice(target.chatId, target.messageId, target.removedText)
+    return { ...target, status: 'marked_removed' }
   } catch (error) {
-    if (telegramMessageWasAlreadyDeleted(error)) {
+    if (telegramOriginalMessageMissing(error)) {
       return { ...target, status: 'already_deleted' }
-    }
-    // Telegram refuses deletion after 48h. A bot can still edit its own rate notice.
-    if (target.cancelText && /message (?:can't|cannot) be deleted/i.test(String(error?.message || error))) {
-      try {
-        await editTelegramMessage(target.chatId, target.messageId, target.cancelText)
-        return { ...target, status: 'cancelled' }
-      } catch (editError) {
-        if (/message is not modified/i.test(String(editError?.message || editError))) {
-          return { ...target, status: 'cancelled' }
-        }
-        if (telegramMessageWasAlreadyDeleted(editError) || /message to edit not found/i.test(String(editError?.message || editError))) {
-          return { ...target, status: 'already_deleted' }
-        }
-        error = editError
-      }
     }
     throw Object.assign(error instanceof Error ? error : new Error(String(error)), {
       targetLabel: target.label,
@@ -1622,11 +1610,7 @@ async function retractSalaryEventMessages(supabase, eventType, eventId) {
   const uniqueTargets = [...new Map(
     targets.map(target => [`${target.chatId}:${target.messageId}`, target])
   ).values()]
-  if (eventType === 'rate') {
-    for (const target of uniqueTargets) {
-      target.cancelText = '<b>❌ Изменение зарплаты отменено / Salary change cancelled</b>\n<s>Изменение ставки / Salary rate change</s>'
-    }
-  }
+  for (const target of uniqueTargets) target.removedText = SALARY_EVENT_REMOVED_TEXT[eventType]
   const settled = await Promise.allSettled(uniqueTargets.map(retractTrackedTelegramMessage))
   const failures = settled
     .filter(result => result.status === 'rejected')
@@ -1638,7 +1622,7 @@ async function retractSalaryEventMessages(supabase, eventType, eventId) {
     const targetNames = failures.map(failure => failure.target).join(', ')
     const detail = failures.map(failure => failure.error).join('; ')
     throw Object.assign(
-      new Error(`Could not delete the Telegram message from: ${targetNames}. ${detail}`),
+      new Error(`Could not mark the Telegram message as removed in: ${targetNames}. ${detail}`),
       { status: 409 }
     )
   }

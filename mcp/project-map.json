@@ -140,8 +140,8 @@
       "symbol": "isFrozenShopMenuCategory"
     },
     {
-      "name": "order status Telegram message cleanup",
-      "aliases": ["delete order status message", "statuses group removal"],
+      "name": "order status Telegram removal notice",
+      "aliases": ["delete order status message", "statuses group removal", "reply removed to Telegram message"],
       "path": "api/telegram/_lib/orderStatusDelivery.js",
       "symbol": "retractDeletedOrderStatusMessages"
     },

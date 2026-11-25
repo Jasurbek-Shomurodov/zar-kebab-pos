@@ -14,7 +14,7 @@
 - Destinations send independently, duplicate-safe. Salaries: 5 rows/page; unsent retry.
 - `248`: unknown `employee_` tokens link new-hire registrations.
 - Salary operations use `api/telegram/employee-notification.js`. Cleanup needs `ok:true` within 30s; a timeout keeps the record and errors.
-- Owner deletions first retract tracked private/Salary (Investor)/Team messages; missing ones succeed. Undeletable rate notices become cancelled; other failures block deletion.
+- Deletes never remove Telegram messages: `replyTelegramRemovedNotice` replies `❌ … удалён` to the original (salary, order status, order KPI). Salary deletes mark private/Salary/Team first; failures block.
 
 ## Salary targets
 
@@ -69,7 +69,7 @@
 - Group identical product/options/notes/price/unit rows as receipts, ignoring variant-note language.
 - `Официант`: saved `waiter_name` across rounds; fallback `Не указан`, never closer.
 - Sum `cashback_earned`; omit zero. After payment: `💳 [owner] · кешбэк + [amount] UZS`; escaped snapshot names or `Карта лояльности`.
-- `185` first. `api/telegram/_lib/orderStatusDelivery.js` tracks new messages; order deletion retracts combined messages, minute cron retries. Missing messages succeed; errors recorded; old untracked stay; Telegram deletes ≤48h.
-- `197`/`198`: private paid-order estimates snapshot order/daily KPI. `203`/`213`: cuts use the opening cutoff on the Tashkent payment date; Salary events snapshot before/after times. `202` cancels queued and retracts sent deleted-order notices (incl. orphans); minute `employee-order-kpi` cron retries; uncertain sends held. Migrations before sender/UI; prior estimates frozen. Tests: `tests/timeBasedKpi.test.js`.
+- `185` first. `api/telegram/_lib/orderStatusDelivery.js` tracks new messages; order deletion marks combined messages removed, minute cron retries. Missing ones succeed; errors recorded.
+- `197`/`198`: private paid-order estimates snapshot order/daily KPI. `203`/`213`: cuts use the opening cutoff on the Tashkent payment date; Salary events snapshot before/after times. `202` cancels queued and marks sent deleted-order notices removed (incl. orphans); minute `employee-order-kpi` cron retries; uncertain sends held. Migrations before sender/UI; prior estimates frozen. Tests: `tests/timeBasedKpi.test.js`.
 - Morning watchdog retries unstarted/failed/skipped (incl. alerted) Investor albums after meal/KPI finalization. Recovery needs a saved message ID; never replay sent/pending. Save alert ID/chat/error after confirmed send.
 - `210`: see [salary orders](salary-orders.md).

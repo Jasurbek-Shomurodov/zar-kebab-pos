@@ -38,7 +38,7 @@ async function telegram(run) {
     else process.env.TELEGRAM_BOT_TOKEN = token
   }
 }
-test('tracks combined order IDs and deletes only requested group messages once', async () => telegram(async calls => {
+test('tracks combined order IDs and marks only requested group messages removed once', async () => telegram(async calls => {
   const db = database()
   await sendTrackedOrderStatusMessage(db, ['a', 'b'], '-100', 'receipt')
   await sendTrackedOrderStatusMessage(db, ['c'], '-200', 'other')
@@ -47,8 +47,12 @@ test('tracks combined order IDs and deletes only requested group messages once',
   db.rows[0].delete_requested = true
   await retractDeletedOrderStatusMessages(db, ['b'])
   await retractDeletedOrderStatusMessages(db)
-  assert.equal(calls.filter(c => c.method === 'deleteMessage').length, 1)
-  assert.equal(calls.at(-1).chat_id, '-100')
+  assert.equal(calls.filter(c => c.method === 'deleteMessage').length, 0)
+  const notices = calls.filter(c => c.reply_parameters)
+  assert.equal(notices.length, 1)
+  assert.equal(notices[0].chat_id, '-100')
+  assert.equal(notices[0].reply_parameters.message_id, 42)
+  assert.match(notices[0].text, /Заказ удалён/)
   assert.ok(db.rows[0].deleted_at)
   assert.equal(db.rows[1].deleted_at, undefined)
 }))
@@ -58,7 +62,7 @@ test('missing messages succeed but permission errors stay retryable', async () =
   assert.equal((await retractDeletedOrderStatusMessages(db)).ok, false)
   assert.match(db.rows[0].error_message, /rights/)
   assert.equal(db.rows[0].deleted_at, undefined)
-  global.fetch = async () => ({ ok: false, json: async () => ({ ok: false, description: 'Bad Request: message to delete not found' }) })
+  global.fetch = async () => ({ ok: false, json: async () => ({ ok: false, description: 'Bad Request: message to be replied not found' }) })
   assert.equal((await retractDeletedOrderStatusMessages(db)).ok, true)
   assert.ok(db.rows[0].deleted_at)
 }))

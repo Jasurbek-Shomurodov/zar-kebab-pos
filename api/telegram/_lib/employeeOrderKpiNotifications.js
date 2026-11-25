@@ -1,5 +1,9 @@
 import { normalizeKpiStartTime } from '../../../src/lib/dailyKpi.js'
-import { deleteTelegramMessage, escapeTelegramHtml, sendTelegramMessage } from './telegram.js'
+import { escapeTelegramHtml, replyTelegramRemovedNotice, sendTelegramMessage, telegramOriginalMessageMissing } from './telegram.js'
+
+export const ORDER_KPI_REMOVED_TEXT = '❌ Заказ удалён — бонус с этого заказа отменён'
+// Keep the private receipt as history; reply to it with a removal notice.
+const markOrderKpiRemoved = (chatId, messageId) => replyTelegramRemovedNotice(chatId, messageId, ORDER_KPI_REMOVED_TEXT)
 
 const money = value => new Intl.NumberFormat('ru-RU').format(Number(value) || 0).replace(/\s/g, ' ')
 
@@ -15,7 +19,7 @@ export function buildEmployeeOrderKpiMessage(snapshot) {
   ].join('\n')
 }
 
-export async function deliverEmployeeOrderKpiNotification(supabase, row, send = sendTelegramMessage, retract = deleteTelegramMessage) {
+export async function deliverEmployeeOrderKpiNotification(supabase, row, send = sendTelegramMessage, retract = markOrderKpiRemoved) {
   const table = 'employee_order_kpi_notifications'
   if (row.status !== 'queued' || row.delete_requested) return { status: 'duplicate' }
   const { data: claimed, error } = await supabase.from(table)
@@ -52,7 +56,7 @@ export async function deliverEmployeeOrderKpiNotification(supabase, row, send = 
   }
 }
 
-export async function retractDeletedEmployeeOrderKpiNotifications(supabase, notificationId, retract = deleteTelegramMessage) {
+export async function retractDeletedEmployeeOrderKpiNotifications(supabase, notificationId, retract = markOrderKpiRemoved) {
   const table = 'employee_order_kpi_notifications'
   let query = supabase.from(table).select('*').eq('delete_requested', true)
     .is('deleted_at', null).not('telegram_message_id', 'is', null)
@@ -66,7 +70,7 @@ export async function retractDeletedEmployeeOrderKpiNotifications(supabase, noti
     try {
       await retract(row.chat_id, row.telegram_message_id)
     } catch (error) {
-      if (!/message to delete not found/i.test(error.message || '')) failure = error
+      if (!telegramOriginalMessageMissing(error)) failure = error
     }
     const now = new Date().toISOString()
     const saved = await supabase.from(table).update({
