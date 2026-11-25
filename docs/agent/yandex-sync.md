@@ -10,6 +10,7 @@ Zar Kebab on Yandex Business: company id `34684464035`. Yandex has no API for re
 - Upload-file script: `scripts/yandex-menu-sync.mjs` (`npm run yandex:menu`)
 - Tests: `tests/yandexMenuFeed.test.js`, `tests/yandexMenuSyncScript.test.js`
 - Last uploaded file: `deliverables/yandex-menu-regular.yml`
+- Daily menu sync: local scheduled task `yandex-menu-sync` (in `~/.claude/scheduled-tasks/`), 09:00 Tashkent: `npm run yandex:menu`, Chrome upload only when the menu changed, Team report, commits the upload file
 - Daily 5★ auto-replies: local scheduled task `yandex-5-star-replies` (in `~/.claude/scheduled-tasks/`), runs in Chrome at 08:00 Tashkent
 
 ## Cabinet pages
