@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
-  MAX_DESCRIPTION, diffOffers, formatReport, parseArgs, parseOffers, trimDescriptions, trimText,
+  MAX_DESCRIPTION, buildTeamMessage, diffOffers, hasChanges, formatReport, parseArgs, parseOffers, trimDescriptions, trimText,
 } from '../scripts/yandex-menu-sync.mjs'
 
 const offer = (id, name, price, description = '') => [
@@ -71,12 +71,39 @@ test('the last uploaded file already fits the description limit', () => {
 })
 
 test('parseArgs accepts the documented options only', () => {
-  assert.deepEqual(parseArgs([]), { fromDb: false, dryRun: false, out: 'deliverables/yandex-menu-regular.yml' })
-  assert.deepEqual(parseArgs(['--from-db', '--dry-run', '--out=/tmp/x.yml']), { fromDb: true, dryRun: true, out: '/tmp/x.yml' })
+  assert.deepEqual(parseArgs([]), { fromDb: false, dryRun: false, uploaded: false, out: 'deliverables/yandex-menu-regular.yml' })
+  assert.deepEqual(parseArgs(['--from-db', '--dry-run', '--uploaded', '--out=/tmp/x.yml']), { fromDb: true, dryRun: true, uploaded: true, out: '/tmp/x.yml' })
   assert.throws(() => parseArgs(['--force']), /Unknown option/)
 })
 
 test('npm run yandex:menu points at the sync script', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.equal(pkg.scripts['yandex:menu'], 'node scripts/yandex-menu-sync.mjs')
+})
+
+test('the Team group report is Russian, escaped and lists every change', () => {
+  const diff = {
+    added: [{ id: 'd', name: 'Самса <новая>', price: 12000 }],
+    removed: [{ id: 'b', name: 'Вода', price: 5000 }],
+    repriced: [{ id: 'a', name: 'Плов', from: 40000, to: 45000 }],
+    renamed: [{ id: 'c', from: 'Чай', to: 'Чай зелёный' }],
+  }
+  const text = buildTeamMessage(diff, 179)
+  assert.match(text, /^🗺 <b>Меню Zar Kebab обновлено в Яндекс Картах<\/b>/)
+  assert.match(text, /Позиций в прайс-листе: 179/)
+  assert.match(text, /➕ Самса &lt;новая&gt; — 12 000 сум/)
+  assert.match(text, /➖ Вода — 5 000 сум/)
+  assert.match(text, /💰 Плов: 40 000 сум → 45 000 сум/)
+  assert.match(text, /✏️ Чай → Чай зелёный/)
+  assert.ok(hasChanges(diff))
+})
+
+test('an unchanged upload still reports, and long reports fit one Telegram message', () => {
+  const empty = { added: [], removed: [], repriced: [], renamed: [] }
+  assert.match(buildTeamMessage(empty, 179), /Изменений в меню нет\./)
+  assert.equal(hasChanges(empty), false)
+  const many = { ...empty, added: Array.from({ length: 300 }, (_, i) => ({ id: String(i), name: `Блюдо номер ${i}`, price: 10000 })) }
+  const text = buildTeamMessage(many, 300)
+  assert.ok(text.length <= 4000)
+  assert.match(text, /…и ещё изменения/)
 })

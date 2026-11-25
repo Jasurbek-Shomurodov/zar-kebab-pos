@@ -22,7 +22,7 @@ Zar Kebab on Yandex Business: company id `34684464035`. Yandex has no API for re
 
 The cabinet source is **Вручную** (file upload). The YML feed source was added but Yandex never ingested it, so a file upload is the working path. Each upload replaces the whole list.
 
-Steps 1–4 are one command, `npm run yandex:menu`; run it, read its report, then do step 5. Options: `--dry-run` (report only), `--from-db` (build from Supabase with this checkout's feed code, using the `.env.local` service key; use it to check feed changes before deploying), `--out=<path>`.
+Steps 1–4 are one command, `npm run yandex:menu`; run it, read its report, then do step 5. In a terminal it then waits for Enter and sends a Russian change report to the Team group (`team_events` target, same as the Google Maps menu sync); non-interactive runs (agents) send it with `npm run yandex:menu -- --uploaded` after the success toast. The diff baseline is the committed `deliverables/yandex-menu-regular.yml`, so commit the file after each upload. Options: `--dry-run` (report only), `--from-db` (build from Supabase with this checkout's feed code, using the `.env.local` service key; use it to check feed changes before deploying), `--out=<path>`.
 
 1. Download the live feed: `https://www.zarkebab.uz/yandex-menu.yml`. It already drops archived items, frozen categories, tourist prices and zero prices.
 2. Diff offers by id against `deliverables/yandex-menu-regular.yml` and report added, removed, repriced and renamed dishes to the owner.

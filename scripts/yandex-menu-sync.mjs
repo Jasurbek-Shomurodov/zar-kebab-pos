@@ -6,9 +6,14 @@
 //   npm run yandex:menu -- --from-db    build from Supabase with this checkout's feed code (.env.local service key)
 //   npm run yandex:menu -- --dry-run    report the diff only, write nothing
 //   npm run yandex:menu -- --out=path   write somewhere else
+//   npm run yandex:menu -- --uploaded   after the cabinet upload: send the change report to the Team group
+//
+// Run in a terminal, the script waits for the upload and then sends the report itself (Ctrl+C skips it).
+// The baseline is the committed deliverables/yandex-menu-regular.yml: commit the file after each upload.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 
 export const FEED_URL = 'https://www.zarkebab.uz/yandex-menu.yml'
@@ -97,6 +102,36 @@ export function formatReport(diff) {
   return lines.length ? lines.join('\n') : 'No menu changes since the last upload.'
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char]))
+}
+
+// Russian Team-group message sent once the upload is live in the Yandex cabinet.
+export function buildTeamMessage(diff, offers, { limit = 4000 } = {}) {
+  const lines = [
+    '🗺 <b>Меню Zar Kebab обновлено в Яндекс Картах</b>',
+    `Позиций в прайс-листе: ${offers}`,
+  ]
+  const section = (title, rows) => {
+    if (!rows.length) return
+    lines.push('', `<b>${title} (${rows.length}):</b>`, ...rows.map(escapeHtml))
+  }
+  section('Добавлено', diff.added.map(offer => `➕ ${offer.name} — ${formatPrice(offer.price)}`))
+  section('Удалено', diff.removed.map(offer => `➖ ${offer.name} — ${formatPrice(offer.price)}`))
+  section('Новая цена', diff.repriced.map(row => `💰 ${row.name}: ${formatPrice(row.from)} → ${formatPrice(row.to)}`))
+  section('Новое название', diff.renamed.map(row => `✏️ ${row.from} → ${row.to}`))
+  if (lines.length === 2) lines.push('', 'Изменений в меню нет.')
+  const text = lines.join('\n')
+  if (text.length <= limit) return text
+  // Telegram caps a message at 4096 characters; cut at a line and say so.
+  const cut = text.slice(0, limit - 40)
+  return `${cut.slice(0, cut.lastIndexOf('\n'))}\n…и ещё изменения (полный список в файле)`
+}
+
+export function hasChanges(diff) {
+  return Object.values(diff).some(rows => rows.length > 0)
+}
+
 function loadEnvFile(path) {
   if (!existsSync(path)) return
   for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
@@ -117,14 +152,54 @@ async function fetchLiveFeed() {
   return response.text()
 }
 
-async function buildFromDb() {
+function loadEnv() {
   loadEnvFile(resolve(process.cwd(), '.env.local'))
   loadEnvFile(resolve(process.cwd(), '.env'))
+}
+
+async function buildFromDb() {
+  loadEnv()
   const { getSupabaseAdmin } = await import('../api/telegram/_lib/supabaseAdmin.js')
   const { loadPosMenu } = await import('../api/_lib/posMenu.js')
   const { buildYandexMenuYml } = await import('../api/yandex-menu/_lib/yandexFeed.js')
   const { categories, items } = await loadPosMenu(getSupabaseAdmin())
   return buildYandexMenuYml(categories, items).yml
+}
+
+// Same Team group as the Google Maps menu sync (telegram_notification_targets.team_events, env fallback).
+async function sendTeamReport(diff, offers) {
+  loadEnv()
+  const { getSupabaseAdmin } = await import('../api/telegram/_lib/supabaseAdmin.js')
+  const { loadGoogleTeamTarget } = await import('../api/google-reviews/_lib/teamNotifications.js')
+  const { sendTelegramMessage } = await import('../api/telegram/_lib/telegram.js')
+  const chatId = await loadGoogleTeamTarget(getSupabaseAdmin())
+  if (!chatId) {
+    console.log('Team group target is disabled or missing; nothing sent.')
+    return
+  }
+  const response = await sendTelegramMessage(chatId, buildTeamMessage(diff, offers))
+  console.log(`Sent the report to the Team group (message ${response?.result?.message_id ?? '?'}).`)
+}
+
+// The committed file is what Yandex had before this upload.
+function committedUpload() {
+  try {
+    return execFileSync('git', ['show', `HEAD:${DEFAULT_OUT}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  } catch {
+    return ''
+  }
+}
+
+async function waitForUpload() {
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
+  try {
+    await rl.question('\nPress Enter once Yandex shows the success toast to notify the Team group (Ctrl+C to skip)… ')
+    return true
+  } catch {
+    return false
+  } finally {
+    rl.close()
+  }
 }
 
 // xmllint ships with macOS; elsewhere a missing binary only skips the check.
@@ -139,9 +214,10 @@ function validateXml(path) {
 }
 
 export function parseArgs(argv) {
-  const args = { fromDb: false, dryRun: false, out: DEFAULT_OUT }
+  const args = { fromDb: false, dryRun: false, uploaded: false, out: DEFAULT_OUT }
   for (const arg of argv) {
     if (arg === '--from-db') args.fromDb = true
+    else if (arg === '--uploaded') args.uploaded = true
     else if (arg === '--dry-run') args.dryRun = true
     else if (arg.startsWith('--out=')) args.out = arg.slice('--out='.length)
     else throw new Error(`Unknown option ${arg}`)
@@ -154,6 +230,15 @@ async function main() {
   const outPath = resolve(process.cwd(), args.out)
   const previousPath = resolve(process.cwd(), DEFAULT_OUT)
 
+  if (args.uploaded) {
+    if (!existsSync(outPath)) throw new Error(`${args.out} does not exist; run npm run yandex:menu first.`)
+    const offers = parseOffers(readFileSync(outPath, 'utf8'))
+    const diff = diffOffers(parseOffers(committedUpload()), offers)
+    console.log(formatReport(diff))
+    await sendTeamReport(diff, offers.length)
+    return
+  }
+
   console.log(args.fromDb ? 'Building the price list from Supabase…' : `Downloading ${FEED_URL}…`)
   const source = args.fromDb ? await buildFromDb() : await fetchLiveFeed()
   const { yml, trimmed } = trimDescriptions(source)
@@ -161,9 +246,11 @@ async function main() {
   // Each upload replaces Yandex's whole list, so an empty file would wipe the menu.
   if (!offers.length) throw new Error('The price list has no offers; refusing to write it.')
 
-  const previous = existsSync(previousPath) ? parseOffers(readFileSync(previousPath, 'utf8')) : []
+  const committed = committedUpload()
+  const previous = parseOffers(committed || (existsSync(previousPath) ? readFileSync(previousPath, 'utf8') : ''))
+  const diff = diffOffers(previous, offers)
   console.log(`\n${offers.length} offers (last upload: ${previous.length}); ${trimmed} description(s) trimmed to ${MAX_DESCRIPTION} characters.\n`)
-  console.log(formatReport(diffOffers(previous, offers)))
+  console.log(formatReport(diff))
 
   if (args.dryRun) {
     console.log('\nDry run: nothing written.')
@@ -173,6 +260,9 @@ async function main() {
   console.log(`\nWrote ${args.out} — XML ${validateXml(outPath)}.`)
   console.log(`\nUpload it in Chrome: ${CABINET_URL}`)
   console.log('  Загрузить XLS/YML → choose the file → wait for "Прайс-лист успешно загружен, список товаров обновлен".')
+  if (process.stdin.isTTY && await waitForUpload()) await sendTeamReport(diff, offers.length)
+  else console.log('\nAfter the upload, run: npm run yandex:menu -- --uploaded')
+  console.log(`Then commit ${args.out} so the next run compares against it.`)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
