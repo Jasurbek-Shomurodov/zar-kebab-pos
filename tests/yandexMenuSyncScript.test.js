@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
-  MAX_DESCRIPTION, buildTeamMessage, diffOffers, hasChanges, formatReport, parseArgs, parseOffers, trimDescriptions, trimText,
+  MAX_DESCRIPTION, buildTeamCaption, buildTeamMessage, diffOffers, hasChanges, formatReport, parseArgs, parseOffers, tashkentDate,
+  trimDescriptions, trimText,
 } from '../scripts/yandex-menu-sync.mjs'
+import { buildYandexSyncImageSvg, wrapLine } from '../api/telegram/_lib/yandexMenuSyncImage.js'
 
 const offer = (id, name, price, description = '') => [
   `      <offer id="${id}">`,
@@ -71,8 +73,9 @@ test('the last uploaded file already fits the description limit', () => {
 })
 
 test('parseArgs accepts the documented options only', () => {
-  assert.deepEqual(parseArgs([]), { fromDb: false, dryRun: false, uploaded: false, out: 'deliverables/yandex-menu-regular.yml' })
-  assert.deepEqual(parseArgs(['--from-db', '--dry-run', '--uploaded', '--out=/tmp/x.yml']), { fromDb: true, dryRun: true, uploaded: true, out: '/tmp/x.yml' })
+  const defaults = { notes: [], image: '', text: false }
+  assert.deepEqual(parseArgs([]), { fromDb: false, dryRun: false, uploaded: false, out: 'deliverables/yandex-menu-regular.yml', ...defaults })
+  assert.deepEqual(parseArgs(['--from-db', '--dry-run', '--uploaded', '--out=/tmp/x.yml']), { fromDb: true, dryRun: true, uploaded: true, out: '/tmp/x.yml', ...defaults })
   assert.throws(() => parseArgs(['--force']), /Unknown option/)
 })
 
@@ -106,4 +109,45 @@ test('an unchanged upload still reports, and long reports fit one Telegram messa
   const text = buildTeamMessage(many, 300)
   assert.ok(text.length <= 4000)
   assert.match(text, /…и ещё изменения/)
+})
+
+test('parseArgs collects report notes, the image path and the text fallback', () => {
+  const args = parseArgs(['--uploaded', '--note=Все отзывы с ответом', '--note= Профиль проверен ', '--image=out.png', '--text'])
+  assert.equal(args.uploaded, true)
+  assert.deepEqual(args.notes, ['Все отзывы с ответом', 'Профиль проверен'])
+  assert.equal(args.image, 'out.png')
+  assert.equal(args.text, true)
+})
+
+test('buildTeamCaption counts the changes and tashkentDate uses the Tashkent business day', () => {
+  const diff = { added: [{}], removed: [{}, {}], repriced: [], renamed: [] }
+  assert.match(buildTeamCaption(diff, 177), /Позиций: 177 · удалено 2, добавлено 1/)
+  assert.match(buildTeamCaption({ added: [], removed: [], repriced: [], renamed: [] }, 179), /без изменений/)
+  assert.equal(tashkentDate(new Date('2026-11-25T19:30:00Z')), '2026-11-26')
+})
+
+test('Yandex sync image lists changes and notes in Russian, escaped, with public data only', () => {
+  const diff = {
+    added: [{ id: 'a', name: 'Самса & чай', price: 12000 }],
+    removed: [{ id: 'b', name: 'Окрошка', price: 25000 }],
+    repriced: [{ id: 'c', name: 'Плов', from: 40000, to: 45000 }],
+    renamed: [],
+  }
+  const svg = buildYandexSyncImageSvg({ diff, offers: 179, previous: 179, date: '2026-11-26', notes: ['Все отзывы с ответом'] })
+  assert.match(svg, /Меню обновлено/)
+  assert.match(svg, /УДАЛЕНО \(1\)/)
+  assert.match(svg, /Окрошка — 25 000 сум/)
+  assert.match(svg, /Самса &amp; чай/)
+  assert.match(svg, /Плов: 40 000 сум → 45 000 сум/)
+  assert.match(svg, /ОТЗЫВЫ И ПРОФИЛЬ/)
+  assert.doesNotMatch(svg, /НОВОЕ НАЗВАНИЕ|себестоим|cost/i)
+  const empty = buildYandexSyncImageSvg({ diff: { added: [], removed: [], repriced: [], renamed: [] }, offers: 5, previous: 5, date: '2026-11-26' })
+  assert.match(empty, /Изменений в меню нет\./)
+  assert.match(empty, /Меню проверено/)
+})
+
+test('wrapLine keeps long dish names on several lines without cutting words', () => {
+  const lines = wrapLine('Очень длинное название блюда '.repeat(4), 30)
+  assert.ok(lines.length > 1)
+  assert.ok(lines.every(line => [...line].length <= 30))
 })

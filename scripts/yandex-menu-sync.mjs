@@ -7,6 +7,9 @@
 //   npm run yandex:menu -- --dry-run    report the diff only, write nothing
 //   npm run yandex:menu -- --out=path   write somewhere else
 //   npm run yandex:menu -- --uploaded   after the cabinet upload: send the change report to the Team group
+//   --note="text"                       extra line for the report image (reviews, profile); repeatable
+//   --image=path                        also save the report PNG (preview it before sending)
+//   --text                              send the old text report instead of the PNG
 //
 // Run in a terminal, the script waits for the upload and then sends the report itself (Ctrl+C skips it).
 // The baseline is the committed deliverables/yandex-menu-regular.yml: commit the file after each upload.
@@ -147,7 +150,12 @@ function loadEnvFile(path) {
 }
 
 async function fetchLiveFeed() {
-  const response = await fetch(FEED_URL, { headers: { 'Cache-Control': 'no-cache' } })
+  let response
+  try {
+    response = await fetch(FEED_URL, { headers: { 'Cache-Control': 'no-cache' } })
+  } catch (error) {
+    throw new Error(`could not reach ${FEED_URL} (${error.cause?.code || error.message}); check the network or use --from-db`)
+  }
   if (!response.ok) throw new Error(`${FEED_URL} answered ${response.status}`)
   return response.text()
 }
@@ -166,19 +174,56 @@ async function buildFromDb() {
   return buildYandexMenuYml(categories, items).yml
 }
 
+// Business date in Tashkent, YYYY-MM-DD.
+export function tashkentDate(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+}
+
+// Short caption under the report PNG; the image carries the full list.
+export function buildTeamCaption(diff, offers) {
+  const counts = [
+    diff.removed.length && `удалено ${diff.removed.length}`,
+    diff.added.length && `добавлено ${diff.added.length}`,
+    diff.repriced.length && `новая цена ${diff.repriced.length}`,
+    diff.renamed.length && `новое название ${diff.renamed.length}`,
+  ].filter(Boolean)
+  return `🗺 <b>Яндекс Карты: меню Zar Kebab обновлено</b>\nПозиций: ${offers}${counts.length ? ` · ${counts.join(', ')}` : ' · без изменений'}`
+}
+
+async function renderReportImage(diff, offers, previous, notes) {
+  const { renderYandexSyncImage } = await import('../api/telegram/_lib/yandexMenuSyncImage.js')
+  return renderYandexSyncImage({ diff, offers, previous, notes, date: tashkentDate() })
+}
+
 // Same Team group as the Google Maps menu sync (telegram_notification_targets.team_events, env fallback).
-async function sendTeamReport(diff, offers) {
+// Sends one PNG with a short caption; falls back to the text report if the image cannot be rendered.
+async function sendTeamReport(diff, offers, { previous = offers, notes = [], text = false } = {}) {
   loadEnv()
   const { getSupabaseAdmin } = await import('../api/telegram/_lib/supabaseAdmin.js')
   const { loadGoogleTeamTarget } = await import('../api/google-reviews/_lib/teamNotifications.js')
-  const { sendTelegramMessage } = await import('../api/telegram/_lib/telegram.js')
+  const { sendTelegramMessage, sendTelegramPhoto } = await import('../api/telegram/_lib/telegram.js')
   const chatId = await loadGoogleTeamTarget(getSupabaseAdmin())
   if (!chatId) {
     console.log('Team group target is disabled or missing; nothing sent.')
     return
   }
-  const response = await sendTelegramMessage(chatId, buildTeamMessage(diff, offers))
-  console.log(`Sent the report to the Team group (message ${response?.result?.message_id ?? '?'}).`)
+  let image = null
+  if (!text) {
+    try {
+      image = await renderReportImage(diff, offers, previous, notes)
+    } catch (error) {
+      console.log(`Could not render the report image (${error.message}); sending text instead.`)
+    }
+  }
+  const response = image
+    ? await sendTelegramPhoto(chatId, image, { caption: buildTeamCaption(diff, offers), filename: `yandex-menu-${tashkentDate()}.png` })
+    : await sendTelegramMessage(chatId, buildTeamMessage(diff, offers))
+  console.log(`Sent the ${image ? 'image' : 'text'} report to the Team group (message ${response?.result?.message_id ?? '?'}).`)
+}
+
+async function saveReportImage(path, diff, offers, previous, notes) {
+  writeFileSync(path, await renderReportImage(diff, offers, previous, notes))
+  console.log(`Saved the report image to ${path}.`)
 }
 
 // The committed file is what Yandex had before this upload.
@@ -214,12 +259,18 @@ function validateXml(path) {
 }
 
 export function parseArgs(argv) {
-  const args = { fromDb: false, dryRun: false, uploaded: false, out: DEFAULT_OUT }
+  const args = {
+    fromDb: false, dryRun: false, uploaded: false, out: DEFAULT_OUT,
+    notes: [], image: '', text: false,
+  }
   for (const arg of argv) {
     if (arg === '--from-db') args.fromDb = true
     else if (arg === '--uploaded') args.uploaded = true
     else if (arg === '--dry-run') args.dryRun = true
+    else if (arg === '--text') args.text = true
     else if (arg.startsWith('--out=')) args.out = arg.slice('--out='.length)
+    else if (arg.startsWith('--note=')) args.notes.push(arg.slice('--note='.length).trim())
+    else if (arg.startsWith('--image=')) args.image = arg.slice('--image='.length)
     else throw new Error(`Unknown option ${arg}`)
   }
   return args
@@ -233,9 +284,11 @@ async function main() {
   if (args.uploaded) {
     if (!existsSync(outPath)) throw new Error(`${args.out} does not exist; run npm run yandex:menu first.`)
     const offers = parseOffers(readFileSync(outPath, 'utf8'))
-    const diff = diffOffers(parseOffers(committedUpload()), offers)
+    const previous = parseOffers(committedUpload())
+    const diff = diffOffers(previous, offers)
     console.log(formatReport(diff))
-    await sendTeamReport(diff, offers.length)
+    if (args.image) await saveReportImage(resolve(process.cwd(), args.image), diff, offers.length, previous.length, args.notes)
+    await sendTeamReport(diff, offers.length, { previous: previous.length, notes: args.notes, text: args.text })
     return
   }
 
@@ -252,6 +305,7 @@ async function main() {
   console.log(`\n${offers.length} offers (last upload: ${previous.length}); ${trimmed} description(s) trimmed to ${MAX_DESCRIPTION} characters.\n`)
   console.log(formatReport(diff))
 
+  if (args.image) await saveReportImage(resolve(process.cwd(), args.image), diff, offers.length, previous.length, args.notes)
   if (args.dryRun) {
     console.log('\nDry run: nothing written.')
     return
@@ -260,7 +314,9 @@ async function main() {
   console.log(`\nWrote ${args.out} — XML ${validateXml(outPath)}.`)
   console.log(`\nUpload it in Chrome: ${CABINET_URL}`)
   console.log('  Загрузить XLS/YML → choose the file → wait for "Прайс-лист успешно загружен, список товаров обновлен".')
-  if (process.stdin.isTTY && await waitForUpload()) await sendTeamReport(diff, offers.length)
+  if (process.stdin.isTTY && await waitForUpload()) {
+    await sendTeamReport(diff, offers.length, { previous: previous.length, notes: args.notes, text: args.text })
+  }
   else console.log('\nAfter the upload, run: npm run yandex:menu -- --uploaded')
   console.log(`Then commit ${args.out} so the next run compares against it.`)
 }
