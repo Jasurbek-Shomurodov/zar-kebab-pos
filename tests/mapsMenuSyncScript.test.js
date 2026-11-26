@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
-  MAX_DESCRIPTION, buildTeamCaption, buildTeamMessage, diffOffers, hasChanges, formatReport, parseArgs, parseOffers, tashkentDate,
-  trimDescriptions, trimText,
-} from '../scripts/yandex-menu-sync.mjs'
-import { buildYandexSyncImageSvg, wrapLine } from '../api/telegram/_lib/yandexMenuSyncImage.js'
+  MAX_DESCRIPTION, buildReport, buildTeamCaption, buildTeamMessage, diffOffers, hasChanges, formatReport, parseArgs, parseOffers,
+  tashkentDate, trimDescriptions, trimText, twoGisOffers,
+} from '../scripts/maps-menu-sync.mjs'
+import { buildMapsSyncImageSvg, wrapLine } from '../api/telegram/_lib/mapsMenuSyncImage.js'
 
 const offer = (id, name, price, description = '') => [
   `      <offer id="${id}">`,
@@ -73,15 +73,36 @@ test('the last uploaded file already fits the description limit', () => {
 })
 
 test('parseArgs accepts the documented options only', () => {
-  const defaults = { notes: [], image: '', text: false }
+  const defaults = { notes: [], image: '', text: false, providers: ['yandex', '2gis'] }
   assert.deepEqual(parseArgs([]), { fromDb: false, dryRun: false, uploaded: false, out: 'deliverables/yandex-menu-regular.yml', ...defaults })
   assert.deepEqual(parseArgs(['--from-db', '--dry-run', '--uploaded', '--out=/tmp/x.yml']), { fromDb: true, dryRun: true, uploaded: true, out: '/tmp/x.yml', ...defaults })
   assert.throws(() => parseArgs(['--force']), /Unknown option/)
+  assert.deepEqual(parseArgs(['--provider=2gis']).providers, ['2gis'])
+  assert.deepEqual(parseArgs(['--provider=Yandex']).providers, ['yandex'])
+  assert.deepEqual(parseArgs(['--provider=all']).providers, ['yandex', '2gis'])
+  assert.throws(() => parseArgs(['--provider=google']), /Unknown provider/)
 })
 
-test('npm run yandex:menu points at the sync script', () => {
+test('npm run maps:menu runs the sync script and yandex:menu stays an alias for the scheduled task', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-  assert.equal(pkg.scripts['yandex:menu'], 'node scripts/yandex-menu-sync.mjs')
+  assert.equal(pkg.scripts['maps:menu'], 'node scripts/maps-menu-sync.mjs')
+  assert.equal(pkg.scripts['yandex:menu'], pkg.scripts['maps:menu'])
+})
+
+test('2GIS CSV offers feed the same diff and the report keeps one tile per map', () => {
+  const before = twoGisOffers('name;price;id\nПлов;40000;a1\n"Сет ""Пельмени""";55000;b2\n')
+  const after = twoGisOffers('name;price;id\nПлов;45000;a1\n')
+  assert.deepEqual(before[1], { id: 'b2', name: 'Сет "Пельмени"', price: 55000 })
+  const diff = diffOffers(before, after)
+  const empty = { added: [], removed: [], repriced: [], renamed: [] }
+  const report = buildReport([
+    { provider: 'yandex', label: 'Яндекс Карты', offers: 179, previous: 179, diff: empty },
+    { provider: '2gis', label: '2ГИС', offers: after.length, previous: before.length, diff },
+  ], ['note'])
+  assert.deepEqual(report.maps.map(map => map.label), ['Яндекс Карты', '2ГИС'])
+  assert.equal(report.diff, empty, 'the Yandex diff is the menu diff')
+  const twoGisOnly = buildReport([{ provider: '2gis', label: '2ГИС', offers: 1, previous: 2, diff }])
+  assert.equal(twoGisOnly.diff.removed[0].name, 'Сет "Пельмени"')
 })
 
 test('the Team group report is Russian, escaped and lists every change', () => {
@@ -121,19 +142,24 @@ test('parseArgs collects report notes, the image path and the text fallback', ()
 
 test('buildTeamCaption counts the changes and tashkentDate uses the Tashkent business day', () => {
   const diff = { added: [{}], removed: [{}, {}], repriced: [], renamed: [] }
-  assert.match(buildTeamCaption(diff, 177), /Позиций: 177 · удалено 2, добавлено 1/)
-  assert.match(buildTeamCaption({ added: [], removed: [], repriced: [], renamed: [] }, 179), /без изменений/)
+  assert.match(buildTeamCaption(diff, [{ label: 'Яндекс Карты', offers: 177 }, { label: '2ГИС', offers: 164 }]),
+    /Яндекс Карты: 177 · 2ГИС: 164 · удалено 2, добавлено 1/)
+  assert.match(buildTeamCaption({ added: [], removed: [], repriced: [], renamed: [] }, 179), /Яндекс Карты: 179 · без изменений/)
   assert.equal(tashkentDate(new Date('2026-11-25T19:30:00Z')), '2026-11-26')
 })
 
-test('Yandex sync image lists changes and notes in Russian, escaped, with public data only', () => {
+test('maps sync image lists changes and notes in Russian, escaped, with public data only', () => {
   const diff = {
     added: [{ id: 'a', name: 'Самса & чай', price: 12000 }],
     removed: [{ id: 'b', name: 'Окрошка', price: 25000 }],
     repriced: [{ id: 'c', name: 'Плов', from: 40000, to: 45000 }],
     renamed: [],
   }
-  const svg = buildYandexSyncImageSvg({ diff, offers: 179, previous: 179, date: '2026-11-26', notes: ['Все отзывы с ответом'] })
+  const maps = [{ label: 'Яндекс Карты', offers: 179, previous: 179 }, { label: '2ГИС', offers: 166, previous: 168 }]
+  const svg = buildMapsSyncImageSvg({ diff, maps, date: '2026-11-26', notes: ['Все отзывы с ответом'] })
+  assert.match(svg, /ZAR KEBAB · ЯНДЕКС КАРТЫ · 2ГИС/)
+  assert.match(svg, />179</)
+  assert.match(svg, />166 \(−2\)</)
   assert.match(svg, /Меню обновлено/)
   assert.match(svg, /УДАЛЕНО \(1\)/)
   assert.match(svg, /Окрошка — 25 000 сум/)
@@ -141,7 +167,7 @@ test('Yandex sync image lists changes and notes in Russian, escaped, with public
   assert.match(svg, /Плов: 40 000 сум → 45 000 сум/)
   assert.match(svg, /ОТЗЫВЫ И ПРОФИЛЬ/)
   assert.doesNotMatch(svg, /НОВОЕ НАЗВАНИЕ|себестоим|cost/i)
-  const empty = buildYandexSyncImageSvg({ diff: { added: [], removed: [], repriced: [], renamed: [] }, offers: 5, previous: 5, date: '2026-11-26' })
+  const empty = buildMapsSyncImageSvg({ diff: { added: [], removed: [], repriced: [], renamed: [] }, maps: [{ label: '2ГИС', offers: 5, previous: 5 }], date: '2026-11-26' })
   assert.match(empty, /Изменений в меню нет\./)
   assert.match(empty, /Меню проверено/)
 })

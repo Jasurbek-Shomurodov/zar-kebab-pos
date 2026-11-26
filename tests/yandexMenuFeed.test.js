@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { buildYandexMenuYml, serveYandexMenuFeed, serveYandexMenuPhoto, yandexPictureUrl } from '../api/yandex-menu/_lib/yandexFeed.js'
+import { buildYandexMenuYml, serveTwoGisMenuFeed, serveYandexMenuFeed, serveYandexMenuPhoto, yandexPictureUrl } from '../api/yandex-menu/_lib/yandexFeed.js'
 import { excludedCategoryNames } from '../api/_lib/posMenu.js'
 
 const categories = [
@@ -94,6 +94,33 @@ test('Yandex feed endpoint never serves an empty feed that would wipe the Yandex
     assert.equal(res.statusCode, 503)
     assert.doesNotMatch(String(res.body), /yml_catalog/)
   }
+})
+
+test('2GIS feed endpoint serves the CSV and never an empty list', async () => {
+  const res = fakeResponse()
+  await serveTwoGisMenuFeed({ method: 'GET' }, res, { supabase: fakeSupabase() })
+  assert.equal(res.statusCode, 200)
+  assert.match(res.headers['content-type'], /text\/csv/)
+  assert.match(res.body, /^name;price;currencyId;measure;available;category;url;picture;vendor;id;description\n/)
+  assert.match(res.body, /Шашлык из говядины;35000;UZS/)
+  for (const supabase of [fakeSupabase({ itemRows: [] }), fakeSupabase({ error: new Error('db down') })]) {
+    const failed = fakeResponse()
+    await serveTwoGisMenuFeed({ method: 'GET' }, failed, { supabase })
+    assert.equal(failed.statusCode, 503)
+  }
+  const post = fakeResponse()
+  await serveTwoGisMenuFeed({ method: 'POST' }, post, { supabase: fakeSupabase() })
+  assert.equal(post.statusCode, 405)
+})
+
+test('2GIS feed is reachable at /2gis-menu.csv ahead of the SPA fallback, without the cron secret', () => {
+  const rewrites = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url))).rewrites
+  const index = rewrites.findIndex(rule => rule.source === '/2gis-menu.csv')
+  assert.equal(rewrites[index]?.destination, '/api/google-reviews/run?task=2gis-feed')
+  assert.ok(index < rewrites.findIndex(rule => rule.destination === '/index.html'))
+  const run = readFileSync(new URL('../api/google-reviews/run.js', import.meta.url), 'utf8')
+  const branch = run.indexOf("requestTask(req) === '2gis-feed'")
+  assert.ok(branch > 0 && branch < run.indexOf('requireCronSecret(req)\n    const task'))
 })
 
 test('Yandex feed is reachable at /yandex-menu.yml ahead of the SPA fallback', () => {

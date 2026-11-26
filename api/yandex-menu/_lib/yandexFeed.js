@@ -1,5 +1,6 @@
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../../../src/lib/nutrition.js'
 import { bySortOrder, clean, excludedCategoryNames, loadPosMenu, localizedText, publicVariants } from '../../_lib/posMenu.js'
+import { buildTwoGisMenuCsv } from '../../_lib/twoGisMenu.js'
 import { json } from '../../telegram/_lib/http.js'
 import { getSupabaseAdmin } from '../../telegram/_lib/supabaseAdmin.js'
 
@@ -124,6 +125,27 @@ export async function serveYandexMenuFeed(req, res, { supabase } = {}) {
     res.end(req.method === 'HEAD' ? undefined : yml)
   } catch (error) {
     console.error('[yandex-menu] feed failed:', error)
+    return json(res, 503, { ok: false, error: 'Menu is temporarily unavailable' })
+  }
+}
+
+// Public 2GIS price list (Товары и услуги → По ссылке), served at /2gis-menu.csv. Built from the same
+// YML as Yandex, minus categories 2GIS forbids (alcohol). Never an empty list: 2GIS replaces it all.
+export async function serveTwoGisMenuFeed(req, res, { supabase } = {}) {
+  if (!['GET', 'HEAD'].includes(req.method)) {
+    res.setHeader('Allow', 'GET, HEAD')
+    return json(res, 405, { error: 'Method not allowed' })
+  }
+  try {
+    const { categories, items } = await loadPosMenu(supabase || getSupabaseAdmin())
+    const { csv, offers } = buildTwoGisMenuCsv(buildYandexMenuYml(categories, items).yml)
+    if (!offers) return json(res, 503, { ok: false, error: 'Menu is empty' })
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=900, stale-while-revalidate=3600')
+    res.end(req.method === 'HEAD' ? undefined : csv)
+  } catch (error) {
+    console.error('[2gis-menu] feed failed:', error)
     return json(res, 503, { ok: false, error: 'Menu is temporarily unavailable' })
   }
 }

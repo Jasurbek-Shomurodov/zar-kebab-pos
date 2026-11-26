@@ -1,27 +1,36 @@
 #!/usr/bin/env node
-// Builds the Yandex Business price-list upload file and reports what changed since the last upload.
-// Yandex has no price-list API, so the final upload stays a click in the cabinet (docs/agent/yandex-sync.md).
+// Maps menu sync: builds the Yandex Business and 2GIS price lists from the POS menu and reports
+// what changed since the last upload. Neither map has a price-list write API, so uploads stay a
+// cabinet step (docs/agent/maps-sync.md); 2GIS can instead fetch /2gis-menu.csv by link.
 //
-//   npm run yandex:menu                 live feed from www.zarkebab.uz -> deliverables/yandex-menu-regular.yml
-//   npm run yandex:menu -- --from-db    build from Supabase with this checkout's feed code (.env.local service key)
-//   npm run yandex:menu -- --dry-run    report the diff only, write nothing
-//   npm run yandex:menu -- --out=path   write somewhere else
-//   npm run yandex:menu -- --uploaded   after the cabinet upload: send the change report to the Team group
+//   npm run maps:menu                   live feed from www.zarkebab.uz -> deliverables/yandex-menu-regular.yml
+//                                       and deliverables/2gis-menu.csv (npm run yandex:menu is the same command)
+//   --provider=yandex|2gis|all          which price lists to build (default all)
+//   --from-db                           build from Supabase with this checkout's feed code (.env.local service key)
+//   --dry-run                           report the diff only, write nothing
+//   --out=path                          write the Yandex file somewhere else
+//   --uploaded                          after the cabinet upload: send the change report to the Team group
 //   --note="text"                       extra line for the report image (reviews, profile); repeatable
 //   --image=path                        also save the report PNG (preview it before sending)
 //   --text                              send the old text report instead of the PNG
 //
 // Run in a terminal, the script waits for the upload and then sends the report itself (Ctrl+C skips it).
-// The baseline is the committed deliverables/yandex-menu-regular.yml: commit the file after each upload.
+// The baselines are the committed deliverables files: commit them after each upload.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
+import { buildTwoGisMenuCsv, parseTwoGisCsv } from '../api/_lib/twoGisMenu.js'
 
 export const FEED_URL = 'https://www.zarkebab.uz/yandex-menu.yml'
 export const CABINET_URL = 'https://yandex.ru/sprav/34684464035/p/edit/price-lists/'
 export const DEFAULT_OUT = 'deliverables/yandex-menu-regular.yml'
+export const TWO_GIS_OUT = 'deliverables/2gis-menu.csv'
+export const TWO_GIS_FEED_URL = 'https://www.zarkebab.uz/2gis-menu.csv'
+export const TWO_GIS_CABINET_URL = 'https://account.2gis.com/'
+export const PROVIDERS = ['yandex', '2gis']
+export const PROVIDER_LABELS = { yandex: 'Яндекс Карты', '2gis': '2ГИС' }
 // Yandex warns on longer descriptions; the cut keeps the ellipsis inside the limit.
 export const MAX_DESCRIPTION = 250
 
@@ -180,24 +189,32 @@ export function tashkentDate(now = new Date()) {
 }
 
 // Short caption under the report PNG; the image carries the full list.
-export function buildTeamCaption(diff, offers) {
+export function buildTeamCaption(diff, maps) {
   const counts = [
     diff.removed.length && `удалено ${diff.removed.length}`,
     diff.added.length && `добавлено ${diff.added.length}`,
     diff.repriced.length && `новая цена ${diff.repriced.length}`,
     diff.renamed.length && `новое название ${diff.renamed.length}`,
   ].filter(Boolean)
-  return `🗺 <b>Яндекс Карты: меню Zar Kebab обновлено</b>\nПозиций: ${offers}${counts.length ? ` · ${counts.join(', ')}` : ' · без изменений'}`
+  const list = (Array.isArray(maps) ? maps : [{ label: PROVIDER_LABELS.yandex, offers: maps }])
+  const totals = list.map(map => `${map.label}: ${map.offers}`).join(' · ')
+  return `🗺 <b>Карты: меню Zar Kebab обновлено</b>\n${totals}${counts.length ? ` · ${counts.join(', ')}` : ' · без изменений'}`
 }
 
-async function renderReportImage(diff, offers, previous, notes) {
-  const { renderYandexSyncImage } = await import('../api/telegram/_lib/yandexMenuSyncImage.js')
-  return renderYandexSyncImage({ diff, offers, previous, notes, date: tashkentDate() })
+// 2GIS CSV rows as the {id, name, price} offers the diff works with.
+export function twoGisOffers(csv) {
+  return parseTwoGisCsv(csv).map(row => ({ id: row.id, name: row.name, price: Number(row.price) || 0 }))
+}
+
+async function renderReportImage(report) {
+  const { renderMapsSyncImage } = await import('../api/telegram/_lib/mapsMenuSyncImage.js')
+  return renderMapsSyncImage({ ...report, date: tashkentDate() })
 }
 
 // Same Team group as the Google Maps menu sync (telegram_notification_targets.team_events, env fallback).
 // Sends one PNG with a short caption; falls back to the text report if the image cannot be rendered.
-async function sendTeamReport(diff, offers, { previous = offers, notes = [], text = false } = {}) {
+// report: { diff, maps: [{ label, offers, previous }], notes }
+async function sendTeamReport(report, { text = false } = {}) {
   loadEnv()
   const { getSupabaseAdmin } = await import('../api/telegram/_lib/supabaseAdmin.js')
   const { loadGoogleTeamTarget } = await import('../api/google-reviews/_lib/teamNotifications.js')
@@ -210,26 +227,26 @@ async function sendTeamReport(diff, offers, { previous = offers, notes = [], tex
   let image = null
   if (!text) {
     try {
-      image = await renderReportImage(diff, offers, previous, notes)
+      image = await renderReportImage(report)
     } catch (error) {
       console.log(`Could not render the report image (${error.message}); sending text instead.`)
     }
   }
   const response = image
-    ? await sendTelegramPhoto(chatId, image, { caption: buildTeamCaption(diff, offers), filename: `yandex-menu-${tashkentDate()}.png` })
-    : await sendTelegramMessage(chatId, buildTeamMessage(diff, offers))
+    ? await sendTelegramPhoto(chatId, image, { caption: buildTeamCaption(report.diff, report.maps), filename: `maps-menu-${tashkentDate()}.png` })
+    : await sendTelegramMessage(chatId, buildTeamMessage(report.diff, report.maps[0]?.offers ?? 0))
   console.log(`Sent the ${image ? 'image' : 'text'} report to the Team group (message ${response?.result?.message_id ?? '?'}).`)
 }
 
-async function saveReportImage(path, diff, offers, previous, notes) {
-  writeFileSync(path, await renderReportImage(diff, offers, previous, notes))
+async function saveReportImage(path, report) {
+  writeFileSync(path, await renderReportImage(report))
   console.log(`Saved the report image to ${path}.`)
 }
 
-// The committed file is what Yandex had before this upload.
-function committedUpload() {
+// The committed file is what the map had before this upload.
+function committedUpload(path = DEFAULT_OUT) {
   try {
-    return execFileSync('git', ['show', `HEAD:${DEFAULT_OUT}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+    return execFileSync('git', ['show', `HEAD:${path}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
   } catch {
     return ''
   }
@@ -238,7 +255,7 @@ function committedUpload() {
 async function waitForUpload() {
   const rl = createInterface({ input: process.stdin, output: process.stdout })
   try {
-    await rl.question('\nPress Enter once Yandex shows the success toast to notify the Team group (Ctrl+C to skip)… ')
+    await rl.question('\nPress Enter once the uploads are live to notify the Team group (Ctrl+C to skip)… ')
     return true
   } catch {
     return false
@@ -261,7 +278,7 @@ function validateXml(path) {
 export function parseArgs(argv) {
   const args = {
     fromDb: false, dryRun: false, uploaded: false, out: DEFAULT_OUT,
-    notes: [], image: '', text: false,
+    notes: [], image: '', text: false, providers: [...PROVIDERS],
   }
   for (const arg of argv) {
     if (arg === '--from-db') args.fromDb = true
@@ -271,59 +288,104 @@ export function parseArgs(argv) {
     else if (arg.startsWith('--out=')) args.out = arg.slice('--out='.length)
     else if (arg.startsWith('--note=')) args.notes.push(arg.slice('--note='.length).trim())
     else if (arg.startsWith('--image=')) args.image = arg.slice('--image='.length)
-    else throw new Error(`Unknown option ${arg}`)
+    else if (arg.startsWith('--provider=')) {
+      const value = arg.slice('--provider='.length).toLowerCase()
+      if (value !== 'all' && !PROVIDERS.includes(value)) throw new Error(`Unknown provider ${value} (yandex, 2gis or all)`)
+      args.providers = value === 'all' ? [...PROVIDERS] : [value]
+    } else throw new Error(`Unknown option ${arg}`)
   }
   return args
+}
+
+function readIfExists(path) {
+  return existsSync(path) ? readFileSync(path, 'utf8') : ''
+}
+
+// One provider's offers now and at the last committed upload.
+function providerState(provider, current, outPath) {
+  const parse = provider === 'yandex' ? parseOffers : twoGisOffers
+  const path = provider === 'yandex' ? DEFAULT_OUT : TWO_GIS_OUT
+  const previous = parse(committedUpload(path) || (provider === 'yandex' ? readIfExists(outPath) : readIfExists(resolve(process.cwd(), path))))
+  const offers = parse(current)
+  return { provider, label: PROVIDER_LABELS[provider], offers: offers.length, previous: previous.length, diff: diffOffers(previous, offers) }
+}
+
+// The image lists the Yandex diff (the full menu); 2GIS differs only by the categories it forbids.
+export function buildReport(states, notes = []) {
+  const main = states.find(state => state.provider === 'yandex') || states[0]
+  return {
+    diff: main.diff,
+    maps: states.map(({ label, offers, previous }) => ({ label, offers, previous })),
+    notes,
+  }
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   const outPath = resolve(process.cwd(), args.out)
-  const previousPath = resolve(process.cwd(), DEFAULT_OUT)
+  const twoGisPath = resolve(process.cwd(), TWO_GIS_OUT)
+  const wantsYandex = args.providers.includes('yandex')
+  const wantsTwoGis = args.providers.includes('2gis')
 
   if (args.uploaded) {
-    if (!existsSync(outPath)) throw new Error(`${args.out} does not exist; run npm run yandex:menu first.`)
-    const offers = parseOffers(readFileSync(outPath, 'utf8'))
-    const previous = parseOffers(committedUpload())
-    const diff = diffOffers(previous, offers)
-    console.log(formatReport(diff))
-    if (args.image) await saveReportImage(resolve(process.cwd(), args.image), diff, offers.length, previous.length, args.notes)
-    await sendTeamReport(diff, offers.length, { previous: previous.length, notes: args.notes, text: args.text })
+    const states = []
+    if (wantsYandex) {
+      if (!existsSync(outPath)) throw new Error(`${args.out} does not exist; run npm run maps:menu first.`)
+      states.push(providerState('yandex', readFileSync(outPath, 'utf8'), outPath))
+    }
+    if (wantsTwoGis) {
+      if (!existsSync(twoGisPath)) throw new Error(`${TWO_GIS_OUT} does not exist; run npm run maps:menu first.`)
+      states.push(providerState('2gis', readFileSync(twoGisPath, 'utf8'), outPath))
+    }
+    const report = buildReport(states, args.notes)
+    console.log(formatReport(report.diff))
+    if (args.image) await saveReportImage(resolve(process.cwd(), args.image), report)
+    await sendTeamReport(report, { text: args.text })
     return
   }
 
-  console.log(args.fromDb ? 'Building the price list from Supabase…' : `Downloading ${FEED_URL}…`)
+  console.log(args.fromDb ? 'Building the price lists from Supabase…' : `Downloading ${FEED_URL}…`)
   const source = args.fromDb ? await buildFromDb() : await fetchLiveFeed()
   const { yml, trimmed } = trimDescriptions(source)
-  const offers = parseOffers(yml)
-  // Each upload replaces Yandex's whole list, so an empty file would wipe the menu.
-  if (!offers.length) throw new Error('The price list has no offers; refusing to write it.')
+  // Each upload replaces the whole list on the map, so an empty file would wipe the menu.
+  if (!parseOffers(yml).length) throw new Error('The price list has no offers; refusing to write it.')
+  const { csv, offers: twoGisCount } = buildTwoGisMenuCsv(source)
+  if (wantsTwoGis && !twoGisCount) throw new Error('The 2GIS price list has no offers; refusing to write it.')
 
-  const committed = committedUpload()
-  const previous = parseOffers(committed || (existsSync(previousPath) ? readFileSync(previousPath, 'utf8') : ''))
-  const diff = diffOffers(previous, offers)
-  console.log(`\n${offers.length} offers (last upload: ${previous.length}); ${trimmed} description(s) trimmed to ${MAX_DESCRIPTION} characters.\n`)
-  console.log(formatReport(diff))
+  const states = []
+  if (wantsYandex) states.push(providerState('yandex', yml, outPath))
+  if (wantsTwoGis) states.push(providerState('2gis', csv, outPath))
+  for (const state of states) {
+    const extra = state.provider === 'yandex' ? `; ${trimmed} description(s) trimmed to ${MAX_DESCRIPTION} characters` : ''
+    console.log(`\n${state.label}: ${state.offers} offers (last upload: ${state.previous})${extra}.`)
+    console.log(formatReport(state.diff))
+  }
+  const report = buildReport(states, args.notes)
 
-  if (args.image) await saveReportImage(resolve(process.cwd(), args.image), diff, offers.length, previous.length, args.notes)
+  if (args.image) await saveReportImage(resolve(process.cwd(), args.image), report)
   if (args.dryRun) {
     console.log('\nDry run: nothing written.')
     return
   }
-  writeFileSync(outPath, yml)
-  console.log(`\nWrote ${args.out} — XML ${validateXml(outPath)}.`)
-  console.log(`\nUpload it in Chrome: ${CABINET_URL}`)
-  console.log('  Загрузить XLS/YML → choose the file → wait for "Прайс-лист успешно загружен, список товаров обновлен".')
-  if (process.stdin.isTTY && await waitForUpload()) {
-    await sendTeamReport(diff, offers.length, { previous: previous.length, notes: args.notes, text: args.text })
+  if (wantsYandex) {
+    writeFileSync(outPath, yml)
+    console.log(`\nWrote ${args.out} — XML ${validateXml(outPath)}.`)
+    console.log(`Upload it in Chrome: ${CABINET_URL}`)
+    console.log('  Загрузить XLS/YML → choose the file → wait for "Прайс-лист успешно загружен, список товаров обновлен".')
   }
-  else console.log('\nAfter the upload, run: npm run yandex:menu -- --uploaded')
-  console.log(`Then commit ${args.out} so the next run compares against it.`)
+  if (wantsTwoGis) {
+    writeFileSync(twoGisPath, csv)
+    console.log(`\nWrote ${TWO_GIS_OUT}.`)
+    console.log(`2GIS: ${TWO_GIS_CABINET_URL} → Товары и услуги. With the link ${TWO_GIS_FEED_URL} set (По ссылке) 2GIS updates itself daily; otherwise Добавить → Из файла → this file.`)
+  }
+  if (process.stdin.isTTY && await waitForUpload()) await sendTeamReport(report, { text: args.text })
+  else console.log('\nAfter the uploads, run: npm run maps:menu -- --uploaded')
+  console.log('Then commit the deliverables files so the next run compares against them.')
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => {
-    console.error(`\nYandex menu sync failed: ${error.message}`)
+    console.error(`\nMaps menu sync failed: ${error.message}`)
     process.exitCode = 1
   })
 }

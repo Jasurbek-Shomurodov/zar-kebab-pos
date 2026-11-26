@@ -60,6 +60,10 @@
       "destination": "/api/google-reviews/run?task=yandex-feed"
     },
     {
+      "source": "/2gis-menu.csv",
+      "destination": "/api/google-reviews/run?task=2gis-feed"
+    },
+    {
       "source": "/yandex-photos/:file",
       "destination": "/api/google-reviews/run?task=yandex-photo&file=:file"
     },

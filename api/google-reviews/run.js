@@ -2,7 +2,7 @@ import { getBearerToken, json, methodNotAllowed } from '../telegram/_lib/http.js
 import { getSupabaseAdmin } from '../telegram/_lib/supabaseAdmin.js'
 import { isGoogleReviewBotConfigured, runGoogleReviewBot } from './_lib/runReviewBot.js'
 import { runGoogleMenuSync } from './_lib/menuSync.js'
-import { serveYandexMenuFeed, serveYandexMenuPhoto } from '../yandex-menu/_lib/yandexFeed.js'
+import { serveTwoGisMenuFeed, serveYandexMenuFeed, serveYandexMenuPhoto } from '../yandex-menu/_lib/yandexFeed.js'
 import { createTeamReplyNotifier } from './_lib/teamNotifications.js'
 import { googleDigestDate, loadHeldReviewDrafts, saveGoogleDigestPart } from './_lib/dailyDigest.js'
 
@@ -27,8 +27,9 @@ async function recordPart(supabase, part, result, date) {
 }
 
 export default async function handler(req, res) {
-  // Public, no cron secret: Yandex Business fetches /yandex-menu.yml and its /yandex-photos/*.jpg.
+  // Public, no cron secret: Yandex Business fetches /yandex-menu.yml and its /yandex-photos/*.jpg; 2GIS fetches /2gis-menu.csv.
   if (requestTask(req) === 'yandex-feed') return serveYandexMenuFeed(req, res)
+  if (requestTask(req) === '2gis-feed') return serveTwoGisMenuFeed(req, res)
   if (requestTask(req) === 'yandex-photo') return serveYandexMenuPhoto(req, res)
   if (!['GET', 'POST'].includes(req.method)) return methodNotAllowed(res, ['GET', 'POST'])
   try {

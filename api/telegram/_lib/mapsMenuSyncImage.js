@@ -2,7 +2,7 @@ import sharp from 'sharp'
 import { formatLongDate } from '../../../src/lib/dateFormat.js'
 import { configurePayrollFonts } from './payrollReportImage.js'
 
-// Russian Team-group PNG for a Yandex Maps sync: price-list changes plus optional notes
+// Russian Team-group PNG for a maps menu sync (Yandex Maps, 2GIS): price-list changes plus optional notes
 // (reviews, profile). Public menu data only: names and regular prices, never costs.
 const WIDTH = 1200
 const CARD_X = 40
@@ -36,7 +36,7 @@ export function wrapLine(text, max = MAX_LINE_CHARS) {
 }
 
 // Sections in reading order; empty ones are dropped so the image stays short.
-export function yandexSyncSections(diff = {}, notes = []) {
+export function mapsSyncSections(diff = {}, notes = []) {
   return [
     { title: 'Удалено', color: '#b42318', rows: (diff.removed || []).map(row => `${row.name} — ${formatSum(row.price)}`) },
     { title: 'Добавлено', color: '#1a7f37', rows: (diff.added || []).map(row => `${row.name} — ${formatSum(row.price)}`) },
@@ -46,8 +46,8 @@ export function yandexSyncSections(diff = {}, notes = []) {
   ].filter(section => section.rows.length)
 }
 
-export function buildYandexSyncImageSvg({ diff, offers = 0, previous = 0, date, notes = [] } = {}) {
-  const sections = yandexSyncSections(diff, notes)
+export function buildMapsSyncImageSvg({ diff, maps = [], date, notes = [] } = {}) {
+  const sections = mapsSyncSections(diff, notes)
   const changed = ['added', 'removed', 'repriced', 'renamed'].some(key => (diff?.[key] || []).length)
   const dateLabel = formatLongDate(date, 'ru', date || '—')
   const leftX = CARD_X + PADDING_X
@@ -55,13 +55,11 @@ export function buildYandexSyncImageSvg({ diff, offers = 0, previous = 0, date, 
   const parts = []
   let y = CARD_X + HEADER_HEIGHT + 34
 
-  // Count tiles: positions now and the change since the last upload.
-  const delta = offers - previous
-  const tiles = [
-    ['Позиций на картах', String(offers)],
-    ['Изменение', delta === 0 ? '0' : `${delta > 0 ? '+' : '−'}${Math.abs(delta)}`],
-  ]
-  const tileWidth = (cardWidth - PADDING_X * 2 - 24) / 2
+  // One tile per map: positions now and the change since its last upload.
+  const signed = delta => (delta === 0 ? '' : ` (${delta > 0 ? '+' : '−'}${Math.abs(delta)})`)
+  const tiles = (maps.length ? maps : [{ label: 'Позиций', offers: 0, previous: 0 }])
+    .map(map => [map.label, `${map.offers}${signed((map.offers || 0) - (map.previous ?? map.offers ?? 0))}`])
+  const tileWidth = (cardWidth - PADDING_X * 2 - 24 * (tiles.length - 1)) / tiles.length
   tiles.forEach(([label, value], index) => {
     const x = leftX + index * (tileWidth + 24)
     parts.push(`<rect x="${x}" y="${y}" width="${tileWidth}" height="120" rx="18" fill="#f6efe4"/>`)
@@ -97,14 +95,14 @@ export function buildYandexSyncImageSvg({ diff, offers = 0, previous = 0, date, 
   <g font-family="Noto Sans">
   <rect x="${CARD_X}" y="${CARD_X}" width="${cardWidth}" height="${cardHeight}" rx="28" fill="white"/>
   <path d="M${CARD_X} ${CARD_X + HEADER_HEIGHT}V${CARD_X + 28}a28 28 0 0 1 28 -28H${CARD_X + cardWidth - 28}a28 28 0 0 1 28 28V${CARD_X + HEADER_HEIGHT}Z" fill="#8b1e1e"/>
-  <text x="${leftX}" y="${CARD_X + 58}" font-size="22" font-weight="700" letter-spacing="3" fill="#f3d9a4">ZAR KEBAB · ЯНДЕКС КАРТЫ</text>
+  <text x="${leftX}" y="${CARD_X + 58}" font-size="22" font-weight="700" letter-spacing="3" fill="#f3d9a4">${escape(['ZAR KEBAB', ...maps.map(map => map.label)].join(' · ').toLocaleUpperCase('ru'))}</text>
   <text x="${leftX}" y="${CARD_X + 118}" font-size="50" font-weight="700" fill="white">${changed ? 'Меню обновлено' : 'Меню проверено'}</text>
   <text x="${leftX}" y="${CARD_X + 160}" font-size="27" fill="white" fill-opacity="0.88">${escape(dateLabel)}</text>
   ${parts.join('\n  ')}
   </g></svg>`
 }
 
-export async function renderYandexSyncImage(summary) {
+export async function renderMapsSyncImage(summary) {
   configurePayrollFonts()
-  return sharp(Buffer.from(buildYandexSyncImageSvg(summary)), { density: 144 }).png().toBuffer()
+  return sharp(Buffer.from(buildMapsSyncImageSvg(summary)), { density: 144 }).png().toBuffer()
 }

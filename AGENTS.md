@@ -47,7 +47,7 @@ Read the guide fully; read more only when a task crosses boundaries.
 | Employees, salaries, fines, absences, advances, KPI, employee meals | `docs/agent/payroll.md` |
 | Attendance check-in screen and rotating QR | `docs/agent/attendance.md` |
 | Telegram targets, messages, delivery, cron | `docs/agent/telegram.md` |
-| Yandex Maps menu, reviews | `docs/agent/yandex-sync.md` |
+| Yandex/2GIS menus, reviews | `docs/agent/maps-sync.md` |
 | Dashboard, reports, historical snapshots, profit and date ranges | `docs/agent/reporting.md` |
 | AI assistant chat and datasets | `docs/agent/assistant.md` |
 | Migrations, DB compatibility, tests, source guards, deployment checks | `docs/agent/database-testing.md` |
