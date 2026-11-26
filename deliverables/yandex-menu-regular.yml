@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<yml_catalog date="2026-11-25T08:15:39+00:00">
+<yml_catalog date="2026-11-26T04:14:20+00:00">
   <shop>
     <name>Zar Kebab</name>
     <company>Zar Kebab</company>
@@ -399,7 +399,7 @@
         <price>70000</price>
         <currencyId>UZS</currencyId>
         <description>450 г — Нежная говядина, обжаренная на сильном огне с болгарским перцем, луком и ароматными специями.</description>
-        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1784779843163-1787201743895-olior53v.png</picture>
+        <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1784779843163-1795625420786-9r5olzx8.png</picture>
       </offer>
       <offer id="i1784780564944">
         <name>Сай с курицей</name>
@@ -495,7 +495,7 @@
         <name>Osh 1kg</name>
         <vendor>Zar Kebab</vendor>
         <categoryId>5</categoryId>
-        <price>100000</price>
+        <price>180000</price>
         <currencyId>UZS</currencyId>
         <description>Традиционный узбекский плов с ароматным рисом, нежным мясом, сладкой морковью и душистыми специями. Сытное блюдо с насыщенным вкусом, воплощающее лучшие традиции узбекской кухни.</description>
         <picture>https://pub-8469d5b8068a45f7a181a1687a084944.r2.dev/menu/products/i1787153682046-1787664351554-e0asncob.png</picture>
