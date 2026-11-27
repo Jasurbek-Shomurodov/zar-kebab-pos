@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { calculateUnitPrice, PRICE_MODE_TOURIST } from '../../src/lib/priceModes.js'
 
 // 2GIS price list (Товары и услуги → Добавить → Из файла / По ссылке), built from the Yandex YML
 // so names, variants, photos and archived-item rules stay identical on both maps.
@@ -60,7 +61,8 @@ function csvField(value) {
 }
 
 // Pure: Yandex YML -> 2GIS CSV rows (objects keyed by TWO_GIS_COLUMNS).
-export function twoGisRowsFromYml(yml, { excludedCategories = twoGisExcludedCategories() } = {}) {
+// 2GIS always lists the tourist price (owner rule, 2026-11-27); the YML carries the regular one.
+export function twoGisRowsFromYml(yml, { excludedCategories = twoGisExcludedCategories(), priceMode = PRICE_MODE_TOURIST } = {}) {
   const categories = new Map([...String(yml).matchAll(/<category id="([^"]*)">([\s\S]*?)<\/category>/g)]
     .map(match => [match[1], decodeXml(match[2]).trim()]))
   const rows = []
@@ -68,7 +70,7 @@ export function twoGisRowsFromYml(yml, { excludedCategories = twoGisExcludedCate
     const body = match[2]
     const category = categories.get(tag(body, 'categoryId')) || ''
     if (excludedCategories.has(category.toLowerCase())) continue
-    const price = Math.round(Number(tag(body, 'price')))
+    const price = calculateUnitPrice(tag(body, 'price'), priceMode)
     if (!(price > 0)) continue
     rows.push({
       name: twoGisName(tag(body, 'name')),

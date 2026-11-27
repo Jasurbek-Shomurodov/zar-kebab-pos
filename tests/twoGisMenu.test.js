@@ -24,7 +24,7 @@ test('2GIS rows reuse the Yandex offers, drop alcohol and zero prices, and keep 
   const rows = twoGisRowsFromYml(yml, { excludedCategories: twoGisExcludedCategories({}) })
   assert.deepEqual(rows.map(row => row.name), ['Шашлык & лук', 'Мохито'])
   assert.deepEqual(rows[0], {
-    name: 'Шашлык & лук', price: 35000, currencyId: 'UZS', measure: '', available: '', category: 'Шашлык', url: '',
+    name: 'Шашлык & лук', price: 42000, currencyId: 'UZS', measure: '', available: '', category: 'Шашлык', url: '',
     picture: 'https://cdn.example/beef.jpg', vendor: '', id: 'zkbeef', description: '150 г — Говядина; "на углях"',
   })
   assert.equal(rows[1].description, '', 'promo words are not allowed in 2GIS descriptions')
@@ -36,7 +36,7 @@ test('2GIS CSV uses the documented header, semicolons and quoted fields that rou
   assert.equal(offers, 2)
   const lines = csv.trimEnd().split('\n')
   assert.equal(lines[0], TWO_GIS_COLUMNS.join(';'))
-  assert.match(lines[1], /^Шашлык & лук;35000;UZS;;;Шашлык;;https:\/\/cdn\.example\/beef\.jpg;;zkbeef;"150 г — Говядина; ""на углях"""$/)
+  assert.match(lines[1], /^Шашлык & лук;42000;UZS;;;Шашлык;;https:\/\/cdn\.example\/beef\.jpg;;zkbeef;"150 г — Говядина; ""на углях"""$/)
   const parsed = parseTwoGisCsv(csv)
   assert.equal(parsed[0].description, '150 г — Говядина; "на углях"')
   assert.equal(parsed[1].name, 'Мохито')

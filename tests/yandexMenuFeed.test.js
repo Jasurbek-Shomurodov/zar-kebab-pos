@@ -102,7 +102,7 @@ test('2GIS feed endpoint serves the CSV and never an empty list', async () => {
   assert.equal(res.statusCode, 200)
   assert.match(res.headers['content-type'], /text\/csv/)
   assert.match(res.body, /^name;price;currencyId;measure;available;category;url;picture;vendor;id;description\n/)
-  assert.match(res.body, /Шашлык из говядины;35000;UZS/)
+  assert.match(res.body, /Шашлык из говядины;42000;UZS/)
   for (const supabase of [fakeSupabase({ itemRows: [] }), fakeSupabase({ error: new Error('db down') })]) {
     const failed = fakeResponse()
     await serveTwoGisMenuFeed({ method: 'GET' }, failed, { supabase })
