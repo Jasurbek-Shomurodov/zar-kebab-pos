@@ -1152,6 +1152,14 @@ export default {
   {
    "filename": "286_accounting_daily_income_by_method.sql",
    "sha256": "02adde7bb09f77cdc768d72a8bdb3943c3fdc6bead33e6cf6f14c57c58e4984f"
+  },
+  {
+   "filename": "287_revoke_unsafe_public_rpcs.sql",
+   "sha256": "c73aee9e66de4ae0ef6ac26443636bf1f80a50cfb1198c14e3e97d6954be8e4e"
+  },
+  {
+   "filename": "288_atomic_loyalty_balance_adjustment.sql",
+   "sha256": "2b9f5a94078dd27b0ffb3b24f58c76d052876c9b940ffcb433671fdb53cec405"
   }
  ],
  "functions": [
@@ -1894,6 +1902,11 @@ export default {
    "name": "get_reports_filter_options",
    "filename": "283_reports_readers_fast.sql",
    "md5": "89f87dadb9b6211de7c7c6091794b16d"
+  },
+  {
+   "name": "adjust_loyalty_card_balance",
+   "filename": "288_atomic_loyalty_balance_adjustment.sql",
+   "md5": "fb077b9b8ee6ad1e69dcab32e3254d87"
   }
  ]
 }

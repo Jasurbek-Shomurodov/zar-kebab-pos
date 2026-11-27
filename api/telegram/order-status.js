@@ -1,5 +1,5 @@
 import { sendTrackedOrderStatusMessage } from './_lib/orderStatusDelivery.js'
-import { json, methodNotAllowed, readJson } from './_lib/http.js'
+import { getBearerToken, json, methodNotAllowed, readJson } from './_lib/http.js'
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
 import { sendTelegramMessage, TELEGRAM_STATUS_MESSAGES } from './_lib/telegram.js'
 import {
@@ -129,10 +129,33 @@ async function withRussianMenuItemNames(supabase, order) {
   }
 }
 
+// Only signed-in, active staff may trigger order status messages. Without this
+// anyone could replay order IDs (they are timestamps) and spam customers.
+const ORDER_STATUS_ROLES = new Set(['owner', 'admin', 'waiter', 'cashier', 'kitchen'])
+
+export async function requireOrderStatusSender(req, supabase) {
+  const token = getBearerToken(req)
+  if (!token) throw Object.assign(new Error('Authentication required'), { status: 401 })
+  const { data: { user } = {}, error: authError } = await supabase.auth.getUser(token)
+  if (authError || !user) throw Object.assign(new Error('Invalid or expired session'), { status: 401 })
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, status')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (profileError) throw profileError
+  if (profile?.status !== 'active' || !ORDER_STATUS_ROLES.has(String(profile?.role || '').toLowerCase())) {
+    throw Object.assign(new Error('Forbidden'), { status: 403 })
+  }
+  return user
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return methodNotAllowed(res)
 
   try {
+    const supabase = getSupabaseAdmin()
+    await requireOrderStatusSender(req, supabase)
     const { orderId, orderIds: requestedOrderIds, status } = await readJson(req)
     const orderIds = [...new Set((Array.isArray(requestedOrderIds) ? requestedOrderIds : [orderId]).filter(Boolean))]
     const telegramStatus = TELEGRAM_STATUS_MESSAGES[status]
@@ -142,7 +165,6 @@ export default async function handler(req, res) {
       return json(res, 400, { error: 'Valid orderId/orderIds and status are required' })
     }
 
-    const supabase = getSupabaseAdmin()
     let { data: orders, error } = await supabase
       .from('orders')
       .select('id, source, telegram_user_id, customer_id, order_number, table_name, waiter_name, order_type, price_mode, status, payment_status, payment_method, subtotal, service_fee, service_rate_pct, total, loyalty_card_number, loyalty_used_amount, loyalty_redeem_amount, loyalty_discount_amount, cashback_earned, completed_by_name, paid_at, created_at, updated_at, items:order_items(name, menu_item_id, quantity, sale_unit, price, unit_price, cost_price, price_mode, selected_options, notes, status), payments:order_payments(method, amount), loyalty_transactions(type, customer_name_at_transaction, card_number_at_transaction)')
@@ -226,6 +248,6 @@ export default async function handler(req, res) {
     return json(res, 200, { ok: true, customerSent, completedGroupSentCount })
   } catch (error) {
     console.error('[telegram/order-status]', error)
-    return json(res, 400, { error: error.message || 'Could not notify Telegram' })
+    return json(res, error.status || 400, { error: error.message || 'Could not notify Telegram' })
   }
 }

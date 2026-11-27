@@ -30,9 +30,14 @@ export async function notifyTelegramOrderStatus(orderIdOrIds, status) {
   if (orderIds.length === 0 || !NOTIFIABLE_STATUSES.has(status)) return
 
   try {
+    const { data: { session } = {} } = await supabase.auth.getSession()
+    if (!session?.access_token) throw new Error('Authentication required')
     const response = await fetch('/api/telegram/order-status', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(orderIds.length === 1
         ? { orderId: orderIds[0], status }
         : { orderIds, status }),

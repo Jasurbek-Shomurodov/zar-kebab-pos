@@ -4,7 +4,7 @@
 
 - DB/health: `src/lib/db.js`, `src/lib/dbHealth.js`
 - Tools: `migrations/migrate.js`, `scripts/check-db-health.js`
-- SQL migrations: `migrations/` (`281`–`283` Reports readers, `284` Google cron, `285` days, `286` daily income)
+- SQL migrations: `migrations/` (`281`–3 Reports, `284` Google cron, `285` days, `286` daily income, `287`/`288` RPC grants, loyalty)
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
 - `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270`/`274` TG `271`/`272` menu `257`–9 owner `276`/7 inventory `278`; `tests/employeeJobFunctions.test.js`.

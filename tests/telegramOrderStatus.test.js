@@ -9,7 +9,7 @@ import {
   mergeCompletedOrders,
   shouldNotifyCompletedOrderGroup,
 } from '../api/telegram/_lib/orderStatusMessages.js'
-import { hasCompleteOrderItemCostCoverage } from '../api/telegram/order-status.js'
+import { hasCompleteOrderItemCostCoverage, requireOrderStatusSender } from '../api/telegram/order-status.js'
 
 test('completed order profit requires immutable cost snapshots for every sold item', () => {
   assert.equal(hasCompleteOrderItemCostCoverage([
@@ -353,4 +353,27 @@ test('merged completed rounds aggregate loyalty without changing payment amounts
 test('customer status message escapes order labels', () => {
   const message = buildCustomerStatusMessage('completed', { order_number: 'TG<&1>' })
   assert.match(message, /Order completed\nOrder TG&lt;&amp;1&gt;/)
+})
+
+function fakeAuthClient({ user = { id: 'u1' }, profile = { role: 'admin', status: 'active' } } = {}) {
+  return {
+    auth: { getUser: async () => (user ? { data: { user }, error: null } : { data: { user: null }, error: new Error('bad') }) },
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: profile, error: null }) }) }) }),
+  }
+}
+const withToken = token => ({ headers: token ? { authorization: `Bearer ${token}` } : {} })
+
+test('order status notifications require an active staff session', async () => {
+  await assert.rejects(requireOrderStatusSender(withToken(''), fakeAuthClient()), error => error.status === 401)
+  await assert.rejects(requireOrderStatusSender(withToken('t'), fakeAuthClient({ user: null })), error => error.status === 401)
+  await assert.rejects(requireOrderStatusSender(withToken('t'), fakeAuthClient({ profile: { role: 'guest', status: 'active' } })), error => error.status === 403)
+  await assert.rejects(requireOrderStatusSender(withToken('t'), fakeAuthClient({ profile: { role: 'viewer', status: 'active' } })), error => error.status === 403)
+  await assert.rejects(requireOrderStatusSender(withToken('t'), fakeAuthClient({ profile: { role: 'admin', status: 'pending' } })), error => error.status === 403)
+  assert.deepEqual(await requireOrderStatusSender(withToken('t'), fakeAuthClient()), { id: 'u1' })
+})
+
+test('the browser sends its session token with order status notifications', async () => {
+  const { readFileSync } = await import('node:fs')
+  const source = readFileSync(new URL('../src/lib/telegramNotifications.js', import.meta.url), 'utf8')
+  assert.match(source, /fetch\('\/api\/telegram\/order-status'[\s\S]*?Authorization: `Bearer \$\{session\.access_token\}`/)
 })

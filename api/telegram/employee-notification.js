@@ -1,6 +1,7 @@
 import { retractDeletedOrderStatusMessages } from './_lib/orderStatusDelivery.js'
 import { json, methodNotAllowed, readJson, getBearerToken } from './_lib/http.js'
 import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
+import { loadSalaryRows } from '../../src/lib/salaryData.js'
 import { buildEmployeeFineMessage } from './_lib/fineMessages.js'
 import {
   buildEmployeePaymentMessage,
@@ -1999,13 +2000,13 @@ async function notifyInvestorIncome(supabase, user, expenseId) {
   const currentMonthStart = `${currentDate.slice(0, 7)}-01`
   const [year, month] = currentMonthStart.split('-').map(Number)
   const nextMonthStart = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10)
-  const { data: currentMonthEntries, error: currentMonthError } = await supabase
+  const { data: currentMonthEntries, error: currentMonthError } = await loadSalaryRows(() => supabase
     .from('expenses')
-    .select('amount')
+    .select('id, amount')
     .eq('entry_type', 'income')
     .eq('category', 'investor_support')
     .gte('expense_date', currentMonthStart)
-    .lt('expense_date', nextMonthStart)
+    .lt('expense_date', nextMonthStart))
   if (currentMonthError) throw currentMonthError
   const currentMonthTotal = (currentMonthEntries || []).reduce(
     (total, entry) => total + (Number(entry?.amount) || 0),
