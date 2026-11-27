@@ -26,7 +26,7 @@
 - Category reports prefer the snapshot over the product's current category.
 - `employee_daily_meal_expenses` supplies frozen completed-day employee-meal values.
 - KPI rules cannot be inserted into finalized periods; bounded recovery eventually fills older missing KPI/meal dates.
-- Daily ingredient consumption: theoretical Tech Card usage from paid, non-cancelled item quantities and service-only immutable `order_item_tech_card_ingredient_snapshots`, incl. nested components. Weight is normalized to kg, volume to litres, and pieces remain counts; incompatible units are never combined.
+- Daily ingredient consumption: Tech Card usage from paid, non-cancelled quantities and service-only `order_item_tech_card_ingredient_snapshots`, incl. nested components; kg, litres, counts; incompatible units never combined.
 - Ingredient value uses saved Tech Card prices. Report missing snapshots as uncovered sales; never fill from today’s recipe.
 
 ## Dashboard
@@ -34,8 +34,8 @@
 - Recent Orders and receipt/delete controls live in Reports. `202` allows deletion only for today's Tashkent payment date (creation fallback), even for owners; older delete controls are hidden. Coverage: `tests/orderDeletion.test.js`.
 - Sales by Category includes every category sold today.
 - Product Contribution ranks ten products by revenue: quantity, share, snapshot profit, margin. Missing cost snapshots show unavailable profit.
-- Do not invent products/categories. Monthly Busy Hours (`192`–`193`) returns 12 two-hour buckets for the current Tashkent month. It attributes paid demand to `created_at`, scans one indexed month, returns no order details, and highlights tied peaks.
-- Charts share one kit (DESIGN.md › Charts): `src/components/charts/ChartKit.jsx`, `BarChart.jsx`, geometry in `src/lib/chartScale.js` (`tests/chartKit.test.js`). Charts only draw; amounts come from the shared helpers.
+- Do not invent products/categories. Monthly Busy Hours (`192`–`193`): 12 two-hour buckets for the Tashkent month by `created_at`, one indexed month, no order details, tied peaks highlighted.
+- Charts: one kit (DESIGN.md › Charts), `src/components/charts/`, `src/lib/chartScale.js`; they only draw. Tests: `tests/chartKit.test.js`.
 - Monthly/ten-day income charts (Financial analysis): 12 months, zero labels hidden. Red dotted break-even per bar: average of its completed days' `260` targets (`breakEvenTarget.js`). Calculated (`263`, `dailyBreakEven.js`): cron saves each day once, dated that day; newest is current; Settings shows yesterday read-only. Past months: immutable snapshots; this month: completed days.
 - `157` backfills history; a daily cron finalizes last month. Completed months are never rescanned.
 - Daily income (`286`): per-day `payment_method_income`; `buildDailyIncome` stacks methods (rest = other), running avg.
@@ -53,13 +53,13 @@
 
 - `187`–`188` add categories and restrict movement to explicitly added (`is_catalog_managed`) ingredients, including archived with history. Filters and sorting run locally, no refetch.
 
-- Ten-day income (`190`–`191`): latest 20 periods (1–10, 11–20, 21–end) through a selected month. Scans at most eight indexed months, excludes today/future periods, caches, hides empty months, starts choices at the earliest order month, and uses stable month colors. Zero periods in active months remain. Tests: `tests/weeklyIncome.test.js`.
+- Ten-day income (`190`–`191`): latest 20 periods (1–10, 11–20, 21–end) through a chosen month; ≤8 indexed months, no today/future, cached, empty months hidden, choices from the first order month, stable month colours. Tests: `tests/weeklyIncome.test.js`.
 
 - Reports overview, item, dish and order-list data: SQL readers (`281`–`283`, `src/lib/reportsRpc.js`), Closeout included. Only Excel (`src/lib/sheetKit.js`) loads the full range.
 
 - Dish Analysis: All dishes ranks 30 direct sellers. Selection shows description, sources, hours/log; hides global rankings. Add frozen `tech_card_component_snapshot` quantities × parent quantity; deduplicate orders. No inferred recipes/legacy contents or added set revenue. Tests: `tests/dishSales.test.js`, Excel `dishSalesExport.test.js`.
 
-- Dish sales needs loaded history; loading/errors never mean zero. Low sellers: 15 active products, including unsold; archives retain history.
+- Dish sales: loading/errors never mean zero. Low sellers: 15 active products incl. unsold.
 
 - Dish reconciliation helper retains saved inputs and coverage/residual checks; its UI panel is removed. Period remainder includes calculated meals, excludes opening balances. Closeout variance is unknown without counted balances (Not measured). Tests: `tests/closeout.test.js`.
 

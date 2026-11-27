@@ -24,10 +24,10 @@
   - menu/expense notifications and financial snapshots: `142`–`147`
   - absence cleanup, report/Google crons: `148`, `152`, `225`, `266`–`268`
   - Monthly income snapshots, break-even target/history, completed-day average: `157`–`158`, `174`, `260`, `262`, `263`
-  - authoritative Daily Bazaar ingredient catalog, clean reset, owner-only catalog writes, and immutable price-variance snapshots: `160`–`163`
+  - Daily Bazaar ingredient catalog, reset, owner-only writes, price-variance snapshots: `160`–`163`
   - immutable sold-item Tech Card ingredient snapshots and duplicate-safe daily ingredient image delivery: `164`–`165`
   - Tashkent expense backdate limit: `166`
-  - salary/KPI accrual, notifications, Tech Card catalog access, and Team queue repair: `169`–`172`
+  - salary/KPI accrual, notifications, Tech Card access, Team queue repair: `169`–`172`
   - paid-order correction access: `173`
   - Investor alerts for order deletes and payment corrections, including trigger repair: `175`–`176`
   - all-time Accounting rest: `177`
@@ -86,5 +86,5 @@
 - `210`: see [salary orders](salary-orders.md).
 - `211`: profile name realtime. Tests: `tests/activeOrderWaiters.test.js`.
 - `212`/`220`: bill edits (payments); `221`: price-mode guard (ordering); `222`: insert image guard (menu); `224`: payments
-- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`/`239`–`242` menu; `229`–`235`, `261` payments/orders, `264`; `265` per-day income (running avg); `286` + method split.
+- `214`: `custom:<name>` ingredient categories; `227`/`228`/`239`–`242` menu; `229`–`235`, `261`, `264` payments/orders; `265` daily income, `286` by method.
 - `215`–`217`: payroll.md; `218`–`219`: architecture.md.
