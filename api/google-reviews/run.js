@@ -1,7 +1,8 @@
-import { getBearerToken, json, methodNotAllowed } from '../telegram/_lib/http.js'
+import { getBearerToken, json, methodNotAllowed, readJson } from '../telegram/_lib/http.js'
 import { getSupabaseAdmin } from '../telegram/_lib/supabaseAdmin.js'
 import { isGoogleReviewBotConfigured, runGoogleReviewBot } from './_lib/runReviewBot.js'
 import { runGoogleMenuSync } from './_lib/menuSync.js'
+import { runGoogleContentAction } from './_lib/googleContent.js'
 import { serveTwoGisMenuFeed, serveYandexMenuFeed, serveYandexMenuPhoto } from '../yandex-menu/_lib/yandexFeed.js'
 import { createTeamReplyNotifier } from './_lib/teamNotifications.js'
 import { googleDigestDate, loadHeldReviewDrafts, saveGoogleDigestPart } from './_lib/dailyDigest.js'
@@ -35,6 +36,12 @@ export default async function handler(req, res) {
   try {
     requireCronSecret(req)
     const task = requestTask(req)
+    // Posts and photos/videos (npm run maps:content): one action per POST, nothing recorded in the digest.
+    if (task === 'content') {
+      if (req.method !== 'POST') return methodNotAllowed(res, ['POST'])
+      const body = req.body && typeof req.body === 'object' ? req.body : await readJson(req)
+      return json(res, 200, { ok: true, task, ...await runGoogleContentAction(body) })
+    }
     if (!['reviews', 'menu'].includes(task)) return json(res, 400, { ok: false, error: 'Unknown task' })
     if (!isGoogleReviewBotConfigured()) return json(res, 200, { ok: true, task, mode: 'disabled', found: 0 })
     const supabase = getSupabaseAdmin()

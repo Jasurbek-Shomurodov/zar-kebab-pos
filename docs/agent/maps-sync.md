@@ -30,6 +30,10 @@ Yandex: the cabinet source is **Вручную** (Yandex never ingested the feed
 
 Photos: the feed points WebP menu photos at `/yandex-photos/<name>.jpg`, converted to JPEG on the fly, because Yandex rejects WebP.
 
+## Posts, photos, videos
+
+Google: `npm run maps:content -- post|media|posts|photos|delete-post|delete-media` (`googleContent.js`, `run?task=content`); previews unless `--publish`; owner OKs first. Others: cabinet in Chrome. TripAdvisor unclaimed (2026-11-27).
+
 ## Review replies
 
 Find unanswered reviews with `javascript_tool`:

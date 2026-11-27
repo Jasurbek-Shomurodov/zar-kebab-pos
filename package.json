@@ -8,6 +8,7 @@
     "bot:telegram": "node bots/telegram-bot.js",
     "db:health": "node scripts/check-db-health.js",
     "maps:menu": "node scripts/maps-menu-sync.mjs",
+    "maps:content": "node scripts/maps-content.mjs",
     "yandex:menu": "node scripts/maps-menu-sync.mjs",
     "migrations:manifest": "node scripts/build-migration-manifest.js",
     "theme:dark": "node scripts/build-dark-theme.mjs",

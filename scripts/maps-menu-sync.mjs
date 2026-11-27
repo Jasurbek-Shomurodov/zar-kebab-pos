@@ -181,7 +181,7 @@ async function fetchLiveFeed() {
   return response.text()
 }
 
-function loadEnv() {
+export function loadEnv() {
   loadEnvFile(resolve(process.cwd(), '.env.local'))
   loadEnvFile(resolve(process.cwd(), '.env'))
 }
