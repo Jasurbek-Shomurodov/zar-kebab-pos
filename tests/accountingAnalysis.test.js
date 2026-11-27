@@ -12,6 +12,7 @@ import {
   buildTrendBuckets,
   getTrendIntervals,
   buildCategoryComparison,
+  buildDailyIncome,
   buildDailySpending,
   buildRunningAverageIncome,
   buildDayMoneyFlow,
@@ -82,6 +83,28 @@ test('daily cafe income RPC reuses the Accounting summary rules per day', () => 
   const sql = readFileSync(new URL('../migrations/265_accounting_daily_cafe_income.sql', import.meta.url), 'utf8')
   assert.match(sql, /current_staff_can_access\('expenses'\)/)
   assert.match(sql, /get_accounting_paid_order_summary\(day::date, day::date\)->>'cafe_income'/)
+  assert.match(sql, /revoke all on function public\.get_accounting_daily_cafe_income\(date, date\)\s+from public, anon, authenticated/)
+})
+
+test('daily income stacks each day by payment method and keeps the cafe income total', () => {
+  const days = buildDailyIncome([
+    { date: '2026-10-01', cafe_income: 1000, payment_method_income: { cash: 500, card: 200, terminal: 100, qr: 50, salary: 50, loyalty_card: 300 } },
+    { date: '2026-10-02', cafe_income: 400, payment_method_income: null },
+    { date: '2026-10-03', cafe_income: 100, payment_method_income: { cash: 150, card: 50 } },
+  ], '2026-10-01', '2026-10-04')
+  assert.equal(days.length, 4)
+  assert.deepEqual(days[0], { date: '2026-10-01', total: 1000, cash: 500, card: 200, terminal: 150, salary: 50, other: 100 })
+  assert.deepEqual(days[1], { date: '2026-10-02', total: 400, cash: 0, card: 0, terminal: 0, salary: 0, other: 400 })
+  const trimmed = days[2]
+  assert.equal(trimmed.cash + trimmed.card + trimmed.terminal + trimmed.salary + trimmed.other, 100)
+  assert.deepEqual(days[3], { date: '2026-10-04', total: 0, cash: 0, card: 0, terminal: 0, salary: 0, other: 0 })
+})
+
+test('daily income RPC adds each day\'s payment method split from the shared summary', () => {
+  const sql = readFileSync(new URL('../migrations/286_accounting_daily_income_by_method.sql', import.meta.url), 'utf8')
+  assert.match(sql, /current_staff_can_access\('expenses'\)/)
+  assert.match(sql, /get_accounting_paid_order_summary\(days\.day::date, days\.day::date\) as summary/)
+  assert.match(sql, /'payment_method_income', coalesce\(day_summary\.summary->'payment_method_income'/)
   assert.match(sql, /revoke all on function public\.get_accounting_daily_cafe_income\(date, date\)\s+from public, anon, authenticated/)
 })
 

@@ -1148,6 +1148,10 @@ export default {
   {
    "filename": "285_menu_category_weekdays.sql",
    "sha256": "f28188f27ab9185403a0fd5485f6afa172f0121c06d67c6c38cef2d1cb88a46a"
+  },
+  {
+   "filename": "286_accounting_daily_income_by_method.sql",
+   "sha256": "02adde7bb09f77cdc768d72a8bdb3943c3fdc6bead33e6cf6f14c57c58e4984f"
   }
  ],
  "functions": [
@@ -1713,8 +1717,8 @@ export default {
   },
   {
    "name": "get_accounting_daily_cafe_income",
-   "filename": "265_accounting_daily_cafe_income.sql",
-   "md5": "7ebb1dbb12e57fe420495570a413da69"
+   "filename": "286_accounting_daily_income_by_method.sql",
+   "md5": "8ef10a79e3f91c15cc20ce827983cde2"
   },
   {
    "name": "invoke_zar_kebab_google_menu_sync",

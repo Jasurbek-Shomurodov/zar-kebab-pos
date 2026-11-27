@@ -173,6 +173,38 @@ export function buildRunningAverageIncome(days = [], incomeByDate = {}) {
   })
 }
 
+// Daily income chart: each day's cafe income stacked by payment method. The
+// split comes from the shared paid-order summary normalizer (QR counts as
+// terminal); income the methods do not explain, or a day without the split
+// (before migration 286), lands in "other" so every bar still totals the
+// day's cafe income.
+export const INCOME_METHODS = ['cash', 'card', 'terminal', 'salary', 'other']
+
+export function buildDailyIncome(rows = [], dateFrom, dateTo) {
+  const byDate = new Map((rows || []).map(row => [row?.date, row]))
+  return listIsoDates(dateFrom, dateTo).map(date => {
+    const row = byDate.get(date)
+    const summary = normalizeAccountingPaidOrderSummary({
+      cafe_income: row?.cafe_income,
+      payment_method_income: row?.payment_method_income || {},
+    }, date, date)
+    const total = summary.cafeIncome
+    const methods = summary.paymentMethodIncome
+    const day = { date, total, cash: methods.cash, card: methods.card, terminal: methods.terminal, salary: methods.salary, other: 0 }
+    const split = day.cash + day.card + day.terminal + day.salary
+    if (split > total) {
+      // Never draw more than the day's cafe income: trim the split back.
+      const scale = total > 0 ? total / split : 0
+      let used = 0
+      for (const key of ['cash', 'card', 'terminal']) { day[key] = Math.round(day[key] * scale); used += day[key] }
+      day.salary = Math.max(0, total - used)
+    } else {
+      day.other = total - split
+    }
+    return day
+  })
+}
+
 // One day of the Daily spending chart as a money flow: that day's income
 // (cafe income comes from the day's paid-order summary) into its spending
 // categories, plus every payment of the day, largest first.

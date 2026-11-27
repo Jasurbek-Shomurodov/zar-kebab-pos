@@ -4,7 +4,7 @@
 
 - DB/health: `src/lib/db.js`, `src/lib/dbHealth.js`
 - Tools: `migrations/migrate.js`, `scripts/check-db-health.js`
-- SQL migrations: `migrations/` (`281`–`283` Reports readers, `284` Google cron, `285` days)
+- SQL migrations: `migrations/` (`281`–`283` Reports readers, `284` Google cron, `285` days, `286` daily income)
 - Source guards: `tests/sourceGuards.*.test.js`
 - Backups: `scripts/db-backup.sh`, `scripts/db-restore.sh`, `docs/database-backup.md`, `tests/dbBackup.test.js`.
 - `194`/`206`/`237` roles; `238` tour `243`/5/7/9 QR; `244` KPI 4am `248` hire `250` edit `251` AI `252`/3 remote `254`/`269`/`273` QR `256`/`270`/`274` TG `271`/`272` menu `257`–9 owner `276`/7 inventory `278`; `tests/employeeJobFunctions.test.js`.
@@ -86,5 +86,5 @@
 - `210`: see [salary orders](salary-orders.md).
 - `211`: profile name realtime. Tests: `tests/activeOrderWaiters.test.js`.
 - `212`/`220`: bill edits (payments); `221`: price-mode guard (ordering); `222`: insert image guard (menu); `224`: payments
-- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`/`239`–`242` menu; `229`–`235`, `261` payments/orders, `264`; `265` per-day income (running avg).
+- `214`: `custom:<name>` ingredient categories, UI after; `227`/`228`/`239`–`242` menu; `229`–`235`, `261` payments/orders, `264`; `265` per-day income (running avg); `286` + method split.
 - `215`–`217`: payroll.md; `218`–`219`: architecture.md.

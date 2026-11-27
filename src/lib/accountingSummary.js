@@ -36,18 +36,31 @@ export async function loadAccountingPaidOrderSummary(dateFrom, dateTo, options =
   )
 }
 
-// Cafe income per day (migration 265), for the running average on Daily
-// spending. Same rules as get_accounting_paid_order_summary.
-export async function loadAccountingDailyCafeIncome(dateFrom, dateTo, options = {}) {
+// Cafe income per day (migration 265; 286 adds payment_method_income), for
+// Daily income and the running average on Daily spending. Same rules as
+// get_accounting_paid_order_summary. Rows keep the raw per-day summary shape.
+export async function loadAccountingDailyIncome(dateFrom, dateTo, options = {}) {
   const dbClient = options.dbClient || supabase
   const { data, error } = await dbClient.rpc('get_accounting_daily_cafe_income', {
     p_date_from: dateFrom,
     p_date_to: dateTo,
   })
   if (error) throw error
-  return Object.fromEntries((data || [])
-    .map(row => [String(row?.date || '').slice(0, 10), Math.max(0, Math.round(Number(row?.cafe_income) || 0))])
-    .filter(([date]) => /^\d{4}-\d{2}-\d{2}$/.test(date)))
+  return (data || [])
+    .map(row => ({
+      date: String(row?.date || '').slice(0, 10),
+      cafe_income: Math.max(0, Math.round(Number(row?.cafe_income) || 0)),
+      payment_method_income: row?.payment_method_income && typeof row.payment_method_income === 'object' ? row.payment_method_income : null,
+    }))
+    .filter(row => /^\d{4}-\d{2}-\d{2}$/.test(row.date))
+}
+
+export function dailyCafeIncomeByDate(rows = []) {
+  return Object.fromEntries((rows || []).map(row => [row.date, row.cafe_income]))
+}
+
+export async function loadAccountingDailyCafeIncome(dateFrom, dateTo, options = {}) {
+  return dailyCafeIncomeByDate(await loadAccountingDailyIncome(dateFrom, dateTo, options))
 }
 
 export async function loadAccountingAllTimeBalance(options = {}) {

@@ -39,7 +39,8 @@ import {
   loadAccountingAllTimeBalance,
   loadAccountingMonthlyCashflow,
   loadAccountingMonthlyBreakdown,
-  loadAccountingDailyCafeIncome,
+  dailyCafeIncomeByDate,
+  loadAccountingDailyIncome,
   loadAccountingPaidOrderSummary,
   loadFinancialAnalysisBundle,
 } from '../lib/accountingSummary'
@@ -48,6 +49,7 @@ import { loadDashboardWeeklyIncome, normalizeDashboardWeeklyIncomeRows } from '.
 import { breakEvenTargetForPeriod, lastDayOfMonth, loadBreakEvenTargetHistory } from '../lib/breakEvenTarget'
 import {
   ANALYSIS_SERIES_COLORS,
+  INCOME_METHODS,
   SPENDING_GROUPS,
   assignCategoryColors,
   buildAccountingIndicators,
@@ -57,6 +59,7 @@ import {
   buildAccountingTrend,
   buildBreakEvenSummary,
   buildCategoryComparison,
+  buildDailyIncome,
   buildDailySpending,
   buildRunningAverageIncome,
   buildDayMoneyFlow,
@@ -157,6 +160,9 @@ const L = {
     other: 'Boshqa',
     categoriesTitle: 'Xarajatlar tarkibi',
     categoriesSub: 'Kategoriya bo‘yicha. Tarixni ochish uchun bosing.',
+    dailyIncomeTitle: 'Kunlik daromad',
+    dailyIncomeSub: 'Har kuni kafe qancha ishlagani to‘lov turi bo‘yicha va shu kungacha o‘rtacha kunlik daromad. Kunni bosing — tafsilot ochiladi',
+    incCash: 'Naqd', incCard: 'Karta', incTerminal: 'Terminal / QR', incSalary: 'Maoshdan', incOther: 'Boshqa', dailyIncomeFailed: 'Kunlik daromadni yuklab bo‘lmadi.',
     dailyTitle: 'Kunlik xarajatlar',
     dailySub: 'Har kuni sarflangan pul va shu kungacha o‘rtacha kunlik kafe daromadi. Kunni bosing — pul qayerga ketgani ochiladi',
     dayFlowTitle: 'Pul qayerga ketdi', dayPayments: 'Shu kungi to‘lovlar', dayLoadFailed: 'Kunlik kafe daromadini yuklab bo‘lmadi.', dayNoPayments: 'Bu kuni to‘lov yo‘q',
@@ -241,6 +247,9 @@ const L = {
     other: 'Другое',
     categoriesTitle: 'Структура расходов',
     categoriesSub: 'По категориям. Нажмите, чтобы открыть историю.',
+    dailyIncomeTitle: 'Доход по дням',
+    dailyIncomeSub: 'Сколько кафе заработало каждый день по способам оплаты и средний дневной доход на эту дату. Нажмите на день, чтобы увидеть подробности',
+    incCash: 'Наличные', incCard: 'Карта', incTerminal: 'Терминал / QR', incSalary: 'Из зарплаты', incOther: 'Другое', dailyIncomeFailed: 'Не удалось загрузить доход по дням.',
     dailyTitle: 'Расходы по дням',
     dailySub: 'Траты каждого дня и средний дневной доход кафе на эту дату. Нажмите на день, чтобы увидеть, куда ушли деньги',
     dayFlowTitle: 'Куда ушли деньги', dayPayments: 'Платежи за день', dayLoadFailed: 'Не удалось загрузить доход кафе за день.', dayNoPayments: 'В этот день платежей нет',
@@ -325,6 +334,9 @@ const L = {
     other: 'Other',
     categoriesTitle: 'Spending breakdown',
     categoriesSub: 'By category. Tap one to open its history.',
+    dailyIncomeTitle: 'Daily income',
+    dailyIncomeSub: 'What the cafe took each day by payment method against average daily income so far. Tap a day to see the details',
+    incCash: 'Cash', incCard: 'Card', incTerminal: 'Terminal / QR', incSalary: 'From salary', incOther: 'Other', dailyIncomeFailed: 'Could not load daily income.',
     dailyTitle: 'Daily spending',
     dailySub: 'What was spent each day against average daily cafe income so far. Tap a day to see where the money went',
     dayFlowTitle: 'Where the money went', dayPayments: 'Payments that day', dayLoadFailed: 'Could not load the day’s cafe income.', dayNoPayments: 'No payments that day',
@@ -381,6 +393,7 @@ const HELP = {
     categories: 'Spending split by category. Tap a category to open its payments.',
     compare: 'Each category now against the previous period of the same length.',
     largest: 'The biggest single payments in the period, without salaries and staff meals.',
+    dailyIncome: 'Cafe income on each day, split by how guests paid. Loyalty value is not counted. The dashed line is the average daily income so far: income up to that day divided by the days so far. Tap a day to see its money in and out.',
     daily: 'Spending on each day, with the average daily income so far as a line: each point is the income up to that day divided by the days so far. Tap a day to see where its money went.',
     methods: 'How money came in and went out by payment method: cash, card, terminal and others.',
   },
@@ -415,6 +428,7 @@ const HELP = {
     categories: 'Расходы по категориям. Нажмите на категорию, чтобы открыть платежи.',
     compare: 'Каждая категория сейчас против прошлого периода той же длины.',
     largest: 'Самые крупные платежи периода, без зарплат и питания сотрудников.',
+    dailyIncome: 'Доход кафе за каждый день по способам оплаты. Оплата лояльностью не учитывается. Пунктир — средний доход в день на каждую дату: доход с начала периода, делённый на прошедшие дни. Нажмите на день, чтобы увидеть приход и расход.',
     daily: 'Расходы по дням и линия среднего дохода в день на каждую дату: доход с начала периода, делённый на прошедшие дни. Нажмите на день, чтобы увидеть, куда ушли деньги.',
     methods: 'Как деньги пришли и ушли по способу оплаты: наличные, карта, терминал и другие.',
   },
@@ -449,6 +463,7 @@ const HELP = {
     categories: 'Xarajatlar kategoriyalar bo‘yicha. To‘lovlarni ochish uchun kategoriyani bosing.',
     compare: 'Har bir kategoriya hozir va shu uzunlikdagi oldingi davr.',
     largest: 'Davrdagi eng katta alohida to‘lovlar, maosh va xodimlar ovqatisiz.',
+    dailyIncome: 'Har kungi kafe daromadi, mehmonlar qanday to‘lagani bo‘yicha. Sodiqlik mablag‘i hisoblanmaydi. Punktir chiziq — shu kungacha kunlik o‘rtacha daromad: davr boshidan tushgan daromad o‘tgan kunlarga bo‘linadi. Kirim va chiqimni ko‘rish uchun kunni bosing.',
     daily: 'Har kungi xarajat va shu kungacha kunlik o‘rtacha daromad chizig‘i: davr boshidan tushgan daromad o‘tgan kunlarga bo‘linadi. Pul qayerga ketganini ko‘rish uchun kunni bosing.',
     methods: 'Pul to‘lov usuli bo‘yicha qanday kelib-ketgan: naqd, karta, terminal va boshqalar.',
   },
@@ -578,7 +593,8 @@ export default function AccountingAnalysis() {
   const [trendRetry, setTrendRetry] = useState(0)
   const [trend, setTrend] = useState({ key: '', status: 'idle', cafeIncomeByBucket: {} })
   const [targetHistory, setTargetHistory] = useState([])
-  const [dailyIncome, setDailyIncome] = useState({ key: '', byDate: null })
+  const [dailyIncome, setDailyIncome] = useState({ key: '', status: 'loading', rows: null })
+  const [dailyIncomeRetry, setDailyIncomeRetry] = useState(0)
   const trendRequestRef = useRef('')
   // Trends stop at today: future days have no income yet and would read as a collapse.
   const trendTo = useMemo(() => (dateTo > todayExpenseDate() ? todayExpenseDate() : dateTo), [dateTo])
@@ -758,18 +774,27 @@ export default function AccountingAnalysis() {
       })
   }, [flowMode, trendKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Per-day cafe income for the running average on Daily spending. Optional:
-  // until it arrives (or without migration 265) the chart keeps the flat line.
+  // Per-day cafe income (migration 265, split by method since 286) for Daily
+  // income and the running average on Daily spending. Optional for spending:
+  // until it arrives (or on error) that chart keeps the flat line.
+  const dailyIncomeKey = `${dateFrom}|${trendTo}|${reloadKey}|${dailyIncomeRetry}`
   useEffect(() => {
-    if (dateFrom > trendTo) return undefined
-    const key = `${dateFrom}|${trendTo}|${reloadKey}`
+    const key = dailyIncomeKey
+    if (dateFrom > trendTo) {
+      setDailyIncome({ key, status: 'ready', rows: [] })
+      return undefined
+    }
     let active = true
-    loadAccountingDailyCafeIncome(dateFrom, trendTo)
-      .then(byDate => { if (active) setDailyIncome({ key, byDate }) })
-      .catch(() => { if (active) setDailyIncome({ key, byDate: null }) })
+    setDailyIncome({ key, status: 'loading', rows: null })
+    loadAccountingDailyIncome(dateFrom, trendTo)
+      .then(rows => { if (active) setDailyIncome({ key, status: 'ready', rows }) })
+      .catch(() => { if (active) setDailyIncome({ key, status: 'error', rows: null }) })
     return () => { active = false }
-  }, [dateFrom, trendTo, reloadKey])
-  const dailyIncomeByDate = dailyIncome.key === `${dateFrom}|${trendTo}|${reloadKey}` ? dailyIncome.byDate : null
+  }, [dailyIncomeKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const dailyIncomeReady = dailyIncome.key === dailyIncomeKey && dailyIncome.status === 'ready'
+  const dailyIncomeStatus = dailyIncome.key === dailyIncomeKey ? dailyIncome.status : 'loading'
+  const dailyIncomeByDate = useMemo(() => (dailyIncomeReady ? dailyCafeIncomeByDate(dailyIncome.rows) : null), [dailyIncomeReady, dailyIncome.rows])
+  const dailyIncomeDays = useMemo(() => (dailyIncomeReady ? buildDailyIncome(dailyIncome.rows, dateFrom, trendTo) : null), [dailyIncomeReady, dailyIncome.rows, dateFrom, trendTo])
 
   // Bank fee estimates for both compared periods and the sold-item cost check
   // (migration 278), Monthly tab only. Without the migration both stay hidden
@@ -1149,6 +1174,17 @@ export default function AccountingAnalysis() {
 
               <ChartCard title={l.largestTitle} help="largest" description={l.largestSub}>
                 <LargestPayments rows={analysis.largest} l={l} lang={lang} categoryName={categoryName} onOpen={openCategoryHistory} />
+              </ChartCard>
+
+              <ChartCard title={l.dailyIncomeTitle} help="dailyIncome" description={l.dailyIncomeSub}>
+                <DailyIncomeChart
+                  days={dailyIncomeDays}
+                  status={dailyIncomeStatus}
+                  l={l}
+                  lang={lang}
+                  onSelectDay={setSelectedDay}
+                  onRetry={() => setDailyIncomeRetry(value => value + 1)}
+                />
               </ChartCard>
 
               <ChartCard title={l.dailyTitle} help="daily" description={l.dailySub}>
@@ -2640,6 +2676,117 @@ function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSele
             {runningAverage && (
               <p className="mt-1 flex justify-between gap-2 font-bold text-[#68655f]"><span>{l.avgIncome}</span><span className="tabular-nums text-[#22201d]">{formatCompactCurrency(runningAverage[hoverIndex], lang)}</span></p>
             )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const INCOME_METHOD_COLORS = { cash: ANALYSIS_SERIES_COLORS[2], card: ANALYSIS_SERIES_COLORS[0], terminal: ANALYSIS_SERIES_COLORS[6], salary: ANALYSIS_SERIES_COLORS[3], other: '#9CA3AF' }
+
+// Daily income: each day's cafe income stacked by payment method, with the
+// running average daily income as a dashed line. Same layout as Daily spending.
+function DailyIncomeChart({ days, status, l, lang, onSelectDay, onRetry }) {
+  const [hoverIndex, setHoverIndex] = useState(null)
+  const runningAverage = useMemo(() => (days ? buildRunningAverageIncome(days, Object.fromEntries(days.map(day => [day.date, day.total]))) : []), [days])
+  if (status === 'error') {
+    return (
+      <div role="alert" className="flex flex-col items-center gap-3 py-10 text-sm font-medium text-[#68655f]">
+        <p>{l.dailyIncomeFailed}</p>
+        <button type="button" className="ws-btn ws-btn-outline" onClick={onRetry}><RefreshCw size={14} aria-hidden="true" />{l.retry}</button>
+      </div>
+    )
+  }
+  if (!days) return <Shimmer className="h-[260px] w-full rounded-xl" />
+  if (!days.length || days.every(day => day.total === 0)) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
+
+  const width = 960
+  const height = 260
+  const pad = { top: 12, right: 12, bottom: 28, left: 68 }
+  const plotW = width - pad.left - pad.right
+  const plotH = height - pad.top - pad.bottom
+  const maxValue = Math.max(...runningAverage, ...days.map(day => day.total), 1) * 1.08
+  const y = value => pad.top + plotH - (value / maxValue) * plotH
+  const slot = plotW / days.length
+  const barWidth = Math.max(2, Math.min(28, slot - 3))
+  const ticks = [0, maxValue / 3, (maxValue * 2) / 3].map(Math.round)
+  const labelEvery = Math.ceil(days.length / 12)
+  const methodLabels = { cash: l.incCash, card: l.incCard, terminal: l.incTerminal, salary: l.incSalary, other: l.incOther }
+  const shownMethods = INCOME_METHODS.filter(method => days.some(day => day[method] > 0))
+  // Before migration 286 there is no split: the one bar is plain cafe income.
+  if (shownMethods.length === 1 && shownMethods[0] === 'other') methodLabels.other = l.cafeIncome
+  const hovered = hoverIndex == null ? null : days[hoverIndex]
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-[#68655f]">
+        {shownMethods.map(method => (
+          <span key={method} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: INCOME_METHOD_COLORS[method] }} />{methodLabels[method]}</span>
+        ))}
+        <span className="inline-flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-[#22201d]" />{l.avgIncome}</span>
+      </div>
+      <div className="relative">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label={l.dailyIncomeTitle} onMouseLeave={() => setHoverIndex(null)}>
+          {ticks.map(tick => (
+            <g key={tick}>
+              <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
+              <text x={pad.left - 8} y={y(tick) + 4} textAnchor="end" className="fill-current text-[#68655f] text-xs font-medium">{formatCompactCurrency(tick, lang)}</text>
+            </g>
+          ))}
+          {days.map((day, index) => {
+            const x = pad.left + index * slot + (slot - barWidth) / 2
+            let stackTop = pad.top + plotH
+            return (
+              <g
+                key={day.date}
+                onMouseEnter={() => setHoverIndex(index)}
+                onClick={day.total > 0 ? () => onSelectDay(day.date) : undefined}
+                onKeyDown={event => {
+                  if (day.total > 0 && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelectDay(day.date) }
+                }}
+                role={day.total > 0 ? 'button' : undefined}
+                tabIndex={day.total > 0 ? 0 : undefined}
+                aria-label={day.total > 0 ? `${formatLongDate(day.date, lang, day.date)} · ${formatCurrency(day.total)}` : undefined}
+                className={day.total > 0 ? 'cursor-pointer outline-none' : undefined}
+              >
+                <rect x={pad.left + index * slot} y={pad.top} width={slot} height={plotH} fill={hoverIndex === index ? 'rgb(255 90 0 / 8%)' : 'transparent'} />
+                {INCOME_METHODS.map(method => {
+                  if (!day[method]) return null
+                  const h = (day[method] / maxValue) * plotH
+                  stackTop -= h
+                  return <rect key={method} x={x} y={stackTop} width={barWidth} height={Math.max(0, h - 1)} rx={barWidth > 6 ? 2 : 0} fill={INCOME_METHOD_COLORS[method]} />
+                })}
+                {index % labelEvery === 0 && (
+                  <text x={x + barWidth / 2} y={height - 8} textAnchor="middle" className="fill-current text-[#68655f] text-xs font-medium">{Number(day.date.slice(8))}</text>
+                )}
+              </g>
+            )
+          })}
+          <polyline
+            points={runningAverage.map((value, index) => `${pad.left + (index + 0.5) * slot},${y(value)}`).join(' ')}
+            fill="none"
+            className="stroke-current text-[#22201d]"
+            strokeWidth={2}
+            strokeDasharray="6 5"
+            strokeLinejoin="round"
+            pointerEvents="none"
+          />
+        </svg>
+        {hovered && (
+          <div
+            className="pointer-events-none absolute top-2 z-10 w-52 rounded-xl border border-[#e4e1de] bg-white p-3 text-xs shadow-lg"
+            style={{ left: `${Math.min(70, Math.max(0, ((hoverIndex + 0.5) / days.length) * 100 - 10))}%` }}
+          >
+            <p className="mb-1.5 font-semibold text-[#22201d]">{formatLongDate(hovered.date, lang, hovered.date)}</p>
+            {INCOME_METHODS.filter(method => hovered[method] > 0).map(method => (
+              <p key={method} className="flex items-center justify-between gap-2 font-bold text-[#68655f]">
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: INCOME_METHOD_COLORS[method] }} />{methodLabels[method]}</span>
+                <span className="text-[#22201d] tabular-nums">{formatCompactCurrency(hovered[method], lang)}</span>
+              </p>
+            ))}
+            <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-semibold text-[#22201d]"><span>{l.total}</span><span className="tabular-nums">{formatCurrency(hovered.total)}</span></p>
+            <p className="mt-1 flex justify-between gap-2 font-bold text-[#68655f]"><span>{l.avgIncome}</span><span className="tabular-nums text-[#22201d]">{formatCompactCurrency(runningAverage[hoverIndex], lang)}</span></p>
           </div>
         )}
       </div>
