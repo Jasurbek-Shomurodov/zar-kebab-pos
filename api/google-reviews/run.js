@@ -43,8 +43,9 @@ export default async function handler(req, res) {
     let failure = null
     try {
       // Menu sync: today's POS menu changes (prices, names, descriptions, photos) to Google Maps.
+      // syncedAt lets npm run maps:menu skip Google when today's run already happened.
       result = task === 'menu'
-        ? await runGoogleMenuSync({ supabase })
+        ? { ...await runGoogleMenuSync({ supabase }), syncedAt: new Date().toISOString() }
         : await runGoogleReviewBot({ heldDrafts: await loadHeldReviewDrafts(supabase), onPublished: createTeamReplyNotifier(supabase) })
     } catch (error) {
       failure = error

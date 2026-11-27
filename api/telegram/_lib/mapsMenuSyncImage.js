@@ -19,6 +19,11 @@ export function formatSum(value) {
   return `${Math.round(Number(value) || 0).toLocaleString('ru-RU').replace(/\s/g, ' ')} сум`
 }
 
+// Characters that fit on a status line inside a tile, for one to three tiles.
+function tiles3Chars(count) {
+  return count >= 3 ? 26 : count === 2 ? 40 : 70
+}
+
 export function wrapLine(text, max = MAX_LINE_CHARS) {
   const lines = []
   let current = ''
@@ -55,18 +60,26 @@ export function buildMapsSyncImageSvg({ diff, maps = [], date, notes = [] } = {}
   const parts = []
   let y = CARD_X + HEADER_HEIGHT + 34
 
-  // One tile per map: positions now and the change since its last upload.
+  // One tile per map: positions now, the change since its last upload, and when it was last updated.
   const signed = delta => (delta === 0 ? '' : ` (${delta > 0 ? '+' : '−'}${Math.abs(delta)})`)
   const tiles = (maps.length ? maps : [{ label: 'Позиций', offers: 0, previous: 0 }])
-    .map(map => [map.label, `${map.offers}${signed((map.offers || 0) - (map.previous ?? map.offers ?? 0))}`])
+    .map(map => ({
+      label: map.label,
+      value: `${map.offers}${signed((map.offers || 0) - (map.previous ?? map.offers ?? 0))}`,
+      status: map.status ? wrapLine(map.status, tiles3Chars(maps.length)) : [],
+    }))
   const tileWidth = (cardWidth - PADDING_X * 2 - 24 * (tiles.length - 1)) / tiles.length
-  tiles.forEach(([label, value], index) => {
+  const tileHeight = 120 + Math.max(0, ...tiles.map(tile => tile.status.length)) * 28
+  tiles.forEach((tile, index) => {
     const x = leftX + index * (tileWidth + 24)
-    parts.push(`<rect x="${x}" y="${y}" width="${tileWidth}" height="120" rx="18" fill="#f6efe4"/>`)
-    parts.push(`<text x="${x + 28}" y="${y + 42}" font-size="24" fill="#7a6552">${escape(label)}</text>`)
-    parts.push(`<text x="${x + 28}" y="${y + 96}" font-size="44" font-weight="700" fill="#2a1d14">${escape(value)}</text>`)
+    parts.push(`<rect x="${x}" y="${y}" width="${tileWidth}" height="${tileHeight}" rx="18" fill="#f6efe4"/>`)
+    parts.push(`<text x="${x + 28}" y="${y + 42}" font-size="24" fill="#7a6552">${escape(tile.label)}</text>`)
+    parts.push(`<text x="${x + 28}" y="${y + 96}" font-size="44" font-weight="700" fill="#2a1d14">${escape(tile.value)}</text>`)
+    tile.status.forEach((line, row) => {
+      parts.push(`<text x="${x + 28}" y="${y + 130 + row * 28}" font-size="21" fill="#5c7a3a">${escape(line)}</text>`)
+    })
   })
-  y += 120 + SECTION_GAP + 10
+  y += tileHeight + SECTION_GAP + 10
 
   if (!sections.length) {
     parts.push(`<text x="${leftX}" y="${y + 36}" font-size="30" fill="#2a1d14">Изменений в меню нет.</text>`)

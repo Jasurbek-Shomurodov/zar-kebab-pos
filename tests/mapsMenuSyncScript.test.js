@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
   MAX_DESCRIPTION, buildReport, buildTeamCaption, buildTeamMessage, diffOffers, hasChanges, formatReport, parseArgs, parseOffers,
-  tashkentDate, trimDescriptions, trimText, twoGisOffers,
+  tashkentDate, trimDescriptions, trimText, twoGisOffers, PROVIDERS, PROVIDER_INFO, contentHash, formatSyncedAt, isUpToDate, recordSync,
+  googleStatusFromDigest,
 } from '../scripts/maps-menu-sync.mjs'
 import { buildMapsSyncImageSvg, wrapLine } from '../api/telegram/_lib/mapsMenuSyncImage.js'
 
@@ -73,14 +74,17 @@ test('the last uploaded file already fits the description limit', () => {
 })
 
 test('parseArgs accepts the documented options only', () => {
-  const defaults = { notes: [], image: '', text: false, providers: ['yandex', '2gis'] }
+  const defaults = { notes: [], image: '', text: false, force: false, providers: ['google', 'yandex', '2gis'] }
   assert.deepEqual(parseArgs([]), { fromDb: false, dryRun: false, uploaded: false, out: 'deliverables/yandex-menu-regular.yml', ...defaults })
   assert.deepEqual(parseArgs(['--from-db', '--dry-run', '--uploaded', '--out=/tmp/x.yml']), { fromDb: true, dryRun: true, uploaded: true, out: '/tmp/x.yml', ...defaults })
-  assert.throws(() => parseArgs(['--force']), /Unknown option/)
+  assert.throws(() => parseArgs(['--forse']), /Unknown option/)
   assert.deepEqual(parseArgs(['--provider=2gis']).providers, ['2gis'])
   assert.deepEqual(parseArgs(['--provider=Yandex']).providers, ['yandex'])
-  assert.deepEqual(parseArgs(['--provider=all']).providers, ['yandex', '2gis'])
-  assert.throws(() => parseArgs(['--provider=google']), /Unknown provider/)
+  assert.deepEqual(parseArgs(['--provider=all']).providers, ['google', 'yandex', '2gis'])
+  assert.deepEqual(parseArgs(['--provider=2gis,yandex']).providers, ['yandex', '2gis'])
+  assert.deepEqual(parseArgs(['--provider=google']).providers, ['google'])
+  assert.equal(parseArgs(['--force']).force, true)
+  assert.throws(() => parseArgs(['--provider=tripadvisor']), /Unknown provider/)
 })
 
 test('npm run maps:menu runs the sync script and yandex:menu stays an alias for the scheduled task', () => {
@@ -142,9 +146,12 @@ test('parseArgs collects report notes, the image path and the text fallback', ()
 
 test('buildTeamCaption counts the changes and tashkentDate uses the Tashkent business day', () => {
   const diff = { added: [{}], removed: [{}, {}], repriced: [], renamed: [] }
-  assert.match(buildTeamCaption(diff, [{ label: 'Яндекс Карты', offers: 177 }, { label: '2ГИС', offers: 164 }]),
-    /Яндекс Карты: 177 · 2ГИС: 164 · удалено 2, добавлено 1/)
-  assert.match(buildTeamCaption({ added: [], removed: [], repriced: [], renamed: [] }, 179), /Яндекс Карты: 179 · без изменений/)
+  const caption = buildTeamCaption(diff, [
+    { label: 'Google Maps', offers: 140, status: 'обновлено сегодня в 04:20' },
+    { label: 'Яндекс Карты', offers: 177 }, { label: '2ГИС', offers: 164 },
+  ])
+  assert.match(caption, /Google Maps: 140 \(обновлено сегодня в 04:20\)\nЯндекс Карты: 177\n2ГИС: 164\nудалено 2, добавлено 1$/)
+  assert.match(buildTeamCaption({ added: [], removed: [], repriced: [], renamed: [] }, 179), /Яндекс Карты: 179\nИзменений в меню нет/)
   assert.equal(tashkentDate(new Date('2026-11-25T19:30:00Z')), '2026-11-26')
 })
 
@@ -176,4 +183,40 @@ test('wrapLine keeps long dish names on several lines without cutting words', ()
   const lines = wrapLine('Очень длинное название блюда '.repeat(4), 30)
   assert.ok(lines.length > 1)
   assert.ok(lines.every(line => [...line].length <= 30))
+})
+
+test('every map has a label and a mode, so adding TripAdvisor is one PROVIDER_INFO entry', () => {
+  assert.deepEqual(PROVIDERS, ['google', 'yandex', '2gis'])
+  for (const key of PROVIDERS) {
+    assert.ok(PROVIDER_INFO[key].label)
+    assert.ok(['api', 'upload', 'link'].includes(PROVIDER_INFO[key].mode))
+  }
+})
+
+test('the state file skips a map only when it already holds this exact menu', () => {
+  const a = '<yml_catalog date="2026-11-26T04:00:00+00:00"><offer id="1"/></yml_catalog>'
+  const b = '<yml_catalog date="2026-11-27T04:00:00+00:00"><offer id="1"/></yml_catalog>'
+  assert.equal(contentHash(a), contentHash(b), 'the catalog date is not a menu change')
+  assert.notEqual(contentHash(a), contentHash(a.replace('id="1"', 'id="2"')))
+  const state = recordSync({}, 'yandex', { hash: contentHash(a), offers: 1, at: '2026-11-27T04:15:00.000Z' })
+  assert.deepEqual(state.yandex, { syncedAt: '2026-11-27T04:15:00.000Z', hash: contentHash(a), offers: 1 })
+  assert.equal(isUpToDate(state.yandex, contentHash(b)), true)
+  assert.equal(isUpToDate(state.yandex, contentHash('other')), false)
+  assert.equal(isUpToDate(undefined, contentHash(a)), false)
+})
+
+test('formatSyncedAt speaks Tashkent time, today or a date', () => {
+  const now = new Date('2026-11-27T07:00:00Z')
+  assert.equal(formatSyncedAt('2026-11-26T23:20:00Z', now), 'сегодня в 04:20')
+  assert.equal(formatSyncedAt('2026-11-26T04:15:00Z', now), '26 ноября в 09:15')
+  assert.equal(formatSyncedAt('', now), '')
+  assert.equal(formatSyncedAt('nope', now), '')
+})
+
+test("Google counts as synced only when today's cron run published or found no change", () => {
+  assert.deepEqual(googleStatusFromDigest({ menu: { mode: 'published', items: 140, syncedAt: '2026-11-26T23:20:00Z' }, updated_at: 'x' }),
+    { synced: true, mode: 'published', syncedAt: '2026-11-26T23:20:00Z', offers: 140 })
+  assert.equal(googleStatusFromDigest({ menu: { mode: 'unchanged', items: 1 }, updated_at: '2026-11-26T23:21:00Z' }).syncedAt, '2026-11-26T23:21:00Z')
+  assert.equal(googleStatusFromDigest({ menu: { error: 'quota' } }).synced, false)
+  assert.equal(googleStatusFromDigest(null).synced, false)
 })

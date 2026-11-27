@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-// Maps menu sync: builds the Yandex Business and 2GIS price lists from the POS menu and reports
-// what changed since the last upload. Neither map has a price-list write API, so uploads stay a
-// cabinet step (docs/agent/maps-sync.md); 2GIS can instead fetch /2gis-menu.csv by link.
+// Maps menu sync: one command keeps the POS menu on every map (docs/agent/maps-sync.md).
+//   Google Maps  API: the 04:20 cron publishes it; this run triggers it only if today's run is missing.
+//   Yandex Maps  file: builds deliverables/yandex-menu-regular.yml for the cabinet upload (no write API).
+//   2GIS         link: 2GIS refetches /2gis-menu.csv daily; this run builds deliverables/2gis-menu.csv to check it.
+// deliverables/maps-sync-state.json remembers when each map was last updated and with which menu, so a
+// map already up to date is skipped (--force redoes it). Add a map (e.g. TripAdvisor) to PROVIDERS.
 //
-//   npm run maps:menu                   live feed from www.zarkebab.uz -> deliverables/yandex-menu-regular.yml
-//                                       and deliverables/2gis-menu.csv (npm run yandex:menu is the same command)
-//   --provider=yandex|2gis|all          which price lists to build (default all)
+//   npm run maps:menu                   all maps (npm run yandex:menu is the same command)
+//   --provider=google|yandex|2gis|all   which maps (default all); comma lists work: --provider=yandex,2gis
+//   --force                             update even maps the state file says are up to date
 //   --from-db                           build from Supabase with this checkout's feed code (.env.local service key)
 //   --dry-run                           report the diff only, write nothing
 //   --out=path                          write the Yandex file somewhere else
@@ -17,6 +20,7 @@
 // Run in a terminal, the script waits for the upload and then sends the report itself (Ctrl+C skips it).
 // The baselines are the committed deliverables files: commit them after each upload.
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
@@ -29,8 +33,16 @@ export const DEFAULT_OUT = 'deliverables/yandex-menu-regular.yml'
 export const TWO_GIS_OUT = 'deliverables/2gis-menu.csv'
 export const TWO_GIS_FEED_URL = 'https://www.zarkebab.uz/2gis-menu.csv'
 export const TWO_GIS_CABINET_URL = 'https://account.2gis.com/'
-export const PROVIDERS = ['yandex', '2gis']
-export const PROVIDER_LABELS = { yandex: 'Яндекс Карты', '2gis': '2ГИС' }
+export const STATE_FILE = 'deliverables/maps-sync-state.json'
+export const GOOGLE_RUN_URL = 'https://www.zarkebab.uz/api/google-reviews/run?task=menu'
+// Every map this command keeps in sync. mode: api (we publish), upload (cabinet file), link (map fetches our URL).
+export const PROVIDER_INFO = {
+  google: { label: 'Google Maps', mode: 'api' },
+  yandex: { label: 'Яндекс Карты', mode: 'upload' },
+  '2gis': { label: '2ГИС', mode: 'link' },
+}
+export const PROVIDERS = Object.keys(PROVIDER_INFO)
+export const PROVIDER_LABELS = Object.fromEntries(PROVIDERS.map(key => [key, PROVIDER_INFO[key].label]))
 // Yandex warns on longer descriptions; the cut keeps the ellipsis inside the limit.
 export const MAX_DESCRIPTION = 250
 
@@ -197,8 +209,42 @@ export function buildTeamCaption(diff, maps) {
     diff.renamed.length && `новое название ${diff.renamed.length}`,
   ].filter(Boolean)
   const list = (Array.isArray(maps) ? maps : [{ label: PROVIDER_LABELS.yandex, offers: maps }])
-  const totals = list.map(map => `${map.label}: ${map.offers}`).join(' · ')
-  return `🗺 <b>Карты: меню Zar Kebab обновлено</b>\n${totals}${counts.length ? ` · ${counts.join(', ')}` : ' · без изменений'}`
+  const totals = list.map(map => `${map.label}: ${map.offers}${map.status ? ` (${map.status})` : ''}`).join('\n')
+  return `🗺 <b>Карты: меню Zar Kebab</b>\n${totals}\n${counts.length ? counts.join(', ') : 'Изменений в меню нет'}`
+}
+
+// Menu fingerprint for the state file; the YML catalog date changes on every build, so it is ignored.
+export function contentHash(text) {
+  return createHash('sha1').update(String(text).replace(/<yml_catalog date="[^"]*">/, '<yml_catalog>')).digest('hex').slice(0, 16)
+}
+
+// "сегодня в 04:20" or "26 ноября в 09:15", Tashkent time.
+export function formatSyncedAt(iso, now = new Date()) {
+  if (!iso) return ''
+  const at = new Date(iso)
+  if (Number.isNaN(at.getTime())) return ''
+  const time = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit' }).format(at)
+  if (tashkentDate(at) === tashkentDate(now)) return `сегодня в ${time}`
+  const day = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', day: 'numeric', month: 'long' }).format(at)
+  return `${day} в ${time}`
+}
+
+// A map needs no new upload when the state file holds this exact menu for it.
+export function isUpToDate(entry, hash) {
+  return Boolean(entry?.syncedAt && entry.hash && entry.hash === hash)
+}
+
+export function recordSync(state, provider, { hash, offers, at = new Date().toISOString() }) {
+  return { ...state, [provider]: { syncedAt: at, hash, offers } }
+}
+
+// Google's 04:20 cron writes its result to google_business_daily_digests.menu for the Tashkent day.
+export function googleStatusFromDigest(row) {
+  const menu = row?.menu
+  if (!menu || menu.error || !['published', 'unchanged'].includes(menu.mode)) {
+    return { synced: false, error: menu?.error || '', offers: Number(menu?.items) || 0 }
+  }
+  return { synced: true, mode: menu.mode, syncedAt: menu.syncedAt || row.updated_at || '', offers: Number(menu.items) || 0 }
 }
 
 // 2GIS CSV rows as the {id, name, price} offers the diff works with.
@@ -277,21 +323,24 @@ function validateXml(path) {
 
 export function parseArgs(argv) {
   const args = {
-    fromDb: false, dryRun: false, uploaded: false, out: DEFAULT_OUT,
+    fromDb: false, dryRun: false, uploaded: false, force: false, out: DEFAULT_OUT,
     notes: [], image: '', text: false, providers: [...PROVIDERS],
   }
   for (const arg of argv) {
     if (arg === '--from-db') args.fromDb = true
     else if (arg === '--uploaded') args.uploaded = true
     else if (arg === '--dry-run') args.dryRun = true
+    else if (arg === '--force') args.force = true
     else if (arg === '--text') args.text = true
     else if (arg.startsWith('--out=')) args.out = arg.slice('--out='.length)
     else if (arg.startsWith('--note=')) args.notes.push(arg.slice('--note='.length).trim())
     else if (arg.startsWith('--image=')) args.image = arg.slice('--image='.length)
     else if (arg.startsWith('--provider=')) {
-      const value = arg.slice('--provider='.length).toLowerCase()
-      if (value !== 'all' && !PROVIDERS.includes(value)) throw new Error(`Unknown provider ${value} (yandex, 2gis or all)`)
-      args.providers = value === 'all' ? [...PROVIDERS] : [value]
+      const values = arg.slice('--provider='.length).toLowerCase().split(',').map(value => value.trim()).filter(Boolean)
+      for (const value of values) {
+        if (value !== 'all' && !PROVIDERS.includes(value)) throw new Error(`Unknown provider ${value} (${PROVIDERS.join(', ')} or all)`)
+      }
+      args.providers = values.includes('all') ? [...PROVIDERS] : PROVIDERS.filter(key => values.includes(key))
     } else throw new Error(`Unknown option ${arg}`)
   }
   return args
@@ -301,64 +350,159 @@ function readIfExists(path) {
   return existsSync(path) ? readFileSync(path, 'utf8') : ''
 }
 
-// One provider's offers now and at the last committed upload.
+export function loadState(path = resolve(process.cwd(), STATE_FILE)) {
+  try {
+    return JSON.parse(readIfExists(path) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveState(state) {
+  writeFileSync(resolve(process.cwd(), STATE_FILE), `${JSON.stringify(state, null, 2)}\n`)
+}
+
+// One file-based map's offers now and at the last committed upload.
 function providerState(provider, current, outPath) {
   const parse = provider === 'yandex' ? parseOffers : twoGisOffers
   const path = provider === 'yandex' ? DEFAULT_OUT : TWO_GIS_OUT
   const previous = parse(committedUpload(path) || (provider === 'yandex' ? readIfExists(outPath) : readIfExists(resolve(process.cwd(), path))))
   const offers = parse(current)
-  return { provider, label: PROVIDER_LABELS[provider], offers: offers.length, previous: previous.length, diff: diffOffers(previous, offers) }
+  return {
+    provider, label: PROVIDER_LABELS[provider], offers: offers.length, previous: previous.length,
+    diff: diffOffers(previous, offers), hash: contentHash(current),
+  }
 }
 
 // The image lists the Yandex diff (the full menu); 2GIS differs only by the categories it forbids.
 export function buildReport(states, notes = []) {
-  const main = states.find(state => state.provider === 'yandex') || states[0]
+  const main = states.find(state => state.provider === 'yandex') || states.find(state => state.diff) || states[0]
+  const empty = { added: [], removed: [], repriced: [], renamed: [] }
   return {
-    diff: main.diff,
-    maps: states.map(({ label, offers, previous }) => ({ label, offers, previous })),
+    diff: main?.diff || empty,
+    maps: states.map(({ label, offers, previous, status }) => ({ label, offers, previous: previous ?? offers, status: status || '' })),
     notes,
   }
+}
+
+async function adminSupabase() {
+  loadEnv()
+  const { getSupabaseAdmin } = await import('../api/telegram/_lib/supabaseAdmin.js')
+  return getSupabaseAdmin()
+}
+
+async function loadGoogleStatus() {
+  const supabase = await adminSupabase()
+  const { googleDigestDate } = await import('../api/google-reviews/_lib/dailyDigest.js')
+  const { data, error } = await supabase.from('google_business_daily_digests')
+    .select('digest_date, menu, updated_at').eq('digest_date', googleDigestDate()).maybeSingle()
+  if (error) throw error
+  return googleStatusFromDigest(data)
+}
+
+// Google publishes from the server (it holds the Google credentials): ask it to run now.
+async function triggerGoogleSync() {
+  loadEnv()
+  const secret = process.env.CRON_SECRET
+  if (!secret) throw new Error('CRON_SECRET is missing from .env.local, so Google cannot be triggered from here')
+  const response = await fetch(GOOGLE_RUN_URL, { method: 'POST', headers: { Authorization: `Bearer ${secret}` } })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok || body.ok === false) throw new Error(body.error || `Google menu sync answered ${response.status}`)
+  return body
+}
+
+async function syncGoogle(args, state) {
+  const label = PROVIDER_LABELS.google
+  let status
+  try {
+    status = await loadGoogleStatus()
+  } catch (error) {
+    console.log(`\n${label}: could not read today's run (${error.message}).`)
+    return { provider: 'google', label, offers: state.google?.offers || 0, status: 'не проверено' }
+  }
+  if (status.synced && !args.force) {
+    console.log(`\n${label}: already updated ${formatSyncedAt(status.syncedAt)} (${status.mode}); skipped.`)
+    return { provider: 'google', label, offers: status.offers, status: `обновлено ${formatSyncedAt(status.syncedAt)}`, syncedAt: status.syncedAt }
+  }
+  if (args.dryRun) {
+    console.log(`\n${label}: not updated today${status.error ? ` (last error: ${status.error})` : ''}; a real run would trigger it.`)
+    return { provider: 'google', label, offers: status.offers, status: 'не обновлено сегодня' }
+  }
+  try {
+    const result = await triggerGoogleSync()
+    const at = result.syncedAt || new Date().toISOString()
+    console.log(`\n${label}: ${result.mode || 'done'}, ${result.items ?? '?'} items.`)
+    return { provider: 'google', label, offers: Number(result.items) || 0, status: `обновлено ${formatSyncedAt(at)}`, syncedAt: at }
+  } catch (error) {
+    console.log(`\n${label}: update failed (${error.message}).`)
+    return { provider: 'google', label, offers: status.offers, status: 'ошибка обновления' }
+  }
+}
+
+function fileStatus(entry, upToDate) {
+  if (upToDate) return `без изменений с ${formatSyncedAt(entry.syncedAt)}`
+  return 'ждёт обновления'
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   const outPath = resolve(process.cwd(), args.out)
   const twoGisPath = resolve(process.cwd(), TWO_GIS_OUT)
-  const wantsYandex = args.providers.includes('yandex')
-  const wantsTwoGis = args.providers.includes('2gis')
+  const wants = provider => args.providers.includes(provider)
+  let state = loadState()
 
   if (args.uploaded) {
     const states = []
-    if (wantsYandex) {
-      if (!existsSync(outPath)) throw new Error(`${args.out} does not exist; run npm run maps:menu first.`)
-      states.push(providerState('yandex', readFileSync(outPath, 'utf8'), outPath))
+    if (wants('google')) {
+      const google = await loadGoogleStatus().catch(() => ({ synced: false, offers: state.google?.offers || 0 }))
+      if (google.synced) state = recordSync(state, 'google', { hash: 'api', offers: google.offers, at: google.syncedAt })
+      states.push({ provider: 'google', label: PROVIDER_LABELS.google, offers: google.offers, status: google.synced ? `обновлено ${formatSyncedAt(google.syncedAt)}` : 'не обновлено сегодня' })
     }
-    if (wantsTwoGis) {
-      if (!existsSync(twoGisPath)) throw new Error(`${TWO_GIS_OUT} does not exist; run npm run maps:menu first.`)
-      states.push(providerState('2gis', readFileSync(twoGisPath, 'utf8'), outPath))
+    for (const [provider, path, file] of [['yandex', outPath, args.out], ['2gis', twoGisPath, TWO_GIS_OUT]]) {
+      if (!wants(provider)) continue
+      if (!existsSync(path)) throw new Error(`${file} does not exist; run npm run maps:menu first.`)
+      const current = providerState(provider, readFileSync(path, 'utf8'), outPath)
+      const already = isUpToDate(state[provider], current.hash)
+      if (!already) state = recordSync(state, provider, { hash: current.hash, offers: current.offers })
+      states.push({ ...current, status: already ? fileStatus(state[provider], true) : `обновлено ${formatSyncedAt(state[provider].syncedAt)}` })
     }
+    saveState(state)
     const report = buildReport(states, args.notes)
     console.log(formatReport(report.diff))
     if (args.image) await saveReportImage(resolve(process.cwd(), args.image), report)
     await sendTeamReport(report, { text: args.text })
+    console.log(`Commit ${STATE_FILE} and the deliverables files so the next run compares against them.`)
     return
   }
 
-  console.log(args.fromDb ? 'Building the price lists from Supabase…' : `Downloading ${FEED_URL}…`)
-  const source = args.fromDb ? await buildFromDb() : await fetchLiveFeed()
-  const { yml, trimmed } = trimDescriptions(source)
-  // Each upload replaces the whole list on the map, so an empty file would wipe the menu.
-  if (!parseOffers(yml).length) throw new Error('The price list has no offers; refusing to write it.')
-  const { csv, offers: twoGisCount } = buildTwoGisMenuCsv(source)
-  if (wantsTwoGis && !twoGisCount) throw new Error('The 2GIS price list has no offers; refusing to write it.')
-
   const states = []
-  if (wantsYandex) states.push(providerState('yandex', yml, outPath))
-  if (wantsTwoGis) states.push(providerState('2gis', csv, outPath))
-  for (const state of states) {
-    const extra = state.provider === 'yandex' ? `; ${trimmed} description(s) trimmed to ${MAX_DESCRIPTION} characters` : ''
-    console.log(`\n${state.label}: ${state.offers} offers (last upload: ${state.previous})${extra}.`)
-    console.log(formatReport(state.diff))
+  if (wants('google')) {
+    const google = await syncGoogle(args, state)
+    if (google.syncedAt) state = recordSync(state, 'google', { hash: 'api', offers: google.offers, at: google.syncedAt })
+    states.push(google)
+  }
+
+  const fileMaps = ['yandex', '2gis'].filter(wants)
+  const pending = []
+  if (fileMaps.length) {
+    console.log(args.fromDb ? '\nBuilding the price lists from Supabase…' : `\nDownloading ${FEED_URL}…`)
+    const source = args.fromDb ? await buildFromDb() : await fetchLiveFeed()
+    const { yml, trimmed } = trimDescriptions(source)
+    // Each upload replaces the whole list on the map, so an empty file would wipe the menu.
+    if (!parseOffers(yml).length) throw new Error('The price list has no offers; refusing to write it.')
+    const { csv, offers: twoGisCount } = buildTwoGisMenuCsv(source)
+    if (wants('2gis') && !twoGisCount) throw new Error('The 2GIS price list has no offers; refusing to write it.')
+    const contents = { yandex: yml, '2gis': csv }
+    for (const provider of fileMaps) {
+      const current = providerState(provider, contents[provider], outPath)
+      const upToDate = !args.force && isUpToDate(state[provider], current.hash)
+      const extra = provider === 'yandex' ? `; ${trimmed} description(s) trimmed to ${MAX_DESCRIPTION} characters` : ''
+      console.log(`\n${current.label}: ${current.offers} offers (last upload: ${current.previous})${extra}.`)
+      if (upToDate) console.log(`  Already up to date since ${formatSyncedAt(state[provider].syncedAt)}; nothing to upload.`)
+      else console.log(formatReport(current.diff))
+      states.push({ ...current, status: fileStatus(state[provider], upToDate) })
+      if (!upToDate) pending.push({ provider, contents: contents[provider] })
+    }
   }
   const report = buildReport(states, args.notes)
 
@@ -367,20 +511,28 @@ async function main() {
     console.log('\nDry run: nothing written.')
     return
   }
-  if (wantsYandex) {
-    writeFileSync(outPath, yml)
-    console.log(`\nWrote ${args.out} — XML ${validateXml(outPath)}.`)
-    console.log(`Upload it in Chrome: ${CABINET_URL}`)
-    console.log('  Загрузить XLS/YML → choose the file → wait for "Прайс-лист успешно загружен, список товаров обновлен".')
+  saveState(state)
+  for (const { provider, contents } of pending) {
+    if (provider === 'yandex') {
+      writeFileSync(outPath, contents)
+      console.log(`\nWrote ${args.out} — XML ${validateXml(outPath)}.`)
+      console.log(`Upload it in Chrome: ${CABINET_URL}`)
+      console.log('  Загрузить XLS/YML → choose the file → wait for "Прайс-лист успешно загружен, список товаров обновлен".')
+    } else {
+      writeFileSync(twoGisPath, contents)
+      console.log(`\nWrote ${TWO_GIS_OUT}. 2GIS refetches ${TWO_GIS_FEED_URL} by itself (up to a day); no upload needed.`)
+    }
   }
-  if (wantsTwoGis) {
-    writeFileSync(twoGisPath, csv)
-    console.log(`\nWrote ${TWO_GIS_OUT}.`)
-    console.log(`2GIS: ${TWO_GIS_CABINET_URL} → Товары и услуги. With the link ${TWO_GIS_FEED_URL} set (По ссылке) 2GIS updates itself daily; otherwise Добавить → Из файла → this file.`)
+  if (!pending.length) {
+    console.log('\nEvery map is up to date; nothing to upload.')
+    return
   }
-  if (process.stdin.isTTY && await waitForUpload()) await sendTeamReport(report, { text: args.text })
-  else console.log('\nAfter the uploads, run: npm run maps:menu -- --uploaded')
-  console.log('Then commit the deliverables files so the next run compares against them.')
+  if (process.stdin.isTTY && await waitForUpload()) {
+    for (const { provider, contents } of pending) state = recordSync(state, provider, { hash: contentHash(contents), offers: states.find(item => item.provider === provider).offers })
+    saveState(state)
+    await sendTeamReport(buildReport(states.map(item => (pending.some(p => p.provider === item.provider) ? { ...item, status: `обновлено ${formatSyncedAt(new Date().toISOString())}` } : item)), args.notes), { text: args.text })
+  } else console.log('\nAfter the uploads, run: npm run maps:menu -- --uploaded')
+  console.log(`Then commit ${STATE_FILE} and the deliverables files so the next run compares against them.`)
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
