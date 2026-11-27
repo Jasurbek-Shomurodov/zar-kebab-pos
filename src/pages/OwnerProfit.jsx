@@ -148,7 +148,7 @@ function ProfitChart({ rows, lang, selected, onSelect, selectLabel }) {
   const height = 180
   return (
     <div className="overflow-x-auto">
-      <div className="flex min-w-[420px] items-stretch gap-2" style={{ height: height + 44 }}>
+      <div className="ws-chart-bars flex min-w-[420px] items-stretch gap-2" style={{ height: height + 44 }}>
         {rows.map(row => {
           const share = Math.abs(row.ownerProfit) / max
           const barHeight = Math.max(row.ownerProfit ? 2 : 0, share * height * (row.ownerProfit >= 0 ? positiveShare : 1 - positiveShare))
@@ -160,14 +160,14 @@ function ProfitChart({ rows, lang, selected, onSelect, selectLabel }) {
               onClick={() => onSelect(row.monthStart)}
               aria-pressed={selected === row.monthStart}
               aria-label={`${formatMonthYear(row.monthStart, lang)}: ${signed(row.ownerProfit)}. ${selectLabel}`}
-              className={`flex min-w-[64px] flex-1 flex-col items-center rounded-lg pb-1 transition-colors hover:bg-[#f6f5f3] ${selected === row.monthStart ? 'bg-[#f6f5f3]' : ''}`}
+              className={`ws-chart-bar-slot flex min-w-[64px] flex-1 flex-col items-center rounded-lg pb-1 transition-colors hover:bg-[#f6f5f3] ${selected === row.monthStart ? 'bg-[#f6f5f3]' : ''}`}
               title={`${formatMonthYear(row.monthStart, lang)}: ${signed(row.ownerProfit)}`}
             >
               <span className={`whitespace-nowrap text-xs font-semibold tabular-nums ${profitTone(row.ownerProfit)}`}>{formatCompactCurrency(row.ownerProfit, lang, { signed: true })}</span>
               <div className="relative w-full flex-1">
-                <div className="absolute inset-x-0 border-t border-[#d6d2cd]" style={{ top: `${positiveShare * 100}%` }} />
+                <div className="absolute inset-x-0 border-t border-[#dcd9d6]" style={{ top: `${positiveShare * 100}%` }} />
                 <div
-                  className={`absolute left-1/2 w-3/5 max-w-[40px] -translate-x-1/2 rounded-[3px] ${row.ownerProfit < 0 ? 'bg-[#c4262c]' : 'bg-[#1d7a52]'} ${open ? 'opacity-40' : ''}`}
+                  className={`absolute left-1/2 w-3/5 max-w-[24px] -translate-x-1/2 ${row.ownerProfit < 0 ? 'rounded-b-[4px] bg-[#c4262c]' : 'rounded-t-[4px] bg-[#1d7a52]'} ${open ? 'opacity-40' : ''}`}
                   style={row.ownerProfit >= 0
                     ? { bottom: `${(1 - positiveShare) * 100}%`, height: barHeight }
                     : { top: `${positiveShare * 100}%`, height: barHeight }}

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
+import { ChartTooltip, useElementWidth } from './charts/ChartKit'
 import { ANALYSIS_OTHER_COLOR } from '../lib/accountingAnalysis'
 import { formatCompactCurrency, formatCurrency, formatPercent } from '../lib/formatCurrency'
 
@@ -27,17 +28,7 @@ function sankeyLinkPath(x0, y0, x1, y1) {
   return `M${x0},${y0} C${mid},${y0} ${mid},${y1} ${x1},${y1}`
 }
 
-export function useElementWidth() {
-  const [element, setElement] = useState(null)
-  const [width, setWidth] = useState(0)
-  useEffect(() => {
-    if (!element || typeof ResizeObserver === 'undefined') return undefined
-    const observer = new ResizeObserver(([entry]) => setWidth(Math.floor(entry.contentRect.width)))
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [element])
-  return [setElement, width]
-}
+export { useElementWidth }
 
 const defaultTargetClickable = node => !node.isLeft && !node.isOther
 
@@ -55,6 +46,7 @@ export default function SankeyChart({
   lang = 'uz',
 }) {
   const [hovered, setHovered] = useState(null)
+  const [pointer, setPointer] = useState(null)
   const [wrapRef, measuredWidth] = useElementWidth()
   if (!sankey.total) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{emptyLabel}</p>
 
@@ -102,12 +94,27 @@ export default function SankeyChart({
   const targets = layout(sankey.targets)
   const sourceColor = node => sourceColors[node.key] || ANALYSIS_OTHER_COLOR
   const targetColor = node => (node.isLeft ? leftColor : colors[node.key] || ANALYSIS_OTHER_COLOR)
-  const linkOpacity = key => (hovered === key ? 0.5 : hovered ? 0.14 : 0.28)
-  const hover = key => ({ onMouseEnter: () => setHovered(key), onMouseLeave: () => setHovered(null) })
+  // Each flow takes the colour of the node it feeds, faint until hovered; the hovered one comes forward.
+  const linkOpacity = key => (hovered === key ? 0.55 : hovered ? 0.12 : 0.3)
+  const nodeOpacity = key => (hovered && hovered !== key ? 0.45 : 1)
+  const move = event => {
+    const box = event.currentTarget.ownerSVGElement?.getBoundingClientRect() || event.currentTarget.getBoundingClientRect()
+    setPointer({ x: event.clientX - box.left, y: event.clientY - box.top })
+  }
+  const hover = key => ({ onPointerEnter: event => { setHovered(key); move(event) }, onPointerMove: move, onPointerLeave: () => { setHovered(null); setPointer(null) } })
   const percent = amount => (total > 0 ? formatPercent((amount / total) * 100, lang) : formatPercent(0, lang))
 
+  const hoveredNode = hovered?.startsWith('s-')
+    ? sources.find(node => `s-${node.key}` === hovered)
+    : targets.find(node => `t-${node.key}` === hovered)
+  const tip = hoveredNode && pointer ? {
+    title: hovered.startsWith('s-') ? `${sourceLabel(hoveredNode.key)} → ${hubLabel}` : `${hubLabel} → ${targetLabel(hoveredNode.key)}`,
+    rows: [{ key: 'amount', label: hovered.startsWith('s-') ? sourceLabel(hoveredNode.key) : targetLabel(hoveredNode.key), color: hovered.startsWith('s-') ? sourceColor(hoveredNode) : targetColor(hoveredNode), value: formatCurrency(hoveredNode.amount) }],
+    footer: [{ key: 'share', label: hubLabel, value: percent(hoveredNode.amount) }],
+  } : null
+
   return (
-    <div ref={wrapRef} className="overflow-x-auto">
+    <div ref={wrapRef} className="ws-chart relative overflow-x-auto">
       <svg width={width} height={height} className="block" role="img" aria-label={hubLabel}>
         {sources.map(node => (
           <path
@@ -115,11 +122,11 @@ export default function SankeyChart({
             d={sankeyLinkPath(leftX + nodeWidth, node.y + node.h / 2, hubX, node.hubY + node.band / 2)}
             fill="none"
             strokeWidth={Math.max(1, node.band)}
-            className="stroke-current text-[#8a867f] transition-[stroke-opacity]"
+            className="ws-sankey-link"
+            style={{ stroke: sourceColor(node) }}
             strokeOpacity={linkOpacity(`s-${node.key}`)}
             {...hover(`s-${node.key}`)}
           >
-            <title>{`${sourceLabel(node.key)} → ${hubLabel}: ${formatCurrency(node.amount)} (${percent(node.amount)})`}</title>
           </path>
         ))}
         {targets.map(node => (
@@ -128,19 +135,18 @@ export default function SankeyChart({
             d={sankeyLinkPath(hubX + nodeWidth, node.hubY + node.band / 2, rightX, node.y + node.h / 2)}
             fill="none"
             strokeWidth={Math.max(1, node.band)}
-            className={`stroke-current text-[#8a867f] transition-[stroke-opacity] ${clickable(node) ? 'cursor-pointer' : ''}`}
+            className={`ws-sankey-link ${clickable(node) ? 'cursor-pointer' : ''}`}
+            style={{ stroke: targetColor(node) }}
             strokeOpacity={linkOpacity(`t-${node.key}`)}
             onClick={clickable(node) ? () => onTargetClick(node.key) : undefined}
             {...hover(`t-${node.key}`)}
           >
-            <title>{`${hubLabel} → ${targetLabel(node.key)}: ${formatCurrency(node.amount)} (${percent(node.amount)})`}</title>
           </path>
         ))}
 
         {sources.map(node => (
           <g key={`s-${node.key}`} {...hover(`s-${node.key}`)}>
-            <title>{`${sourceLabel(node.key)}: ${formatCurrency(node.amount)} (${percent(node.amount)})`}</title>
-            <rect x={leftX} y={node.y} width={nodeWidth} height={node.h} rx={3} fill={sourceColor(node)} />
+            <rect x={leftX} y={node.y} width={nodeWidth} height={node.h} rx={3} className="ws-sankey-node" style={{ fill: sourceColor(node), opacity: nodeOpacity(`s-${node.key}`) }} />
             <text x={leftX - labelGap} y={node.y + node.h / 2} dy="0.35em" textAnchor="end" className="fill-current text-[#22201d] text-[12px] font-semibold">{sourceText(node)}</text>
           </g>
         ))}
@@ -166,8 +172,7 @@ export default function SankeyChart({
             } : {})}
             {...hover(`t-${node.key}`)}
           >
-            <title>{`${targetLabel(node.key)}: ${formatCurrency(node.amount)} (${percent(node.amount)})`}</title>
-            <rect x={rightX} y={node.y} width={nodeWidth} height={node.h} rx={3} fill={targetColor(node)} />
+            <rect x={rightX} y={node.y} width={nodeWidth} height={node.h} rx={3} className="ws-sankey-node" style={{ fill: targetColor(node), opacity: nodeOpacity(`t-${node.key}`) }} />
             <text
               x={rightX + nodeWidth + labelGap}
               y={node.y + node.h / 2}
@@ -179,6 +184,7 @@ export default function SankeyChart({
           </g>
         ))}
       </svg>
+      {tip && <ChartTooltip x={pointer.x} width={width} top={Math.max(0, Math.min(pointer.y - 40, height - 110))} {...tip} />}
     </div>
   )
 }

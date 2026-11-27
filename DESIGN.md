@@ -210,6 +210,30 @@ and sits on `z-dialog`.
   page reload, which throws away the cart and filters). A failed load is never
   shown as zero: print `—`.
 
+## Charts
+
+One look for every chart, after the Hoggish Finance chart kit. Pages never
+draw their own grid, tooltip box, legend or bar shape: they use
+`src/components/charts/` and the `.ws-chart*` classes in `workspace.css`.
+
+- **Kit.** `BarChart` (columns over time, stacked or side by side, with an
+  average line and target marks), `ChartLegend`, `ChartTooltip`, `ChartGrid`,
+  `ChartDot`, `ChartGradient`; geometry (`niceTicks`, `barPath`,
+  `smoothPath`) in `src/lib/chartScale.js`. Sizes and dashes in `CHART`.
+- **Axes.** Round ticks (0 / 5M / 10M) through `formatCompactCurrency`; faint
+  dashed guides, a solid zero line, no axis lines or tick marks. Real pixels,
+  never a scaled `viewBox`, so labels stay 12px on a phone.
+- **Marks.** Columns at most 24px wide (16px side by side), 4px rounded at
+  the data end only, a 2px gap between stacked segments. Lines 2px with round
+  joins; an average is dashed (`CHART_DASH.average`), a target dotted.
+- **Hover, touch and focus.** One card (`ChartTooltip`) beside the column or
+  point, flipping past the middle; the other columns quiet down. Every
+  tappable column is also a focusable button.
+- **Colour.** Series colours are marks only; text stays in the ink tokens.
+  Legends for two or more series; a toggled-off series keeps its colour.
+- **Motion.** Columns rise from zero once on mount (280ms), lines fade in;
+  hover only changes opacity. Off under `prefers-reduced-motion`.
+
 ## Motion
 
 Motion shows a state change and then stops.

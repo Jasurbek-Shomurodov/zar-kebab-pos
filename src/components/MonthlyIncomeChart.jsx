@@ -6,6 +6,7 @@ import { useElementWidth } from './SankeyChart'
 import { restaurantTodayStr } from '../lib/analytics'
 import { formatCompactCurrency, formatCurrency } from '../lib/formatCurrency'
 import { formatMonthYear } from '../lib/dateFormat'
+import { Shimmer } from './PageShimmer'
 
 const labels = {
   uz: { title: "Oylar bo'yicha o'rtacha kunlik daromad", sub: "Oxirgi 12 oy ko'rsatiladi; nol daromad qiymatlari yashiriladi.", savedMonth: 'Saqlangan oy', currentMonth: 'Joriy oy', breakEven: 'Kunlik zararsizlik', failed: "Oylik daromad ma'lumotlarini yuklab bo'lmadi", retry: 'Qayta urinish', empty: "Ma'lumot yo'q" },
@@ -19,9 +20,9 @@ function formatCompactIncome(amount, lang = 'uz') {
 
 function ChartShimmer() {
   return (
-    <div className="flex h-48 animate-pulse items-end gap-2" aria-hidden="true">
+    <div className="flex h-48 items-end gap-2" aria-hidden="true">
       {[28, 44, 35, 62, 48, 78, 56, 88, 68, 96, 74, 84].map((height, index) => (
-        <div key={index} className="flex-1 rounded-t-md bg-[#efece9]" style={{ height: `${height}%` }} />
+        <div key={index} className="flex-1" style={{ height: `${height}%` }}><Shimmer className="h-full w-full rounded-t-md" /></div>
       ))}
     </div>
   )
@@ -100,7 +101,7 @@ export default function MonthlyIncomeChart({ rows, status, onRetry, lang, target
           <div className="min-w-[720px] pt-7">
             <div
               ref={plotRef}
-              className="relative flex h-48 items-end gap-3 border-b border-[#e4e1de] px-2"
+              className="ws-chart-bars relative flex h-48 items-end gap-3 border-b border-[#e4e1de] px-2"
               role="list"
               aria-label={l.title}
             >
@@ -110,24 +111,23 @@ export default function MonthlyIncomeChart({ rows, status, onRetry, lang, target
                 return (
                   <div
                     key={row.monthStart}
-                    className="group relative flex h-full min-w-[44px] flex-1 items-end"
+                    className="ws-chart-bar-slot group relative flex h-full min-w-[44px] flex-1 items-end"
                     role="listitem"
                     tabIndex={0}
                     aria-label={`${row.label}: ${formatCurrency(row.averageDailyIncome)}${row.target > 0 ? ` · ${l.breakEven}: ${formatCurrency(row.target)}` : ''}`}
                   >
-                    <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-[#22201d] px-2 py-1 text-xs font-medium tabular-nums text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="ws-chart-pop" style={{ bottom: `calc(${height}% + 8px)` }}>
                       {formatCurrency(row.averageDailyIncome)}{row.target > 0 ? ` · ${l.breakEven}: ${formatCurrency(row.target)}` : ''}
                     </div>
                     <div
-                      className={`w-full rounded-t-lg transition-colors ${
+                      className={`ws-chart-bar w-full rounded-t-md ${
                         row.averageDailyIncome <= 0
                           ? 'bg-[#efece9]'
                           : row.isCurrent
                           ? 'bg-[#ff5a00]'
-                          : 'bg-[#0f766e] group-hover:bg-[#0f766e]/85'
+                          : 'bg-[#0f766e]'
                       }`}
                       style={{ height: `${height}%` }}
-                      title={`${row.label}: ${formatCurrency(row.averageDailyIncome)}`}
                     />
                   </div>
                 )

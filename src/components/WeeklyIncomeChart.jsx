@@ -108,7 +108,7 @@ export default function WeeklyIncomeChart({ lang, targetForPeriod = null }) {
               style={{ '--income-hue': group.hue, flex: group.count, backgroundColor: group.background, borderColor: group.border }}>
               {formatMonthYear(group.key + '-01', lang)}
             </div>)}</div>
-            <div className="relative flex h-48 items-end border-b border-[#e4e1de]" role="list" aria-label={l.title}>
+            <div className="ws-chart-bars relative flex h-48 items-end border-b border-[#e4e1de]" role="list" aria-label={l.title}>
               <BreakEvenLine points={chartRows.map((row, index) => ({
                 key: row.weekStart,
                 value: row.target,
@@ -118,9 +118,9 @@ export default function WeeklyIncomeChart({ lang, targetForPeriod = null }) {
               }))} />
               {chartRows.map(row => <div key={row.weekStart} role="listitem" tabIndex={0}
                 aria-label={row.weekStart + ' – ' + row.weekEnd + ': ' + formatCurrency(row.averageDailyIncome) + (row.target > 0 ? ' · ' + l.target + ': ' + formatCurrency(row.target) : '')}
-                title={l.total + ': ' + formatCurrency(row.totalIncome) + ' · ' + row.dayCount + ' ' + l.days + (row.target > 0 ? ' · ' + l.target + ': ' + formatCurrency(row.target) : '')}
-                className="zk-income-month relative flex h-full min-w-0 flex-1 items-end px-2" style={row.monthStyle}>
-                <div className="w-full rounded-t-lg"
+                className="ws-chart-bar-slot zk-income-month relative flex h-full min-w-0 flex-1 items-end px-2" style={row.monthStyle}>
+                <div className="ws-chart-pop" style={{ bottom: `calc(${Math.max(1, row.averageDailyIncome / max * 100)}% + 8px)` }}>{l.total + ': ' + formatCurrency(row.totalIncome) + ' · ' + row.dayCount + ' ' + l.days + (row.target > 0 ? ' · ' + l.target + ': ' + formatCurrency(row.target) : '')}</div>
+                <div className="ws-chart-bar w-full rounded-t-md"
                   style={{ backgroundColor: row.dayCount === 0 ? 'var(--ws-border, #e4e1de)' : row.barColor, height: Math.max(1, row.averageDailyIncome / max * 100) + '%' }} />
               </div>)}
             </div>

@@ -87,6 +87,8 @@
     "src/components/WeeklyIncomeChart.jsx",
     "src/components/WorkspaceDialog.jsx",
     "src/components/WorkspaceTopBar.jsx",
+    "src/components/charts/BarChart.jsx",
+    "src/components/charts/ChartKit.jsx",
     "src/contexts/AuthContext.jsx",
     "src/hooks/useGuestModeSession.js",
     "src/lib/accountingTabs.js",

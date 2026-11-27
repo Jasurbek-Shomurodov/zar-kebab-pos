@@ -435,8 +435,57 @@ textarea.ws-input { height: auto; min-height: 76px; line-height: 1.45; resize: v
   .ws-dialog-footer { padding: 8px 16px; gap: 6px; }
 }
 
+
+/* Charts (src/components/charts/ChartKit.jsx): one look for every chart, after the Hoggish Finance chart kit.
+   Faint dashed guides, label-only axes, a themed hover card, a quiet legend. Only opacity and transform animate. */
+.ws-chart { -webkit-tap-highlight-color: transparent; }
+.ws-chart svg text { font-family: var(--ws-font-display); }
+.ws-chart-grid { stroke: var(--ws-border); stroke-width: 1; }
+.ws-chart-baseline { stroke: var(--ws-input); stroke-width: 1; }
+.ws-chart-tick { fill: var(--ws-muted-foreground); font-size: var(--ws-type-micro); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ws-chart-tick-active { fill: var(--ws-foreground); font-weight: 600; }
+.ws-chart-highlight { fill: var(--ws-muted); opacity: .75; pointer-events: none; }
+.ws-chart-mark, .ws-chart-dim { transition: opacity 150ms ease; }
+.ws-chart-dim { opacity: .42; }
+.ws-chart-dot { stroke: var(--ws-card); stroke-width: 2; }
+.ws-chart-slot { height: 100%; flex: none; border-radius: 6px; }
+.ws-chart-slot:focus-visible { outline: 2px solid var(--ws-ring); outline-offset: -2px; }
+/* Columns rise from their zero line once, when the chart first appears. */
+.ws-chart-rise { transform-box: view-box; animation: ws-chart-rise 280ms cubic-bezier(.2, .7, .2, 1) both; }
+.ws-chart-fade { animation: ws-chart-fade 280ms ease-out both; }
+.ws-chart-bar { transform-origin: bottom; animation: ws-chart-rise 280ms cubic-bezier(.2, .7, .2, 1) both; transition: opacity 150ms ease; }
+@keyframes ws-chart-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes ws-chart-fade { from { opacity: 0; } to { opacity: 1; } }
+/* A row of HTML bars: hovering one quiets the others. */
+.ws-chart-bars:hover .ws-chart-bar-slot:not(:hover):not(:focus-within) .ws-chart-bar { opacity: .5; }
+
+.ws-chart-legend { display: flex; flex-wrap: wrap; gap: 4px 4px; margin: 0 0 12px; padding: 0; list-style: none; }
+.ws-chart-legend-item { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 2px 8px; border-radius: 999px; font-size: var(--ws-type-micro); font-weight: 500; color: var(--ws-muted-foreground); }
+button.ws-chart-legend-item { border: 1px solid transparent; transition: background-color 150ms ease, color 150ms ease; }
+button.ws-chart-legend-item:hover { background: var(--ws-muted); color: var(--ws-foreground); }
+button.ws-chart-legend-item:focus-visible { outline: 2px solid var(--ws-ring); outline-offset: 1px; }
+button.ws-chart-legend-item[data-off] { text-decoration: line-through; }
+.ws-chart-swatch { width: 10px; height: 10px; flex: none; border-radius: 3px; }
+.ws-chart-swatch-line { flex: none; overflow: visible; }
+
+.ws-chart-tooltip { position: absolute; z-index: 10; pointer-events: none; padding: 10px 12px; border: 1px solid var(--ws-border); border-radius: 12px; background: color-mix(in srgb, var(--ws-card) 94%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 8px 24px rgb(34 32 29 / 12%), 0 1px 2px rgb(34 32 29 / 6%); font-size: var(--ws-type-micro); line-height: 1.5; color: var(--ws-muted-foreground); animation: ws-chart-fade 120ms ease-out both; }
+.ws-chart-tooltip-title { margin-bottom: 6px; font-size: var(--ws-type-caption); font-weight: 600; color: var(--ws-foreground); }
+.ws-chart-tooltip-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 20px; }
+.ws-chart-tooltip-label { display: inline-flex; min-width: 0; align-items: center; gap: 6px; }
+.ws-chart-tooltip-value { flex: none; white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ws-foreground); }
+.ws-chart-tooltip-footer { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--ws-border); }
+.ws-chart-tooltip-strong, .ws-chart-tooltip-strong .ws-chart-tooltip-label { font-weight: 600; color: var(--ws-foreground); }
+.ws-chart-negative { color: var(--ws-negative); }
+/* A small hover card above an HTML bar (Monthly income, Owner profit). */
+.ws-chart-pop { position: absolute; z-index: 30; left: 50%; bottom: calc(100% + 6px); transform: translate(-50%, 4px); opacity: 0; pointer-events: none; white-space: nowrap; padding: 6px 10px; border: 1px solid var(--ws-border); border-radius: 10px; background: var(--ws-card); box-shadow: 0 8px 24px rgb(34 32 29 / 12%); font-size: var(--ws-type-micro); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ws-foreground); transition: opacity 150ms ease, transform 150ms ease; }
+.ws-chart-bar-slot:hover .ws-chart-pop, .ws-chart-bar-slot:focus-visible .ws-chart-pop, .ws-chart-bar-slot:focus-within .ws-chart-pop { opacity: 1; transform: translate(-50%, 0); }
+.ws-chart-bar-slot:focus-visible { outline: 2px solid var(--ws-ring); outline-offset: 2px; border-radius: 8px; }
+html[data-theme="dark"] .ws-chart-tooltip, html[data-theme="dark"] .ws-chart-pop { box-shadow: 0 8px 24px rgb(0 0 0 / 45%); }
+
 @media (prefers-reduced-motion: reduce) {
   .ws-dialog-panel { animation: none; }
+  .ws-chart-rise, .ws-chart-fade, .ws-chart-bar, .ws-chart-tooltip { animation: none; }
+  .ws-chart-mark, .ws-chart-dim, .ws-chart-bar, .ws-chart-pop { transition: none; }
   .ws-row, .ws-btn, .ws-segmented > button, .ws-page-tabs > button, .ws-input, .ws-switch, .ws-switch::before { transition: none; }
   .ws-btn:active:not(:disabled) { transform: none; }
 }
@@ -449,3 +498,8 @@ textarea.ws-input { height: auto; min-height: 76px; line-height: 1.45; resize: v
   .ws-segmented > button { height: 44px; }
   .ws-page-tabs > button { min-height: 44px; }
 }
+
+/* Sankey flows: coloured by the node they feed, faint until hovered. */
+.ws-sankey-link { transition: stroke-opacity 150ms ease; }
+.ws-sankey-node { transition: opacity 150ms ease; }
+@media (prefers-reduced-motion: reduce) { .ws-sankey-link, .ws-sankey-node { transition: none; } }

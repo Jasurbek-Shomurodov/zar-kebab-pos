@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowDownRight,
@@ -28,7 +28,10 @@ import { OperationalLoading } from '../components/OperationalState'
 import MonthlyIncomeChart from '../components/MonthlyIncomeChart'
 import WeeklyIncomeChart from '../components/WeeklyIncomeChart'
 import WorkspaceDialog from '../components/WorkspaceDialog'
-import SankeyChart, { useElementWidth } from '../components/SankeyChart'
+import SankeyChart from '../components/SankeyChart'
+import BarChart from '../components/charts/BarChart'
+import { CHART, CHART_DASH, ChartDot, ChartGradient, ChartGrid, ChartLegend, ChartTooltip, useElementWidth } from '../components/charts/ChartKit'
+import { niceTicks, smoothPath } from '../lib/chartScale'
 import { Shimmer } from '../components/PageShimmer'
 import { supabase } from '../lib/supabase'
 import { useApp } from '../store/AppContext'
@@ -1363,15 +1366,19 @@ function signedPct(value, lang) {
 const SPARK_TONES = { positive: 'text-[#1d7a52]', negative: 'text-[#c4262c]' }
 
 function Sparkline({ values, tone = 'positive', highlightLast = false }) {
+  const id = useId().replace(/:/g, '')
   const points = values.filter(value => Number.isFinite(value))
   if (points.length < 2) return null
   const max = Math.max(...points, 1)
   const min = Math.min(...points, 0)
   const x = index => (index / (points.length - 1)) * 100
-  const y = value => 30 - ((value - min) / (max - min || 1)) * 28
+  const y = value => 30 - ((value - min) / (max - min || 1)) * 27
+  const line = smoothPath(points.map((value, index) => ({ x: x(index), y: y(value) })))
   return (
-    <svg viewBox="0 0 100 32" preserveAspectRatio="none" className={`mt-3 h-8 w-full ${SPARK_TONES[tone] || SPARK_TONES.positive}`} aria-hidden="true">
-      <polyline points={points.map((value, index) => `${x(index)},${y(value)}`).join(' ')} fill="none" className="stroke-current" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+    <svg viewBox="0 0 100 32" preserveAspectRatio="none" className={`mt-3 h-8 w-full overflow-visible ${SPARK_TONES[tone] || SPARK_TONES.positive}`} aria-hidden="true">
+      <ChartGradient id={`spark-${id}`} color="currentColor" opacity={0.18} />
+      <path d={`${line}L100,32L0,32Z`} style={{ fill: `url(#spark-${id})` }} />
+      <path d={line} fill="none" className="stroke-current" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
       {highlightLast && <circle cx={x(points.length - 1)} cy={y(points.at(-1))} r={2.5} className="fill-current" vectorEffect="non-scaling-stroke" />}
     </svg>
   )
@@ -1733,48 +1740,74 @@ function incomeSourceLabel(key, l) {
 
 function IncomeSourcesChart({ sources, hidden, l, lang }) {
   const [wrapRef, width] = useElementWidth()
-  const height = 240
-  const pad = { top: 16, right: 12, bottom: 28, left: 68 }
+  const [active, setActive] = useState(null)
+  const height = CHART.height.compact + 20
   const shown = sources.series.filter(row => !hidden.has(row.key))
-  const max = Math.max(1, ...shown.flatMap(row => sources.months.map(month => month.values[row.key])))
+  const count = sources.months.length
+  const scale = niceTicks(0, Math.max(1, ...shown.flatMap(row => sources.months.map(month => month.values[row.key]))), 4)
+  const compact = value => formatCompactCurrency(value, lang)
+  const pad = { top: 16, right: 16, bottom: 30, left: Math.max(44, Math.max(...scale.ticks.map(tick => compact(tick).length)) * 7 + 14) }
   const innerWidth = Math.max(0, width - pad.left - pad.right)
   const innerHeight = height - pad.top - pad.bottom
-  const count = sources.months.length
   const x = index => pad.left + (count > 1 ? (index / (count - 1)) * innerWidth : innerWidth / 2)
-  const y = value => pad.top + innerHeight - (value / max) * innerHeight
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map(step => Math.round(max * step))
+  const y = value => pad.top + innerHeight - ((value - scale.min) / (scale.max - scale.min || 1)) * innerHeight
+  const indexAt = event => {
+    const box = event.currentTarget.getBoundingClientRect()
+    const index = count > 1 ? Math.round(((event.clientX - box.left - pad.left) / (innerWidth || 1)) * (count - 1)) : 0
+    return index >= 0 && index < count ? index : null
+  }
+  const month = active == null ? null : sources.months[active]
   return (
-    <div ref={wrapRef} className="w-full">
+    <div ref={wrapRef} className="ws-chart relative w-full">
       {width > 0 && (
-        <svg width={width} height={height} role="img" aria-label={l.incomeSourcesTitle}>
-          {ticks.map(tick => (
-            <g key={tick}>
-              <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
-              <text x={pad.left - 8} y={y(tick)} dy="0.32em" textAnchor="end" className="fill-current text-[#68655f] text-xs">{formatCompactCurrency(tick, lang)}</text>
-            </g>
+        <svg
+          width={width}
+          height={height}
+          className="block touch-pan-y"
+          role="img"
+          aria-label={l.incomeSourcesTitle}
+          onPointerMove={event => setActive(indexAt(event))}
+          onPointerDown={event => setActive(indexAt(event))}
+          onPointerLeave={event => { if (event.pointerType === 'mouse') setActive(null) }}
+        >
+          <ChartGrid ticks={scale.ticks} y={y} left={pad.left} right={width - pad.right} format={compact} />
+          {sources.months.map((item, index) => (
+            <text key={item.key} x={x(index)} y={height - 10} textAnchor="middle" className={`ws-chart-tick ${active === index ? 'ws-chart-tick-active' : ''}`}>{formatMonthYear(item.key, lang, item.key).slice(0, 3)}</text>
           ))}
-          {sources.months.map((month, index) => (
-            <text key={month.key} x={x(index)} y={height - 8} textAnchor="middle" className="fill-current text-[#68655f] text-xs">{formatMonthYear(month.key, lang, month.key).slice(0, 3)}</text>
-          ))}
-          {shown.map(row => (
-            <g key={row.key}>
-              <polyline
-                points={sources.months.map((month, index) => `${x(index)},${y(month.values[row.key])}`).join(' ')}
+          {active != null && <line x1={x(active)} x2={x(active)} y1={pad.top} y2={pad.top + innerHeight} className="ws-chart-baseline" strokeDasharray={CHART.gridDash} />}
+          <g className="ws-chart-fade">
+            {shown.map(row => (
+              <path
+                key={row.key}
+                d={smoothPath(sources.months.map((item, index) => ({ x: x(index), y: y(item.values[row.key]) })))}
                 fill="none"
-                stroke={INCOME_SOURCE_COLORS[row.key]}
-                strokeWidth={2}
-                strokeDasharray={row.key === 'investor_support' ? '5 4' : undefined}
+                style={{ stroke: INCOME_SOURCE_COLORS[row.key] }}
+                strokeWidth={CHART.lineWidth}
+                strokeDasharray={row.key === 'investor_support' ? CHART_DASH.average : undefined}
+                strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              {sources.months.map((month, index) => (
-                <circle key={month.key} cx={x(index)} cy={y(month.values[row.key])} r={3} fill={INCOME_SOURCE_COLORS[row.key]}>
-                  <title>{`${incomeSourceLabel(row.key, l)} · ${formatMonthYear(month.key, lang, month.key)}: ${formatCurrency(month.values[row.key])}`}</title>
-                </circle>
-              ))}
-            </g>
-          ))}
+            ))}
+          </g>
+          {active != null && shown.map(row => <ChartDot key={row.key} cx={x(active)} cy={y(month.values[row.key])} color={INCOME_SOURCE_COLORS[row.key]} />)}
         </svg>
       )}
+      {month && (
+        <ChartTooltip
+          x={x(active)}
+          width={width}
+          title={formatMonthYear(month.key, lang, month.key)}
+          rows={[...shown].sort((first, second) => month.values[second.key] - month.values[first.key]).map(row => ({
+            key: row.key,
+            label: incomeSourceLabel(row.key, l),
+            color: INCOME_SOURCE_COLORS[row.key],
+            kind: 'line',
+            dash: row.key === 'investor_support' ? CHART_DASH.average : undefined,
+            value: compact(month.values[row.key]),
+          }))}
+        />
+      )}
+      {!(width > 0) && <div style={{ height }} />}
     </div>
   )
 }
@@ -1813,21 +1846,12 @@ function IncomeSourcesCard({ sources, status, l, lang, onRetry }) {
           <StatCell label={l.touristShare} value={formatPct(tourist?.sharePct ?? 0, lang)} sub={tourist?.averageCheck != null ? `${l.avgCheck}: ${formatCompactCurrency(tourist.averageCheck, lang)}` : ''} />
         </dl>
         <div>
-          <ul className="mb-3 flex flex-wrap gap-2" aria-label={l.chartLegend}>
-            {sources.series.map(row => (
-              <li key={row.key}>
-                <button
-                  type="button"
-                  onClick={() => toggle(row.key)}
-                  aria-pressed={!hidden.has(row.key)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-opacity ${hidden.has(row.key) ? 'border-[#e4e1de] text-[#68655f] opacity-60' : 'border-[#e4e1de] text-[#22201d]'}`}
-                >
-                  <span className="h-0.5 w-4 rounded-full" style={{ backgroundColor: INCOME_SOURCE_COLORS[row.key] }} />
-                  {incomeSourceLabel(row.key, l)}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <ChartLegend
+            label={l.chartLegend}
+            items={sources.series.map(row => ({ key: row.key, label: incomeSourceLabel(row.key, l), color: INCOME_SOURCE_COLORS[row.key], kind: 'line', dash: row.key === 'investor_support' ? CHART_DASH.average : undefined }))}
+            hidden={hidden}
+            onToggle={toggle}
+          />
           <IncomeSourcesChart sources={sources} hidden={hidden} l={l} lang={lang} />
         </div>
         <div className="overflow-x-auto">
@@ -2262,8 +2286,6 @@ function trendRangeLabel(row, interval, lang) {
 // dashed line. Clicking a legend entry hides or shows its series.
 function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
   const [hidden, setHidden] = useState([])
-  const [hoverIndex, setHoverIndex] = useState(null)
-  const [wrapRef, measuredWidth] = useElementWidth()
   if (!rows.length || rows.every(row => !row.income && !row.spent)) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
 
   const stacked = styleKey === 'groups'
@@ -2277,113 +2299,44 @@ function TrendChart({ rows, styleKey, interval, breakEvenFor, l, lang }) {
   const bars = visible.filter(item => !item.line && !item.marker)
   const incomeLine = visible.find(item => item.line)
   const breakEvenMark = visible.find(item => item.marker)
-
-  const values = rows.flatMap(row => stacked
-    ? [bars.reduce((sum, item) => sum + row[item.key], 0), incomeLine ? row.income : 0]
-    : [...bars.map(item => row[item.key]), breakEvenMark ? breakEvenOf(row) : 0])
-  const maxValue = Math.max(1, ...values) * 1.08
-  const minValue = Math.min(0, ...values) * 1.08
-
-  const width = Math.max(rows.length * 28 + 70, measuredWidth || 0)
-  const height = 280
-  const pad = { top: 12, right: 8, bottom: 28, left: 68 }
-  const plotW = width - pad.left - pad.right
-  const plotH = height - pad.top - pad.bottom
-  const y = value => pad.top + ((maxValue - value) / (maxValue - minValue)) * plotH
-  const slot = plotW / rows.length
-  const groupWidth = Math.min(stacked ? 36 : 54, slot * 0.72)
-  const barWidth = stacked ? groupWidth : Math.max(2, (groupWidth - 2 * Math.max(0, bars.length - 1)) / Math.max(1, bars.length))
-  const tickCount = 4
-  const ticks = Array.from({ length: tickCount + 1 }, (_, index) => minValue + ((maxValue - minValue) * index) / tickCount)
-  const labelEvery = Math.max(1, Math.ceil(rows.length / Math.max(1, Math.floor(plotW / 64))))
-  const hovered = hoverIndex == null ? null : rows[hoverIndex]
   const toggle = key => setHidden(list => (list.includes(key) ? list.filter(item => item !== key) : [...list, key]))
-  const centerX = index => pad.left + index * slot + slot / 2
+  const kindOf = item => (item.line || item.marker ? 'line' : 'bar')
+  const dashOf = item => (item.marker ? CHART_DASH.target : item.line ? CHART_DASH.average : undefined)
+  const compact = value => formatCompactCurrency(value, lang)
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-x-1 gap-y-1">
-        {series.map(item => (
-          <button
-            key={item.key}
-            type="button"
-            aria-pressed={!hidden.includes(item.key)}
-            onClick={() => toggle(item.key)}
-            className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold hover:bg-[#f6f5f3] ${hidden.includes(item.key) ? 'text-[#68655f] line-through' : 'text-[#68655f]'}`}
-          >
-            {item.line || item.marker
-              ? <span className={`h-0 w-4 border-t-2 ${item.marker ? 'border-dotted' : 'border-dashed'}`} style={{ borderColor: item.color }} />
-              : <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: item.color, opacity: hidden.includes(item.key) ? 0.35 : 1 }} />}
-            {seriesLabels[item.key]}
-          </button>
-        ))}
-      </div>
-      <div ref={wrapRef} className="relative overflow-x-auto">
-        <svg width={width} height={height} className="block" role="img" aria-label={l.flowTrends} onMouseLeave={() => setHoverIndex(null)}>
-          {ticks.map(tick => (
-            <g key={tick}>
-              <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
-              <text x={pad.left - 8} y={y(tick)} dy="0.35em" textAnchor="end" className="fill-current text-[#68655f] text-xs font-medium">{formatCompactCurrency(tick, lang)}</text>
-            </g>
-          ))}
-          {minValue < 0 && <line x1={pad.left} x2={width - pad.right} y1={y(0)} y2={y(0)} className="stroke-current text-[#c9c5bf]" />}
-          {rows.map((row, index) => {
-            const start = centerX(index) - groupWidth / 2
-            let stackTop = y(0)
-            return (
-              <g key={row.key} onMouseEnter={() => setHoverIndex(index)}>
-                <rect x={pad.left + index * slot} y={pad.top} width={slot} height={plotH} fill={hoverIndex === index ? 'rgb(255 90 0 / 7%)' : 'transparent'} />
-                {stacked
-                  ? bars.map(item => {
-                    if (!row[item.key]) return null
-                    const h = y(0) - y(row[item.key])
-                    stackTop -= h
-                    return <rect key={item.key} x={start} y={stackTop} width={barWidth} height={Math.max(0, h - 1)} rx={barWidth > 6 ? 2 : 0} fill={item.color} />
-                  })
-                  : bars.map((item, barIndex) => {
-                    const value = row[item.key]
-                    if (!value) return null
-                    const top = Math.min(y(value), y(0))
-                    return <rect key={item.key} x={start + barIndex * (barWidth + 2)} y={top} width={barWidth} height={Math.max(1, Math.abs(y(value) - y(0)))} rx={barWidth > 6 ? 2 : 0} fill={item.color} />
-                  })}
-                {index % labelEvery === 0 && (
-                  <text x={centerX(index)} y={height - 8} textAnchor="middle" className="fill-current text-[#68655f] text-xs font-medium">{trendAxisLabel(row, interval, lang)}</text>
-                )}
-              </g>
-            )
-          })}
-          {breakEvenMark && rows.map((row, index) => (
-            <line key={`be-${row.key}`} x1={centerX(index) - groupWidth / 2 - 3} x2={centerX(index) + groupWidth / 2 + 3} y1={y(breakEvenOf(row))} y2={y(breakEvenOf(row))} stroke={breakEvenMark.color} strokeWidth={2} strokeDasharray="2 3" pointerEvents="none" />
-          ))}
-          {incomeLine && (
-            <g pointerEvents="none">
-              <polyline points={rows.map((row, index) => `${centerX(index)},${y(row.income)}`).join(' ')} fill="none" stroke={incomeLine.color} strokeWidth={2} strokeDasharray="6 4" />
-              {rows.map((row, index) => <circle key={row.key} cx={centerX(index)} cy={y(row.income)} r={3} fill={incomeLine.color} />)}
-            </g>
-          )}
-        </svg>
-        {hovered && (
-          <div
-            className="pointer-events-none absolute top-2 z-10 w-56 rounded-xl border border-[#e4e1de] bg-white p-3 text-xs shadow-lg"
-            style={{ left: Math.min(Math.max(0, centerX(hoverIndex) + 12), Math.max(0, width - 232)) }}
-          >
-            <p className="mb-1.5 font-semibold text-[#22201d]">{trendRangeLabel(hovered, interval, lang)}</p>
-            {series.map(item => {
-              const value = item.marker ? breakEvenOf(hovered) : hovered[item.key]
-              return (
-                <p key={item.key} className="flex items-center justify-between gap-2 font-bold text-[#68655f]">
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: item.color }} />{seriesLabels[item.key]}</span>
-                  <span className={`tabular-nums ${value < 0 ? 'text-[#c4262c]' : 'text-[#22201d]'}`}>{formatCompactCurrency(value, lang)}</span>
-                </p>
-              )
-            })}
-            <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-bold text-[#68655f]"><span>{l.avgPerDay}</span><span className="tabular-nums text-[#22201d]">{formatCompactCurrency(hovered.averageDaily, lang)}</span></p>
-            {stacked && (
-              <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-semibold text-[#22201d]"><span>{l.spent}</span><span className="tabular-nums">{formatCurrency(hovered.spent)}</span></p>
-            )}
-          </div>
-        )}
-      </div>
+      <ChartLegend
+        label={l.chartLegend}
+        items={series.map(item => ({ key: item.key, label: seriesLabels[item.key], color: item.color, kind: kindOf(item), dash: dashOf(item) }))}
+        hidden={hidden}
+        onToggle={toggle}
+      />
+      <BarChart
+        rows={rows}
+        rowKey={row => row.key}
+        series={bars}
+        stacked={stacked}
+        lang={lang}
+        height={CHART.height.tall}
+        minSlot={28}
+        labelGap={64}
+        lines={incomeLine ? [{ key: 'income', color: incomeLine.color, values: rows.map(row => row.income), dash: CHART_DASH.average, dots: true }] : []}
+        markers={breakEvenMark ? [{ key: 'breakEven', color: breakEvenMark.color, values: rows.map(breakEvenOf) }] : []}
+        xLabel={row => trendAxisLabel(row, interval, lang)}
+        ariaLabel={l.flowTrends}
+        tooltip={row => ({
+          title: trendRangeLabel(row, interval, lang),
+          rows: series.map(item => {
+            const value = item.marker ? breakEvenOf(row) : row[item.key]
+            return { key: item.key, label: seriesLabels[item.key], color: item.color, kind: kindOf(item), dash: dashOf(item), value: compact(value), tone: value < 0 ? 'negative' : undefined }
+          }),
+          footer: [
+            { key: 'avg', label: l.avgPerDay, value: compact(row.averageDaily) },
+            ...(stacked ? [{ key: 'spent', label: l.spent, value: formatCurrency(row.spent), strong: true }] : []),
+          ],
+        })}
+      />
     </div>
   )
 }
@@ -2583,112 +2536,55 @@ function CategoryComparison({ rows, labelFor, l, lang }) {
 }
 
 function DailySpendingChart({ days, averageIncome, incomeByDate, l, lang, onSelectDay }) {
-  const [hoverIndex, setHoverIndex] = useState(null)
   const runningAverage = useMemo(() => (incomeByDate ? buildRunningAverageIncome(days, incomeByDate) : null), [days, incomeByDate])
   if (!days.length || days.every(day => day.total === 0)) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
 
-  const width = 960
-  const height = 260
-  const pad = { top: 12, right: 12, bottom: 28, left: 68 }
-  const plotW = width - pad.left - pad.right
-  const plotH = height - pad.top - pad.bottom
-  const maxValue = Math.max(averageIncome, ...(runningAverage || []), ...days.map(day => day.total), 1) * 1.08
-  const y = value => pad.top + plotH - (value / maxValue) * plotH
-  const slot = plotW / days.length
-  const barWidth = Math.max(2, Math.min(28, slot - 3))
-  const ticks = [0, maxValue / 3, (maxValue * 2) / 3].map(Math.round)
-  const labelEvery = Math.ceil(days.length / 12)
   const groupLabels = { salaries: l.salaries, bazaar: l.bazaar, meals: l.meals, other: l.otherSpend }
-  const hovered = hoverIndex == null ? null : days[hoverIndex]
+  // The running average of daily income, or the period's flat average when only that is known.
+  const averageLine = runningAverage || (averageIncome > 0 ? days.map(() => averageIncome) : null)
+  const compact = value => formatCompactCurrency(value, lang)
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-[#68655f]">
-        {SPENDING_GROUPS.map(group => (
-          <span key={group} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: GROUP_COLORS[group] }} />{groupLabels[group]}</span>
-        ))}
-        {(averageIncome > 0 || runningAverage) && <span className="inline-flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-[#22201d]" />{l.avgIncome}</span>}
-      </div>
-      <div className="relative">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label={l.dailyTitle} onMouseLeave={() => setHoverIndex(null)}>
-          {ticks.map(tick => (
-            <g key={tick}>
-              <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
-              <text x={pad.left - 8} y={y(tick) + 4} textAnchor="end" className="fill-current text-[#68655f] text-xs font-medium">{formatCompactCurrency(tick, lang)}</text>
-            </g>
-          ))}
-          {days.map((day, index) => {
-            const x = pad.left + index * slot + (slot - barWidth) / 2
-            let stackTop = pad.top + plotH
-            return (
-              <g
-                key={day.date}
-                onMouseEnter={() => setHoverIndex(index)}
-                onClick={day.total > 0 ? () => onSelectDay(day.date) : undefined}
-                onKeyDown={event => {
-                  if (day.total > 0 && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelectDay(day.date) }
-                }}
-                role={day.total > 0 ? 'button' : undefined}
-                tabIndex={day.total > 0 ? 0 : undefined}
-                aria-label={day.total > 0 ? `${formatLongDate(day.date, lang, day.date)} · ${formatCurrency(day.total)}` : undefined}
-                className={day.total > 0 ? 'cursor-pointer outline-none' : undefined}
-              >
-                <rect x={pad.left + index * slot} y={pad.top} width={slot} height={plotH} fill={hoverIndex === index ? 'rgb(255 90 0 / 8%)' : 'transparent'} />
-                {SPENDING_GROUPS.map(group => {
-                  if (!day[group]) return null
-                  const h = (day[group] / maxValue) * plotH
-                  stackTop -= h
-                  return <rect key={group} x={x} y={stackTop} width={barWidth} height={Math.max(0, h - 1)} rx={barWidth > 6 ? 2 : 0} fill={GROUP_COLORS[group]} />
-                })}
-                {index % labelEvery === 0 && (
-                  <text x={x + barWidth / 2} y={height - 8} textAnchor="middle" className="fill-current text-[#68655f] text-xs font-medium">{Number(day.date.slice(8))}</text>
-                )}
-              </g>
-            )
-          })}
-          {runningAverage ? (
-            <polyline
-              points={runningAverage.map((value, index) => `${pad.left + (index + 0.5) * slot},${y(value)}`).join(' ')}
-              fill="none"
-              className="stroke-current text-[#22201d]"
-              strokeWidth={2}
-              strokeDasharray="6 5"
-              strokeLinejoin="round"
-              pointerEvents="none"
-            />
-          ) : averageIncome > 0 && (
-            <line x1={pad.left} x2={width - pad.right} y1={y(averageIncome)} y2={y(averageIncome)} className="stroke-current text-[#22201d]" strokeWidth={2} strokeDasharray="6 5" pointerEvents="none" />
-          )}
-        </svg>
-        {hovered && (
-          <div
-            className="pointer-events-none absolute top-2 z-10 w-52 rounded-xl border border-[#e4e1de] bg-white p-3 text-xs shadow-lg"
-            style={{ left: `${Math.min(70, Math.max(0, ((hoverIndex + 0.5) / days.length) * 100 - 10))}%` }}
-          >
-            <p className="mb-1.5 font-semibold text-[#22201d]">{formatLongDate(hovered.date, lang, hovered.date)}</p>
-            {SPENDING_GROUPS.filter(group => hovered[group] > 0).map(group => (
-              <p key={group} className="flex items-center justify-between gap-2 font-bold text-[#68655f]">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: GROUP_COLORS[group] }} />{groupLabels[group]}</span>
-                <span className="text-[#22201d] tabular-nums">{formatCompactCurrency(hovered[group], lang)}</span>
-              </p>
-            ))}
-            <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-semibold text-[#22201d]"><span>{l.total}</span><span className="tabular-nums">{formatCurrency(hovered.total)}</span></p>
-            {runningAverage && (
-              <p className="mt-1 flex justify-between gap-2 font-bold text-[#68655f]"><span>{l.avgIncome}</span><span className="tabular-nums text-[#22201d]">{formatCompactCurrency(runningAverage[hoverIndex], lang)}</span></p>
-            )}
-          </div>
-        )}
-      </div>
+      <ChartLegend
+        label={l.dailyTitle}
+        items={[
+          ...SPENDING_GROUPS.map(group => ({ key: group, label: groupLabels[group], color: GROUP_COLORS[group] })),
+          ...(averageLine ? [{ key: 'avg', label: l.avgIncome, color: AVERAGE_LINE_COLOR, kind: 'line', dash: CHART_DASH.average }] : []),
+        ]}
+      />
+      <BarChart
+        rows={days}
+        rowKey={day => day.date}
+        series={SPENDING_GROUPS.map(group => ({ key: group, color: GROUP_COLORS[group] }))}
+        stacked
+        lang={lang}
+        minSlot={10}
+        lines={averageLine ? [{ key: 'avg', color: AVERAGE_LINE_COLOR, values: averageLine, dash: CHART_DASH.average }] : []}
+        xLabel={day => Number(day.date.slice(8))}
+        onSelect={day => onSelectDay(day.date)}
+        selectable={day => day.total > 0}
+        rowLabel={day => `${formatLongDate(day.date, lang, day.date)} · ${formatCurrency(day.total)}`}
+        ariaLabel={l.dailyTitle}
+        tooltip={(day, index) => ({
+          title: formatLongDate(day.date, lang, day.date),
+          rows: SPENDING_GROUPS.filter(group => day[group] > 0).map(group => ({ key: group, label: groupLabels[group], color: GROUP_COLORS[group], value: compact(day[group]) })),
+          footer: [
+            { key: 'total', label: l.total, value: formatCurrency(day.total), strong: true },
+            ...(runningAverage ? [{ key: 'avg', label: l.avgIncome, value: compact(runningAverage[index]) }] : []),
+          ],
+        })}
+      />
     </div>
   )
 }
 
 const INCOME_METHOD_COLORS = { cash: ANALYSIS_SERIES_COLORS[2], card: ANALYSIS_SERIES_COLORS[0], terminal: ANALYSIS_SERIES_COLORS[6], salary: ANALYSIS_SERIES_COLORS[3], other: '#9CA3AF' }
+const AVERAGE_LINE_COLOR = 'var(--ws-foreground)'
 
 // Daily income: each day's cafe income stacked by payment method, with the
 // running average daily income as a dashed line. Same layout as Daily spending.
 function DailyIncomeChart({ days, status, l, lang, onSelectDay, onRetry }) {
-  const [hoverIndex, setHoverIndex] = useState(null)
   const runningAverage = useMemo(() => (days ? buildRunningAverageIncome(days, Object.fromEntries(days.map(day => [day.date, day.total]))) : []), [days])
   if (status === 'error') {
     return (
@@ -2701,95 +2597,43 @@ function DailyIncomeChart({ days, status, l, lang, onSelectDay, onRetry }) {
   if (!days) return <Shimmer className="h-[260px] w-full rounded-xl" />
   if (!days.length || days.every(day => day.total === 0)) return <p className="py-10 text-center text-sm font-medium text-[#68655f]">{l.empty}</p>
 
-  const width = 960
-  const height = 260
-  const pad = { top: 12, right: 12, bottom: 28, left: 68 }
-  const plotW = width - pad.left - pad.right
-  const plotH = height - pad.top - pad.bottom
-  const maxValue = Math.max(...runningAverage, ...days.map(day => day.total), 1) * 1.08
-  const y = value => pad.top + plotH - (value / maxValue) * plotH
-  const slot = plotW / days.length
-  const barWidth = Math.max(2, Math.min(28, slot - 3))
-  const ticks = [0, maxValue / 3, (maxValue * 2) / 3].map(Math.round)
-  const labelEvery = Math.ceil(days.length / 12)
   const methodLabels = { cash: l.incCash, card: l.incCard, terminal: l.incTerminal, salary: l.incSalary, other: l.incOther }
   const shownMethods = INCOME_METHODS.filter(method => days.some(day => day[method] > 0))
   // Before migration 286 there is no split: the one bar is plain cafe income.
   if (shownMethods.length === 1 && shownMethods[0] === 'other') methodLabels.other = l.cafeIncome
-  const hovered = hoverIndex == null ? null : days[hoverIndex]
+  const compact = value => formatCompactCurrency(value, lang)
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-[#68655f]">
-        {shownMethods.map(method => (
-          <span key={method} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: INCOME_METHOD_COLORS[method] }} />{methodLabels[method]}</span>
-        ))}
-        <span className="inline-flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-[#22201d]" />{l.avgIncome}</span>
-      </div>
-      <div className="relative">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label={l.dailyIncomeTitle} onMouseLeave={() => setHoverIndex(null)}>
-          {ticks.map(tick => (
-            <g key={tick}>
-              <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className="stroke-current text-[#efece9]" />
-              <text x={pad.left - 8} y={y(tick) + 4} textAnchor="end" className="fill-current text-[#68655f] text-xs font-medium">{formatCompactCurrency(tick, lang)}</text>
-            </g>
-          ))}
-          {days.map((day, index) => {
-            const x = pad.left + index * slot + (slot - barWidth) / 2
-            let stackTop = pad.top + plotH
-            return (
-              <g
-                key={day.date}
-                onMouseEnter={() => setHoverIndex(index)}
-                onClick={day.total > 0 ? () => onSelectDay(day.date) : undefined}
-                onKeyDown={event => {
-                  if (day.total > 0 && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelectDay(day.date) }
-                }}
-                role={day.total > 0 ? 'button' : undefined}
-                tabIndex={day.total > 0 ? 0 : undefined}
-                aria-label={day.total > 0 ? `${formatLongDate(day.date, lang, day.date)} · ${formatCurrency(day.total)}` : undefined}
-                className={day.total > 0 ? 'cursor-pointer outline-none' : undefined}
-              >
-                <rect x={pad.left + index * slot} y={pad.top} width={slot} height={plotH} fill={hoverIndex === index ? 'rgb(255 90 0 / 8%)' : 'transparent'} />
-                {INCOME_METHODS.map(method => {
-                  if (!day[method]) return null
-                  const h = (day[method] / maxValue) * plotH
-                  stackTop -= h
-                  return <rect key={method} x={x} y={stackTop} width={barWidth} height={Math.max(0, h - 1)} rx={barWidth > 6 ? 2 : 0} fill={INCOME_METHOD_COLORS[method]} />
-                })}
-                {index % labelEvery === 0 && (
-                  <text x={x + barWidth / 2} y={height - 8} textAnchor="middle" className="fill-current text-[#68655f] text-xs font-medium">{Number(day.date.slice(8))}</text>
-                )}
-              </g>
-            )
-          })}
-          <polyline
-            points={runningAverage.map((value, index) => `${pad.left + (index + 0.5) * slot},${y(value)}`).join(' ')}
-            fill="none"
-            className="stroke-current text-[#22201d]"
-            strokeWidth={2}
-            strokeDasharray="6 5"
-            strokeLinejoin="round"
-            pointerEvents="none"
-          />
-        </svg>
-        {hovered && (
-          <div
-            className="pointer-events-none absolute top-2 z-10 w-52 rounded-xl border border-[#e4e1de] bg-white p-3 text-xs shadow-lg"
-            style={{ left: `${Math.min(70, Math.max(0, ((hoverIndex + 0.5) / days.length) * 100 - 10))}%` }}
-          >
-            <p className="mb-1.5 font-semibold text-[#22201d]">{formatLongDate(hovered.date, lang, hovered.date)}</p>
-            {INCOME_METHODS.filter(method => hovered[method] > 0).map(method => (
-              <p key={method} className="flex items-center justify-between gap-2 font-bold text-[#68655f]">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: INCOME_METHOD_COLORS[method] }} />{methodLabels[method]}</span>
-                <span className="text-[#22201d] tabular-nums">{formatCompactCurrency(hovered[method], lang)}</span>
-              </p>
-            ))}
-            <p className="mt-1.5 flex justify-between border-t border-[#efece9] pt-1.5 font-semibold text-[#22201d]"><span>{l.total}</span><span className="tabular-nums">{formatCurrency(hovered.total)}</span></p>
-            <p className="mt-1 flex justify-between gap-2 font-bold text-[#68655f]"><span>{l.avgIncome}</span><span className="tabular-nums text-[#22201d]">{formatCompactCurrency(runningAverage[hoverIndex], lang)}</span></p>
-          </div>
-        )}
-      </div>
+      <ChartLegend
+        label={l.dailyIncomeTitle}
+        items={[
+          ...shownMethods.map(method => ({ key: method, label: methodLabels[method], color: INCOME_METHOD_COLORS[method] })),
+          { key: 'avg', label: l.avgIncome, color: AVERAGE_LINE_COLOR, kind: 'line', dash: CHART_DASH.average },
+        ]}
+      />
+      <BarChart
+        rows={days}
+        rowKey={day => day.date}
+        series={INCOME_METHODS.map(method => ({ key: method, color: INCOME_METHOD_COLORS[method] }))}
+        stacked
+        lang={lang}
+        minSlot={10}
+        lines={[{ key: 'avg', color: AVERAGE_LINE_COLOR, values: runningAverage, dash: CHART_DASH.average }]}
+        xLabel={day => Number(day.date.slice(8))}
+        onSelect={day => onSelectDay(day.date)}
+        selectable={day => day.total > 0}
+        rowLabel={day => `${formatLongDate(day.date, lang, day.date)} · ${formatCurrency(day.total)}`}
+        ariaLabel={l.dailyIncomeTitle}
+        tooltip={(day, index) => ({
+          title: formatLongDate(day.date, lang, day.date),
+          rows: INCOME_METHODS.filter(method => day[method] > 0).map(method => ({ key: method, label: methodLabels[method], color: INCOME_METHOD_COLORS[method], value: compact(day[method]) })),
+          footer: [
+            { key: 'total', label: l.total, value: formatCurrency(day.total), strong: true },
+            { key: 'avg', label: l.avgIncome, value: compact(runningAverage[index]) },
+          ],
+        })}
+      />
     </div>
   )
 }
