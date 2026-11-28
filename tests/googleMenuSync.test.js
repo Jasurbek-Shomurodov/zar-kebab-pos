@@ -37,7 +37,7 @@ const items = [
   { id: 'fork', category_id: 'utensils', sort_order: 1, price: 3000, name_en: 'Fork', image_url: 'https://cdn.example/fork.png' },
 ]
 
-test('Google menu mirrors POS names, descriptions, prices, tourist prices and photos', () => {
+test('Google menu mirrors POS names, descriptions, tourist prices and photos', () => {
   const menu = buildGoogleFoodMenu(categories, items, { 'https://cdn.example/beef.png': 'KEY_BEEF' }, {
     excludedCategories: excludedCategoryNames({}),
   })
@@ -49,19 +49,16 @@ test('Google menu mirrors POS names, descriptions, prices, tourist prices and ph
   assert.equal(beef.labels[0].description, '150 g · 420 kcal — Charcoal-grilled beef')
   assert.equal(beef.labels[1].description, '150 г · 420 ккал — Говядина на углях')
   assert.equal(beef.labels[2].description, '150 g · 420 kcal — Charcoal-grilled\nbeef'.replace('\n', ' '), 'English fallback')
-  assert.deepEqual(beef.attributes.price, { currencyCode: 'UZS', units: '35000' })
+  assert.deepEqual(beef.attributes.price, { currencyCode: 'UZS', units: '42000' }, 'tourist = regular 35000 ×1.2 rounded to 1000')
   assert.deepEqual(beef.attributes.mediaKeys, ['KEY_BEEF'])
   assert.deepEqual(beef.attributes.nutritionFacts, { calories: { lowerAmount: 420, unit: 'CALORIE' } })
-  assert.equal(beef.options.length, 1)
-  assert.equal(beef.options[0].labels[0].displayName, 'Tourist price')
-  assert.equal(beef.options[0].attributes.price.units, '42000', 'tourist = ×1.2 rounded to 1000')
+  assert.equal(beef.options, undefined, 'no regular/tourist option pair: Google shows the tourist price only')
 
   const cola = sections[1].items[0]
-  assert.equal(cola.attributes.price.units, '17000', 'cheapest public variant')
+  assert.equal(cola.attributes.price.units, '20000', 'cheapest public variant, tourist price')
   assert.equal(cola.attributes.mediaKeys, undefined, 'no photo until uploaded')
   assert.deepEqual(cola.options.map(option => [option.labels[0].displayName, option.attributes.price.units]), [
-    ['Cola 1L', '17000'], ['Cola 1L — tourist', '20000'],
-    ['Cola 1.5L', '22000'], ['Cola 1.5L — tourist', '26000'],
+    ['Cola 1L', '20000'], ['Cola 1.5L', '26000'],
   ], 'zero-priced variant uses parent + delta; hidden variants omitted')
 })
 
@@ -83,10 +80,10 @@ test('menu changes are listed by Russian name: prices, new, removed and updated 
   changed.push({ id: 'lamb', category_id: 'shash', sort_order: 2, price: 55000, name_en: 'Lamb Shashleek', name_ru: 'Шашлык из баранины', image_url: 'x.png' })
   const after = buildGoogleFoodMenu(categories, changed, { 'https://cdn.example/beef.png': 'NEW' }, excluded)
   const diff = diffFoodMenus(before, after)
-  assert.deepEqual(diff.priceChanges, [{ name: 'Шашлык из говядины', from: 35000, to: 40000 }])
-  assert.deepEqual(diff.added, [{ name: 'Шашлык из баранины', section: 'Shashleek', price: 55000 }])
-  assert.deepEqual(diff.removed, [{ name: 'Кока-кола', section: 'Drinks', price: 17000 }])
-  assert.deepEqual(diff.updated, [{ name: 'Шашлык из говядины', fields: ['description', 'photo', 'options'] }])
+  assert.deepEqual(diff.priceChanges, [{ name: 'Шашлык из говядины', from: 42000, to: 48000 }])
+  assert.deepEqual(diff.added, [{ name: 'Шашлык из баранины', section: 'Shashleek', price: 66000 }])
+  assert.deepEqual(diff.removed, [{ name: 'Кока-кола', section: 'Drinks', price: 20000 }])
+  assert.deepEqual(diff.updated, [{ name: 'Шашлык из говядины', fields: ['description', 'photo'] }])
   assert.deepEqual(diffFoodMenus(after, after), { added: [], removed: [], priceChanges: [], updated: [] })
 })
 

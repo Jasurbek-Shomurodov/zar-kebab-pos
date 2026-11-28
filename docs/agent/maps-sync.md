@@ -26,7 +26,9 @@ What stays listed: only archived dishes and categories leave the maps. Stop-list
 
 Yandex: the cabinet source is **Вручную** (Yandex never ingested the feed link). Descriptions over 250 characters are trimmed with `…`; fix names in the POS admin (`admin.zarkebab.uz/admin/menu/product/<id>`), not the file; variants are `<dish> (<label>)`. Click **Загрузить XLS/YML**; the hidden `input[type=file]` (`UploadPriceListForm-HiddenInput`) takes the file via `file_upload`. Success after ~15 s: toast "Прайс-лист успешно загружен, список товаров обновлен". Keep uploads under ~10 MB.
 
-2GIS: same dishes at the **tourist price** (regular × 1.2, owner rule 2026-11-27) minus Алкоголь (2GIS forbids alcohol; `TWO_GIS_EXCLUDED_CATEGORIES` overrides). Columns `name;price;currencyId;measure;available;category;url;picture;vendor;id;description`, UTF-8; ids are letters/digits ≤20 (long ids hashed), all-caps names are recased, descriptions ≤500 and dropped if they hold promo words or links. Cabinet org `70000001117461512`: Товары и услуги uses **По ссылке** `https://www.zarkebab.uz/2gis-menu.csv` (set 2026-11-27; 2GIS refetches daily, first run up to 6 h). Switching to a file upload deletes the list. Currency is sent as UZS: check the first upload's preview.
+Prices: Yandex regular; Google and 2GIS tourist only (regular × 1.2, owner rule 2026-11-28).
+
+2GIS: same dishes minus Алкоголь (2GIS forbids alcohol; `TWO_GIS_EXCLUDED_CATEGORIES` overrides). Columns `name;price;currencyId;measure;available;category;url;picture;vendor;id;description`, UTF-8; ids are letters/digits ≤20 (long ids hashed), all-caps names are recased, descriptions ≤500 and dropped if they hold promo words or links. Cabinet org `70000001117461512`: Товары и услуги uses **По ссылке** `https://www.zarkebab.uz/2gis-menu.csv` (set 2026-11-27; 2GIS refetches daily, first run up to 6 h). Switching to a file upload deletes the list. Currency is sent as UZS: check the first upload's preview.
 
 Photos: the feed points WebP menu photos at `/yandex-photos/<name>.jpg`, converted to JPEG on the fly, because Yandex rejects WebP.
 

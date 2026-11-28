@@ -7,8 +7,6 @@ import { getGoogleAccessToken, getGoogleBusinessConfig, googleLocationResource }
 
 const GOOGLE_BUSINESS_API_URL = 'https://mybusiness.googleapis.com'
 const LANGS = ['en', 'ru', 'uz']
-const TOURIST_PRICE = { en: 'Tourist price', ru: 'Цена для туристов', uz: 'Turistlar uchun narx' }
-const TOURIST_SUFFIX = { en: ' — tourist', ru: ' — для туристов', uz: ' — turistlar uchun' }
 const MENU_TITLE = { en: 'Menu', ru: 'Меню', uz: 'Menyu' }
 // Google fetches PNG/JPEG by URL; anything else (WebP) is converted and uploaded as bytes.
 const URL_UPLOAD_PATTERN = /\.(png|jpe?g)(\?|$)/i
@@ -44,20 +42,16 @@ function itemLabels(item) {
   })
 }
 
-function itemOptions(item, variants) {
-  if (!variants.length) {
-    return [{
-      labels: LANGS.map(lang => ({ displayName: TOURIST_PRICE[lang], languageCode: lang })),
-      attributes: { price: money(calculateUnitPrice(item.price, PRICE_MODE_TOURIST)) },
-    }]
-  }
-  return variants.flatMap(variant => [false, true].map(tourist => ({
-    labels: LANGS.map(lang => ({
-      displayName: (localized(variant, 'label', lang) + (tourist ? TOURIST_SUFFIX[lang] : '')).slice(0, 140),
-      languageCode: lang,
-    })),
-    attributes: { price: money(tourist ? calculateUnitPrice(variant.price, PRICE_MODE_TOURIST) : variant.price) },
-  })))
+// Google Maps lists tourist prices only (owner rule, 2026-11-28); Yandex keeps regular prices.
+function touristPrice(price) {
+  return calculateUnitPrice(price, PRICE_MODE_TOURIST)
+}
+
+function itemOptions(variants) {
+  return variants.map(variant => ({
+    labels: LANGS.map(lang => ({ displayName: localized(variant, 'label', lang).slice(0, 140), languageCode: lang })),
+    attributes: { price: money(touristPrice(variant.price)) },
+  }))
 }
 
 export { excludedCategoryNames }
@@ -75,12 +69,14 @@ export function buildGoogleFoodMenu(categories, items, mediaKeysByUrl = {}, opti
       .map(item => {
         const variants = publicVariants(item)
         const basePrice = variants.length ? Math.min(...variants.map(variant => variant.price)) : item.price
-        const attributes = { price: money(basePrice) }
+        const attributes = { price: money(touristPrice(basePrice)) }
         const kcal = getItemKcal(item)
         if (kcal) attributes.nutritionFacts = { calories: { lowerAmount: kcal, unit: 'CALORIE' } }
         const mediaKey = mediaKeysByUrl[item.image_url]
         if (mediaKey) attributes.mediaKeys = [mediaKey]
-        return { labels: itemLabels(item), attributes, options: itemOptions(item, variants) }
+        const entry = { labels: itemLabels(item), attributes }
+        if (variants.length) entry.options = itemOptions(variants)
+        return entry
       })
     if (!sectionItems.length) continue
     sections.push({
