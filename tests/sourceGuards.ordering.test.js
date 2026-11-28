@@ -268,7 +268,9 @@ test('AdminDashboard only shimmers comparison KPIs while yesterday loads', () =>
   assert.match(dashboard, /const \[comparisonLoading, setComparisonLoading\] = useState\(true\)/)
   assert.match(dashboard, /loadPaidOrdersForRange\(yesterday, yesterday\)/)
   assert.match(dashboard, /setYesterdayHistoryOrders\(orders\)[\s\S]*setComparisonLoading\(false\)/)
-  assert.equal((dashboard.match(/loading=\{comparisonLoading\}/g) || []).length, 3)
+  // Net profit also waits for its item costs (get_order_item_costs, 291).
+  assert.equal((dashboard.match(/loading=\{comparisonLoading\}/g) || []).length, 2)
+  assert.equal((dashboard.match(/loading=\{comparisonLoading \|\| itemCostsLoading\}/g) || []).length, 1)
   assert.doesNotMatch(dashboard, /analyticsLoading|ChartShimmer|ListShimmer|LoadingView/)
   assert.match(dashboard, /\{l\.salesByCategory\} · \{l\.today\}/)
   assert.match(dashboard, /<ProductContributionCard rows=\{productContribution\} lang=\{lang\} periodLabel=\{l\.today\} \/>/)

@@ -114,3 +114,9 @@ test('291/292: staff read items without costs; only cost features get them via t
     await db.close()
   }
 })
+
+test('Dashboard profit shimmers while item costs load instead of flagging missing costs', () => {
+  const dashboard = read('src/pages/AdminDashboard.jsx')
+  assert.match(dashboard, /const itemCostsLoading = Boolean\(paidOrderIdsKey\) && itemCostsKey !== paidOrderIdsKey/)
+  assert.match(dashboard, /icon=\{BadgeDollarSign\}\s*loading=\{comparisonLoading \|\| itemCostsLoading\}/)
+})

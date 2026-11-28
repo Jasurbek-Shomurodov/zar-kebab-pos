@@ -380,14 +380,26 @@ export default function AdminDashboard() {
     [rangeOrders]
   )
   const [itemCosts, setItemCosts] = useState(() => new Map())
+  // Which order set the costs belong to: until it matches, profit shimmers
+  // instead of flashing "—" and the missing-cost warning.
+  const [itemCostsKey, setItemCostsKey] = useState('')
   useEffect(() => {
     if (!paidOrderIdsKey) return undefined
     let cancelled = false
     loadOrderItemCosts(paidOrderIdsKey.split(','))
-      .then(costs => { if (!cancelled) setItemCosts(costs) })
-      .catch(error => { if (!cancelled) console.error('[dashboard] item cost load failed:', error) })
+      .then(costs => {
+        if (cancelled) return
+        setItemCosts(costs)
+        setItemCostsKey(paidOrderIdsKey)
+      })
+      .catch(error => {
+        if (cancelled) return
+        console.error('[dashboard] item cost load failed:', error)
+        setItemCostsKey(paidOrderIdsKey)
+      })
     return () => { cancelled = true }
   }, [paidOrderIdsKey])
+  const itemCostsLoading = Boolean(paidOrderIdsKey) && itemCostsKey !== paidOrderIdsKey
   const paidOrders = useMemo(
     () => groupOrdersBySession(withOrderItemCosts(rangeOrders, itemCosts)).filter(isPaidOrder),
     [rangeOrders, itemCosts]
@@ -546,7 +558,7 @@ export default function AdminDashboard() {
           />
           <KpiCard
             icon={BadgeDollarSign}
-            loading={comparisonLoading}
+            loading={comparisonLoading || itemCostsLoading}
             label={`${l.netProfit} · ${l.today}`}
             value={todayCostCovered ? formatCurrencyWithPercentage(todayNetProfit, todayProfitMargin, lang) : '—'}
             sub={todayCostCovered
