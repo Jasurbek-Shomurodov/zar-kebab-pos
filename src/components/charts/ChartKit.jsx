@@ -9,17 +9,21 @@ import { tooltipLeft } from '../../lib/chartScale'
 
 export const CHART = {
   /** Bar heights: `compact` inside dialogs and cards, `regular` for a panel's chart, `tall` for a page's lead chart. */
-  height: { compact: 220, regular: 260, tall: 280 },
-  barRadius: 4,
+  height: { compact: 220, regular: 260, tall: 300 },
+  barRadius: 6,
   /** A single or stacked column never gets wider than this; the slot's leftover is air. */
-  barMax: 24,
+  barMax: 28,
   /** Columns side by side are narrower, so a group still reads as one period. */
-  groupedBarMax: 16,
+  groupedBarMax: 18,
   /** The surface gap between touching marks (stacked segments, grouped columns). */
   gap: 2,
   gridDash: '2 6',
   lineWidth: 2,
+  /** The lead line (the series the chart is about) is a little heavier than comparisons. */
+  leadLineWidth: 2.5,
   dotRadius: 4,
+  /** Axis labels are 13px: about 7.5px per character for sizing the value axis. */
+  tickCharWidth: 7.5,
   tooltipWidth: 232,
 }
 
@@ -62,7 +66,7 @@ export function ChartLegend({ items, hidden, onToggle, label }) {
         <li key={item.key}>
           {onToggle ? (
             <button type="button" aria-pressed={!isHidden(item.key)} onClick={() => onToggle(item.key)} className="ws-chart-legend-item" data-off={isHidden(item.key) || undefined}>
-              <ChartSwatch color={item.color} kind={item.kind} dash={item.dash} muted={isHidden(item.key)} />
+              <ChartSwatch color={item.color} kind={item.kind} dash={item.dash} />
               {item.label}
             </button>
           ) : (

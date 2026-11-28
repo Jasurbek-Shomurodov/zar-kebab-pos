@@ -40,7 +40,7 @@ export default function BarChart({
   const extra = [...lines, ...markers].flatMap(item => item.values.filter(Number.isFinite))
   const all = [...totals.flat(), ...extra]
   const scale = niceTicks(Math.min(0, ...all), Math.max(0, ...all) * 1.04, 4)
-  const tickWidth = Math.max(...scale.ticks.map(tick => formatTick(tick).length)) * 7 + 14
+  const tickWidth = Math.max(...scale.ticks.map(tick => formatTick(tick).length)) * CHART.tickCharWidth + 14
 
   const pad = { top: 12, right: 8, bottom: 30, left: Math.max(44, tickWidth) }
   const width = Math.max(measured || 0, rows.length * minSlot + pad.left + pad.right)
@@ -122,7 +122,7 @@ export default function BarChart({
             ))}
             {lines.map(item => (
               <g key={item.key} pointerEvents="none" className="ws-chart-fade">
-                <path d={smoothPath(item.values.map((v, index) => ({ x: center(index), y: y(v) })))} fill="none" style={{ stroke: item.color }} strokeWidth={CHART.lineWidth} strokeDasharray={item.dash} strokeLinecap="round" strokeLinejoin="round" />
+                <path d={smoothPath(item.values.map((v, index) => ({ x: center(index), y: y(v) })))} fill="none" style={{ stroke: item.color }} strokeWidth={item.dash ? CHART.lineWidth : CHART.leadLineWidth} strokeDasharray={item.dash} strokeLinecap="round" strokeLinejoin="round" />
                 {item.dots && item.values.map((v, index) => (Number.isFinite(v) ? <circle key={index} cx={center(index)} cy={y(v)} r={2.5} style={{ fill: item.color }} /> : null))}
                 {active != null && Number.isFinite(item.values[active]) && <ChartDot cx={center(active)} cy={y(item.values[active])} color={item.color} />}
               </g>

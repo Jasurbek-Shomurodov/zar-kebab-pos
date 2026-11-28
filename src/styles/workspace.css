@@ -440,9 +440,9 @@ textarea.ws-input { height: auto; min-height: 76px; line-height: 1.45; resize: v
    Faint dashed guides, label-only axes, a themed hover card, a quiet legend. Only opacity and transform animate. */
 .ws-chart { -webkit-tap-highlight-color: transparent; }
 .ws-chart svg text { font-family: var(--ws-font-display); }
-.ws-chart-grid { stroke: var(--ws-border); stroke-width: 1; }
+.ws-chart-grid { stroke: var(--ws-border); stroke-opacity: .6; stroke-width: 1; }
 .ws-chart-baseline { stroke: var(--ws-input); stroke-width: 1; }
-.ws-chart-tick { fill: var(--ws-muted-foreground); font-size: var(--ws-type-micro); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ws-chart-tick { fill: var(--ws-muted-foreground); font-size: var(--ws-type-caption); font-weight: 500; font-variant-numeric: tabular-nums; }
 .ws-chart-tick-active { fill: var(--ws-foreground); font-weight: 600; }
 .ws-chart-highlight { fill: var(--ws-muted); opacity: .75; pointer-events: none; }
 .ws-chart-mark, .ws-chart-dim { transition: opacity 150ms ease; }
@@ -459,13 +459,15 @@ textarea.ws-input { height: auto; min-height: 76px; line-height: 1.45; resize: v
 /* A row of HTML bars: hovering one quiets the others. */
 .ws-chart-bars:hover .ws-chart-bar-slot:not(:hover):not(:focus-within) .ws-chart-bar { opacity: .5; }
 
-.ws-chart-legend { display: flex; flex-wrap: wrap; gap: 4px 4px; margin: 0 0 12px; padding: 0; list-style: none; }
-.ws-chart-legend-item { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 2px 8px; border-radius: 999px; font-size: var(--ws-type-micro); font-weight: 500; color: var(--ws-muted-foreground); }
-button.ws-chart-legend-item { border: 1px solid transparent; transition: background-color 150ms ease, color 150ms ease; }
-button.ws-chart-legend-item:hover { background: var(--ws-muted); color: var(--ws-foreground); }
+.ws-chart-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; padding: 0; list-style: none; }
+/* Legend entries are pills, as in Hoggish Finance: a hairline, a round swatch, and a struck-through name when hidden. */
+.ws-chart-legend-item { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 11px; border: 1px solid var(--ws-border); border-radius: 999px; font-size: var(--ws-type-caption); font-weight: 500; color: var(--ws-foreground); }
+button.ws-chart-legend-item { background: var(--ws-card); transition: background-color 150ms ease, opacity 150ms ease; }
+button.ws-chart-legend-item:hover { background: var(--ws-muted); }
 button.ws-chart-legend-item:focus-visible { outline: 2px solid var(--ws-ring); outline-offset: 1px; }
-button.ws-chart-legend-item[data-off] { text-decoration: line-through; }
-.ws-chart-swatch { width: 10px; height: 10px; flex: none; border-radius: 3px; }
+button.ws-chart-legend-item[data-off] { opacity: .5; text-decoration: line-through; }
+@media (pointer: coarse) { button.ws-chart-legend-item { min-height: 44px; } }
+.ws-chart-swatch { width: 9px; height: 9px; flex: none; border-radius: 50%; }
 .ws-chart-swatch-line { flex: none; overflow: visible; }
 
 .ws-chart-tooltip { position: absolute; z-index: 10; pointer-events: none; padding: 10px 12px; border: 1px solid var(--ws-border); border-radius: 12px; background: color-mix(in srgb, var(--ws-card) 94%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 8px 24px rgb(34 32 29 / 12%), 0 1px 2px rgb(34 32 29 / 6%); font-size: var(--ws-type-micro); line-height: 1.5; color: var(--ws-muted-foreground); animation: ws-chart-fade 120ms ease-out both; }

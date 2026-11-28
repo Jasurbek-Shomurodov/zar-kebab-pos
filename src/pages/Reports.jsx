@@ -2028,24 +2028,24 @@ function ReportsSkeleton({ canViewExpenses, lang, overview }) {
       <span className="sr-only">{lang === 'ru' ? 'Загрузка отчётов' : lang === 'uz' ? 'Hisobotlar yuklanmoqda' : 'Loading reports'}</span>
       {overview && <div aria-hidden="true" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {Array.from({ length: canViewExpenses ? 6 : 3 }, (_, index) => (
-          <div key={index} className="ws-panel motion-safe:animate-pulse">
-            <div className="mb-3 h-3 w-2/3 rounded bg-[#efece9]" />
-            <div className="h-7 w-full rounded bg-[#e4e1de]" />
+          <div key={index} className="ws-panel">
+            <Shimmer className="mb-3 h-3 w-2/3 rounded" />
+            <Shimmer className="h-7 w-full rounded" />
           </div>
         ))}
       </div>}
-      <div aria-hidden="true" className="space-y-5 motion-safe:animate-pulse">
+      <div aria-hidden="true" className="space-y-5">
         {overview && Array.from({ length: canViewExpenses ? 3 : 2 }, (_, index) => (
           <div key={index} className="ws-panel">
-            <div className="mb-4 h-4 w-40 rounded bg-[#e4e1de]" />
+            <Shimmer className="mb-4 h-4 w-40 rounded" />
             <div className="grid grid-cols-2 gap-4">
-              <div className="h-12 rounded bg-[#efece9]" />
-              <div className="h-12 rounded bg-[#efece9]" />
+              <Shimmer className="h-12 rounded" />
+              <Shimmer className="h-12 rounded" />
             </div>
           </div>
         ))}
         <div className="ws-panel space-y-6">
-          {Array.from({ length: 5 }, (_, index) => <div key={index} className="h-10 rounded bg-[#efece9]" />)}
+          {Array.from({ length: 5 }, (_, index) => <Shimmer key={index} className="h-10 rounded" />)}
         </div>
       </div>
     </div>

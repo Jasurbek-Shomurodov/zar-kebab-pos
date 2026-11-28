@@ -3,6 +3,7 @@ import { loadBreakEvenTargetHistory } from '../lib/breakEvenTarget'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatLongDate, formatLongDateTime } from '../lib/dateFormat'
 import WorkspaceDialog from './WorkspaceDialog'
+import { Shimmer } from './PageShimmer'
 
 const labels = {
   uz: { title: 'Kunlik maqsad tarixi', sub: 'Har kunning hisoblangan maqsadi o‘sha kunga tegishli; grafik ustunlari o‘z kunlarining o‘rtachasini oladi.', from: 'Amal qiladi', amount: 'Kunlik maqsad', change: 'O‘zgarish', start: 'Boshlang‘ich', current: 'Joriy', saved: 'Saqlandi', empty: 'Hali tarix yo‘q', failed: 'Tarixni yuklab bo‘lmadi', retry: 'Qayta urinish', close: 'Yopish' },
@@ -12,14 +13,14 @@ const labels = {
 
 function HistoryShimmer() {
   return (
-    <div className="animate-pulse space-y-2" aria-hidden="true">
+    <div className="space-y-2" aria-hidden="true">
       {[0, 1, 2].map(index => (
         <div key={index} className="flex items-center justify-between rounded-xl bg-[#f6f5f3] px-4 py-3">
           <div className="space-y-1.5">
-            <div className="h-3.5 w-28 rounded bg-[#e4e1de]" />
-            <div className="h-3 w-40 rounded bg-[#efece9]" />
+            <Shimmer className="h-3.5 w-28 rounded" />
+            <Shimmer className="h-3 w-40 rounded" />
           </div>
-          <div className="h-4 w-24 rounded bg-[#e4e1de]" />
+          <Shimmer className="h-4 w-24 rounded" />
         </div>
       ))}
     </div>

@@ -167,7 +167,7 @@ function ProfitChart({ rows, lang, selected, onSelect, selectLabel }) {
               <div className="relative w-full flex-1">
                 <div className="absolute inset-x-0 border-t border-[#dcd9d6]" style={{ top: `${positiveShare * 100}%` }} />
                 <div
-                  className={`absolute left-1/2 w-3/5 max-w-[24px] -translate-x-1/2 ${row.ownerProfit < 0 ? 'rounded-b-[4px] bg-[#c4262c]' : 'rounded-t-[4px] bg-[#1d7a52]'} ${open ? 'opacity-40' : ''}`}
+                  className={`absolute left-1/2 w-3/5 max-w-[28px] -translate-x-1/2 ${row.ownerProfit < 0 ? 'rounded-b-md bg-[#c4262c]' : 'rounded-t-md bg-[#1d7a52]'} ${open ? 'opacity-40' : ''}`}
                   style={row.ownerProfit >= 0
                     ? { bottom: `${(1 - positiveShare) * 100}%`, height: barHeight }
                     : { top: `${positiveShare * 100}%`, height: barHeight }}
