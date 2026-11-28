@@ -89,3 +89,47 @@ test('all deletion entry points share a required reason dialog and database enfo
   assert.match(sql, /set_config\('app.order_deletion_reason', btrim\(p_reason\), true\)/)
   assert.match(sql, /alter column deletion_reason set default nullif\(current_setting/)
 })
+
+test('checkout never queues a payment-method change; corrections to paid orders still do (289)', async () => {
+  const { PGlite } = await import('@electric-sql/pglite')
+  const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+  const original = read('migrations/175_order_change_investor_notifications.sql')
+  const db = new PGlite()
+  try {
+    await db.exec(`
+      create role anon; create role authenticated;
+      create schema auth;
+      create function auth.uid() returns uuid language sql as $$ select null::uuid $$;
+      create table public.profiles (id uuid primary key, full_name text, email text);
+      create table public.orders (id text primary key, order_number text, table_name text, total bigint,
+        payment_method text, payment_status text not null default 'unpaid');
+      create table public.order_payments (id uuid primary key default gen_random_uuid(), order_id text, method text,
+        amount bigint, created_at timestamptz default now());
+    `)
+    await db.exec(original.slice(
+      original.indexOf('create table if not exists public.order_change_investor_notification_deliveries'),
+      original.indexOf('create or replace function public.queue_order_change_investor_notification()'),
+    ).replace(/alter table[\s\S]*$/i, ''))
+    await db.exec(`insert into order_change_investor_notification_deliveries
+      (event_type, order_id, transaction_id, actor_name, old_payment_methods, new_payment_methods)
+      values ('payment_method_changed', 'old-checkout', 1, 'X', '[{"method":null,"amount":5}]', '[{"method":"cash","amount":5}]'),
+             ('payment_method_changed', 'real-fix', 2, 'X', '[{"method":"cash","amount":5}]', '[{"method":"card","amount":5}]')`)
+    await db.exec(read('migrations/289_skip_checkout_as_payment_change.sql'))
+    await db.exec(original.slice(original.indexOf('drop trigger if exists queue_order_deletion_investor_notification'), original.lastIndexOf('commit;')))
+    const statuses = (await db.query("select order_id, status from order_change_investor_notification_deliveries order by order_id")).rows
+    assert.deepEqual(statuses, [{ order_id: 'old-checkout', status: 'skipped' }, { order_id: 'real-fix', status: 'not_attempted' }])
+
+    await db.exec("delete from order_change_investor_notification_deliveries")
+    await db.exec("insert into orders (id, total) values ('o1', 100)")
+    await db.exec("update orders set payment_status = 'paid', payment_method = 'cash' where id = 'o1'")
+    assert.equal((await db.query('select count(*)::int as n from order_change_investor_notification_deliveries')).rows[0].n, 0)
+    await db.exec("update orders set payment_method = 'card' where id = 'o1'")
+    const rows = (await db.query('select event_type, old_payment_methods, new_payment_methods from order_change_investor_notification_deliveries')).rows
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0].event_type, 'payment_method_changed')
+    assert.equal(rows[0].old_payment_methods[0].method, 'cash')
+    assert.equal(rows[0].new_payment_methods[0].method, 'card')
+  } finally {
+    await db.close()
+  }
+})

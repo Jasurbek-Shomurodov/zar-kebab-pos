@@ -407,8 +407,10 @@ test('AdminLoyalty selected card uses compact profile and detailed transaction l
   assert.match(admin, /disabled=\{!canRemoveCard \|\| busy\}/)
   assert.match(admin, /onClick=\{\(\) => runBusy\('adjust', adjustBalance\)\} disabled=\{!canAdjust \|\| busy\}/)
   assert.match(admin, /if \(busyRef\.current\) return\s*busyRef\.current = true/)
-  // A failed history insert after a saved balance is reported, never swallowed.
-  assert.match(admin, /const \{ error: historyError \} = await supabase\.from\('loyalty_transactions'\)\.insert\(settlement\.transaction\)/)
+  // 288 writes balance and history atomically; the pre-288 fallback still reports a
+  // failed history insert after a saved balance, never swallowing it.
+  assert.match(admin, /supabase\.rpc\('adjust_loyalty_card_balance'/)
+  assert.match(admin, /\(\{ error: historyError \} = await supabase\.from\('loyalty_transactions'\)\.insert\(settlement\.transaction\)\)/)
   assert.match(admin, /setMessage\(historyError \? 'adjustHistoryFailed' : ''\)/)
   assert.doesNotMatch(admin, /setMessage\(error\.message/)
   assert.match(admin, /l\.removeCardHelp/)

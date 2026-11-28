@@ -1160,6 +1160,14 @@ export default {
   {
    "filename": "288_atomic_loyalty_balance_adjustment.sql",
    "sha256": "2b9f5a94078dd27b0ffb3b24f58c76d052876c9b940ffcb433671fdb53cec405"
+  },
+  {
+   "filename": "289_skip_checkout_as_payment_change.sql",
+   "sha256": "9b3728673d06e3264127027e38266e7556445b8002c32c705118e35df08aabdc"
+  },
+  {
+   "filename": "290_profiles_read_staff_only.sql",
+   "sha256": "2cc78a08dd04b06fc7fdf50e6930b9b5b4568b21195bc9453f5b03e120040d50"
   }
  ],
  "functions": [
@@ -1262,6 +1270,11 @@ export default {
    "name": "queue_employee_kpi_rule_change_telegram_delivery",
    "filename": "203_kpi_workday_start_time.sql",
    "md5": "30a546e1348f56d30dd1c5540a793319"
+  },
+  {
+   "name": "queue_order_change_investor_notification",
+   "filename": "289_skip_checkout_as_payment_change.sql",
+   "md5": "5413c92dbd23b7d55d5b379823422b1d"
   },
   {
    "name": "get_accounting_all_time_balance",
@@ -1907,6 +1920,11 @@ export default {
    "name": "adjust_loyalty_card_balance",
    "filename": "288_atomic_loyalty_balance_adjustment.sql",
    "md5": "fb077b9b8ee6ad1e69dcab32e3254d87"
+  },
+  {
+   "name": "current_user_is_active_staff",
+   "filename": "290_profiles_read_staff_only.sql",
+   "md5": "d9c44898fc9da34c065474d12218068a"
   }
  ]
 }

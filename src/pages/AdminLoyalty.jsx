@@ -32,6 +32,12 @@ const CARD_SELECT_COLUMNS = 'id, card_number, public_token, customer_name, phone
 const TRANSACTION_SELECT_COLUMNS = 'id, loyalty_card_id, order_id, type, amount, balance_before, balance_after, reason, created_by, cashback_percent_used, card_type_at_transaction, card_number_at_transaction, customer_name_at_transaction, phone_number_at_transaction, created_at'
 
 // Skeletons shaped like a loaded card row / transaction so paging doesn't jump.
+function isMissingLoyaltyAdjustRpc(error) {
+  const text = `${error?.message || ''} ${error?.details || ''}`
+  return error?.code === 'PGRST202' || error?.code === '42883' ||
+    (text.includes('adjust_loyalty_card_balance') && /could not find|does not exist/i.test(text))
+}
+
 function CardRowShimmer() {
   return (
     <div className="rounded-[10px] border border-[#e4e1de] bg-white p-3">
@@ -669,25 +675,42 @@ export default function AdminLoyalty() {
       setMessage(error.code === 'negative_balance' ? 'balanceNegative' : 'adjustmentRequired')
       return
     }
-    const { data, error } = await supabase
-      .from('loyalty_cards')
-      .update({
-        balance: settlement.card.balance,
-        total_earned: settlement.card.total_earned,
-        total_redeemed: settlement.card.total_redeemed,
-        updated_at: settlement.card.updated_at,
-      })
-      .eq('id', selected.id)
-      .select(CARD_SELECT_COLUMNS)
-      .single()
-    if (error) {
+    // Migration 288: one locked transaction writes the balance and its history row and
+    // rejects the change if the balance moved since this card was loaded, so a retry
+    // after an unknown outcome can never apply the adjustment twice.
+    const rpcResult = await supabase.rpc('adjust_loyalty_card_balance', {
+      p_card_id: selected.id,
+      p_expected_balance: settlement.transaction.balance_before,
+      p_amount: settlement.transaction.amount,
+      p_reason: settlement.transaction.reason,
+    })
+    let data = rpcResult.data
+    let error = rpcResult.error
+    let historyError = null
+    if (isMissingLoyaltyAdjustRpc(error)) {
+      // Until 288 is applied: the older two-step write.
+      ;({ data, error } = await supabase
+        .from('loyalty_cards')
+        .update({
+          balance: settlement.card.balance,
+          total_earned: settlement.card.total_earned,
+          total_redeemed: settlement.card.total_redeemed,
+          updated_at: settlement.card.updated_at,
+        })
+        .eq('id', selected.id)
+        .select(CARD_SELECT_COLUMNS)
+        .single())
+      if (!error) {
+        // The balance is already saved. If its history row fails, say so instead of looking
+        // successful: re-entering the adjustment would change the balance a second time.
+        ;({ error: historyError } = await supabase.from('loyalty_transactions').insert(settlement.transaction))
+      }
+    }
+    if (error || !data?.id) {
       console.error('[loyalty] balance adjustment failed', error)
       setMessage('adjustFailed')
       return
     }
-    // The balance is already saved. If its history row fails, say so instead of looking
-    // successful: re-entering the adjustment would change the balance a second time.
-    const { error: historyError } = await supabase.from('loyalty_transactions').insert(settlement.transaction)
     if (historyError) console.error('[loyalty] adjustment history row was not saved', historyError)
     setMessage(historyError ? 'adjustHistoryFailed' : '')
     setAdjustment({ amount: '', reason: '' })

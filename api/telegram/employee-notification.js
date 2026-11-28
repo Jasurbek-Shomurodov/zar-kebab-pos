@@ -1695,12 +1695,12 @@ async function notifyInvestorExpense(supabase, user, expenseId) {
     const monthStart = `${normalizedDate.slice(0, 7)}-01`
     const [year, month] = monthStart.split('-').map(Number)
     const nextMonthStart = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10)
-    const { data: monthEntries, error: monthError } = await supabase
+    const { data: monthEntries, error: monthError } = await loadSalaryRows(() => supabase
       .from('expenses')
-      .select('amount')
+      .select('id, amount')
       .eq('entry_type', 'expense')
       .gte('expense_date', monthStart)
-      .lt('expense_date', nextMonthStart)
+      .lt('expense_date', nextMonthStart))
     if (monthError) throw monthError
     const monthTotal = (monthEntries || []).reduce(
       (total, entry) => total + (Number(entry?.amount) || 0),

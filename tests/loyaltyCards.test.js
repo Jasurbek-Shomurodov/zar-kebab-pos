@@ -673,3 +673,14 @@ test('fresh card validation handles balance or active-state changes before redee
   }), 'inactive_card')
   assert.equal(lookedUp.balance, 100000)
 })
+
+test('manual loyalty adjustments use the atomic 288 RPC with a guarded legacy fallback', async () => {
+  const { readFileSync } = await import('node:fs')
+  const page = readFileSync(new URL('../src/pages/AdminLoyalty.jsx', import.meta.url), 'utf8')
+  const migration = readFileSync(new URL('../migrations/288_atomic_loyalty_balance_adjustment.sql', import.meta.url), 'utf8')
+  assert.match(page, /supabase\.rpc\('adjust_loyalty_card_balance', \{\s*p_card_id: selected\.id,\s*p_expected_balance: settlement\.transaction\.balance_before,/)
+  assert.match(page, /if \(isMissingLoyaltyAdjustRpc\(error\)\) \{[\s\S]*from\('loyalty_cards'\)[\s\S]*from\('loyalty_transactions'\)\.insert/)
+  assert.match(migration, /for update;[\s\S]*v_card\.balance <> coalesce\(p_expected_balance, -1\)[\s\S]*insert into public\.loyalty_transactions/)
+  assert.match(migration, /current_staff_has_role\(array\['owner'\]\)/)
+  assert.doesNotMatch(migration, /'40001'/)
+})

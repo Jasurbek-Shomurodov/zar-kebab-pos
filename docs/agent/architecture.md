@@ -12,7 +12,7 @@ Read this for app startup, authentication, routes, permissions, shared state, hy
 
 ## Routes and access
 
-- Public product links redirect to `/` with history replacement after loading finishes if the product cannot be resolved or the menu request fails.
+- Unresolvable public product links (or a failed menu load) redirect to `/`, replacing history.
 
 - Public routes: `/menu`, `/telegram`, `/checkin-screen` (screen key), auth/reset.
 - Waiter routes: `/waiter/tables`, `/waiter/order/:tableId`, `/waiter/take-away`.
@@ -20,7 +20,7 @@ Read this for app startup, authentication, routes, permissions, shared state, hy
 - Cashier routes: `/cashier/tables`, bill and receipt routes.
 - Admin routes include dashboard, menu, tech cards, tables, users, reports, audit, settings, Accounting, Salaries, Daily Bazaar, and Ingredients at `/admin/ingredients` (the old `/admin/bazaar/ingredients` redirects).
 - `ingredients` is an independent Team feature: owner/admin holders edit the catalog, viewer holders read only. Bazaar and Tech Cards access do not grant Ingredients access.
-- Centralize role and feature rules in `src/lib/permissions.js`. Do not duplicate access decisions in pages without matching database enforcement.
+- Centralize role and feature rules in `src/lib/permissions.js`. `290`: only active staff read others' profiles. Do not duplicate access decisions in pages without matching database enforcement.
 - Menu catalog archival requires Manage Menu write access (any role). The UI permission and database archive trigger (migration `223`) must stay aligned.
 - Theme: `src/lib/theme.js`. Data loads shimmer, static forms don't (`tests/pageLoading.test.js`).
 

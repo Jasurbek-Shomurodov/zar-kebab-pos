@@ -56,7 +56,7 @@
 
 - Lifecycle `178`, name/role/start `250`, Remote `253`: immutable Russian Investor events.
 - Ingredient (`189`), month close/reopen (`259`), menu price (`270`), Inventory (`277`) share a queue; before/after, actor. No-op saves silent. `ingredient-events` → `salary_events`; unknown sends held.
-- Order deletes require a reason (`184`); Investor alerts snapshot order, total, actor and tenders. Corrections/splits (`201`) notify Investor once with before/after allocations.
+- Order deletes require a reason (`184`); Investor alerts snapshot order, total, actor and tenders. Corrections/splits (`201`) notify Investor once (before/after); checkout never (`289`).
 - New cash expenses (text) and Bazaar purchases (one localized PNG + caption, never also a text receipt) notify Investor via legacy `salary_events`.
 - Investor daily album: yesterday’s financial/payroll, sales mix, live unpaid, uncancelled orders (place/id/time/status/total/items); RU labels/catalog names, saved-name fallback; renderer drops paid/cancelled. No Bazaar totals/Tech Card images, even on retry/manual send. Keep historical ledgers.
 - Bazaar PNGs group numbered items by saved RU category: paid/normal prices, signed variance (red above, green below), total variance. Missing normal prices stay unset; no truncation.
