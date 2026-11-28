@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { runDbHealthChecks } from '../src/lib/dbHealth.js'
 import migrationManifest from '../src/generated/migrationManifest.js'
 
+const TABLE_CHECKS_SOURCE = readFileSync(new URL('../src/lib/dbHealth.js', import.meta.url), 'utf8')
 const cliHealthSource = readFileSync(new URL('../scripts/check-db-health.js', import.meta.url), 'utf8')
 
 // Live catalog that matches the committed migration manifest exactly.
@@ -137,12 +138,13 @@ test('database health requires private menu costs and order cost snapshots', asy
   assert.match(missingCosts.failed.find(check => check.name === 'menu_item_costs').hint, /100_menu_variant_costs_and_accounting_profit/)
   assert.match(missingCosts.failed.find(check => check.name === 'menu_item_costs').hint, /155_tech_card_real_costs/)
 
-  const missingSnapshot = await runDbHealthChecks(makeClient({
-    missingColumnTable: 'order_items',
-    missingColumn: 'cost_price',
-  }))
+  // Staff cannot select order_items.cost_price directly since 292; the snapshot
+  // is reached (and so proven to exist) through the permission-checked 291 RPC.
+  const missingSnapshot = await runDbHealthChecks(makeClient({ missingRpc: true }))
   assert.equal(missingSnapshot.ok, false)
-  assert.equal(missingSnapshot.failed.find(check => check.name === 'order_items').detail, 'cost_price')
+  assert.match(missingSnapshot.failed.find(check => check.name === 'get_order_item_costs').hint, /291_order_item_costs_rpc/)
+  const columnCheck = TABLE_CHECKS_SOURCE.match(/\{ name: 'order_items', columns: \[([^\]]*)\]/)[1]
+  assert.doesNotMatch(columnCheck, /cost_price/)
 })
 
 test('database health requires the tech-card cost source marker', async () => {
@@ -397,6 +399,7 @@ test('database health reports missing tables and missing RPC', async () => {
     'get_ingredient_movement',
     'get_ingredient_purchase_sheet',
     'get_monthly_estimate',
+    'get_order_item_costs',
     'get_pending_daily_kpi_dates',
     'get_pending_employee_meal_dates',
     'get_reports_accounting',

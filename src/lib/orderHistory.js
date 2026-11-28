@@ -1,9 +1,11 @@
 import { isPaidOrder, matchesRange, restaurantTodayStr } from './analytics.js'
 import { supabase } from './supabase.js'
+import { ORDER_ITEMS_EMBED } from './orderItemColumns.js'
 
 export const ORDER_HISTORY_PAGE_SIZE = 500
-const ORDER_HISTORY_SELECT = '*, items:order_items(*), payments:order_payments(*)'
-const ORDER_HISTORY_SELECT_WITHOUT_PAYMENTS = '*, items:order_items(*)'
+// Items never carry cost_price here; profit views attach it via loadOrderItemCosts.
+const ORDER_HISTORY_SELECT = `*, ${ORDER_ITEMS_EMBED}, payments:order_payments(*)`
+const ORDER_HISTORY_SELECT_WITHOUT_PAYMENTS = `*, ${ORDER_ITEMS_EMBED}`
 
 function normalizeIsoDate(value, fallback) {
   const date = String(value || '').slice(0, 10)

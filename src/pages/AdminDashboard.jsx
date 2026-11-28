@@ -31,6 +31,7 @@ import PageShimmer from '../components/PageShimmer'
 import BusyHoursCard from '../components/BusyHoursCard'
 import ProductContributionCard from '../components/ProductContributionCard'
 import { loadPaidOrdersForRange, mergePaidOrderHistory } from '../lib/orderHistory'
+import { collectOrderIds, loadOrderItemCosts, withOrderItemCosts } from '../lib/orderItemColumns'
 import { getOrdersNetProfit, getSaleProfitSummary, hasOrdersCostCoverage } from '../lib/profit'
 import { RollingValue } from '../components/RollingNumber'
 
@@ -335,11 +336,28 @@ export default function AdminDashboard() {
   }, [comparisonRetry])
 
   // ── Core derived sets ─────────────────────────────────────────────────────
-  const paidOrders = useMemo(
-    () => groupOrdersBySession(
-      mergePaidOrderHistory(yesterdayHistoryOrders, state.orders, yesterdayStr(), todayStr()),
-    ).filter(isPaidOrder),
+  const rangeOrders = useMemo(
+    () => mergePaidOrderHistory(yesterdayHistoryOrders, state.orders, yesterdayStr(), todayStr()),
     [yesterdayHistoryOrders, state.orders]
+  )
+  // POS hydration never carries cost snapshots (they stay out of waiter/cashier
+  // payloads), so profit figures load them for the paid orders shown here.
+  const paidOrderIdsKey = useMemo(
+    () => [...new Set(collectOrderIds(rangeOrders.filter(isPaidOrder)))].sort().join(','),
+    [rangeOrders]
+  )
+  const [itemCosts, setItemCosts] = useState(() => new Map())
+  useEffect(() => {
+    if (!paidOrderIdsKey) return undefined
+    let cancelled = false
+    loadOrderItemCosts(paidOrderIdsKey.split(','))
+      .then(costs => { if (!cancelled) setItemCosts(costs) })
+      .catch(error => { if (!cancelled) console.error('[dashboard] item cost load failed:', error) })
+    return () => { cancelled = true }
+  }, [paidOrderIdsKey])
+  const paidOrders = useMemo(
+    () => groupOrdersBySession(withOrderItemCosts(rangeOrders, itemCosts)).filter(isPaidOrder),
+    [rangeOrders, itemCosts]
   )
   const todayPaidOrders = useMemo(() => getDashboardDayOrders(paidOrders, todayStr()), [paidOrders])
   const yesterdayPaidOrders = useMemo(() => getDashboardDayOrders(paidOrders, yesterdayStr()), [paidOrders])

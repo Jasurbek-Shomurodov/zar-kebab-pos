@@ -15,8 +15,8 @@
 ## Financial history
 
 - Saved prices, costs, service rates, categories and paid state are immutable. Payment rows are saved inputs; the authorized migration `201` split correction preserves their combined total and audits before/after allocations. Reports use its confirmed rows, including merged sessions.
-- Profit: paid revenue minus non-cancelled costs (`src/lib/profit.js`).
-- Missing historical cost: unavailable until backfilled; never substitute current cost.
+- Profit: paid revenue minus non-cancelled costs (`src/lib/profit.js`). Costs: `get_order_item_costs`.
+- Missing historical cost: unavailable until backfilled; never use current cost.
 - Archives retain historical lookups.
 - Reports display the saved Regular/Tourist `orders.price_mode` in desktop, mobile, and details.
 
@@ -33,7 +33,7 @@
 
 - Recent Orders and receipt/delete controls live in Reports. `202` allows deletion only for today's Tashkent payment date (creation fallback), even for owners; older delete controls are hidden. Coverage: `tests/orderDeletion.test.js`.
 - Sales by Category includes every category sold today.
-- Product Contribution ranks ten products by revenue: quantity, share, snapshot profit, margin. Missing cost snapshots show unavailable profit.
+- Product Contribution ranks ten products by revenue: quantity, share, snapshot profit, margin; missing snapshots show unavailable profit.
 - Do not invent products/categories. Monthly Busy Hours (`192`–`193`): 12 two-hour buckets for the Tashkent month by `created_at`, one indexed month, no order details, tied peaks highlighted.
 - Charts: one kit (DESIGN.md › Charts), `src/components/charts/`, `src/lib/chartScale.js`; they only draw. Tests: `tests/chartKit.test.js`.
 - Monthly/ten-day income charts (Financial analysis): 12 months, zero labels hidden. Red dotted break-even per bar: average of its completed days' `260` targets (`breakEvenTarget.js`). Calculated (`263`, `dailyBreakEven.js`): cron saves each day once, dated that day; newest is current; Settings shows yesterday read-only. Past months: immutable snapshots; this month: completed days.

@@ -1168,6 +1168,14 @@ export default {
   {
    "filename": "290_profiles_read_staff_only.sql",
    "sha256": "2cc78a08dd04b06fc7fdf50e6930b9b5b4568b21195bc9453f5b03e120040d50"
+  },
+  {
+   "filename": "291_order_item_costs_rpc.sql",
+   "sha256": "6c5a2f12375aaf4e5f51c9096cfd8b392a885422871c2c03625e1600ced83e8b"
+  },
+  {
+   "filename": "292_hide_order_item_costs_from_staff.sql",
+   "sha256": "21a18368f5f1bd8cc92859c153e752a29dfa543bbec68d1c046e456faf513426"
   }
  ],
  "functions": [
@@ -1925,6 +1933,11 @@ export default {
    "name": "current_user_is_active_staff",
    "filename": "290_profiles_read_staff_only.sql",
    "md5": "d9c44898fc9da34c065474d12218068a"
+  },
+  {
+   "name": "get_order_item_costs",
+   "filename": "291_order_item_costs_rpc.sql",
+   "md5": "be7e566cf68c00deef98aa2cdbb9bb9f"
   }
  ]
 }

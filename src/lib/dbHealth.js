@@ -5,7 +5,7 @@ const TABLE_CHECKS = [
   { name: 'restaurant_tables', columns: ['id', 'name', 'status', 'capacity', 'sort_order', 'is_active', 'reserved_at'] },
   { name: 'table_zones', columns: ['id', 'name', 'sort_order', 'is_active'] },
   { name: 'orders', columns: ['id', 'table_id', 'status', 'payment_status', 'total', 'service_rate_pct', 'loyalty_card_number', 'loyalty_used_amount', 'cashback_earned', 'price_mode', 'opened_by_name', 'completed_by_name', 'stock_deducted_at'] },
-  { name: 'order_items', columns: ['id', 'order_id', 'menu_item_id', 'status', 'quantity', 'sale_unit', 'base_price', 'unit_price', 'price_mode', 'selected_options', 'cost_price', 'category_id_snapshot', 'category_snapshot_captured', 'tech_card_component_snapshot'] },
+  { name: 'order_items', columns: ['id', 'order_id', 'menu_item_id', 'status', 'quantity', 'sale_unit', 'base_price', 'unit_price', 'price_mode', 'selected_options', 'category_id_snapshot', 'category_snapshot_captured', 'tech_card_component_snapshot'] },
   { name: 'tech_card_change_notifications', columns: ['id', 'menu_item_id', 'variant_option_id', 'event_type', 'snapshot', 'status', 'chat_id', 'telegram_message_ids', 'error_message', 'attempted_at', 'sent_at', 'created_at'], access: 'service_only' },
   { name: 'ingredient_investor_notifications', columns: ['id', 'product_key', 'event_type', 'snapshot', 'status', 'chat_id', 'telegram_message_ids', 'error_message', 'attempted_at', 'sent_at', 'created_at'], access: 'service_only' },
   { name: 'order_item_tech_card_ingredient_snapshots', columns: ['order_item_id', 'ingredients', 'is_complete', 'captured_at'], access: 'service_only' },
@@ -127,6 +127,7 @@ const MIGRATION_HINTS = {
   submit_order_to_kitchen: 'Run migrations/018_submit_order_to_kitchen_rpc.sql',
   kitchen_round_receipts_version: 'Run migrations/128_durable_kitchen_round_receipts.sql completely',
   settle_loyalty_wallet_payment: 'Run migrations/027_atomic_loyalty_wallet_settlement.sql',
+  get_order_item_costs: 'Run migrations/291_order_item_costs_rpc.sql',
   settle_orders_payment: 'Run migrations/083_atomic_order_payment_settlement.sql',
   change_paid_order_payment_method_owner: 'Run migrations/090_owner_change_completed_order_payment_method.sql',
   change_paid_order_payment_methods_owner: 'Run migrations/117_owner_change_individual_payment_methods.sql',
@@ -261,6 +262,7 @@ export async function runDbHealthChecks(dbClient = supabase, { manifestLoader = 
   checks.push(await checkRpc(dbClient, 'create_menu_item_with_cost'))
   checks.push(await checkRpc(dbClient, 'create_menu_item_with_media_and_cost'))
   checks.push(await checkRpc(dbClient, 'save_menu_item_tech_card'))
+  checks.push(await checkRpc(dbClient, 'get_order_item_costs', { p_order_ids: [] }))
   checks.push(await checkRpc(dbClient, 'settle_loyalty_wallet_payment'))
   checks.push(await checkRpc(dbClient, 'settle_orders_payment'))
   checks.push(await checkRpc(dbClient, 'change_paid_order_payment_method_owner', { p_order_ids: [], p_payment_method: 'cash' }))

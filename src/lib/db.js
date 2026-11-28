@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { ORDER_ITEM_COLUMNS, ORDER_ITEMS_EMBED } from './orderItemColumns.js'
 import { hasMenuItemImage } from './menuMedia.js'
 import { applyEmbeddedWaiterNames, loadActiveOrderWaiterNames } from './activeOrderWaiters.js'
 import { withWriteTimeout } from './writeTimeout.js'
@@ -625,7 +626,7 @@ export async function loadCashierBillOrders({ tableId = null, orderId = null, si
 
   let query = dbClient
     .from('orders')
-    .select('*, items:order_items(*)')
+    .select(`*, ${ORDER_ITEMS_EMBED}`)
     .or('payment_status.neq.paid,payment_status.is.null')
     .is('paid_at', null)
     .or('status.not.in.(paid,completed,cancelled),status.is.null')
@@ -662,7 +663,7 @@ export async function loadEarliestOrderDate(dbClient = supabase) {
 
 export async function loadReceiptOrderGroup(orderId, options = {}) {
   const dbClient = options.dbClient || supabase
-  const select = '*, items:order_items(*), payments:order_payments(*)'
+  const select = `*, ${ORDER_ITEMS_EMBED}, payments:order_payments(*)`
   const { data: order, error } = await withAbortSignal(dbClient
     .from('orders')
     .select(select)
@@ -698,7 +699,7 @@ export async function loadKitchenCheckOrder(orderId, options = {}) {
   const dbClient = options.dbClient || supabase
   const { data, error } = await withAbortSignal(dbClient
     .from('orders')
-    .select('*, items:order_items(*)')
+    .select(`*, ${ORDER_ITEMS_EMBED}`)
     .eq('id', orderId)
     .maybeSingle(), options.signal)
   if (error) throw error
@@ -995,13 +996,14 @@ export async function writeToSupabase(action, state, options = {}) {
       let { data: insertedItems, error: itemInsertError } = await withAbortSignal(supabase
         .from('order_items')
         .insert(rows)
-        .select('*'), options.signal)
+        .select(ORDER_ITEM_COLUMNS), options.signal)
       if (itemInsertError && isMissingOptionalOrderTypeColumn(itemInsertError)) {
         const fallbackRows = rows.map(({ order_type, kitchen_round_id, submitted_at, base_price, unit_price, price_mode, selected_options, sale_unit, ...row }) => row)
         ;({ data: insertedItems, error: itemInsertError } = await withAbortSignal(supabase
           .from('order_items')
           .insert(fallbackRows)
-          .select('*'), options.signal))
+          // Legacy schema without the optional columns: ask only for columns it has.
+          .select('id, order_id, menu_item_id, name, price, quantity, notes, status, created_at'), options.signal))
       }
       if (itemInsertError) throw itemInsertError
 
@@ -1053,7 +1055,7 @@ export async function writeToSupabase(action, state, options = {}) {
 
       const { data: order } = await supabase
         .from('orders')
-        .select('*, items:order_items(*)')
+        .select(`*, ${ORDER_ITEMS_EMBED}`)
         .eq('id', orderId)
         .maybeSingle()
       if (order) {
@@ -1175,7 +1177,7 @@ export async function writeToSupabase(action, state, options = {}) {
 
       let query = supabase
         .from('orders')
-        .select('*, items:order_items(*)')
+        .select(`*, ${ORDER_ITEMS_EMBED}`)
         .neq('payment_status', 'paid')
       query = orderId ? query.eq('id', orderId) : query.eq('table_id', tableId)
       const { data: orders, error: ordersError } = await query
@@ -1291,7 +1293,7 @@ export async function writeToSupabase(action, state, options = {}) {
 
       let query = supabase
         .from('orders')
-        .select('*, items:order_items(*)')
+        .select(`*, ${ORDER_ITEMS_EMBED}`)
         .neq('payment_status', 'paid')
       query = orderId ? query.eq('id', orderId) : query.eq('table_id', tableId)
       const { data: orders, error: ordersError } = await query

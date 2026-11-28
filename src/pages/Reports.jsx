@@ -4,6 +4,7 @@ import { useApp } from '../store/AppContext'
 import { useOrderDeletionDate } from '../store/useOrderDeletionDate'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { ORDER_ITEM_COLUMNS } from '../lib/orderItemColumns'
 import { getCategoryName } from '../lib/i18n'
 import { formatCurrency, formatGroupedNumber } from '../lib/formatCurrency'
 import { gramsLabel, kcalLabel, millilitresLabel, servesLabel } from '../lib/nutrition'
@@ -1491,7 +1492,7 @@ function OrderDrawer({ order, menuItemMap, onClose, navigate, lang, canOpenRecei
     }
     supabase
       .from('order_items')
-      .select('*')
+      .select(ORDER_ITEM_COLUMNS)
       .in('order_id', ids)
       .then(({ data, error }) => {
         if (cancelled) return
