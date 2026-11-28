@@ -20,7 +20,9 @@ const NAV_GROUPS = [
   { key: 'overview', labels: null },
   { key: 'service', labels: { uz: 'Xizmat', ru: 'Обслуживание', en: 'Service' } },
   { key: 'kitchen', labels: { uz: 'Oshxona va ombor', ru: 'Кухня и склад', en: 'Kitchen & stock' } },
-  { key: 'business', labels: { uz: 'Biznes', ru: 'Бизнес', en: 'Business' } },
+  // Money: where the numbers are read (reports, analysis, owner profit) beside where they are recorded (Accounting).
+  { key: 'money', labels: { uz: 'Pul va hisobotlar', ru: 'Деньги и отчёты', en: 'Money & reports' } },
+  { key: 'admin', labels: { uz: 'Jamoa va nazorat', ru: 'Команда и контроль', en: 'Team & control' } },
 ]
 
 const NAV = [
@@ -105,11 +107,18 @@ const NAV = [
     group: 'kitchen',
   },
   {
+    key: 'reports',
+    icon: BarChart2,
+    labels: { uz: 'Hisobotlar', ru: 'Отчёты', en: 'Reports' },
+    path: '/admin/reports',
+    group: 'money',
+  },
+  {
     key: 'expenses',
     icon: WalletCards,
     labels: { uz: 'Buxgalteriya', ru: 'Бухгалтерия', en: 'Accounting' },
     path: '/admin/accounting/salaries',
-    group: 'business',
+    group: 'money',
   },
   {
     // Its own Team feature; it requires Accounting because it reads the same protected totals.
@@ -118,7 +127,7 @@ const NAV = [
     icon: PieChart,
     labels: { uz: 'Moliyaviy tahlil', ru: 'Финансовый анализ', en: 'Financial analysis' },
     path: '/admin/financial-analysis',
-    group: 'business',
+    group: 'money',
   },
   {
     // A Financial analysis page with its own row; closing a month stays owner-only in the database.
@@ -127,35 +136,28 @@ const NAV = [
     icon: Crown,
     labels: { uz: 'Egasi foydasi', ru: 'Прибыль владельца', en: 'Owner profit' },
     path: '/admin/financial-analysis/owner-profit',
-    group: 'business',
+    group: 'money',
   },
   {
     key: 'team',
     icon: Users,
     labels: { uz: 'Jamoa', ru: 'Команда', en: 'Team' },
     path: '/admin/users',
-    group: 'business',
-  },
-  {
-    key: 'reports',
-    icon: BarChart2,
-    labels: { uz: 'Hisobotlar', ru: 'Отчёты', en: 'Reports' },
-    path: '/admin/reports',
-    group: 'business',
+    group: 'admin',
   },
   {
     key: 'audit',
     icon: ShieldCheck,
     labels: { uz: 'Audit', ru: 'Аудит', en: 'Audit' },
     path: '/admin/audit',
-    group: 'business',
+    group: 'admin',
   },
   {
     key: 'settings',
     icon: Settings,
     labels: { uz: 'Sozlamalar', ru: 'Настройки', en: 'Settings' },
     path: '/admin/settings',
-    group: 'business',
+    group: 'admin',
   },
 ]
 
@@ -200,7 +202,7 @@ function activeKey(pathname) {
 // Desktop density is unchanged; under a finger every control grows to 44px.
 const LANGS = ['uz', 'ru', 'en']
 const FOCUS_RING = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ff5a00]'
-const NAV_ROW = `flex h-[34px] w-full items-center gap-[10px] rounded-lg px-[10px] text-left text-sm font-medium text-[#22201d] transition-colors hover:bg-[#ebe8e5] disabled:cursor-wait disabled:opacity-50 ${FOCUS_RING} focus-visible:outline-offset-[-2px] [@media(pointer:coarse)]:h-11`
+const NAV_ROW = `flex h-[34px] w-full items-center gap-[10px] rounded-lg px-[10px] text-left text-sm font-medium text-[#22201d] no-underline transition-colors hover:bg-[#ebe8e5] disabled:cursor-wait disabled:opacity-50 aria-disabled:cursor-wait aria-disabled:opacity-50 ${FOCUS_RING} focus-visible:outline-offset-[-2px] [@media(pointer:coarse)]:h-11`
 const SQUARE = `grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg text-[#68655f] transition-colors ${FOCUS_RING} focus-visible:outline-offset-2 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11`
 // What the drawer's own button does: it closes the phone drawer, or folds the desktop rail away.
 const SIDEBAR_LABELS = {
@@ -243,6 +245,16 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
     onClose?.()
   }
 
+  // Rows are real links, so Cmd/Ctrl-click, a middle click or "Open in new tab"
+  // opens a second screen (Reports beside Financial analysis); a plain click
+  // stays a client-side move that keeps the cart and filters in memory.
+  function handleLinkClick(event, item) {
+    if (navigationDisabled) { event.preventDefault(); return }
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    handleNav(item)
+  }
+
   function handleSignOut() {
     if (navigationDisabled) return
     dispatch({ type: 'LOGOUT' })
@@ -254,18 +266,18 @@ export default function UnifiedSidebar({ onClose, onCollapse, navigationDisabled
     const active = item.key === current
     return (
       <li key={item.key}>
-        <button
-          type="button"
-          onClick={() => handleNav(item)}
-          disabled={navigationDisabled}
+        <a
+          href={item.path}
+          onClick={event => handleLinkClick(event, item)}
+          aria-disabled={navigationDisabled || undefined}
           data-active={active}
           aria-current={active ? 'page' : undefined}
-          className={`${NAV_ROW} ${active ? 'bg-[#ebe8e5]' : ''}`}
+          className={`${NAV_ROW} ${active ? 'bg-[#ebe8e5] font-semibold' : ''}`}
         >
-          <Icon size={17} strokeWidth={2} className={`flex-shrink-0 ${active ? 'opacity-100' : 'opacity-70'}`} />
+          <Icon size={17} strokeWidth={2} className={`flex-shrink-0 ${active ? 'text-[#bf4300] opacity-100' : 'opacity-70'}`} />
           <span className="truncate">{item.labels[lang] || item.labels.en}</span>
           {item.key === 'cashier' && <AttentionBadge count={cashierAttention} label={attentionLabel} className="ml-auto" />}
-        </button>
+        </a>
       </li>
     )
   }
