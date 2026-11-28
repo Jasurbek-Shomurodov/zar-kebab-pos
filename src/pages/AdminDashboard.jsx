@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   TrendingUp, ShoppingBag, Package, Receipt,
   Clock, ArrowUpRight, ArrowDownRight, Users,
@@ -27,7 +28,13 @@ import {
   getDashboardSalesByCategory,
 } from '../lib/dashboardAnalytics'
 import AppShell from '../components/AppShell'
-import PageShimmer from '../components/PageShimmer'
+import PageShimmer, { Shimmer } from '../components/PageShimmer'
+import BarChart from '../components/charts/BarChart'
+import { CHART_DASH, ChartLegend } from '../components/charts/ChartKit'
+import MonthGlancePanel from '../components/MonthGlancePanel'
+import { buildHourlyComparison, buildTodayGlance } from '../lib/dashboardInsights'
+import { DASHBOARD_DAILY_BREAK_EVEN_INCOME } from '../lib/monthlyIncome'
+import { canViewPage } from '../lib/permissions'
 import BusyHoursCard from '../components/BusyHoursCard'
 import ProductContributionCard from '../components/ProductContributionCard'
 import { loadPaidOrdersForRange, mergePaidOrderHistory } from '../lib/orderHistory'
@@ -67,6 +74,13 @@ const L = {
     footer:         'Barcha ma\'lumotlar to\'langan buyurtmalarga asoslangan',
     loading:        'Yuklanmoqda…',
     noData:         "Ma'lumot yo'q",
+    avgCheck:       'O‘rtacha chek',
+    peakHour:       'Eng faol soat',
+    sameTime:       'Kechaning shu vaqtiga',
+    yesterdayPeak:  'Kechagi eng faol soat',
+    sameTimeShort:  'kecha shu vaqtgacha',
+    hourly:         'Soatlik daromad',
+    noSalesYet:     'Bugun hali savdo yo‘q',
   },
   ru: {
     title:          'Панель управления',
@@ -98,6 +112,13 @@ const L = {
     footer:         'Все данные основаны на оплаченных заказах',
     loading:        'Загрузка…',
     noData:         'Нет данных',
+    avgCheck:       'Средний чек',
+    peakHour:       'Пиковый час',
+    sameTime:       'К этому времени вчера',
+    yesterdayPeak:  'Пиковый час вчера',
+    sameTimeShort:  'вчера к этому часу',
+    hourly:         'Доход по часам',
+    noSalesYet:     'Сегодня продаж пока нет',
   },
   en: {
     title:          'Dashboard',
@@ -129,6 +150,13 @@ const L = {
     footer:         'All data is based on paid orders',
     loading:        'Loading…',
     noData:         'No data yet',
+    avgCheck:       'Average check',
+    peakHour:       'Peak hour',
+    sameTime:       'By this time yesterday',
+    yesterdayPeak:  'Yesterday’s peak hour',
+    sameTimeShort:  'yesterday by now',
+    hourly:         'Income by hour',
+    noSalesYet:     'No sales yet today',
   },
 }
 
@@ -140,12 +168,14 @@ function yesterdayStr() { return addRestaurantDays(todayStr(), -1) }
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function ShimmerBlock({ className = '' }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={`animate-pulse rounded-lg bg-[#efece9] ${className}`}
-    />
-  )
+  return <Shimmer className={`rounded-lg ${className}`} />
+}
+
+const TODAY_COLOR = 'var(--ws-primary)'
+const YESTERDAY_COLOR = 'var(--ws-muted-foreground)'
+
+function hourLabel(hour) {
+  return `${String(hour).padStart(2, '0')}:00`
 }
 
 function KpiCard({ icon: Icon, label, value, sub, subColor, badge, highlight, tone = 'default', loading = false }) {
@@ -159,7 +189,7 @@ function KpiCard({ icon: Icon, label, value, sub, subColor, badge, highlight, to
     <div aria-busy={loading} className="ws-panel flex h-full min-w-0 flex-col">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="ws-caption">{label}</p>
+          <p className="ws-caption first-letter:uppercase">{label}</p>
           {loading ? (
             <ShimmerBlock className="mt-2 h-6 w-2/3" />
           ) : (
@@ -300,7 +330,10 @@ function OrderTypePerformanceCard({ rows, lang }) {
 export default function AdminDashboard() {
   const { state } = useApp()
   const { profile } = useAuth()
+  const navigate = useNavigate()
   const lang = normalizeDateLang(state.lang || 'ru')
+  // The month panel reads Accounting totals: only for people who may open Financial analysis.
+  const showMonth = canViewPage(profile || { role: state.user?.role }, 'financial_analysis')
   const l    = L[lang] || L.en
 
   const displayName = profile?.full_name || state.user?.name || 'Admin'
@@ -421,16 +454,17 @@ export default function AdminDashboard() {
   )
 
   // ── Hourly income chart & comparison with yesterday ──────────────────────
-  const chartBars = useMemo(() => {
-    const currentHour = getRestaurantHour(new Date())
-    return Array.from({ length: currentHour + 1 }, (_, h) => ({
-      label:   `${h}:00`,
-      revenue: todayPaidOrders
-        .filter(o => getRestaurantHour(getOrderDate(o)) === h)
-        .reduce((s, o) => s + getOrderRevenueTotal(o), 0),
-      isCurrent: h === currentHour,
-    }))
-  }, [todayPaidOrders])
+  // Yesterday up to the same hour is the fair comparison while today is still running.
+  const hourly = useMemo(() => buildHourlyComparison(
+    todayPaidOrders,
+    yesterdayPaidOrders,
+    getRestaurantHour(new Date()),
+    { hourOf: order => getRestaurantHour(getOrderDate(order)), revenueOf: getOrderRevenueTotal },
+  ), [todayPaidOrders, yesterdayPaidOrders])
+  const todayGlance = useMemo(
+    () => buildTodayGlance(hourly, { orderCount: todayOrderCount, revenue: todayRevenue }),
+    [hourly, todayOrderCount, todayRevenue]
+  )
 
   // ── Payment methods breakdown ─────────────────────────────────────────────
   const paymentMethods = useMemo(() => {
@@ -471,7 +505,6 @@ export default function AdminDashboard() {
     }
   }
 
-  const chartMax = Math.max(...chartBars.map(b => b.revenue), 1)
   const lastUpdated = formatReadableDateTime(new Date())
 
   if (!state.loaded) {
@@ -549,43 +582,75 @@ export default function AdminDashboard() {
               <h3 className="ws-heading">{l.revenueStats}</h3>
             </div>
 
-            {/* Bar chart — bars use h-full so they fill it properly */}
-            <div className="relative h-36 mb-1">
-              <div className="flex items-end gap-[3px] h-full">
-                {chartBars.map((bar, i) => {
-                  const pct = Math.round((bar.revenue / chartMax) * 100)
-                  return (
-                    <div key={i} className="flex-1 flex items-end h-full group relative min-w-[6px]">
-                      {bar.revenue > 0 && (
-                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-[#22201d] text-white text-xs font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                          {formatCurrency(bar.revenue)}
-                        </div>
+            {/* Today at a glance: the figures a glance should answer, beside the hourly chart. */}
+            <div className="mb-5 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 2xl:grid-cols-4">
+              {[
+                { key: 'avgCheck', label: l.avgCheck, value: todayGlance.averageCheck == null ? '—' : formatCurrency(todayGlance.averageCheck) },
+                { key: 'peak', label: l.peakHour, value: todayGlance.peakHour ? hourLabel(todayGlance.peakHour.hour) : '—', sub: todayGlance.peakHour ? formatCurrency(todayGlance.peakHour.amount) : '' },
+                {
+                  key: 'sameTime',
+                  label: l.sameTime,
+                  value: comparisonLoading ? null : historyError ? '—' : formatCurrency(todayGlance.sameTimeYesterday),
+                  badge: !comparisonLoading && !historyError ? pctBadge(todayGlance.sameTimeChangePct) : null,
+                },
+                {
+                  key: 'yesterdayPeak',
+                  label: l.yesterdayPeak,
+                  value: comparisonLoading ? null : historyError || !todayGlance.yesterdayPeakHour ? '—' : hourLabel(todayGlance.yesterdayPeakHour.hour),
+                  sub: todayGlance.yesterdayPeakHour && !historyError ? formatCurrency(todayGlance.yesterdayPeakHour.amount) : '',
+                },
+              ].map(stat => (
+                <div key={stat.key} className="min-w-0 rounded-[10px] bg-[#f6f5f3] px-4 py-3">
+                  <p className="ws-caption truncate">{stat.label}</p>
+                  {stat.value == null
+                    ? <ShimmerBlock className="mt-2 h-5 w-2/3" />
+                    : <p className="mt-1 whitespace-nowrap text-lg font-semibold tracking-[-.01em] tabular-nums text-[#22201d]">{stat.value}</p>}
+                  {(stat.sub || stat.badge) && (
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      {stat.badge && (
+                        <span className={`ws-badge tabular-nums ${stat.badge.cls}`}>
+                          {stat.badge.up ? <ArrowUpRight /> : <ArrowDownRight />}
+                          {stat.badge.text}
+                        </span>
                       )}
-                      <div
-                        className={`w-full rounded-t-md transition-all ${
-                          bar.isCurrent ? 'bg-[#ff5a00]' : bar.revenue > 0 ? 'bg-[#ff5a00]/35 group-hover:bg-[#ff5a00]/55' : 'bg-[#efece9]'
-                        }`}
-                        style={{ height: `${Math.max(pct, 3)}%` }}
-                      />
+                      {stat.sub && <span className="ws-caption whitespace-nowrap tabular-nums">{stat.sub}</span>}
                     </div>
-                  )
-                })}
-              </div>
+                  )}
+                </div>
+              ))}
             </div>
 
-            {/* X-axis labels — show max 10 evenly, rest hidden */}
-            <div className="flex gap-[3px]">
-              {chartBars.map((bar, i) => {
-                const show = chartBars.length <= 10 || i === chartBars.length - 1 || i % Math.ceil(chartBars.length / 10) === 0
-                return (
-                  <p key={i} className={`flex-1 text-center text-xs font-medium tabular-nums min-w-[6px] ${
-                    bar.isCurrent ? 'text-[#bf4300]' : 'text-[#68655f]'
-                  } ${!show ? 'opacity-0 pointer-events-none' : ''}`}>
-                    {bar.label}
-                  </p>
-                )
-              })}
-            </div>
+            <ChartLegend
+              label={l.hourly}
+              items={[
+                { key: 'today', label: l.today, color: TODAY_COLOR },
+                { key: 'yesterday', label: l.yesterday, color: YESTERDAY_COLOR, kind: 'line', dash: CHART_DASH.average },
+              ]}
+            />
+            {hourly.every(row => !row.today && !row.yesterday) ? (
+              <p className="ws-empty !py-6">{l.noSalesYet}</p>
+            ) : (
+              <BarChart
+                rows={hourly}
+                rowKey={row => row.hour}
+                series={[{ key: 'today', color: TODAY_COLOR }]}
+                value={(row, key) => Number(row[key]) || 0}
+                lang={lang}
+                height={220}
+                minSlot={18}
+                lines={historyError || comparisonLoading ? [] : [{ key: 'yesterday', color: YESTERDAY_COLOR, values: hourly.map(row => row.yesterday), dash: CHART_DASH.average }]}
+                xLabel={row => hourLabel(row.hour)}
+                rowLabel={row => `${hourLabel(row.hour)} · ${formatCurrency(row.today || 0)}`}
+                ariaLabel={l.hourly}
+                tooltip={row => ({
+                  title: `${hourLabel(row.hour)}–${hourLabel((row.hour + 1) % 24)}`,
+                  rows: [
+                    ...(row.today != null ? [{ key: 'today', label: l.today, color: TODAY_COLOR, value: formatCurrency(row.today) }] : []),
+                    ...(!historyError && !comparisonLoading ? [{ key: 'yesterday', label: l.yesterday, color: YESTERDAY_COLOR, kind: 'line', dash: CHART_DASH.average, value: formatCurrency(row.yesterday) }] : []),
+                  ],
+                })}
+              />
+            )}
           </div>
 
           {/* Payment Methods */}
@@ -603,10 +668,13 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex-1 space-y-1.5 min-w-0">
                   {paymentMethods.map(p => (
-                    <div key={p.key} className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                      <span className="text-xs text-[#68655f] flex-1 truncate">{p.label}</span>
-                      <span className="text-xs font-semibold text-[#22201d] tabular-nums flex-shrink-0">{formatPercent(p.pct, lang, 0)}</span>
+                    <div key={p.key} className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+                        <span className="text-xs text-[#68655f] flex-1 truncate">{p.label}</span>
+                        <span className="text-xs font-semibold text-[#22201d] tabular-nums flex-shrink-0">{formatPercent(p.pct, lang, 0)}</span>
+                      </div>
+                      <p className="whitespace-nowrap pl-4 text-xs font-medium text-[#22201d] tabular-nums">{formatCurrency(p.amount)}</p>
                     </div>
                   ))}
                 </div>
@@ -614,6 +682,15 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
+
+        {showMonth && (
+          <MonthGlancePanel
+            lang={lang}
+            today={todayStr()}
+            fallbackTarget={state.settings?.averageDailyBreakEvenIncomeUzs ?? DASHBOARD_DAILY_BREAK_EVEN_INCOME}
+            onOpen={() => navigate('/admin/financial-analysis')}
+          />
+        )}
 
         <OrderTypePerformanceCard rows={orderTypePerformance} lang={lang} />
 

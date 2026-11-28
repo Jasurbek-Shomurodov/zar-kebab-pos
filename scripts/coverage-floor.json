@@ -66,6 +66,7 @@
     "src/components/MenuProductCards.jsx",
     "src/components/MenuWeekdayPicker.jsx",
     "src/components/MobileDrawer.jsx",
+    "src/components/MonthGlancePanel.jsx",
     "src/components/MonthlyIncomeChart.jsx",
     "src/components/NewEmployeeDialog.jsx",
     "src/components/OperationalState.jsx",

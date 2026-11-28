@@ -220,19 +220,30 @@ draw their own grid, tooltip box, legend or bar shape: they use
   average line and target marks), `ChartLegend`, `ChartTooltip`, `ChartGrid`,
   `ChartDot`, `ChartGradient`; geometry (`niceTicks`, `barPath`,
   `smoothPath`) in `src/lib/chartScale.js`. Sizes and dashes in `CHART`.
-- **Axes.** Round ticks (0 / 5M / 10M) through `formatCompactCurrency`; faint
-  dashed guides, a solid zero line, no axis lines or tick marks. Real pixels,
-  never a scaled `viewBox`, so labels stay 12px on a phone.
-- **Marks.** Columns at most 24px wide (16px side by side), 4px rounded at
-  the data end only, a 2px gap between stacked segments. Lines 2px with round
-  joins; an average is dashed (`CHART_DASH.average`), a target dotted.
+- **Axes.** Round ticks (0 / 5M / 10M) through `formatCompactCurrency`, 13px;
+  faint dashed guides at 60% opacity, a solid zero line, no axis lines or tick
+  marks. Real pixels, never a scaled `viewBox`, so labels keep their size on a
+  phone.
+- **Marks.** Columns at most 28px wide (18px side by side), 6px rounded at
+  the data end only, a 2px gap between stacked segments. The lead line is
+  2.5px, comparisons 2px, round joins; an average is dashed
+  (`CHART_DASH.average`), a target dotted.
 - **Hover, touch and focus.** One card (`ChartTooltip`) beside the column or
   point, flipping past the middle; the other columns quiet down. Every
   tappable column is also a focusable button.
 - **Colour.** Series colours are marks only; text stays in the ink tokens.
-  Legends for two or more series; a toggled-off series keeps its colour.
+  Legends for two or more series: hairline pills with a round swatch; a
+  toggled-off series fades to half and is struck through.
 - **Motion.** Columns rise from zero once on mount (280ms), lines fade in;
   hover only changes opacity. Off under `prefers-reduced-motion`.
+
+## Insight panels
+
+A figure that answers a question at one look sits in a borderless
+`bg-[--ws-muted]` inset inside its panel (label, figure, one context line),
+in an `auto-fit` grid so it wraps by itself. Dashboard: *Today at a glance*
+and *This month so far*; Financial analysis: *At a glance*. A cell that names
+a day opens that day; the math lives in `src/lib/dashboardInsights.js`.
 
 ## Motion
 

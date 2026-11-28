@@ -94,6 +94,8 @@ import { formatLongDate, formatMonthYear } from '../lib/dateFormat'
 import { collectPagedRows } from '../lib/orderHistory'
 import { buildOwnerProfitOverview, loadOwnerProfitData } from '../lib/ownerProfit'
 import { RollingText, RollingValue } from '../components/RollingNumber'
+import { buildPeriodHighlights } from '../lib/dashboardInsights'
+import { weekdayName } from '../lib/sheetKit'
 
 const EXPENSE_COLUMNS = 'id, entry_type, expense_date, category, payment_method, amount, vendor, description, created_at'
 const MEAL_COLUMNS = 'business_date, average_daily_amount, present_employee_count, total_amount, source_type, finalized_at, created_at'
@@ -124,6 +126,7 @@ const L = {
     close: 'Yopish',
     refresh: 'Yangilash',
     estimate: 'Oylik taxmin',
+    highlightsTitle: 'Bir qarashda', highlightsSub: 'Davrning eng muhim kunlari va xarajatlari. Kunni bosib, uning pul oqimini oching.', hlBestDay: 'Eng ko‘p daromad', hlWeakestDay: 'Eng kam daromad', hlBestWeekday: 'Eng kuchli hafta kuni', hlSpendDay: 'Eng ko‘p xarajat kuni', hlTopCategory: 'Eng katta xarajat turi', hlLargestPayment: 'Eng katta to‘lov', hlCovered: 'Daromad xarajatni qoplagan kunlar', hlMomentum: 'Davr ichidagi yo‘nalish', hlMomentumSub: 'ikkinchi yarmi birinchisiga nisbatan', hlShareOfIncome: 'davr daromadining {pct}', hlShareOfSpending: 'xarajatning {pct}', hlAvgShort: 'o‘rtacha',
     tabMonthly: 'Oylik',
     tabOverall: 'Umumiy',
     period: 'Hisobot davri',
@@ -211,6 +214,7 @@ const L = {
     close: 'Закрыть',
     refresh: 'Обновить',
     estimate: 'Прогноз на месяц',
+    highlightsTitle: 'С одного взгляда', highlightsSub: 'Главные дни и расходы периода. Нажмите на день, чтобы открыть его денежный поток.', hlBestDay: 'Самый доходный день', hlWeakestDay: 'Самый слабый день', hlBestWeekday: 'Лучший день недели', hlSpendDay: 'День самых больших расходов', hlTopCategory: 'Главная статья расходов', hlLargestPayment: 'Самый крупный платёж', hlCovered: 'Дней, когда доход покрыл расходы', hlMomentum: 'Динамика внутри периода', hlMomentumSub: 'вторая половина к первой', hlShareOfIncome: '{pct} дохода периода', hlShareOfSpending: '{pct} расходов', hlAvgShort: 'в среднем',
     tabMonthly: 'По месяцу',
     tabOverall: 'Общий',
     period: 'Отчётный период',
@@ -298,6 +302,7 @@ const L = {
     close: 'Close',
     refresh: 'Refresh',
     estimate: 'Monthly estimate',
+    highlightsTitle: 'At a glance', highlightsSub: 'The days and costs that mattered most in this period. Tap a day to open its money flow.', hlBestDay: 'Best income day', hlWeakestDay: 'Weakest trading day', hlBestWeekday: 'Strongest weekday', hlSpendDay: 'Biggest spending day', hlTopCategory: 'Biggest cost', hlLargestPayment: 'Largest single payment', hlCovered: 'Days income covered spending', hlMomentum: 'Direction within the period', hlMomentumSub: 'second half vs first half', hlShareOfIncome: '{pct} of the period’s income', hlShareOfSpending: '{pct} of spending', hlAvgShort: 'avg',
     tabMonthly: 'Monthly',
     tabOverall: 'Overall',
     period: 'Reporting period',
@@ -913,6 +918,13 @@ export default function AccountingAnalysis() {
   }
 
   const showData = !loading && analysis && feesSettled
+  const highlights = useMemo(() => (analysis ? buildPeriodHighlights({
+    incomeDays: dailyIncomeDays,
+    spendingDays: analysis.daily,
+    categories: analysis.categories,
+    largest: analysis.largest,
+    today: todayExpenseDate(),
+  }) : null), [analysis, dailyIncomeDays])
   const indicators = analysis?.indicators
   const previousIndicators = analysis?.previousIndicators
   const accountingSummary = analysis?.summary
@@ -1119,6 +1131,8 @@ export default function AccountingAnalysis() {
           ) : (
             <section aria-labelledby="analysis-flow-heading" className="space-y-5">
               <SectionHeading id="analysis-flow-heading" title={l.analysisTitle} description={l.analysisHelp} />
+              <PeriodHighlights highlights={highlights} l={l} lang={lang} categoryName={categoryName} onSelectDay={setSelectedDay} onOpenCategory={openCategoryHistory} />
+
               <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
                 <TotalTile lang={lang} help="moneyIn" label={l.moneyIn} value={indicators.moneyIn} change={getPercentChange(indicators.moneyIn, previousIndicators.moneyIn)} goodWhenUp vsLabel={l.vsPrevious} tone="green" />
                 <TotalTile lang={lang} help="spent" label={l.spent} value={indicators.spent} change={getPercentChange(indicators.spent, previousIndicators.spent)} goodWhenUp={false} vsLabel={l.vsPrevious} tone="orange" />
@@ -1329,6 +1343,54 @@ function SalesRow({ sales, previous, l, lang }) {
   )
 }
 
+// The period at one look: when the most and least came in, the strongest
+// weekday, the heaviest spending day, the biggest cost and payment, and how
+// often a day's income covered its spending. Income cells shimmer until the
+// per-day income arrives; a day opens its money flow.
+function PeriodHighlights({ highlights, l, lang, categoryName, onSelectDay, onOpenCategory }) {
+  if (!highlights) return null
+  const day = value => formatLongDate(value, lang, value, { includeYear: false })
+  const pending = !highlights.incomeReady
+  const cells = [
+    { key: 'best', label: l.hlBestDay, income: true, value: highlights.bestDay && formatCurrency(highlights.bestDay.amount), sub: highlights.bestDay && `${day(highlights.bestDay.date)} · ${fillText(l.hlShareOfIncome, { pct: formatPct(highlights.bestDay.sharePct, lang) })}`, tone: 'text-[#1d7a52]', onClick: highlights.bestDay && (() => onSelectDay(highlights.bestDay.date)) },
+    { key: 'weak', label: l.hlWeakestDay, income: true, value: highlights.weakestDay && formatCurrency(highlights.weakestDay.amount), sub: highlights.weakestDay && day(highlights.weakestDay.date), onClick: highlights.weakestDay && (() => onSelectDay(highlights.weakestDay.date)) },
+    { key: 'weekday', label: l.hlBestWeekday, income: true, value: highlights.bestWeekday && weekdayName(highlights.bestWeekday.sample, lang), sub: highlights.bestWeekday && `${l.hlAvgShort} ${formatCompactCurrency(highlights.bestWeekday.average, lang)}`, capitalize: true },
+    { key: 'momentum', label: l.hlMomentum, income: true, value: highlights.momentumPct == null ? null : signedPct(highlights.momentumPct, lang), sub: l.hlMomentumSub, tone: highlights.momentumPct == null ? '' : highlights.momentumPct >= 0 ? 'text-[#1d7a52]' : 'text-[#c4262c]' },
+    { key: 'spendDay', label: l.hlSpendDay, value: highlights.biggestSpendDay && formatCurrency(highlights.biggestSpendDay.amount), sub: highlights.biggestSpendDay && day(highlights.biggestSpendDay.date), tone: 'text-[#c4262c]', onClick: highlights.biggestSpendDay && (() => onSelectDay(highlights.biggestSpendDay.date)) },
+    { key: 'category', label: l.hlTopCategory, value: highlights.topCategory && categoryName(highlights.topCategory.key), sub: highlights.topCategory && `${formatCurrency(highlights.topCategory.amount)} · ${fillText(l.hlShareOfSpending, { pct: formatPct(highlights.topCategory.sharePct, lang) })}`, onClick: highlights.topCategory && !highlights.topCategory.key.startsWith('__') && highlights.topCategory.key !== SALARY_GROUP_CATEGORY ? () => onOpenCategory(highlights.topCategory.key) : null },
+    { key: 'payment', label: l.hlLargestPayment, value: highlights.largestPayment && formatCurrency(highlights.largestPayment.amount), sub: highlights.largestPayment && [categoryName(highlights.largestPayment.category), highlights.largestPayment.vendor, day(highlights.largestPayment.date)].filter(Boolean).join(' · '), onClick: highlights.largestPayment && (() => onSelectDay(highlights.largestPayment.date)) },
+    { key: 'covered', label: l.hlCovered, income: true, value: highlights.comparableDays ? `${highlights.coveredDays} / ${highlights.comparableDays}` : null, sub: '', tone: highlights.comparableDays && highlights.coveredDays * 2 < highlights.comparableDays ? 'text-[#c4262c]' : '' },
+  ]
+  return (
+    <section aria-labelledby="analysis-highlights-heading" className="ws-panel">
+      <div className="mb-4">
+        <h3 id="analysis-highlights-heading" className="ws-heading">{l.highlightsTitle}</h3>
+        <p className="ws-caption mt-0.5">{l.highlightsSub}</p>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-3">
+        {cells.map(cell => {
+          const body = (
+            <>
+              <span className="ws-caption block truncate">{cell.label}</span>
+              {cell.income && pending
+                ? <Shimmer className="mt-2 h-5 w-3/4 rounded-md" />
+                : <span className={`mt-1 block truncate text-lg font-semibold leading-tight tracking-[-.01em] tabular-nums ${cell.capitalize ? 'first-letter:uppercase' : ''} ${cell.value ? cell.tone || 'text-[#22201d]' : 'text-[#22201d]'}`}>{cell.value || '—'}</span>}
+              {!(cell.income && pending) && cell.value && cell.sub && <span className="ws-caption mt-1 block leading-snug tabular-nums">{cell.sub}</span>}
+            </>
+          )
+          return cell.onClick ? (
+            <button key={cell.key} type="button" onClick={cell.onClick} className="min-w-0 rounded-[10px] bg-[#f6f5f3] px-4 py-3 text-left transition-colors hover:bg-[#ebe8e5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5a00]">
+              {body}
+            </button>
+          ) : (
+            <div key={cell.key} className="min-w-0 rounded-[10px] bg-[#f6f5f3] px-4 py-3">{body}</div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function Indicator({ icon: Icon, label, value, sub, meter = null, tone = 'orange', help = null }) {
   const barColors = { green: 'bg-[#1d7a52]', orange: 'bg-[#ff5a00]', blue: 'bg-[#2a78d6]', red: 'bg-[#c4262c]', teal: 'bg-[#1baf7a]', purple: 'bg-[#4a3aa7]' }
   const width = meter == null ? null : Math.max(0, Math.min(100, meter))
@@ -1449,7 +1511,7 @@ function InvestorSupportBars({ months, l, lang }) {
           return (
             <div key={row.key} role="listitem" className="flex h-full min-w-[60px] flex-1 flex-col items-center justify-end gap-1" title={`${name}: ${formatCurrency(row.amount)}`}>
               {row.amount > 0 && <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-[#2a78d6]">{formatCompactCurrency(row.amount, lang)}</span>}
-              <div className={`w-full max-w-[28px] rounded-t ${row.amount > 0 ? 'bg-[#2a78d6]' : 'bg-[#efece9]'}`} style={{ height: row.amount > 0 && max > 0 ? `${Math.max(6, (row.amount / max) * 80)}%` : '3px' }} />
+              <div className={`w-full max-w-[28px] rounded-t-md ${row.amount > 0 ? 'bg-[#2a78d6]' : 'bg-[#efece9]'}`} style={{ height: row.amount > 0 && max > 0 ? `${Math.max(6, (row.amount / max) * 80)}%` : '3px' }} />
               <span className="text-xs text-[#68655f]">{name.slice(0, 3)}</span>
               <span className="sr-only">{formatCurrency(row.amount)}</span>
             </div>
@@ -1664,7 +1726,7 @@ function MonthlySpendingCard({ spending, status, l, lang, categoryName, onRetry 
               return (
                 <div key={month.key} role="listitem" className="flex h-full min-w-[60px] flex-1 flex-col items-center justify-end gap-1" title={`${name}: ${formatCurrency(month.total)}`}>
                   <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-[#68655f]">{month.total > 0 ? formatCompactCurrency(month.total, lang) : ''}</span>
-                  <div className="flex w-full max-w-[44px] flex-col-reverse overflow-hidden rounded-t" style={{ height: `${Math.max(month.total > 0 ? 4 : 0, (month.total / max) * 82)}%` }}>
+                  <div className="flex w-full max-w-[28px] flex-col-reverse overflow-hidden rounded-t-md" style={{ height: `${Math.max(month.total > 0 ? 4 : 0, (month.total / max) * 82)}%` }}>
                     {month.parts.map(part => <div key={part.key} style={{ height: `${(part.amount / month.total) * 100}%`, backgroundColor: colorOf[part.key] }} />)}
                   </div>
                   <span className="text-xs text-[#68655f]">{name.slice(0, 3)}</span>

@@ -31,38 +31,29 @@
 
 ## Dashboard
 
-- Recent Orders and receipt/delete controls live in Reports. `202` allows deletion only for today's Tashkent payment date (creation fallback), even for owners; older delete controls are hidden. Coverage: `tests/orderDeletion.test.js`.
-- Sales by Category includes every category sold today.
+- Recent orders and receipt/delete controls live in Reports; `202` deletes only today's Tashkent payment date (creation fallback), owners too. Tests: `tests/orderDeletion.test.js`.
+- Sales by Category lists every category sold today.
 - Product Contribution ranks ten products by revenue: quantity, share, snapshot profit, margin; missing snapshots show unavailable profit.
-- Do not invent products/categories. Monthly Busy Hours (`192`–`193`): 12 two-hour buckets for the Tashkent month by `created_at`, one indexed month, no order details, tied peaks highlighted.
+- Never invent products/categories. Monthly Busy Hours (`192`–`193`): 12 two-hour buckets for the Tashkent month by `created_at`, one indexed month, no order details, tied peaks highlighted.
 - Charts: one kit (DESIGN.md › Charts), `src/components/charts/`, `src/lib/chartScale.js`; they only draw. Tests: `tests/chartKit.test.js`.
-- Monthly/ten-day income charts (Financial analysis): 12 months, zero labels hidden. Red dotted break-even per bar: average of its completed days' `260` targets (`breakEvenTarget.js`). Calculated (`263`, `dailyBreakEven.js`): cron saves each day once, dated that day; newest is current; Settings shows yesterday read-only. Past months: immutable snapshots; this month: completed days.
+- Monthly/ten-day income charts: 12 months, zero labels hidden. Red dotted break-even per bar: average of its completed days' `260` targets (`breakEvenTarget.js`). Calculated (`263`, `dailyBreakEven.js`): cron saves each day once, dated that day; newest is current; Settings shows yesterday read-only. Past months: immutable snapshots; this month: completed days.
 - `157` backfills history; a daily cron finalizes last month. Completed months are never rescanned.
-- Daily income (`286`): per-day `payment_method_income`; `buildDailyIncome` stacks methods (rest = other), running avg.
+- Daily income (`286`): per-day `payment_method_income`; `buildDailyIncome` stacks methods (rest = other), running avg
+- `dashboardInsights.js`: hourly today vs yesterday to the hour, This month (Financial analysis access: `286`, `261`, `260`), At a glance. Tests: `dashboardInsights.test.js`
 - Monthly avg: paid cafe income / calendar days; current month uses completed days (zero on day one).
 
 ## Accounting
 
 - Small overview aggregates; details in reports/receipts.
 - Month forecasts use that month’s actual/expected costs, excluding prior arrears.
-- Fines are payroll deductions, never cash expenses. Employee meal snapshots are calculated operating costs without payment methods.
-
-- Game Club (`game_club`) has a separate Dashboard/Reports revenue bucket. Immutable paid totals remain in Accounting, category, payment and range totals. Never reclassify historical take-away/delivery. Tests: `tests/gameClubOrders.test.js`.
-
-- Ingredients movement (`186`): `get_ingredient_movement(date,date)`: purchases, paid-order recipe usage, amounts, bought−used per ingredient/unit, ≤366 Tashkent dates. `279`: sheet (`ingredientPurchaseSheet.js`). Missing/incomplete snapshots are counted; migration `188` excludes unmatched and unmanaged ingredients from rows. Excludes opening stock, waste, adjustments; not an on-hand balance. Compatible g/kg, ml/l, pcs/piece normalize; packages stay separate. Raw snapshots remain service-only. `275`: one lookup per name.
-
-- `187`–`188` add categories and restrict movement to explicitly added (`is_catalog_managed`) ingredients, including archived with history. Filters and sorting run locally, no refetch.
-
+- Fines are payroll deductions, never cash expenses. Employee meal snapshots are calculated costs with no payment method.
+- Game Club (`game_club`) has a separate Dashboard/Reports revenue bucket. Immutable paid totals stay in Accounting, category, payment and range totals. Never reclassify historical take-away/delivery. Tests: `tests/gameClubOrders.test.js`.
+- Ingredients movement (`186`): `get_ingredient_movement(date,date)`: purchases, paid-order recipe usage, amounts, bought−used per ingredient/unit, ≤366 Tashkent dates. `279`: sheet (`ingredientPurchaseSheet.js`). Missing/incomplete snapshots are counted; `188` drops unmatched/unmanaged ingredients. No opening stock, waste or adjustments; not an on-hand balance. Compatible g/kg, ml/l, pcs/piece normalize; packages stay separate. Raw snapshots remain service-only. `275`: one lookup per name.
+- `187`–`188`: categories; movement only for added (`is_catalog_managed`) ingredients, archived ones with history included. Filters and sorting run locally, no refetch.
 - Ten-day income (`190`–`191`): latest 20 periods (1–10, 11–20, 21–end) through a chosen month; ≤8 indexed months, no today/future, cached, empty months hidden, choices from the first order month, stable month colours. Tests: `tests/weeklyIncome.test.js`.
-
 - Reports overview, item, dish and order-list data: SQL readers (`281`–`283`, `src/lib/reportsRpc.js`), Closeout included. Only Excel (`src/lib/sheetKit.js`) loads the full range.
-
 - Dish Analysis: All dishes ranks 30 direct sellers. Selection shows description, sources, hours/log; hides global rankings. Add frozen `tech_card_component_snapshot` quantities × parent quantity; deduplicate orders. No inferred recipes/legacy contents or added set revenue. Tests: `tests/dishSales.test.js`, Excel `dishSalesExport.test.js`.
-
-- Dish sales: loading/errors never mean zero. Low sellers: 15 active products incl. unsold.
-
-- Dish reconciliation helper retains saved inputs and coverage/residual checks; its UI panel is removed. Period remainder includes calculated meals, excludes opening balances. Closeout variance is unknown without counted balances (Not measured). Tests: `tests/closeout.test.js`.
-
+- Dish sales: loading/errors are never zero. Low sellers: 15 active products incl. unsold.
+- Dish reconciliation helper keeps saved inputs and coverage/residual checks (no UI panel). Period remainder includes calculated meals, excludes opening balances. Closeout variance without counted balances is Not measured. Tests: `tests/closeout.test.js`.
 - `210`: see [salary orders](salary-orders.md).
-
 - Custom calendars: `src/components/CalendarPicker.jsx`; ISO values/bounds preserved. Tests: `tests/calendarPicker.test.js`.
